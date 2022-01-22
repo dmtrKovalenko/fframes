@@ -3,6 +3,7 @@ pub mod error;
 mod vtt_parser;
 extern crate nom;
 use error::WebVttError;
+use nom_locate::LocatedSpan;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -221,6 +222,20 @@ impl Display for Vtt {
     }
 }
 
+impl<'a> Debug for WebVttError<'a> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "\n\nparse error: was looking for {}\nmessage: {:?}\nextra: {:?}\n\n{} | {}\n\n",
+            self.looking_for,
+            self.message,
+            self.input.extra,
+            self.input.location_line(),
+            self.input.fragment(),
+        )
+    }
+}
+
 /// Parse [webvtt subtitles](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API) from provided string.
 /// # Example
 /// ```rust
@@ -240,7 +255,17 @@ impl Display for Vtt {
 /// assert_eq!(vtt.cues[0], Cue { start: Time(0), end: Time(5000), text: "Hey subtitle one".to_owned(), name: None, note: None, cue_settings: None });
 /// assert_eq!(vtt.cues[1].cue_settings, Some(CueSettings { align: Some(Align::End), position: None, vertical: None, size: None, line: None }));
 /// ```
+
+pub type Span<'a> = LocatedSpan<&'a str>;
+
 pub fn parse_vtt(content: &str) -> Result<Vtt, WebVttError> {
+    let content_with_newline = format!("{}{}", content, "\n");
+    let content = match content.ends_with("\n") {
+        true => content,
+        false => content_with_newline.as_str(),
+    };
+    let content = Span::from(content);
+
     let (_, vtt) = vtt_parser::parse(content)?;
 
     Ok(vtt)
@@ -418,7 +443,6 @@ mod tests {
 
         assert_eq!(parse_vtt(&content).unwrap(), expected_vtt);
     }
-
     #[test]
     fn incomplete_file() {
         let content = fs::read_to_string("tests/incomplete.vtt").unwrap();
@@ -427,17 +451,14 @@ mod tests {
             Ok(_) => panic!("The data is incomplete, should fail."),
             Err(error) => {
                 assert_eq!(error.looking_for, "Digit");
-                assert_eq!(error.input, "");
+                assert_eq!((error.input.fragment()), Span::from("").fragment());
             }
         }
     }
 
     #[test]
     fn invalid_file() {
-        let content = fs::read_to_string(
-            "/Users/dmitrijkovalenko/dev/rumotion/webvtt-parser/tests/invalid.vtt",
-        )
-        .unwrap();
+        let content = fs::read_to_string("tests/invalid.vtt").unwrap();
 
         match parse_vtt(&content) {
             Ok(_) => panic!("The data is invalid, should fail."),
@@ -447,18 +468,17 @@ mod tests {
                 message,
             }) => {
                 assert_eq!(looking_for, "Tag");
-                assert_eq!(input, ",000\nHey subtitle two\n\n");
+                assert_eq!(
+                    input.fragment(),
+                    Span::from(",000\nHey subtitle two").fragment()
+                );
             }
         }
     }
 
     #[test]
     fn simple_output() {
-        // let content = fs::read_to_string("tests/simple.vtt").unwrap();
-        let content = fs::read_to_string(
-            "/Users/dmitrijkovalenko/dev/rumotion/webvtt-parser/tests/simple.vtt",
-        )
-        .unwrap();
+        let content = fs::read_to_string("tests/simple.vtt").unwrap();
 
         let vtt = parse_vtt(&content).unwrap();
         assert_eq!(format!("{}", vtt), content)

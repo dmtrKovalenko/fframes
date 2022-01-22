@@ -1,17 +1,17 @@
 use nom::error::{ContextError, Error, ErrorKind, ParseError};
+use nom_locate::LocatedSpan;
 
-#[derive(Debug)]
-pub struct WebVttError {
+pub struct WebVttError<'a> {
     /// What we are looking for
     pub looking_for: String,
-    /// What we get
-    pub input: String,
+    /// Span with error details
+    pub input: LocatedSpan<&'a str>,
     /// Context-specific message
     pub message: Option<String>,
 }
 
-impl ParseError<&str> for WebVttError {
-    fn from_error_kind(input: &str, kind: ErrorKind) -> Self {
+impl<'a> ParseError<LocatedSpan<&'a str>> for WebVttError<'a> {
+    fn from_error_kind(input: LocatedSpan<&'a str>, kind: ErrorKind) -> Self {
         WebVttError {
             message: None,
             looking_for: format!("{:?}", kind),
@@ -19,7 +19,7 @@ impl ParseError<&str> for WebVttError {
         }
     }
 
-    fn append(input: &str, kind: ErrorKind, _other: Self) -> Self {
+    fn append(input: LocatedSpan<&'a str>, kind: ErrorKind, _other: Self) -> Self {
         WebVttError {
             message: None,
             looking_for: format!("{:?}", kind),
@@ -27,7 +27,7 @@ impl ParseError<&str> for WebVttError {
         }
     }
 
-    fn from_char(input: &str, c: char) -> Self {
+    fn from_char(input: LocatedSpan<&'a str>, c: char) -> Self {
         WebVttError {
             message: None,
             looking_for: c.to_string(),
@@ -49,8 +49,8 @@ impl ParseError<&str> for WebVttError {
     }
 }
 
-impl ContextError<&str> for WebVttError {
-    fn add_context(input: &str, ctx: &'static str, other: Self) -> Self {
+impl<'a> ContextError<LocatedSpan<&'a str>> for WebVttError<'a> {
+    fn add_context(input: LocatedSpan<&'a str>, ctx: &'static str, other: Self) -> Self {
         WebVttError {
             message: Some(ctx.to_string()),
             input: input.to_owned(),
@@ -59,13 +59,13 @@ impl ContextError<&str> for WebVttError {
     }
 }
 
-impl From<nom::Err<Error<&str>>> for WebVttError {
-    fn from(error: nom::Err<Error<&str>>) -> Self {
+impl<'a> From<nom::Err<Error<LocatedSpan<&'a str>>>> for WebVttError<'a> {
+    fn from(error: nom::Err<Error<LocatedSpan<&'a str>>>) -> Self {
         match error {
             nom::Err::Error(Error { input, code }) => WebVttError::from_error_kind(input, code),
             nom::Err::Failure(Error { input, code }) => WebVttError::from_error_kind(input, code),
             nom::Err::Incomplete(_) => WebVttError {
-                input: "".to_owned(),
+                input: LocatedSpan::from(""),
                 looking_for: "".to_owned(),
                 message: Some("Incomplete data, giving up parsing.".to_owned()),
             },

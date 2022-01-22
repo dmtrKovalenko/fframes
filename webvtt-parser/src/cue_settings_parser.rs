@@ -1,3 +1,4 @@
+use crate::Span;
 use nom::character::complete::space0;
 use nom::{
     branch::alt,
@@ -10,21 +11,21 @@ use nom::{
 use crate::vtt_parser::parse_number;
 use crate::{Align, CueSettings, NumberOrPercentage, Vertical};
 
-fn parse_percentage(input: &str) -> IResult<&str, u8> {
+fn parse_percentage(input: Span) -> IResult<Span, u8> {
     terminated(parse_number::<u8>, tag("%"))(input)
 }
 
-fn parse_percentage_as_generic(input: &str) -> IResult<&str, NumberOrPercentage> {
+fn parse_percentage_as_generic(input: Span) -> IResult<Span, NumberOrPercentage> {
     let (input, percentage) = parse_percentage(input)?;
     Ok((input, NumberOrPercentage::Percentage(percentage)))
 }
 
-fn parse_number_as_generic(input: &str) -> IResult<&str, NumberOrPercentage> {
+fn parse_number_as_generic(input: Span) -> IResult<Span, NumberOrPercentage> {
     let (input, number) = parse_number::<i32>(input)?;
     Ok((input, NumberOrPercentage::Number(number)))
 }
 
-fn parse_line(input: &str) -> IResult<&str, NumberOrPercentage> {
+fn parse_line(input: Span) -> IResult<Span, NumberOrPercentage> {
     let (input, _) = take_until("line:")(input)?;
     let (input, (_, value)) = separated_pair(
         tag("line"),
@@ -35,7 +36,7 @@ fn parse_line(input: &str) -> IResult<&str, NumberOrPercentage> {
     Ok((input, value))
 }
 
-fn parse_align(input: &str) -> IResult<&str, Align> {
+fn parse_align(input: Span) -> IResult<Span, Align> {
     let (input, _) = take_until("align:")(input)?;
     let (input, (_, align)) = separated_pair(
         tag("align"),
@@ -43,7 +44,7 @@ fn parse_align(input: &str) -> IResult<&str, Align> {
         alt((tag("end"), tag("start"), tag("middle"))),
     )(input)?;
 
-    match align {
+    match *align {
         "end" => Ok((input, Align::End)),
         "start" => Ok((input, Align::Start)),
         "middle" => Ok((input, Align::Middle)),
@@ -54,14 +55,14 @@ fn parse_align(input: &str) -> IResult<&str, Align> {
     }
 }
 
-fn parse_vertical(input: &str) -> IResult<&str, Vertical> {
+fn parse_vertical(input: Span) -> IResult<Span, Vertical> {
     let (input, _) = take_until("vertical:")(input)?;
     let (input, (_, vertical)) =
         separated_pair(tag("vertical"), tag(":"), alt((tag("rl"), tag("lr"))))(input)?;
 
     Ok((
         input,
-        if vertical == "rl" {
+        if vertical.to_string() == "rl".to_string() {
             Vertical::RightToLeft
         } else {
             Vertical::LeftToRight
@@ -69,21 +70,21 @@ fn parse_vertical(input: &str) -> IResult<&str, Vertical> {
     ))
 }
 
-fn parse_position(input: &str) -> IResult<&str, u8> {
+fn parse_position(input: Span) -> IResult<Span, u8> {
     let (input, _) = take_until("position:")(input)?;
     let (input, (_, value)) = separated_pair(tag("position"), tag(":"), parse_percentage)(input)?;
 
     Ok((input, value))
 }
 
-fn parse_size(input: &str) -> IResult<&str, u8> {
+fn parse_size(input: Span) -> IResult<Span, u8> {
     let (input, _) = take_until("size:")(input)?;
     let (input, (_, value)) = separated_pair(tag("size"), tag(":"), parse_percentage)(input)?;
 
     Ok((input, value))
 }
 
-pub(crate) fn parse_cue_settings(input: &str) -> IResult<&str, CueSettings> {
+pub(crate) fn parse_cue_settings(input: Span) -> IResult<Span, CueSettings> {
     let (input, _) = space0(input)?;
     let (input, cue_settings_part) = take_until("\n")(input)?;
 
