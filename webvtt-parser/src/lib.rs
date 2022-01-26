@@ -259,11 +259,6 @@ impl<'a> Debug for WebVttError<'a> {
 pub type Span<'a> = LocatedSpan<&'a str>;
 
 pub fn parse_vtt(content: &str) -> Result<Vtt, WebVttError> {
-    let content_with_newline = format!("{}{}", content, "\n");
-    let content = match content.ends_with("\n") {
-        true => content,
-        false => content_with_newline.as_str(),
-    };
     let content = Span::from(content);
 
     let (_, vtt) = vtt_parser::parse(content)?;
@@ -470,7 +465,7 @@ mod tests {
                 assert_eq!(looking_for, "Tag");
                 assert_eq!(
                     input.fragment(),
-                    Span::from(",000\nHey subtitle two").fragment()
+                    Span::from(",000\nHey subtitle two\n\n").fragment()
                 );
             }
         }
@@ -482,5 +477,19 @@ mod tests {
 
         let vtt = parse_vtt(&content).unwrap();
         assert_eq!(format!("{}", vtt), content)
+    }
+
+    #[test]
+    fn no_newline() {
+        let content = fs::read_to_string("tests/no_newline.vtt").unwrap();
+
+        match parse_vtt(&content) {
+            Ok(_) => (),
+            Err(WebVttError {
+                looking_for,
+                input,
+                message,
+            }) => panic!("The data is valid, shouldn't fail."),
+        }
     }
 }

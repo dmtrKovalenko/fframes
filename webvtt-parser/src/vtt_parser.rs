@@ -1,8 +1,8 @@
 use crate::Span;
 use nom::character::complete::{digit1, newline, space0};
-use nom::error::context;
+use nom::error::{context, Error};
 use nom::{
-    bytes::complete::{is_not, tag, take_until},
+    bytes::complete::{is_not, tag, take, take_until},
     combinator::opt,
     multi::{many0, many1},
     sequence::{preceded, separated_pair},
@@ -74,7 +74,11 @@ fn parse_cue(input: Span) -> IResult<Span, Cue> {
     let (input, end) = parse_time(input)?;
     let (input, cue_settings) = opt(parse_cue_settings)(input)?;
     let (input, _) = opt(newline)(input)?;
-    let (input, text) = take_until("\n")(input)?;
+
+    let (input, text) = match take_until::<_, _, Error<_>>("\n")(input) {
+        Ok(val) => val,
+        Err(_) => take(input.len())(input)?,
+    };
 
     Ok((
         input,
@@ -106,8 +110,6 @@ pub fn parse(text: Span) -> IResult<Span, Vtt> {
     let (rest, _) = many0(newline)(rest)?;
 
     if !rest.is_empty() {
-        // If after parsing many cue groups and all newlines nom does not leave an empty string – we have an error
-        // So run the parser again to get the location and error kind.
         let _ = parse_cue(rest)?;
     }
 
