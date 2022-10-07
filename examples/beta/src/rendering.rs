@@ -6,7 +6,7 @@ pub struct RenderingScene {}
 
 impl Scene for RenderingScene {
     fn duration(&self) -> fframes::video::Duration {
-        fframes::Duration::Seconds(4)
+        fframes::Duration::Frames(140)
     }
 
     fn render_frame(
