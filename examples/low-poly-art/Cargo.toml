@@ -1,0 +1,23 @@
+[package]
+name = "low-poly-art-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+svgr-macro = { path="../../svgr-macro" }
+fframes = {path="../../fframes"}
+lazy_static = "1.4.0"
+libm="0.2.1"
+rand="0.8.5"
+getrandom = { version = "0.2", features = ["js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fframes_renderer ={path="../../fframes-renderer"}
+
+[lib]
+name = "low_poly_art_example"
+path = "src/lib.rs"
+
+[[bin]]
+name = "low_poly_art_example_bin"
+path = "src/main.rs"

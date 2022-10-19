@@ -178,3 +178,37 @@ pub fn get_visualization(
 
     res
 }
+
+/// Prettifies audio spectrum by moving low frequences (first elements) in the middle and all the other
+/// elements to be proportionally positioned to the edges from the middle
+///
+/// Stranger if you are reading this comment you might be interested in implementation and how
+/// to make it more efficient and faster. Here is a great place to help fframes by changing implementation
+/// of this function to be in-place and do not allocate.
+pub fn prettify_spectrum(spectrum: &[f32]) -> Vec<f32> {
+    let mut pretty_spectrum = vec![0.0; spectrum.len()];
+    let mid = spectrum.len() / 2 - 1;
+
+    for (i, _) in spectrum.iter().enumerate() {
+        pretty_spectrum[i] = match i {
+            i if i < mid => spectrum[(mid - i) * 2],
+            i if i == mid => spectrum[0],
+            _ => spectrum[(i - mid) * 2 - 1],
+        };
+    }
+
+    pretty_spectrum
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prettify_spectrum() {
+        assert_eq!(
+            prettify_spectrum([1., 2., 3., 4., 5., 6., 7., 8.].as_slice()),
+            vec![7., 5., 3., 1., 2., 4., 6., 8.]
+        );
+    }
+}
