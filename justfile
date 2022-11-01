@@ -32,10 +32,8 @@ bench example:
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
   cd ffmpeg
-  git remote update
   git fetch --tags
-  git tag -l 4.4.2
-  git checkout tags/n{{version}}
+  git checkout n{{4.4.2}}
 
   ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
   make 

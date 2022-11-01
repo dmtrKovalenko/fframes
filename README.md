@@ -5,12 +5,14 @@
 It is also required to have ffmpeg v4 installed, yes unfortunately the latest v5 is not supported yet. Install the 4.4.2 version from your favorite package manager or built it from source:
 
 ```bash
-git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
-git checkout tags/n4.4.2
+  git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
+  cd ffmpeg
+  git fetch --tags
+  git checkout n{{4.4.2}}
 
-./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
-make # build ffmpeg v4
-make install # install c libraries globally
+  ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
+  make
+  make install
 ```
 
 ## Beta testing
@@ -58,5 +60,5 @@ just watch-editor
 
 ## License
 
-Please make sure that this project is under GPLv3 license while in beta. So you are not permitted to modify and redistribute it. 
+Please make sure that this project is under GPLv3 license while in beta. So you are not permitted to modify and redistribute it.
 This will likely be changed once the project will be released.
