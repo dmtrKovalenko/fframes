@@ -33,7 +33,7 @@ install-ffmpeg version:
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
   cd ffmpeg
   git fetch --tags
-  git checkout n{{4.4.2}}
+  git checkout n{{version}}
 
   ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
   make 
