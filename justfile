@@ -31,7 +31,7 @@ bench example:
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
-  cd ffmpeg && git fetch --tagsjj
+  cd ffmpeg && git fetch --tags
   cd ffmpeg && git checkout n{{version}}
 
   cd ffmpeg && ./configure --enable-shared --disable-x86asm
