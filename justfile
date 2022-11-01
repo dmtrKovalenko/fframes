@@ -33,7 +33,7 @@ install-ffmpeg version:
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
   cd ffmpeg
   git remote update
-  git fetch --all --tags
+  git fetch --tags
   git tag -l 4.4.2
   git checkout tags/n{{version}}
 
