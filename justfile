@@ -36,4 +36,4 @@ install-ffmpeg version:
 
   cd ffmpeg && ./configure --enable-shared --disable-x86asm
   cd ffmpeg && make 
-  cd ffmpeg && make install
+  cd ffmpeg && sudo make install
