@@ -32,6 +32,7 @@ bench example:
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
   cd ffmpeg
+  git remote update
   git fetch --tags
   git checkout n{{version}}
 

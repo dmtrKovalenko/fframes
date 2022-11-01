@@ -7,6 +7,7 @@ It is also required to have ffmpeg v4 installed, yes unfortunately the latest v5
 ```bash
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
   cd ffmpeg
+  git remote update
   git fetch --tags
   git checkout n{{4.4.2}}
 
