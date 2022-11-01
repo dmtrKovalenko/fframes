@@ -28,3 +28,12 @@ play example:
 
 bench example:
   cd examples/{{example}} && time cargo run --release
+
+install-ffmpeg version: 
+  git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
+  cd ffmpeg
+  git checkout tags/n{{version}}
+
+  ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
+  make # build ffmpeg v4
+  make install # install c libraries globally

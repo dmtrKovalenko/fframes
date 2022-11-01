@@ -12,18 +12,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - uses: Iamshankhadeep/setup-ffmpeg@v1.2
-        with:
-          # Not strictly necessary, but it may prevent rate limit
-          # errors especially on GitHub-hosted macos machines.
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: "4.4"
-
       - uses: actions/checkout@v2
       - uses: extractions/setup-just@v1
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+
+      - name: Install ffmpeg
+        # TODO CACHE
+        run: just install-ffmpeg 4.4.2
 
       - name: Build
         run: just build 
