@@ -1,10 +1,8 @@
 pub use fframes::{audio_data, fframes_context, frame, video::Video};
-use fframes::{AudioMap, AudioTimestamp, Color, Scene, Svgr};
-use svgr_macro::{self, svgr};
+use fframes::{AudioMap, AudioTimestamp, Scene, Svgr};
 
 pub struct LowPolyVideo {}
 
-mod flamingo;
 mod owl;
 mod pelican;
 mod popuga;
@@ -29,34 +27,29 @@ impl Video for LowPolyVideo {
     }
 
     fn render_frame(&self, frame: frame::Frame, _ctx: &fframes_context::FFramesContext) -> Svgr {
-        const BACKGROUND_EASING: fframes::Easing = fframes::Easing::Linear(5.);
+        fframes::svgr!(
+           <svg
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            width={Self::WIDTH}
+            height={Self::HEIGHT}
+          >
+            <defs>
+              <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
+                <image xlink:href={_ctx.get_image_link("white_noise.png")} x="0" y="0" width="230" height="177" />
+              </pattern>
+            </defs>
 
-        svgr!(
-                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  xmlns:xlink="http://www.w3.org/1999/xlink"
-                  width={Self::WIDTH}
-                  height={Self::HEIGHT}
-                >
-        <defs>
-          <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
-            <image xlink:href={_ctx.get_image_link("white_noise.png")} x="0" y="0" width="230" height="177" />
-          </pattern>
-        </defs>
+            <rect
+              width={Self::WIDTH}
+              height={Self::HEIGHT}
+              x="0"
+              y="0"
+              fill="#000"
+            />
 
-                  <rect
-                    width={Self::WIDTH}
-                    height={Self::HEIGHT}
-                    x="0"
-                    y="0"
-                    fill="#000"
-                  />
-
-
-
-
-                  {_ctx.render_scenes(&frame)}
-                </svg>
-              )
+            {_ctx.render_scenes(&frame)}
+          </svg>
+        )
     }
 }

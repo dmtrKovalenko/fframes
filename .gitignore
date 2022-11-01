@@ -3,8 +3,9 @@ node_modules/
 bin/out
 .DS_Store
 **/some/*.mp4
-out.mp4
+out*.mp4
 .bsb.lock
+test_render/
 .merlin
 fframes-editor/lib
 dist/

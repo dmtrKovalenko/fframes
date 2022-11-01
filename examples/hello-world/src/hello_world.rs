@@ -1,8 +1,10 @@
 pub use fframes::{audio_data, fframes_context, frame, video::Video};
 use fframes::{AudioMap, Color};
-use svgr_macro::{self, svgr};
 
-pub struct HelloWorldVideo {}
+#[derive(Debug)]
+pub struct HelloWorldVideo {
+    pub slug: String,
+}
 
 impl Video for HelloWorldVideo {
     const FPS: usize = 30;
@@ -14,10 +16,14 @@ impl Video for HelloWorldVideo {
         AudioMap::none()
     }
 
-    fn render_frame(&self, frame: frame::Frame, _ctx: &fframes_context::FFramesContext) -> fframes::Svgr {
+    fn render_frame(
+        &self,
+        frame: frame::Frame,
+        _ctx: &fframes_context::FFramesContext,
+    ) -> fframes::Svgr {
         const BACKGROUND_EASING: fframes::Easing = fframes::Easing::Linear(5.);
 
-        svgr!(
+        fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -42,7 +48,7 @@ impl Video for HelloWorldVideo {
             />
 
             <text font-family="DM Sans" x="100" y="300" font-size="150">
-              "Hello World!"
+              {self.slug.as_str()}
             </text>
 
             <text font-weight="500" font-family="JetBrains Mono" x="100" y="440" font-size="74" fill="#4b5563">

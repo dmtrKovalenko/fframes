@@ -24,7 +24,10 @@ struct SpectrumValue<'a> {
     to_color: &'a str,
 }
 
-pub struct MarketingVideo {}
+#[derive(Debug)]
+pub struct MarketingVideo {
+  pub audio_track: &'static str
+}
 
 impl MarketingVideo {
     fn render_ferris(&self, frame: &Frame) -> Svgr {
@@ -230,7 +233,7 @@ impl Video for MarketingVideo {
     fn render_frame(&self, frame: fframes::Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
         let subtitles = ctx.get_subtitles("subtitles.vtt");
         let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
-            audio: ctx.get_audio_data("marketing.mp3"),
+            audio: ctx.get_audio_data(self.audio_track),
             sample_size: audio_data::SampleSize::S16,
             ctx,
             smooth_level: 3,

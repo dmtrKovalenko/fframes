@@ -3,7 +3,9 @@ use hello_world_example::HelloWorldVideo;
 
 fn main() {
     render(
-        HelloWorldVideo {},
+        HelloWorldVideo {
+            slug: "Hello Renderer!".to_owned()
+        },
         "out.mp4",
         RenderOptions {
             media_dir: "./media",
@@ -15,3 +17,4 @@ fn main() {
     )
     .unwrap();
 }
+ 

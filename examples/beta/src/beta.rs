@@ -1,8 +1,11 @@
-use fframes::{animation, AudioMap, AudioTimestamp, Color, Scene, Svgr};
+use fframes::{animation, AudioMap, AudioTimestamp, Scene, Svgr};
 pub use fframes::{audio_data, fframes_context, frame, video::Video};
 use svgr_macro::{self, svgr};
 
-pub struct BetaVideo {}
+pub struct BetaVideo {
+    pub minutes: u32,
+    pub hours: u32,
+}
 
 #[derive(Debug)]
 struct HeadingScene {}
@@ -22,13 +25,15 @@ impl Scene for HeadingScene {
             ))}
             y="40%"
             font-size="150"
+            fill="#000"
           >
-           "r12 to the beta"
+           "Welcome to the beta"
           </text>
 
           <text
             font-family="DM Sans"
             font-weight="700"
+            fill="#000"
             x={frame.animate(fframes::timeline!(
               on 0., val 1000. => 660., &animation::Easing::Spring2(1.0 , 100., 16.)
             ))}
@@ -67,19 +72,41 @@ impl Video for BetaVideo {
             Box::new(HeadingScene {}),
             Box::new(crate::code_demo::CodeDemoScene {}),
             Box::new(crate::rendering::RenderingScene {}),
-            Box::new(crate::iphone::IphoneScene {}),
+            Box::new(crate::iphone::IphoneScene {
+                hours: self.hours,
+                minutes: self.minutes,
+            }),
+            Box::new(crate::github::GithubScene {}),
+            Box::new(crate::examples::ExamplesScene {
+                hello_world_video: hello_world_example::HelloWorldVideo {
+                    slug: "Hello World!".to_string(),
+                },
+                podcast_video: podcast_example::PodcastVideo {
+                    goose_audio: "beta.mp3",
+                    duck_audio: "beta.mp3",
+                    guest_audio: "beta.mp3",
+                },
+                marketing_video: marketing_example::MarketingVideo {
+                    audio_track: "beta.mp3",
+                },
+                tiktok_video: tiktok_example::GooseVideo {
+                    audio_track: "beta.mp3",
+                },
+            }),
+            Box::new(crate::end::EndScene {}),
         ];
 
         fframes::Scenes::from(vec)
     }
 
-    fn render_frame(&self, frame: frame::Frame, _ctx: &fframes_context::FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: frame::Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
         svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
             width={Self::WIDTH}
             height={Self::HEIGHT}
+
           >
             <rect
               width={Self::WIDTH}
@@ -88,17 +115,17 @@ impl Video for BetaVideo {
               y="0"
              fill="#fff"
             />
-                        <image
+
+            <image
               width={Self::WIDTH}
               height={Self::HEIGHT}
               x="0"
               y="0"
-              xlink:href={_ctx.get_image_link("background.png")}
-             fill="#fff"
+              xlink:href={ctx.get_image_link("background.png")}
+              fill="#fff"
             />
 
-            {_ctx.render_scenes(&frame)}
-
+            {ctx.render_scenes(&frame)}
           </svg>
         )
     }

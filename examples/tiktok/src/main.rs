@@ -3,7 +3,9 @@ use tiktok_example::GooseVideo;
 
 fn main() {
     render(
-        GooseVideo {},
+        GooseVideo {
+            audio_track: "thought.mp3"
+        },
         "out.mp4",
         RenderOptions {
             media_dir: "./media",

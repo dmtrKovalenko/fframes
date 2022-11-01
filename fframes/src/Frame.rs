@@ -1,6 +1,7 @@
 use crate::{animation, get_visualization, AnimationRuntime, VisualizeFrameInput};
 
 /// The Frame {} struct contains temporal information about the current frame.
+#[derive(Debug, Clone, Copy)]
 pub struct Frame {
     /// The frame index of the current frame. If rendering a Scene it is relative to the current frame.
     pub index: usize,
@@ -18,6 +19,15 @@ pub struct AnimateRuntimeInput<'a> {
 }
 
 impl Frame {
+    /// Borrows the frame into the same one, but removes relative index in favor of global one.
+    /// Can be useful for using global-videos API from the scene.
+    pub fn into_global(self) -> Self {
+        Self {
+            index: self.global_index,
+            ..self
+        }
+    }
+
     pub fn get_current_second(&self) -> f32 {
         self.index as f32 / self.fps as f32
     }

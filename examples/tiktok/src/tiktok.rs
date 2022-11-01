@@ -14,13 +14,17 @@ lazy_static! {
     static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from_easing(&SPRING);
 }
 
-pub struct GooseVideo {}
+#[derive(Debug)]
+pub struct GooseVideo {
+    pub audio_track: &'static str,
+}
 
 impl Video for GooseVideo {
     const FPS: usize = 60;
     const WIDTH: usize = 1080;
     const HEIGHT: usize = 1920;
-    const DURATION: fframes::Duration = fframes::Duration::FromAudio("thought.mp3");
+    // const DURATION: fframes::Duration = fframes::Duration::FromAudio("thought.mp3");
+    const DURATION: fframes::Duration = fframes::Duration::Seconds(400);
 
     fn audio(&self) -> AudioMap {
         use AudioTimestamp::{Eof, Second};
@@ -30,7 +34,7 @@ impl Video for GooseVideo {
 
     fn render_frame(&self, frame: Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
         let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
-            audio: ctx.get_audio_data("thought.mp3"),
+            audio: ctx.get_audio_data(self.audio_track),
             sample_size: audio_data::SampleSize::S64,
             ctx,
             smooth_level: 4,

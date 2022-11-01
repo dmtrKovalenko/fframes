@@ -1,3 +1,4 @@
+
 use std::future::Future;
 
 use crate::audio_map::AudioMap;
@@ -54,11 +55,24 @@ pub trait Video: Sync + Sized {
         Scenes(None)
     }
 
-    fn render_frame(&self, frame: frame::Frame, ctx: &fframes_context::FFramesContext) -> crate::Svgr;
+    fn render_frame(
+        &self,
+        frame: frame::Frame,
+        ctx: &fframes_context::FFramesContext,
+    ) -> crate::Svgr;
 }
 
 #[derive(Debug)]
 pub struct ResolvedScenesTimeline(pub(crate) Vec<(std::ops::Range<usize>, Box<dyn Scene>)>);
+
+impl ResolvedScenesTimeline {
+    pub fn find_relative_index(&self, frame_index: usize) -> Option<usize> {
+        self.0
+            .iter()
+            .find(|(range, _)| range.contains(&frame_index))
+            .map(|(range, _)| frame_index - range.start)
+    }
+}
 
 // TODO figure out how to reuse. This function completely duplicates a sync version ot it.
 #[allow(dead_code)]
@@ -124,11 +138,29 @@ pub fn resolve_duration_and_scenes_sync<
                     .to_frames_sync(TVideo::FPS, &resolve_audio_duration)?;
 
                 let (overlap_prev, overlap_next) = scene.overlap().to_frames(TVideo::FPS);
-                resolved_scenes.push((
-                    final_duration - overlap_prev..final_duration + duration + overlap_next,
-                    scene,
-                ));
+                let start = if final_duration < overlap_prev {
+                    0
+                } else {
+                    final_duration - overlap_prev
+                };
 
+                let (duration, is_overflow) = duration.overflowing_add(overlap_next);
+                if is_overflow {
+                    return Err(crate::error::FFramesCoreError::Overflow(
+                        "scene duration".to_owned(),
+                        duration,
+                    ));
+                }
+
+                let (end, is_overflow) = final_duration.overflowing_add(duration);
+                if is_overflow {
+                    return Err(crate::error::FFramesCoreError::Overflow(
+                        "scene duration".to_owned(),
+                        end,
+                    ));
+                }
+
+                resolved_scenes.push((start..end, scene));
                 final_duration += duration;
             }
 

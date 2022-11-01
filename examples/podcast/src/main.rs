@@ -4,11 +4,14 @@ use podcast_example::PodcastVideo;
 
 fn main() {
     render(
-        PodcastVideo {},
+        PodcastVideo {
+            goose_audio: "final.mp3",
+            duck_audio: "final.mp3",
+            guest_audio: "final.mp3"
+        },
         "out.mp4",
         RenderOptions {
-            // media_dir: "./media",
-            media_dir: "/Users/dmtrkovalenko/dev/fframes/examples/podcast/media",
+            media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: CpuRenderingBackend {},
             preferred_codec: "libx264",

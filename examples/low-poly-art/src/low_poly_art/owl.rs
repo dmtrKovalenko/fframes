@@ -15,7 +15,7 @@ impl Scene for Owl {
         let noise_x = (rand::random::<f64>() * 60.) as i32 - 30;
         let noise_y = (rand::random::<f64>() * 60.) as i32 - 30;
 
-        let mut visualization = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
+        let visualization = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
             audio: ctx.get_audio_data("owl.mp3"),
             sample_size: fframes::SampleSize::S64,
             smooth_level: 4,
@@ -26,7 +26,7 @@ impl Scene for Owl {
         svgr!(
         <defs>
           <clipPath id="clip-text">
-            <text x="75%" y="35%" text-anchor="middle" dominant-baseline="middle" font-size="100" font-family="Fredoka One">
+            <text x="75%" y="35%" text-anchor="middle" font-size="100" font-family="Fredoka One">
               "EAGLE OWL"
             </text>
           </clipPath>
@@ -37,7 +37,7 @@ impl Scene for Owl {
         </g>
 
         <text
-          x="75%" y="26%" text-anchor="middle" fill="#9f8866" dominant-baseline="middle" font-size="45" font-family="Fredoka One"
+          x="75%" y="26%" text-anchor="middle" fill="#9f8866" font-size="45" font-family="Fredoka One"
         > "BUBO BUBO" </text>
 
          {
@@ -46,10 +46,9 @@ impl Scene for Owl {
                .skip(2)
                .enumerate()
                .map(|(i, fr)|  {
-                 let db = 40.0*libm::log10f(*fr);
                  let save_height = (fr / 400.).max(20.0).min(100.0);
 
-                 svgr_macro::svgr!(
+                 fframes::svgr!(
                    <rect
                      y={(550) as f32 - save_height / 2.0}
                      x={1220 + (i * 15)}

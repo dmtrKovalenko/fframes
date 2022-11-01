@@ -1,15 +1,20 @@
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
 use beta_example::BetaVideo;
+pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
 
 fn main() {
     render(
-        BetaVideo {},
+        BetaVideo {
+            hours: 12,
+            minutes: 4,
+        },
         "out.mp4",
         RenderOptions {
-            media_dir: "./media",
+            // media_dir: "./media",
+            media_dir: "/Users/dmtrkovalenko/dev/fframes/examples/beta/media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: render_backend::CpuRenderingBackend {},
             preferred_codec: "libx264",
+            default_font: "Inter",
             ..Default::default()
         },
     )

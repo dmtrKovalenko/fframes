@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-svgr-macro = { path="../../svgr-macro" }
 fframes = {path="../../fframes"}
 lazy_static = "1.4.0"
 libm="0.2.1"

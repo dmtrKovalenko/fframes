@@ -1,5 +1,5 @@
-use fframes::{animation, svgr, Scene, Video};
-use rand::prelude::*;
+use fframes::{animation, svgr, Scene};
+
 
 #[derive(Debug)]
 pub struct RenderingScene {}
@@ -12,7 +12,7 @@ impl Scene for RenderingScene {
     fn render_frame(
         &self,
         frame: fframes::frame::Frame,
-        ctx: &fframes::FFramesContext,
+        _ctx: &fframes::FFramesContext,
     ) -> fframes::Svgr {
         const GPU_SECOND: f32 = 1.1;
 

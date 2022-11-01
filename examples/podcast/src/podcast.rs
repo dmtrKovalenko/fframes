@@ -1,7 +1,12 @@
 use fframes::{audio_data, fframes_context, frame, video::Video, AudioMap, AudioTimestamp, Svgr};
 use svgr_macro::{self, svgr};
 
-pub struct PodcastVideo {}
+#[derive(Debug)]
+pub struct PodcastVideo {
+    pub goose_audio: &'static str,
+    pub duck_audio: &'static str,
+    pub guest_audio: &'static str,
+}
 
 impl Video for PodcastVideo {
     const FPS: usize = 60;
@@ -20,7 +25,7 @@ impl Video for PodcastVideo {
         let goose_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
             smooth_level: 2,
             ctx,
-            audio: ctx.get_audio_data("final.mp3"),
+            audio: ctx.get_audio_data(self.goose_audio),
             sample_size: audio_data::SampleSize::S32,
             window: None,
         });
@@ -28,20 +33,20 @@ impl Video for PodcastVideo {
         let duck_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
             smooth_level: 2,
             ctx,
-            audio: ctx.get_audio_data("final.mp3"),
+            audio: ctx.get_audio_data(self.duck_audio),
             sample_size: audio_data::SampleSize::S32,
             window: None,
         });
         let guest_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
             smooth_level: 2,
             ctx,
-            audio: ctx.get_audio_data("final.mp3"),
+            audio: ctx.get_audio_data(self.guest_audio),
             sample_size: audio_data::SampleSize::S32,
             window: None,
         });
 
         svgr!(
-        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1080" fill="none">
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1080">
           <g clip-path="url(#clip0)">
             <rect width="1920" height="1080" fill="white"/>
             <rect x="-648" y="-373" width="1946" height="2512" fill="#E7D850"/>

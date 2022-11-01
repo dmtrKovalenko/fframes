@@ -15,7 +15,11 @@ impl Ctx {
 
 #[test]
 pub fn macro_animations() {
-    let frame = Frame { fps: 50, index: 75 };
+    let frame = Frame {
+        global_index: 50,
+        fps: 50,
+        index: 75,
+    };
     let ctx = Ctx {};
 
     assert_eq!(
@@ -41,15 +45,19 @@ pub fn macro_animations() {
                 ))}
             />
           </svg>
-        ),
+        )
+        .value,
         r"".to_string()
     );
 }
 
 #[test]
 pub fn macro_frame_animate_runtime() {
-    let frame = Frame { fps: 50, index: 75 };
-    let ctx = Ctx {};
+    let frame = Frame {
+        fps: 50,
+        index: 75,
+        global_index: 75,
+    };
 
     assert_eq!(
         svgr!(
@@ -64,7 +72,8 @@ pub fn macro_frame_animate_runtime() {
               }
             )}
           />
-        ),
+        )
+        .value,
         r"".to_string()
     );
 }

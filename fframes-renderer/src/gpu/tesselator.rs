@@ -6,7 +6,7 @@ use lyon::{
     path::PathEvent,
     tessellation::{self, FillTessellator, StrokeOptions, StrokeTessellator, VertexBuffers},
 };
-use usvgr::NodeExt;
+use usvgr::{NodeExt, PathSegment};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -98,7 +98,7 @@ pub fn tesselate_svg(
         f: std::f64::NAN,
     };
 
-    for node in rtree.root().descendants() {
+    for node in rtree.root.descendants() {
         match *node.borrow() {
             usvgr::NodeKind::Image(ref _image) => {
                 todo!()
@@ -175,7 +175,7 @@ fn point(x: &f64, y: &f64) -> Point {
 }
 
 pub struct PathConvIter<'a> {
-    iter: std::slice::Iter<'a, usvgr::PathSegment>,
+    iter: usvgr::PathSegmentsIter<'a>,
     prev: Point,
     first: Point,
     needs_end: bool,
@@ -190,13 +190,14 @@ impl<'l> Iterator for PathConvIter<'l> {
         }
 
         let next = self.iter.next();
+       
         match next {
-            Some(usvgr::PathSegment::MoveTo { x, y }) => {
+            Some(PathSegment::MoveTo { x, y }) => {
                 if self.needs_end {
                     let last = self.prev;
                     let first = self.first;
                     self.needs_end = false;
-                    self.prev = point(x, y);
+                    self.prev = point(&x, &y);
                     self.deferred = Some(PathEvent::Begin { at: self.prev });
                     self.first = self.prev;
                     Some(PathEvent::End {
@@ -205,21 +206,21 @@ impl<'l> Iterator for PathConvIter<'l> {
                         close: false,
                     })
                 } else {
-                    self.first = point(x, y);
+                    self.first = point(&x, &y);
                     self.needs_end = true;
                     Some(PathEvent::Begin { at: self.first })
                 }
             }
-            Some(usvgr::PathSegment::LineTo { x, y }) => {
+            Some(PathSegment::LineTo { x, y }) => {
                 self.needs_end = true;
                 let from = self.prev;
-                self.prev = point(x, y);
+                self.prev = point(&x, &y);
                 Some(PathEvent::Line {
                     from,
                     to: self.prev,
                 })
             }
-            Some(usvgr::PathSegment::CurveTo {
+            Some(PathSegment::CurveTo {
                 x1,
                 y1,
                 x2,
@@ -229,15 +230,15 @@ impl<'l> Iterator for PathConvIter<'l> {
             }) => {
                 self.needs_end = true;
                 let from = self.prev;
-                self.prev = point(x, y);
+                self.prev = point(&x, &y);
                 Some(PathEvent::Cubic {
                     from,
-                    ctrl1: point(x1, y1),
-                    ctrl2: point(x2, y2),
+                    ctrl1: point(&x1, &y1),
+                    ctrl2: point(&x2, &y2),
                     to: self.prev,
                 })
             }
-            Some(usvgr::PathSegment::ClosePath) => {
+            Some(PathSegment::ClosePath) => {
                 self.needs_end = false;
                 self.prev = self.first;
                 Some(PathEvent::End {
@@ -266,7 +267,7 @@ impl<'l> Iterator for PathConvIter<'l> {
 
 pub fn convert_path(p: &usvgr::Path) -> PathConvIter {
     PathConvIter {
-        iter: p.data.iter(),
+        iter: p.data.segments(),
         first: Point::new(0.0, 0.0),
         prev: Point::new(0.0, 0.0),
         deferred: None,

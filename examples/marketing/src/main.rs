@@ -3,7 +3,9 @@ use marketing_example::MarketingVideo;
 
 fn main() {
     render(
-        MarketingVideo {},
+        MarketingVideo {
+            audio_track: "marketing.mp3",
+        },
         "out.mp4",
         RenderOptions {
             media_dir: "./media",

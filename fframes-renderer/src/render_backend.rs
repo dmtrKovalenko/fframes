@@ -14,6 +14,15 @@ pub use crate::gpu::GpuRenderingBackend;
 
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
+    fn debug_frame<'a, TVideo: Video + Sync + Sized>(
+        &self,
+        frame: fframes::Frame,
+        out: &'a str,
+        video: TVideo,
+        usvg_options: &usvgr::OptionsRef,
+        ctx: fframes::FFramesContext,
+    ) -> FFramesResult<()>;
+
     fn render<'a, TVideo: Video + Sync + Sized>(
         &self,
         output: &'a str,
@@ -87,7 +96,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
     ) -> FFramesResult<()> {
         let session = Uuid::new_v4();
         let directory = std::env::temp_dir().join(format!("fframes-{session}"));
-        std::fs::create_dir(&directory)?;
+        let directory = std::path::Path::new("test_render");
+
+        if !directory.exists() {
+            std::fs::create_dir(&directory)?;
+        }
 
         let files = split_ffmpeg_chunks(
             duration_in_frames,
@@ -190,6 +203,33 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         }
 
         logger.success(output, directory.to_str());
+        Ok(())
+    }
+
+    fn debug_frame<'a, TVideo: Video + Sync + Sized>(
+        &self,
+        frame: fframes::Frame,
+        out: &str,
+        video: TVideo,
+        usvg_options: &usvgr::OptionsRef,
+        ctx: fframes::FFramesContext,
+    ) -> FFramesResult<()> {
+        let svg = video.render_frame(frame, &ctx).into_string();
+
+        let mut pixmap =
+            svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32).unwrap();
+        let rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+        svgr::render(
+            &rtree,
+            usvgr::FitTo::Original,
+            svgr::tiny_skia::Transform::default(),
+            pixmap.as_mut(),
+        )
+        .unwrap();
+
+        let buffer = pixmap.encode_png().unwrap();
+        std::fs::write(out, buffer)?;
+
         Ok(())
     }
 }

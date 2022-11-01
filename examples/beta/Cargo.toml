@@ -10,6 +10,10 @@ lazy_static = "1.4.0"
 libm="0.2.1"
 rand="0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
+hello-world-example ={path="../hello-world"}
+marketing-example ={path="../marketing"}
+podcast-example ={path="../podcast"}
+tiktok-example ={path="../tiktok"}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer ={path="../../fframes-renderer"}
