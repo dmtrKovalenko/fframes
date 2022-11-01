@@ -34,6 +34,6 @@ install-ffmpeg version:
   cd ffmpeg && git fetch --tags
   cd ffmpeg && git checkout n{{version}}
 
-  cd ffmpeg && ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
+  cd ffmpeg && ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl --disable-x86asm
   cd ffmpeg && make 
   cd ffmpeg && make install
