@@ -36,7 +36,7 @@ impl AnimationRuntime {
         match &self {
             AnimationRuntime::Linear(duration) => *duration,
             AnimationRuntime::SpringRuntime(_spring, duration) => *duration,
-            AnimationRuntime::Static(_) => todo!(),
+            AnimationRuntime::Static(_) => unreachable!(),
         }
     }
 

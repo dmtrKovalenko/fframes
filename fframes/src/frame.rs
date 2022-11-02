@@ -41,12 +41,13 @@ impl Frame {
     /// # Examples
     ///
     /// ```rust
-    /// use fframes::{animation, AnimationRuntime, Frame};
+    /// use fframes::{animation, AnimationRuntime, AnimateRuntimeInput, Frame};
     ///
-    /// let frame = Frame { index: 0, fps: 60 };
-    /// const RUNTIME: AnimationRuntime = AnimationRuntime::from_easing(animation::Easing::Linear(2.0))
+    /// let frame = Frame { index: 0, global_index: 0, fps: 60 };
+    /// let runtime = AnimationRuntime::from_easing(&animation::Easing::Linear(2.0));
     ///
-    /// let value = frame.animate_runtime(AnimateRuntimeInput {  on: 3.2, from: 1000, to: 2000, animation_runtime: &RUNTIME);
+    /// let value = frame.animate_runtime(AnimateRuntimeInput {  on: 3.2, from: 1000., to: 2000., animation_runtime: &runtime });
+    /// assert_eq!(value, 1000.);
     /// ```
     pub fn animate_runtime(
         &self,
@@ -90,11 +91,14 @@ impl Frame {
     /// * from 5.4 to end of file -> 1400
     ///
     /// ```rust
-    /// svgr!(
+    /// use fframes::{ Frame, svgr, animation::Easing};
+    /// let frame = fframes::Frame { index: 0, global_index: 0, fps: 60 };
+    /// 
+    /// fframes::svgr!(
     ///   <rect
     ///     y={frame.animate(fframes::timeline!(
-    ///         on 2.3, val 1400. => 770., Spring(1.85, 130.0, 16.0),
-    ///         on 4.8, val 770. => 1400., Spring(1.85, 130.0, 16.0)
+    ///         on 2.3, val 1400. => 770., Easing::Spring2(1.85, 130.0, 16.0),
+    ///         on 4.8, val 770. => 1400., Easing::Spring2(1.85, 130.0, 16.0)
     ///     ))}
     ///   />
     /// );
