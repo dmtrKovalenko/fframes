@@ -46,7 +46,7 @@ impl Scene for Owl {
                .skip(2)
                .enumerate()
                .map(|(i, fr)|  {
-                 let save_height = (fr / 400.).max(20.0).min(100.0);
+                 let save_height = (fr / 400.).clamp(20.0, 100.0);
 
                  fframes::svgr!(
                    <rect

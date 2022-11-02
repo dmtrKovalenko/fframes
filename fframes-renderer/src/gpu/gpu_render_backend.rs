@@ -393,11 +393,11 @@ impl FFramesRenderBackend for GpuRenderingBackend {
 
     fn debug_frame<'a, TVideo: Video + Sync + Sized>(
         &self,
-        frame_index: fframes::Frame,
-        out: &str,
-        video: TVideo,
-        usvg_options: &usvgr::OptionsRef,
-        ctx: fframes::FFramesContext,
+        _frame_index: fframes::Frame,
+        _out: &str,
+        _video: TVideo,
+        _usvg_options: &usvgr::OptionsRef,
+        _ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         todo!()
     }

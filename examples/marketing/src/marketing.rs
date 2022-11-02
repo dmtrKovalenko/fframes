@@ -284,7 +284,7 @@ impl Video for MarketingVideo {
                 };
 
                  svgr_macro::svgr!(
-                  <filter id={format!("{}-shadow", position)} x="-100%" y="-100%" width="300%" height="300%">
+                  <filter id={format!("{position}-shadow")} x="-100%" y="-100%" width="300%" height="300%">
                     <feGaussianBlur in="SourceAlpha" stdDeviation="10.4"/>
                     <feOffset dx="0" dy="3" result="offsetblur"/>
                     <feFlood flood-color={to_color}  flood-opacity="0.5" />
@@ -295,7 +295,7 @@ impl Video for MarketingVideo {
                     </feMerge>
                   </filter>
 
-                  <linearGradient id={format!("{}-gradient", position)} y2="1">
+                  <linearGradient id={format!("{position}-gradient")} y2="1">
                      <stop stop-color={from_color}/>
                      <stop offset="1" stop-color={to_color} />
                   </linearGradient>
@@ -329,8 +329,8 @@ impl Video for MarketingVideo {
                       }
                     )}
                     transform-origin="center center"
-                    fill={format!("url(#{}-gradient)", position)}
-                    filter={format!("url(#{}-shadow)", position)}
+                    fill={format!("url(#{position}-gradient)")}
+                    filter={format!("url(#{position}-shadow)")}
                     height={bar_height}
                     width={BAR_SIZE}
                     rx={BAR_SIZE / 2}

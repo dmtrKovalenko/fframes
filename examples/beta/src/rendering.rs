@@ -67,7 +67,7 @@ impl Scene for RenderingScene {
           </defs>
 
           <text y="70%" x="11%" fill="#4b5563" font-family="JetBrains Mono" font-size="45" font-weight="600">
-             {format!("Rendering fps: {}", fps_counter)}
+             {format!("Rendering fps: {fps_counter}")}
           </text>
            <rect
              fill="url(#progress)"

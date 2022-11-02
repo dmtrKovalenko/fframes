@@ -26,7 +26,7 @@ impl Scene for CodeDemoScene {
                 )
              }
              y="50"
-             transform={format!("skewX({x}), skewY({y})", x=tilt_angle, y=-tilt_angle + 0.4)}
+             transform={format!("skewX({tilt_angle}), skewY({y})", y=-tilt_angle + 0.4)}
              xlink:href={_ctx.get_image_link("code.png")}
              opacity={frame.animate(fframes::timeline!(
                on 0.3, val 0. => 1., &animation::Easing::Linear(0.5)

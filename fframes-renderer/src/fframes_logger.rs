@@ -81,7 +81,7 @@ impl FFramesLogger for SilentLogger {
     fn log_frame(&self, _index: usize, _thread_number: usize, _svg: &str) {}
 
     fn success(&self, output_path: &str, _temp_files_dir: Option<&str>) {
-        println!("Success. Your video {}", output_path);
+        println!("Success. Your video {output_path}");
     }
 
     fn init_media_processing(&self, _all_frames: usize) {}

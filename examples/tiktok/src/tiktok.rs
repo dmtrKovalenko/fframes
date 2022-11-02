@@ -88,7 +88,7 @@ impl Video for GooseVideo {
 
             {
                 audio_visualization.iter().enumerate().skip(1).take(19).map(|(i, value)| {
-                    let height= (value * 10.).min(400.).max(30.);
+                    let height= (value * 10.).clamp(30., 400.);
                     svgr!(
                         <rect
                             x={i * 50 + 20}
