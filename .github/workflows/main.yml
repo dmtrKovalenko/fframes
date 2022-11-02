@@ -20,8 +20,7 @@ jobs:
 
       # TODO CACHE
       # run: just install-ffmpeg 4.4.2
-      - run: sudo add-apt-repository ppa:savoury1/ffmpeg4
-      - run: sudo apt install ffmpeg
+      - run: sudo apt install libav-tools libavformat-dev libavcodec-dev
       - run: ffmpeg -version
 
       - name: Build
