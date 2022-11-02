@@ -6,7 +6,6 @@ edition = "2018"
 [dependencies]
 svgr = "0.25.0"
 usvgr = "0.25.0"
-handlebars = "4.0.1"
 rayon = "1.5.1"
 colored = "2"
 indicatif = "0.16.2"
