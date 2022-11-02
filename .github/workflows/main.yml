@@ -18,9 +18,7 @@ jobs:
         with:
           toolchain: nightly
 
-      # TODO CACHE
-      # run: just install-ffmpeg 4.4.2
-      - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev
+      - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
 
       - name: Build
         run: just build

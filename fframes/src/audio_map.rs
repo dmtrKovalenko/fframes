@@ -20,10 +20,8 @@ impl AudioTimestamp {
 
     pub(crate) fn to_samples(&self, filename: &str, ctx: &FFramesContext) -> usize {
         match self {
-            AudioTimestamp::Frame(frame) => {
-                frame * ctx.sample_rate / ctx.fps
-            }
-            AudioTimestamp::Second(seconds) => *seconds * ctx.sample_rate as usize,
+            AudioTimestamp::Frame(frame) => frame * ctx.sample_rate / ctx.fps,
+            AudioTimestamp::Second(seconds) => *seconds * ctx.sample_rate,
             AudioTimestamp::Eof => {
                 (ctx.get_audio_data(filename).duration_in_seconds() * ctx.sample_rate as f32)
                     as usize
