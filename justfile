@@ -6,6 +6,7 @@ clippy-fix:
 
 build:
   cargo build
+  yarn
   cd fframes-editor && yarn rescript:build
 
 init-repo:
