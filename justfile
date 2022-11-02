@@ -1,4 +1,7 @@
 clippy:
+  cargo clippy -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match
+
+clippy-fix:
   cargo clippy --fix -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match
 
 build:
