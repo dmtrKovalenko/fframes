@@ -17,7 +17,7 @@ pub(crate) fn prepare_svg_nodes_for_format_statement(
         match node.node_type {
             NodeType::Element => {
                 let name = node.name_as_string().unwrap();
-                out.push_str(&format!("<{}", name));
+                out.push_str(&format!("<{name}"));
 
                 // attributes
                 let (svg_string, attribute_values, attribute_animations) =
@@ -35,7 +35,7 @@ pub(crate) fn prepare_svg_nodes_for_format_statement(
                 values.extend(children_values);
                 animations.extend(child_animations);
 
-                out.push_str(&format!("</{}>", name));
+                out.push_str(&format!("</{name}>"));
             }
             NodeType::Attribute => {
                 out.push_str(&format!(" {}", node.name_as_string().unwrap()));

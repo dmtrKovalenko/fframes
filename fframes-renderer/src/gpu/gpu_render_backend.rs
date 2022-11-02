@@ -304,7 +304,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         let u32_size = std::mem::size_of::<u32>() as u32;
 
                         let output_buffer_size =
-                            (u32_size * texture_size as u32 * texture_size as u32)
+                            (u32_size * texture_size * texture_size)
                                 as wgpu::BufferAddress;
                         let output_buffer_desc = wgpu::BufferDescriptor {
                             size: output_buffer_size,
@@ -352,8 +352,8 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                                 buffer: &output_buffer,
                                 layout: wgpu::ImageDataLayout {
                                     offset: 0,
-                                    bytes_per_row: NonZeroU32::new(u32_size * texture_size as u32),
-                                    rows_per_image: NonZeroU32::new(texture_size as u32),
+                                    bytes_per_row: NonZeroU32::new(u32_size * texture_size),
+                                    rows_per_image: NonZeroU32::new(texture_size),
                                 },
                             },
                             texture_desc.size,

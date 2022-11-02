@@ -78,7 +78,7 @@ impl Display for NumberOrPercentage {
             "{}",
             match self {
                 NumberOrPercentage::Number(number) => number.to_string(),
-                NumberOrPercentage::Percentage(percentage) => format!("{}%", percentage),
+                NumberOrPercentage::Percentage(percentage) => format!("{percentage}%"),
             }
         )
     }
@@ -143,7 +143,7 @@ impl Display for CueSettings {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         fn format_opt<T: Display>(name: &str, option: Option<T>) -> String {
             option
-                .map(|value| format!(" {}:{}", name, value))
+                .map(|value| format!(" {name}:{value}"))
                 .unwrap_or_else(|| "".to_owned())
         }
 
@@ -183,17 +183,17 @@ impl Display for Cue {
             "{}{}{} --> {}{}\n{}\n",
             self.note
                 .as_ref()
-                .map(|comment| format!("NOTE {}\n", comment))
+                .map(|comment| format!("NOTE {comment}\n"))
                 .unwrap_or_else(|| "".to_owned()),
             self.name
                 .as_ref()
-                .map(|comment| format!("NOTE {}\n", comment))
+                .map(|comment| format!("NOTE {comment}\n"))
                 .unwrap_or_else(|| "".to_owned()),
             self.start,
             self.end,
             self.cue_settings
                 .as_ref()
-                .map(|setting| format!("{}", setting))
+                .map(|setting| format!("{setting}"))
                 .unwrap_or_else(|| "".to_owned()),
             self.text
         )
@@ -216,7 +216,7 @@ impl Display for Vtt {
             START_MARKER,
             self.cues
                 .iter()
-                .map(|subtitle| format!("{}\n", subtitle))
+                .map(|subtitle| format!("{subtitle}\n"))
                 .collect::<String>()
         )
     }

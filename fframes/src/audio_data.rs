@@ -17,7 +17,7 @@ impl PreloadedAudioData {
     }
 
     pub fn get_frame_data(&self, length: usize, frame: usize, fps: i64) -> Option<&[i16]> {
-        let start_index = frame as usize * self.sample_rate as usize / fps as usize;
+        let start_index = frame * self.sample_rate as usize / fps as usize;
 
         self.samples.get(start_index..start_index + length)
     }

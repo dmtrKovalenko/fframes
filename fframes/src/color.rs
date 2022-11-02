@@ -51,9 +51,9 @@ impl Color {
                 let b = char_to_digit(buffer[3] as char, 16) as u8;
 
                 Color {
-                    r: (r + r * 16) as u8,
-                    g: (g + g * 16) as u8,
-                    b: (b + b * 16) as u8,
+                    r: (r + r * 16),
+                    g: (g + g * 16),
+                    b: (b + b * 16),
                 }
             }
             7 => {
@@ -65,9 +65,9 @@ impl Color {
                 let b1 = char_to_digit(buffer[6] as char, 16) as u8;
 
                 Color {
-                    r: (r * 16 + r1) as u8,
-                    g: (g * 16 + g1) as u8,
-                    b: (b * 16 + b1) as u8,
+                    r: (r * 16 + r1),
+                    g: (g * 16 + g1),
+                    b: (b * 16 + b1),
                 }
             }
             _ => panic!("Only #RGB or #RRGGBB hex formats are supported"),

@@ -14,9 +14,9 @@ impl fmt::Debug for FFramesCoreError {
             f,
             "{}",
             match self {
-                FFramesCoreError::CanNotProcessAudioDuration(file) => format!("Can not get the duration based on the Duration::FromString. The file {} is not a valid audio file.", file),
+                FFramesCoreError::CanNotProcessAudioDuration(file) => format!("Can not get the duration based on the AudioTimestamp::Eof. The file {file} is not a valid audio file."),
                 FFramesCoreError::MissingDurationOrScenes => "Can not infer the duration of video. The implementation of Video trait must have either const DURATION or the define_scenes method implemented.".to_owned(),
-                FFramesCoreError::Overflow(what, overflow_by) => format!("The {} is overflowed by {}", what, overflow_by)
+                FFramesCoreError::Overflow(what, overflow_by) => format!("The {what} is overflowed by {overflow_by}")
             }
         )
     }

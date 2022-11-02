@@ -59,16 +59,15 @@ impl fmt::Debug for FFramesError {
                     chunk = chunk.to_string().cyan().bold()
                 ),
                 Self::FFmpegError(err) => format!("{err}"),
-                Self::MediaError(err) =>
-                    format!("{}\n{}", "Can't load or process media".bold(), err),
+                Self::MediaError(err) => format!("{}\n{err}", "Can't load or process media".bold()),
                 Self::MissingRequiredMedia(required_media) => format!(
                     "Missing required media {}. Verify that you provided correct media_dir.",
                     required_media.magenta().bold()
                 ),
-                Self::SubtitlesParsingError(err) => format!("{:?}", err),
-                Self::CoreError(err) => format!("{:?}", err),
+                Self::SubtitlesParsingError(err) => format!("{err:?}"),
+                Self::CoreError(err) => format!("{err:?}"),
                 Self::ImageError((file, err)) =>
-                    format!("Can not decoder image {file}. Error {:?}", err),
+                    format!("Can not decode image {file}. Error {err:?}"),
             }
         )
     }

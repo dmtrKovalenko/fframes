@@ -60,7 +60,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
                 .get(name)
                 .map(|main_audio| match main_audio {
                     AudioData::Preloaded(data) => {
-                        data.samples.len() / data.sample_rate as usize * fps as usize
+                        data.samples.len() / data.sample_rate as usize * fps
                     }
                     _ => 0,
                 })

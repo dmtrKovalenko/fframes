@@ -40,7 +40,7 @@ impl ParseError<LocatedSpan<&str>> for VttError {
             message: None,
             line: input.location_line(),
             offset: input.location_offset(),
-            looking_for: format!("{:?}", kind),
+            looking_for: format!("{kind:?}"),
             fragment: input.fragment().to_string(),
         }
     }
@@ -50,7 +50,7 @@ impl ParseError<LocatedSpan<&str>> for VttError {
             message: None,
             line: input.location_line(),
             offset: input.location_offset(),
-            looking_for: format!("{:?}", kind),
+            looking_for: format!("{kind:?}"),
             fragment: input.fragment().to_string(),
         }
     }

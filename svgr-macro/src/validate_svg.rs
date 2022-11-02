@@ -16,7 +16,7 @@ const UNSUPPORTED_NODES: [&str; 9] = [
 pub(crate) fn validate_node(input: &ParseBuffer, node: &NodeName) -> Result<()> {
     match node.to_string() {
         name if UNSUPPORTED_NODES.contains(&name.as_str()) => {
-            Err(input.error(format!("Element <{} /> is not supported", name)))
+            Err(input.error(format!("Element <{name} /> is not supported")))
         }
         _ => Ok(()),
     }
@@ -38,7 +38,7 @@ pub(crate) fn validate_attribute(
             Err(input.error("href attribute is not supported, use xlink:href"))
         }
         (attr, _) if UNSUPPORTED_ATTRS.contains(&attr.as_str()) => {
-            Err(input.error(format!("attribute {} is not supported", attr)))
+            Err(input.error(format!("attribute {attr} is not supported")))
         }
         _ => Ok(()),
     }
