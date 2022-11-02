@@ -2,7 +2,13 @@
 
 [Rust](https://www.rust-lang.org/learn/get-started) and [NodeJS](https://nodejs.org/en/download/) (for local development) toolchains.
 
-It is also required to have ffmpeg v4 installed, yes unfortunately the latest v5 is not supported yet. Install the 4.4.2 version from your favorite package manager or built it from source:
+The only global dependency we have is libav software package that is available to be installed
+
+```sh
+sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
+```
+
+But the easiest to get them is to have ffmpeg v4 installed, yes unfortunately the latest v5 is not supported yet. Install the 4.4.2 version from your favorite package manager or built it from source.
 
 ```bash
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
