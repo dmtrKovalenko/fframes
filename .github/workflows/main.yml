@@ -20,10 +20,13 @@ jobs:
 
       - name: Install ffmpeg
         # TODO CACHE
-        run: just install-ffmpeg 4.4.2
+        # run: just install-ffmpeg 4.4.2
+        run: sudo add-apt-repository ppa:savoury1/ffmpeg4
+        run: sudo apt full-upgrade
+        run: ffmpeg -version
 
       - name: Build
-        run: just build 
+        run: just build
 
       - name: Clippy
         run: just clippy
