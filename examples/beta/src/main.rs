@@ -9,8 +9,7 @@ fn main() {
         },
         "out.mp4",
         RenderOptions {
-            // media_dir: "./media",
-            media_dir: "/Users/dmtrkovalenko/dev/fframes/examples/beta/media",
+            media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: render_backend::CpuRenderingBackend {},
             preferred_codec: "libx264",
