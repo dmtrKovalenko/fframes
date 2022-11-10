@@ -27,7 +27,7 @@ But the easiest to get them is to have ffmpeg v4 installed, yes unfortunately th
 Once everything is installed please install the just command runner and init the repo.
 
 ```bash
-  npm install yarn # the package manager for nodejs based editor
+  npm install --global yarn # the package manager for nodejs based editor
   cargo install just
   just init-repo
 ```
