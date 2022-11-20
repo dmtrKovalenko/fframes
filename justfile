@@ -31,7 +31,7 @@ play example:
   cd examples/{{example}} && ffplay out.mp4
 
 bench example:
-  cd examples/{{example}} && time cargo run --release
+  cd examples/{{example}} && cargo build --release && time cargo run --release
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg

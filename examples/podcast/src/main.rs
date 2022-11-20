@@ -7,13 +7,13 @@ fn main() {
         PodcastVideo {
             goose_audio: "final.mp3",
             duck_audio: "final.mp3",
-            guest_audio: "final.mp3"
+            guest_audio: "final.mp3",
         },
         "out.mp4",
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: CpuRenderingBackend {},
+            render_backend: CpuRenderingBackend { cache_capacity: 20 },
             preferred_codec: "libx264",
             ..Default::default()
         },
