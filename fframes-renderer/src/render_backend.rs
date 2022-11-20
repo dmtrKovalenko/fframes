@@ -1,4 +1,4 @@
-use fframes::{frame, video::Video, ResolvedAudioMap, Svgr};
+use fframes::{frame, video::Video, ResolvedAudioMap};
 use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Range, sync::Arc};
 use svgr::SvgrCache;
@@ -61,6 +61,11 @@ impl Default for RenderBackendVariant {
 
 #[derive(Default)]
 pub struct CpuRenderingBackend {
+    /// The number of **individual svg elements or groups** to cache. It is important to understand that CPU
+    /// rendering is very slow for mostly all the filters, shadows and gradients so this is important to reuse unchanged elements.
+    /// But from the flip side do not set this to the unreasonably large values as it will consume a lot of memory for no reason.
+    ///
+    /// The optimal size = general number of static (not animating) elements in your video.
     pub cache_capacity: usize,
 }
 
