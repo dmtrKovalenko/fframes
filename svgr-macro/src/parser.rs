@@ -44,8 +44,7 @@ impl Parser {
         if let Some(number_of_top_level_nodes) = &self.config.number_of_top_level_nodes {
             if &top_level_nodes != number_of_top_level_nodes {
                 return Err(input.error(format!(
-                    "saw {} top level nodes but exactly {} are required",
-                    top_level_nodes, number_of_top_level_nodes
+                    "saw {top_level_nodes} top level nodes but exactly {number_of_top_level_nodes} are required",
                 )));
             }
         }

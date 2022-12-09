@@ -33,15 +33,10 @@ impl Display for Time {
         if hours > 0 {
             write!(
                 formatter,
-                "{:02}:{:02}:{:02}.{:03}",
-                hours, minutes, seconds, milliseconds
+                "{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}",
             )
         } else {
-            write!(
-                formatter,
-                "{:02}:{:02}.{:03}",
-                minutes, seconds, milliseconds
-            )
+            write!(formatter, "{minutes:02}:{seconds:02}.{milliseconds:03}",)
         }
     }
 }
@@ -452,7 +447,9 @@ mod tests {
                 assert_eq!(looking_for, "Tag");
                 assert_eq!(
                     fragment,
-                    Span::from(",000\nHey subtitle two\n\n").fragment().to_owned()
+                    Span::from(",000\nHey subtitle two\n\n")
+                        .fragment()
+                        .to_owned()
                 );
             }
         }

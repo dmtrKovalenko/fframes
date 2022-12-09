@@ -15,10 +15,10 @@ pub use crate::gpu::GpuRenderingBackend;
 
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
-    fn debug_frame<'a, TVideo: Video + Sync + Sized>(
+    fn debug_frame<TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,
-        out: &'a str,
+        out: &str,
         video: TVideo,
         usvg_options: &usvgr::OptionsRef,
         ctx: fframes::FFramesContext,
