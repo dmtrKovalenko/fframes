@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "e2e",
     "svgr-macro",
     "media-loader",
     "webvtt-parser",

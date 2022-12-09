@@ -501,6 +501,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "e2e-tests"
+version = "0.1.0"
+dependencies = [
+ "fframes",
+ "fframes_renderer",
+ "lazy_static",
+ "libm",
+]
+
+[[package]]
 name = "editor-bridge"
 version = "0.1.0"
 dependencies = [
