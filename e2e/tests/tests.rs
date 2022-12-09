@@ -1,11 +1,5 @@
-use std::{
-    fmt::Error,
-    fs,
-    path::{self, Path},
-    process::{Command, ExitStatus},
-};
-
-use e2e_test_video::{frame, test_video::TestVideo};
+use std::{fs, process::Command};
+use e2e_test_video::test_video::TestVideo;
 pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
 use rayon::prelude::*;
 
@@ -50,7 +44,7 @@ fn e2e_rendering() {
 
     if !frames_diff_dir.exists() {
         std::fs::create_dir(&frames_diff_dir).expect("failed to create frames results directory");
-    } else { 
+    } else {
         std::fs::remove_dir_all(&frames_diff_dir).expect("failed to remove frames diff directory");
         std::fs::create_dir(&frames_diff_dir).expect("failed to create frames results directory");
     }
@@ -105,6 +99,9 @@ fn e2e_rendering() {
         .sum::<u32>();
 
     if failed_count > 0 {
-        panic!("{} frames are visually different, check frames/diff folder for details", failed_count);
+        panic!(
+            "{} frames are visually different, check frames/diff folder for details",
+            failed_count
+        );
     }
 }
