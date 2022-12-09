@@ -9,4 +9,5 @@ test_render/
 .merlin
 fframes-editor/lib
 dist/
+*_long.mp3
 .rsw/

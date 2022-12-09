@@ -754,6 +754,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fontdb"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8131752b3f3b876a20f42b3d08233ad177d6e7ec6d18aaa6954489a201071be5"
+dependencies = [
+ "fontconfig-parser",
+ "log",
+ "memmap2",
+ "ttf-parser 0.17.1",
+]
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -934,7 +946,7 @@ checksum = "a538f217be4d405ff4719a283ca68323cc2384003eca5baaa87501e821c81dda"
 dependencies = [
  "bitflags",
  "gpu-descriptor-types",
- "hashbrown",
+ "hashbrown 0.11.2",
 ]
 
 [[package]]
@@ -957,6 +969,15 @@ name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+dependencies = [
+ "ahash",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
  "ahash",
 ]
@@ -1022,7 +1043,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f647032dfaa1f8b6dc29bd3edb7bbef4861b8b8007ebb118d6db284fd59f6ee"
 dependencies = [
  "autocfg",
- "hashbrown",
+ "hashbrown 0.11.2",
 ]
 
 [[package]]
@@ -1235,6 +1256,15 @@ dependencies = [
  "lazy_static",
  "libm",
  "rand",
+]
+
+[[package]]
+name = "lru"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6e8aaa3f231bb4bd57b84b2d5dc3ae7f350265df8aa96492e0bc394a1571909"
+dependencies = [
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -2141,11 +2171,12 @@ dependencies = [
 
 [[package]]
 name = "svgr"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57ddb3332d54578485440d95e75db57d6734cd7cc8578b342710552571784d78"
+checksum = "5e242a29b425efb86947f4a303cbccbc7b224f3236a18fb742f08b0195a96f91"
 dependencies = [
  "log",
+ "lru",
  "pico-args",
  "rgb",
  "svgfilters",
@@ -2168,9 +2199,9 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3992a35ce04d9ebcbacdfe996d583c3ddab31ffb4f9ac965fcd2f906cc01eec3"
+checksum = "b33af61cff282f8f6f9fa5ce7e6ed2b697c9dfe4916ac3d6db0a0e85ea056d02"
 dependencies = [
  "siphasher",
 ]
@@ -2398,7 +2429,7 @@ dependencies = [
  "data-url 0.1.0",
  "flate2",
  "float-cmp",
- "fontdb",
+ "fontdb 0.9.3",
  "kurbo",
  "log",
  "pico-args",
@@ -2417,14 +2448,14 @@ dependencies = [
 
 [[package]]
 name = "usvgr"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be63071b6d270a7c5fb84cfe91ec908d43487b5ededc8f5fd9864699fd05d4c3"
+checksum = "a186195e1e8a165b00f3e025def1117b87cd8ec0cfed9eae1ef33e02f9b30bb3"
 dependencies = [
  "base64",
  "data-url 0.2.0",
  "flate2",
- "fontdb",
+ "fontdb 0.10.0",
  "kurbo",
  "log",
  "pico-args",

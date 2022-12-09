@@ -8,7 +8,10 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {},
+            render_backend: render_backend::CpuRenderingBackend {
+                // Not that big cache capacity because the whole sub-svg will be cached
+                cache_capacity: 5 
+            },
             preferred_codec: "libx264",
             ..Default::default()
         },

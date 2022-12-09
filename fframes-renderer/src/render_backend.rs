@@ -1,6 +1,7 @@
 use fframes::{frame, video::Video, ResolvedAudioMap};
 use rayon::prelude::*;
-use std::{ops::Range, sync::Arc};
+use std::{num::NonZeroUsize, ops::Range, sync::Arc};
+use svgr::SvgrCache;
 use uuid::Uuid;
 
 use crate::{
@@ -59,7 +60,14 @@ impl Default for RenderBackendVariant {
 }
 
 #[derive(Default)]
-pub struct CpuRenderingBackend {}
+pub struct CpuRenderingBackend {
+    /// The number of **individual svg elements or groups** to cache. It is important to understand that CPU
+    /// rendering is very slow for mostly all the filters, shadows and gradients so this is important to reuse unchanged elements.
+    /// But from the flip side do not set this to the unreasonably large values as it will consume a lot of memory for no reason.
+    ///
+    /// The optimal size = general number of static (not animating) elements in your video.
+    pub cache_capacity: usize,
+}
 
 fn split_ffmpeg_chunks(duration_in_frames: usize, chunk_size: usize) -> Vec<Range<usize>> {
     let mut chunks = vec![];
@@ -126,6 +134,13 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                     &mut |encoder| {
                         let mut last_svg = "".to_owned();
                         let mut frame = EncoderFrame::make(&encoder.video_stream);
+
+                        let mut cache = if self.cache_capacity == 0 {
+                            SvgrCache::none()
+                        } else {
+                            SvgrCache::new(NonZeroUsize::new(40).unwrap())
+                        };
+
                         let mut pixmap = svgr::tiny_skia::Pixmap::new(
                             TVideo::WIDTH as u32,
                             TVideo::HEIGHT as u32,
@@ -155,6 +170,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         usvgr::FitTo::Original,
                                         svgr::tiny_skia::Transform::default(),
                                         pixmap.as_mut(),
+                                        &mut cache,
                                     )
                                     .unwrap();
 
@@ -219,11 +235,13 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         let mut pixmap =
             svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32).unwrap();
         let rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+
         svgr::render(
             &rtree,
             usvgr::FitTo::Original,
             svgr::tiny_skia::Transform::default(),
             pixmap.as_mut(),
+            &mut SvgrCache::none(),
         )
         .unwrap();
 

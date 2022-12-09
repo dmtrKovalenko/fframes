@@ -22,7 +22,7 @@ pub(crate) fn validate_node(input: &ParseBuffer, node: &NodeName) -> Result<()> 
     }
 }
 
-const UNSUPPORTED_ATTRS: [&str; 1] = ["dominant-baseline"];
+const UNSUPPORTED_ATTRS: [&str; 0] = [];
 
 pub(crate) fn validate_attribute(
     input: &ParseBuffer,

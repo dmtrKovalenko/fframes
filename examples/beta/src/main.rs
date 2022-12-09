@@ -11,7 +11,9 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {},
+            render_backend: render_backend::CpuRenderingBackend {
+                cache_capacity: 20 
+            },
             preferred_codec: "libx264",
             default_font: "Inter",
             ..Default::default()
