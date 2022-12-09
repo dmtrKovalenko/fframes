@@ -507,7 +507,7 @@ dependencies = [
  "fframes",
  "fframes_renderer",
  "lazy_static",
- "libm",
+ "rayon",
 ]
 
 [[package]]

@@ -11,3 +11,5 @@ fframes-editor/lib
 dist/
 *_long.mp3
 .rsw/
+e2e/frames/results/*
+e2e/frames/diff/*

@@ -1526,6 +1526,11 @@ object-hash@^3.0.0:
   resolved "https://registry.yarnpkg.com/object-hash/-/object-hash-3.0.0.tgz#73f97f753e7baffc0e2cc9d6e079079744ac82e9"
   integrity sha512-RSn9F68PjH9HqtltsSnqYC1XXoWe9Bju5+213R98cNGttag9q9yAOTzdbsqvIa7aNm5WffBZFpWYr2aWrklWAw==
 
+odiff-bin@^2.5.1:
+  version "2.5.1"
+  resolved "https://registry.yarnpkg.com/odiff-bin/-/odiff-bin-2.5.1.tgz#6f8725ccca38ee579ba82b8f7814b207f59b88af"
+  integrity sha512-tk4mv9MgulM0zcKXLp4gAc+C+1+1OJ3kJFae1kzLbEiF7wMT23GxJ4gYC4c2NVv9Be3ODuD1dClTsaKW5zVhQA==
+
 once@^1.3.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/once/-/once-1.4.0.tgz#583b1aa775961d4b113ac17d9c50baef9dd76bd1"

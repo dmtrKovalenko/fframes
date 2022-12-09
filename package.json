@@ -7,5 +7,8 @@
   ],
   "dependencies": {
     "react-from-svg": "^5.1.2"
+  },
+  "devDependencies": {
+    "odiff-bin": "^2.5.1"
   }
 }

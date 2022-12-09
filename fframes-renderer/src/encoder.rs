@@ -270,8 +270,8 @@ impl EncoderFrame {
         let frame_size: usize = height * (*av_frame).linesize[0] as usize + width;
 
         let y_pixels = std::slice::from_raw_parts_mut((*av_frame).data[0], frame_size);
-        let cb_pixels = std::slice::from_raw_parts_mut((*av_frame).data[1], frame_size / 4);
-        let cr_pixels = std::slice::from_raw_parts_mut((*av_frame).data[2], frame_size / 4);
+        let cb_pixels = std::slice::from_raw_parts_mut((*av_frame).data[1], frame_size / 2);
+        let cr_pixels = std::slice::from_raw_parts_mut((*av_frame).data[2], frame_size / 2);
 
         for y in 0..height {
             for x in 0..width {
