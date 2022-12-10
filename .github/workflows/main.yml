@@ -38,10 +38,11 @@ jobs:
       - name: Test
         run: cargo test
 
-      - name: Archive code coverage results
+      - name: Upload visual regression results and diff 
         uses: actions/upload-artifact@v3
+        if: failure()
         with:
-          name: code-coverage-report
-          path: | 
+          name: results
+          if-no-files-found: error
+          path: |
             e2e/frames/results
-            e2e/frames/diff
