@@ -19,12 +19,13 @@ jobs:
           toolchain: nightly
           override: true
           components: rustfmt, clippy
+
       - uses: Iamshankhadeep/setup-ffmpeg@v1.2
          with:
            # Not strictly necessary, but it may prevent rate limit
            # errors especially on GitHub-hosted macos machines.
            token: ${{ secrets.GITHUB_TOKEN }}
-         version: "4.4"
+           version: "4.4"
 
       - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
 
