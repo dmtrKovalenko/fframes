@@ -46,3 +46,5 @@ jobs:
           if-no-files-found: error
           path: |
             e2e/frames/results
+            e2e/frames/diff
+            e2e/out.mp4
