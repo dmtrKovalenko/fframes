@@ -13,7 +13,10 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: CpuRenderingBackend { cache_capacity: 20 },
+            render_backend: CpuRenderingBackend {
+                cache_capacity: 20,
+                ..Default::default()
+            },
             preferred_codec: "libx264",
             ..Default::default()
         },

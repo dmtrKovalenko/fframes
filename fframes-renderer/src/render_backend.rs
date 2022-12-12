@@ -59,36 +59,54 @@ impl Default for RenderBackendVariant {
     }
 }
 
-#[derive(Default)]
 pub struct CpuRenderingBackend {
     /// The number of **individual svg elements or groups** to cache. It is important to understand that CPU
     /// rendering is very slow for mostly all the filters, shadows and gradients so this is important to reuse unchanged elements.
     /// But from the flip side do not set this to the unreasonably large values as it will consume a lot of memory for no reason.
     ///
     /// The optimal size = general number of static (not animating) elements in your video.
+    ///
+    /// @default 20
     pub cache_capacity: usize,
+    /// The number of threads to use for rendering. By default it will use the number of logical cores on your machine.
+    /// There is no reason to set this to a value greater than the number of logical cores because each thread will render its own video which after will be concatenated.
+    ///
+    /// @default rayon::current_num_threads()
+    pub concurrency: usize,
 }
 
-fn split_ffmpeg_chunks(duration_in_frames: usize, chunk_size: usize) -> Vec<Range<usize>> {
-    let mut chunks = vec![];
-    let mut prev_chunk = 0;
-
-    while prev_chunk < duration_in_frames {
-        if duration_in_frames - prev_chunk > chunk_size {
-            chunks.push(prev_chunk..prev_chunk + chunk_size);
-            prev_chunk += chunk_size;
-        } else {
-            let last_chunk = duration_in_frames - prev_chunk;
-            chunks.push(prev_chunk..prev_chunk + last_chunk);
-            prev_chunk += last_chunk;
+impl Default for CpuRenderingBackend {
+    fn default() -> Self {
+        Self {
+            cache_capacity: 20,
+            concurrency: rayon::current_num_threads(),
         }
     }
-
-    chunks
 }
 
-pub fn divide_round_up(a: usize, b: usize) -> usize {
+fn divide_round_up(a: usize, b: usize) -> usize {
     (a + (b - 1)) / b
+}
+
+impl CpuRenderingBackend {
+    fn split_video_chunks(&self, duration_in_frames: usize) -> Vec<Range<usize>> {
+        let chunk_size = divide_round_up(duration_in_frames, self.concurrency);
+        let mut chunks = vec![];
+        let mut prev_chunk = 0;
+
+        while prev_chunk < duration_in_frames {
+            if duration_in_frames - prev_chunk > chunk_size {
+                chunks.push(prev_chunk..prev_chunk + chunk_size);
+                prev_chunk += chunk_size;
+            } else {
+                let last_chunk = duration_in_frames - prev_chunk;
+                chunks.push(prev_chunk..prev_chunk + last_chunk);
+                prev_chunk += last_chunk;
+            }
+        }
+
+        chunks
+    }
 }
 
 impl FFramesRenderBackend for CpuRenderingBackend {
@@ -110,102 +128,103 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             std::fs::create_dir(&directory)?;
         }
 
-        let files = split_ffmpeg_chunks(
-            duration_in_frames,
-            divide_round_up(duration_in_frames, rayon::current_num_threads()),
-        )
-        .par_iter()
-        .enumerate()
-        .map(|(thread_number, chunk_range)| {
-            let file = directory
-                .join(format!("{thread_number}.mp4"))
-                .into_os_string()
-                .into_string()
-                .unwrap();
+        let concurrent_chunks = self.split_video_chunks(duration_in_frames);
 
-            unsafe {
-                Encoder::with_output(
-                    TVideo::WIDTH as i32,
-                    TVideo::HEIGHT as i32,
-                    TVideo::FPS as i32,
-                    file.as_str(),
-                    "libx264",
-                    false,
-                    &mut |encoder| {
-                        let mut last_svg = "".to_owned();
-                        let mut frame = EncoderFrame::make(&encoder.video_stream);
+        let files = concurrent_chunks
+            .par_iter()
+            .enumerate()
+            .map(|(thread_number, chunk_range)| {
+                let file = directory
+                    .join(format!("{thread_number}.mp4"))
+                    .into_os_string()
+                    .into_string()
+                    .unwrap();
 
-                        let mut cache = if self.cache_capacity == 0 {
-                            SvgrCache::none()
-                        } else {
-                            SvgrCache::new(NonZeroUsize::new(40).unwrap())
-                        };
+                unsafe {
+                    Encoder::with_output(
+                        TVideo::WIDTH as i32,
+                        TVideo::HEIGHT as i32,
+                        TVideo::FPS as i32,
+                        file.as_str(),
+                        "libx264",
+                        false,
+                        &mut |encoder| {
+                            let mut last_svg = "".to_owned();
+                            let mut frame = EncoderFrame::make(&encoder.video_stream);
 
-                        let mut pixmap = svgr::tiny_skia::Pixmap::new(
-                            TVideo::WIDTH as u32,
-                            TVideo::HEIGHT as u32,
-                        )
-                        .unwrap();
+                            let mut cache = if self.cache_capacity == 0 {
+                                SvgrCache::none()
+                            } else {
+                                SvgrCache::new(NonZeroUsize::new(self.cache_capacity).unwrap())
+                            };
 
-                        chunk_range
-                            .to_owned()
-                            .enumerate()
-                            .try_for_each(|(index, fr)| {
-                                let svg = video
-                                    .render_frame(
-                                        frame::Frame {
-                                            fps: TVideo::FPS,
-                                            index: fr,
-                                            global_index: fr,
-                                        },
-                                        &ctx,
-                                    )
-                                    .into_string();
+                            let mut pixmap = svgr::tiny_skia::Pixmap::new(
+                                TVideo::WIDTH as u32,
+                                TVideo::HEIGHT as u32,
+                            )
+                            .unwrap();
 
-                                logger.log_frame(index, thread_number, &svg);
-                                if svg != last_svg {
-                                    let rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
-                                    svgr::render(
-                                        &rtree,
-                                        usvgr::FitTo::Original,
-                                        svgr::tiny_skia::Transform::default(),
-                                        pixmap.as_mut(),
-                                        &mut cache,
-                                    )
-                                    .unwrap();
+                            chunk_range
+                                .to_owned()
+                                .enumerate()
+                                .try_for_each(|(index, fr)| {
+                                    let svg = video
+                                        .render_frame(
+                                            frame::Frame {
+                                                fps: TVideo::FPS,
+                                                index: fr,
+                                                global_index: fr,
+                                            },
+                                            &ctx,
+                                        )
+                                        .into_string();
 
-                                    last_svg = svg;
+                                    logger.log_frame(index, thread_number, &svg);
+                                    if svg != last_svg {
+                                        let rtree =
+                                            usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+                                        svgr::render(
+                                            &rtree,
+                                            usvgr::FitTo::Original,
+                                            svgr::tiny_skia::Transform::default(),
+                                            pixmap.as_mut(),
+                                            &mut cache,
+                                        )
+                                        .unwrap();
+
+                                        last_svg = svg;
+                                    }
+
+                                    frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
+
+                                    let video_stream = encoder.video_stream;
+                                    encoder.send_frame(&video_stream, frame)
+                                })?;
+
+                            let frames_to_generate = chunk_range.end - chunk_range.start;
+                            let submitted_frames =
+                                encoder.video_stream.get_frames_in_stream() as usize;
+
+                            if submitted_frames < frames_to_generate {
+                                let intra_frames_to_add = frames_to_generate - submitted_frames;
+
+                                for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
+                                    let video_stream = encoder.video_stream;
+                                    encoder.send_frame(&video_stream, frame)?;
                                 }
-
-                                frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
-
-                                let video_stream = encoder.video_stream;
-                                encoder.send_frame(&video_stream, frame)
-                            })?;
-
-                        let frames_to_generate = chunk_range.end - chunk_range.start;
-                        let submitted_frames = encoder.video_stream.get_frames_in_stream() as usize;
-
-                        if submitted_frames < frames_to_generate {
-                            let intra_frames_to_add = frames_to_generate - submitted_frames;
-
-                            for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
-                                let video_stream = encoder.video_stream;
-                                encoder.send_frame(&video_stream, frame)?;
                             }
-                        }
 
-                        frame.free();
-                        Ok(())
-                    },
-                )
-            }
-            .and_then(std::convert::identity)
-            .map_err(|av_err| FFramesError::RenderChunkError(thread_number, av_err))?;
+                            frame.free();
+                            Ok(())
+                        },
+                    )
+                }
+                .and_then(std::convert::identity)
+                .map_err(|av_err| FFramesError::RenderChunkError(thread_number, av_err))?;
 
-            Ok(file)
-        })
-        .collect::<FFramesResult<Vec<_>>>()?;
+                Ok(file)
+            })
+            .collect::<FFramesResult<Vec<_>>>()?;
 
         let resolved_audio_map: Option<ResolvedAudioMap> = video.audio().resolve(&ctx);
 

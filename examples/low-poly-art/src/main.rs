@@ -10,7 +10,8 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: render_backend::CpuRenderingBackend {
                 // Not that big cache capacity because the whole sub-svg will be cached
-                cache_capacity: 5 
+                cache_capacity: 5,
+                ..Default::default()
             },
             preferred_codec: "libx264",
             ..Default::default()
