@@ -17,7 +17,7 @@ pub const fn FFMPEG_AVERROR(e: std::os::raw::c_int) -> std::os::raw::c_int {
 extern "C" {
     pub fn av_error_to_string(err: i32) -> *mut c_char;
     pub fn fill_yuv_image(frame: *mut AVFrame, frame_index: i32, width: i32, height: i32) -> i32;
-    pub fn make_stereo_layout_channel(c: *mut AVCodecContext, codec: *mut AVCodec) -> i32;
+    pub fn make_stereo_layout_channel(c: *mut AVCodecContext, codec: *const AVCodec) -> i32;
     pub fn log_packet(fmt_ctx: *mut AVStream, packet: *mut AVPacket);
 }
 
@@ -51,7 +51,7 @@ impl Encoder {
         with_audio: bool,
         function: &mut F,
     ) -> AVResult<T> {
-        av_log_set_level(AV_LOG_FATAL);
+        // av_log_set_level(AV_LOG_FATAL);
 
         let c_filename = CString::new(filename).unwrap();
         let mut oc: *mut AVFormatContext = std::ptr::null_mut();
@@ -131,9 +131,9 @@ impl Encoder {
         let frame = frame.0;
         let avcodec_send_frame = avcodec_send_frame(stream.enc, frame);
         let mut status = avcodec_send_frame;
-        if status == FFMPEG_AVERROR(EAGAIN) {
-            self.b_frames_count += 1;
-        }
+        // if status == FFMPEG_AVERROR(EAGAIN) {
+        //     self.b_frames_count += 1;
+        // }
 
         if status < 0 {
             let error_description = av_error_to_string(status);

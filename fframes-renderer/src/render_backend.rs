@@ -122,7 +122,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
     ) -> FFramesResult<()> {
         let session = Uuid::new_v4();
         let directory = std::env::temp_dir().join(format!("fframes-{session}"));
-        // let directory = std::path::Path::new("test_render");
+        let directory = std::path::Path::new("test_render");
 
         if !directory.exists() {
             std::fs::create_dir(&directory)?;
@@ -208,6 +208,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             if submitted_frames < frames_to_generate {
                                 let intra_frames_to_add = frames_to_generate - submitted_frames;
 
+                                println!("Adding {} intra frames", intra_frames_to_add);
                                 for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
                                     let video_stream = encoder.video_stream;
                                     encoder.send_frame(&video_stream, frame)?;

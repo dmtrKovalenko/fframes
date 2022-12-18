@@ -4,11 +4,12 @@ use hello_world_example::HelloWorldVideo;
 fn main() {
     render(
         HelloWorldVideo {
-            slug: "Hello Renderer!".to_owned()
+            slug: "Hello Renderer!".to_owned(),
         },
         "out.mp4",
         RenderOptions {
-            media_dir: "./media",
+            // media_dir: "./media",
+            media_dir: "/Users/dmtrkovalenko/dev/fframes/examples/hello-world/media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: render_backend::CpuRenderingBackend {
                 cache_capacity: 5,
@@ -20,4 +21,3 @@ fn main() {
     )
     .unwrap();
 }
- 

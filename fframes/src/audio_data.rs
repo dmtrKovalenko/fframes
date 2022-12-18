@@ -164,7 +164,7 @@ pub fn get_visualization(
         sample_size,
         ctx,
         audio,
-        window,
+       window,
         ..
     }: &VisualizeFrameInput,
 ) -> Vec<f32> {

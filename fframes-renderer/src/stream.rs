@@ -33,7 +33,12 @@ impl Stream {
         codec_id: AVCodecID,
         oc: *mut AVFormatContext,
     ) -> Result<
-        (*mut AVCodec, AVCodecID, *mut AVStream, *mut AVCodecContext),
+        (
+            *const AVCodec,
+            AVCodecID,
+            *mut AVStream,
+            *mut AVCodecContext,
+        ),
         Result<Stream, AVError>,
     > {
         let codec_name = CString::new(preferred_codec_name).unwrap();
@@ -77,7 +82,7 @@ impl Stream {
         (*st).time_base = AVRational { num: 1, den: fps };
         (*c).time_base = (*st).time_base;
 
-        (*c).gop_size = 40;
+        (*c).gop_size = 12;
         (*c).pix_fmt = AVPixelFormat::AV_PIX_FMT_YUV420P;
         (*c).qmin = 10;
         (*c).qmax = 51;
@@ -86,7 +91,7 @@ impl Stream {
         (*c).bit_rate_tolerance = 0;
 
         if (*(*oc).oformat).flags & AVFMT_GLOBALHEADER != 0 {
-            (*(*oc).oformat).flags |= AV_CODEC_FLAG_GLOBAL_HEADER as i32;
+            (*c).flags |= AV_CODEC_FLAG_GLOBAL_HEADER as i32;
         }
 
         let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
@@ -137,10 +142,11 @@ impl Stream {
             return Err(AVError::Internal("Can not allocate swr".to_owned()));
         }
 
-        Self::set_swr_option(swr_ctx, "in_channel_count", (*c).channels);
         Self::set_swr_option(swr_ctx, "in_sample_rate", (*c).sample_rate);
-        Self::set_swr_option(swr_ctx, "out_channel_count", (*c).channels);
         Self::set_swr_option(swr_ctx, "out_sample_rate", (*c).sample_rate);
+
+        Self::set_swr_chlayout(swr_ctx, "in_chlayout", &(*c).ch_layout);
+        Self::set_swr_chlayout(swr_ctx, "out_chlayout",&(*c).ch_layout);
 
         Self::set_swr_fmt(swr_ctx, "in_sample_fmt", AVSampleFormat::AV_SAMPLE_FMT_S16P);
         Self::set_swr_fmt(swr_ctx, "out_sample_fmt", (*c).sample_fmt);
@@ -163,6 +169,20 @@ impl Stream {
             swr_ctx as *mut std::ffi::c_void,
             name.as_ptr(),
             val.into(),
+            0,
+        );
+    }
+
+    pub(crate) unsafe fn set_swr_chlayout(
+        swr_ctx: *mut SwrContext,
+        name: &str,
+        val: &AVChannelLayout,
+    ) {
+        let name = CString::new(name).unwrap();
+        av_opt_set_chlayout(
+            swr_ctx as *mut std::ffi::c_void,
+            name.as_ptr(),
+             val as *const AVChannelLayout,
             0,
         );
     }

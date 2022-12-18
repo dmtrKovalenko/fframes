@@ -39,7 +39,7 @@ unsafe fn open_file_stream(
 
     let mut input_stream = std::ptr::null_mut();
     for stream in streams {
-        let codec = (*stream.to_owned()).codec;
+        let codec = (*stream.to_owned()).codecpar;
 
         if (*codec).codec_type == codec_type {
             input_stream = *stream;
@@ -54,55 +54,14 @@ unsafe fn open_file_stream(
     }
 }
 
-unsafe fn copy_codec_params(
-    codec: *mut AVCodecContext,
-    input_format_ctx: *mut AVFormatContext,
-    input_video_stream: *mut AVStream,
-    output_video_stream: *mut AVStream,
-) {
-    (*codec).bit_rate = (*input_format_ctx).bit_rate;
-    (*codec).codec_id = (*(*input_video_stream).codec).codec_id;
-    (*codec).codec_type = (*(*input_video_stream).codec).codec_type;
-
-    (*codec).time_base = (*input_video_stream).time_base;
-    (*output_video_stream).time_base = (*codec).time_base;
-
-    (*codec).width = (*(*input_video_stream).codec).width;
-    (*codec).height = (*(*input_video_stream).codec).height;
-    (*codec).pix_fmt = (*(*input_video_stream).codec).pix_fmt;
-
-    (*codec).flags = (*(*input_video_stream).codec).flags;
-    (*codec).flags |= AV_CODEC_FLAG_GLOBAL_HEADER as i32;
-
-    (*codec).me_range = (*(*input_video_stream).codec).me_range;
-    (*codec).max_qdiff = (*(*input_video_stream).codec).max_qdiff;
-    (*codec).gop_size = (*(*input_video_stream).codec).gop_size; // maybe hardcode to 12?
-
-    (*codec).qmin = (*(*input_video_stream).codec).qmin;
-    (*codec).qmax = (*(*input_video_stream).codec).qmax;
-    (*codec).qcompress = (*(*input_video_stream).codec).qcompress;
-
-    (*codec).extradata = (*(*input_video_stream).codec).extradata;
-    (*codec).extradata_size = (*(*input_video_stream).codec).extradata_size;
-    avcodec_parameters_from_context((*output_video_stream).codecpar, codec);
-}
-
-pub unsafe fn concat_video_files_with_audio(
-    files: &[String],
-    output: &str,
-    audio_map: Option<&ResolvedAudioMap>,
-    ctx: &FFramesContext,
-) -> Result<(), AVError> {
+unsafe fn create_encoder_copy_from_file(file: &str, output: &str) -> Result<Encoder, AVError> {
     let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
     let mut output_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
 
-    let input_video_stream = open_file_stream(
-        &files[0],
-        &mut input_format_ctx,
-        AVMediaType::AVMEDIA_TYPE_VIDEO,
-    )?;
-    let output_file = CString::new(output).unwrap();
+    let input_video_stream =
+        open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
+    let output_file = CString::new(output).unwrap();
     avformat_alloc_output_context2(
         &mut output_format_ctx,
         std::ptr::null_mut(),
@@ -111,7 +70,6 @@ pub unsafe fn concat_video_files_with_audio(
     );
 
     let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
-    let codec = (*output_video_stream).codec;
 
     let audio_stream = Stream::make_audio(
         44100,
@@ -123,7 +81,7 @@ pub unsafe fn concat_video_files_with_audio(
     let mut encoder = Encoder {
         video_stream: Stream {
             st: output_video_stream,
-            enc: codec,
+            enc: std::ptr::null_mut(),
             variant: StreamVariant::Video,
         },
         audio_stream: Some(audio_stream),
@@ -131,16 +89,13 @@ pub unsafe fn concat_video_files_with_audio(
         b_frames_count: 0,
     };
 
-    copy_codec_params(
-        codec,
-        input_format_ctx,
-        input_video_stream,
-        output_video_stream,
+    avcodec_parameters_copy(
+        (*output_video_stream).codecpar,
+        (*input_video_stream).codecpar,
     );
 
-    if (*(*output_format_ctx).oformat).flags & AVFMT_GLOBALHEADER != 0 {
-        (*(*output_format_ctx).oformat).flags |= AV_CODEC_FLAG_GLOBAL_HEADER as i32
-    }
+    avformat_close_input(&mut input_format_ctx);
+    (*encoder.video_stream.st).time_base = (*input_video_stream).time_base;
 
     avio_open(
         &mut (*output_format_ctx).pb,
@@ -148,15 +103,17 @@ pub unsafe fn concat_video_files_with_audio(
         AVIO_FLAG_WRITE,
     );
 
-    avformat_close_input(&mut input_format_ctx);
-    avformat_write_header(output_format_ctx, std::ptr::null_mut());
+    avformat_write_header(encoder.oc, std::ptr::null_mut());
 
-    av_dump_format(output_format_ctx, 0, output_file.as_ptr(), 1);
+    Ok(encoder)
+}
 
-    let mut last_pts = 0;
-    let mut last_dts = 0;
+
+unsafe fn fill_video_stream_from_files(
+    encoder: &mut Encoder,
+    files: &[String],
+) -> Result<(), AVError> {
     let mut start_time = 0;
-
     let mut packet = av_packet_alloc();
 
     for (i, file) in files.iter().enumerate() {
@@ -174,49 +131,26 @@ pub unsafe fn concat_video_files_with_audio(
             (*packet).flags |= AV_PKT_FLAG_KEY;
 
             // This calculates the delta in pts based on the duration when this file must be appeared
-            let delta = av_rescale_q(start_time, AV_TIME_BASE_Q, (*output_video_stream).time_base);
+            let delta = av_rescale_q(
+                start_time,
+                AV_TIME_BASE_Q,
+                (*encoder.video_stream.st).time_base,
+            );
 
             (*packet).pts += delta;
             (*packet).dts += delta;
 
-            if i != 0 && (*packet).dts <= last_dts {
-                // This can happen if first frames dts is negative
-                // just make +1 and hope 🤞 it won't broke in the final video
-                (*packet).dts = last_dts + 1
-            }
-            if i != 0 && (*packet).pts <= last_pts {
-                // This can happen if first frames pts is negative
-                // just make +1 and hope 🤞 it won't broke in the final video
-                (*packet).pts = last_pts + 1
-            }
-
-            last_dts = (*packet).dts;
-            last_pts = (*packet).pts;
-
             av_packet_rescale_ts(
                 packet,
                 (*input_video_stream).time_base,
-                (*output_video_stream).time_base,
+                (*encoder.video_stream.st).time_base,
             );
-            av_interleaved_write_frame(output_format_ctx, packet);
+            av_interleaved_write_frame(encoder.oc, packet);
         }
 
-        start_time += (*input_format_ctx).duration + 1024;
+        start_time += (*input_format_ctx).duration;
         avformat_close_input(&mut input_format_ctx);
     }
-
-    fill_audio_stream(&mut encoder, audio_map, ctx)?;
-
-    avcodec_send_frame(codec, std::ptr::null_mut());
-    avcodec_send_frame(audio_stream.enc, std::ptr::null_mut());
-
-    av_write_trailer(output_format_ctx);
-
-    avcodec_close(codec);
-    avcodec_close(audio_stream.enc);
-    audio_stream.free();
-
-    avio_close((*output_format_ctx).pb);
 
     Ok(())
 }
@@ -247,7 +181,27 @@ pub unsafe fn fill_audio_stream(
 
             audio_frame_pts += frame_size;
         }
+
+        avcodec_send_frame(audio_stream.enc, std::ptr::null_mut());
+        audio_stream.free();
     }
+
+    Ok(())
+}
+
+pub unsafe fn concat_video_files_with_audio(
+    files: &[String],
+    output: &str,
+    audio_map: Option<&ResolvedAudioMap>,
+    ctx: &FFramesContext,
+) -> Result<(), AVError> {
+    let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output)?;
+
+    fill_video_stream_from_files(&mut encoder, files)?;
+    fill_audio_stream(&mut encoder, audio_map, ctx)?;
+
+    av_write_trailer(encoder.oc);
+    avio_close((*encoder.oc).pb);
 
     Ok(())
 }

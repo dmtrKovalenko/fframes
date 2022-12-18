@@ -5,12 +5,7 @@ use std::{fs, process::Command};
 
 #[test]
 fn e2e_rendering() {
-    let odiff_path = std::fs::canonicalize(
-        std::env::current_dir()
-            .unwrap()
-            .join("../node_modules/odiff-bin/bin/odiff"),
-    )
-    .unwrap();
+    let a = std::env::current_dir().unwrap().join("e2e/media");
 
     render(
         TestVideo {
@@ -26,7 +21,7 @@ fn e2e_rendering() {
             preferred_codec: "libx264",
             media_dir: std::env::current_dir()
                 .unwrap()
-                .join("media")
+                .join("e2e/media")
                 .to_str()
                 .unwrap(),
             ..Default::default()
@@ -74,6 +69,13 @@ fn e2e_rendering() {
             })
         })
         .collect::<Vec<_>>();
+
+    let odiff_path = std::fs::canonicalize(
+        std::env::current_dir()
+            .unwrap()
+            .join("../node_modules/odiff-bin/bin/odiff"),
+    )
+    .unwrap();
 
     let failed_count = frames_entries
         .into_par_iter()
