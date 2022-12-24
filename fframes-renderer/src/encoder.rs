@@ -193,6 +193,8 @@ impl EncoderFrame {
                     (*frame).height = (*stream.enc).height;
                 }
                 stream::StreamVariant::Audio(_) => {
+                    av_channel_layout_copy( &mut (*frame).ch_layout, &(*stream.enc).ch_layout);
+                    
                     (*frame).format = (*stream.enc).sample_fmt as i32;
                     (*frame).channel_layout = (*stream.enc).channel_layout;
                     (*frame).sample_rate = (*stream.enc).sample_rate;

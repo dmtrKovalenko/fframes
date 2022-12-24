@@ -205,15 +205,15 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             let submitted_frames =
                                 encoder.video_stream.get_frames_in_stream() as usize;
 
-                            if submitted_frames < frames_to_generate {
-                                let intra_frames_to_add = frames_to_generate - submitted_frames;
+                            // if submitted_frames < frames_to_generate {
+                            //     let intra_frames_to_add = frames_to_generate - submitted_frames;
 
-                                println!("Adding {} intra frames", intra_frames_to_add);
-                                for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
-                                    let video_stream = encoder.video_stream;
-                                    encoder.send_frame(&video_stream, frame)?;
-                                }
-                            }
+                            //     println!("Adding {} intra frames", intra_frames_to_add);
+                            //     for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
+                            //         let video_stream = encoder.video_stream;
+                            //         encoder.send_frame(&video_stream, frame)?;
+                            //     }
+                            // }
 
                             frame.free();
                             Ok(())

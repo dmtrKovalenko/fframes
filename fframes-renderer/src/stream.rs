@@ -149,7 +149,7 @@ impl Stream {
         Self::set_swr_chlayout(swr_ctx, "in_chlayout", &(*c).ch_layout);
         Self::set_swr_chlayout(swr_ctx, "out_chlayout",&(*c).ch_layout);
 
-        Self::set_swr_fmt(swr_ctx, "in_sample_fmt", AVSampleFormat::AV_SAMPLE_FMT_S16P);
+        Self::set_swr_fmt(swr_ctx, "in_sample_fmt", AVSampleFormat::AV_SAMPLE_FMT_FLTP);
         Self::set_swr_fmt(swr_ctx, "out_sample_fmt", (*c).sample_fmt);
 
         ffmpeg_action!(
