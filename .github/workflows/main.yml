@@ -7,7 +7,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -26,7 +26,8 @@ jobs:
           # errors especially on GitHub-hosted macos machines.
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: sudo apt-get install libavformat59 libavcodec59 libavutil57 libavfilter-extra8 libswscale6 libavdevice59
+      # - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
+      - run: brew install ffmpeg
 
       - name: Build
         run: just build
