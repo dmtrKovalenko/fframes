@@ -128,8 +128,9 @@ impl Stream {
             num: 1,
             den: sample_rate,
         };
+
         // TODO verify that codec supports 44100 sample_rate
-        crate::encoder::make_stereo_layout_channel(c, codec);
+        crate::encoder::make_stereo_layout_channel(c);
 
         // TODO pass user options
         let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();

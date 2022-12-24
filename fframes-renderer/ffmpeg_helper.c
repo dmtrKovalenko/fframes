@@ -9,7 +9,7 @@ const char *av_error_to_string(int error_code)
   return av_err2str(error_code);
 }
 
-void make_stereo_layout_channel(AVCodecContext *c, AVCodec *codec)
+void make_stereo_layout_channel(AVCodecContext *c)
 {
   av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_MONO);
 }

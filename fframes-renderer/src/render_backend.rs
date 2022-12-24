@@ -121,7 +121,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let session = Uuid::new_v4();
-        let directory = std::env::temp_dir().join(format!("fframes-{session}"));
+        // let directory = std::env::temp_dir().join(format!("fframes-{session}"));
         let directory = std::path::Path::new("test_render");
 
         if !directory.exists() {

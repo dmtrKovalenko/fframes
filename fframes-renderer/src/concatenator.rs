@@ -116,7 +116,7 @@ unsafe fn fill_video_stream_from_files(
     let mut start_time = 0;
     let mut packet = av_packet_alloc();
 
-    for (i, file) in files.iter().enumerate() {
+    for file in files.iter() {
         let mut input_format_ctx = std::ptr::null_mut();
 
         let input_video_stream =

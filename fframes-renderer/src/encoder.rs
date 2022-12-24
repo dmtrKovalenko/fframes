@@ -16,8 +16,7 @@ pub const fn FFMPEG_AVERROR(e: std::os::raw::c_int) -> std::os::raw::c_int {
 #[allow(dead_code)]
 extern "C" {
     pub fn av_error_to_string(err: i32) -> *mut c_char;
-    pub fn fill_yuv_image(frame: *mut AVFrame, frame_index: i32, width: i32, height: i32) -> i32;
-    pub fn make_stereo_layout_channel(c: *mut AVCodecContext, codec: *const AVCodec) -> i32;
+    pub fn make_stereo_layout_channel(c: *mut AVCodecContext) -> i32;
     pub fn log_packet(fmt_ctx: *mut AVStream, packet: *mut AVPacket);
 }
 
