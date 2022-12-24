@@ -25,7 +25,8 @@ jobs:
           # Not strictly necessary, but it may prevent rate limit
           # errors especially on GitHub-hosted macos machines.
           token: ${{ secrets.GITHUB_TOKEN }}
-      - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
+
+      - run: sudo apt-get install libavformat59 libavcodec59 libavutil57 libavfilter-extra8 libswscale6 libavdevice59
 
       - name: Build
         run: just build
@@ -37,7 +38,7 @@ jobs:
       - name: Test
         run: cargo test
 
-      - name: Upload visual regression results and diff 
+      - name: Upload visual regression results and diff
         uses: actions/upload-artifact@v3
         if: failure()
         with:
