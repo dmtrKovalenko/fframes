@@ -2,21 +2,28 @@
 
 [Rust](https://www.rust-lang.org/learn/get-started) and [NodeJS](https://nodejs.org/en/download/) (for local development) toolchains.
 
-The only global dependency we have is libav software package that is available to be installed
+The only global dependency we have is libav software package that is available to be installed on Ubuntu: 
 
 ```sh
 sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
 ```
 
-But the easiest to get them is to have ffmpeg v4 installed, yes unfortunately the latest v5 is not supported yet. Install the 4.4.2 version from your favorite package manager or built it from source.
+But the easiest to get them is to have ffmpeg v5 installed. On MacOs: 
+
+```sh
+brew install ffmpeg
+```
+
+Or clone and compile ffmpeg from source, [here is the complete guide](https://trac.ffmpeg.org/wiki/CompilationGuide) and this is a minimal example: 
 
 ```bash
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
   cd ffmpeg
   git remote update
   git fetch --tags
-  git checkout n{{4.4.2}}
+  git checkout n5.5.1
 
+  # this is a minimum set of options to build ffmpeg for fframes, you will likely need more options
   ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
   make
   make install
