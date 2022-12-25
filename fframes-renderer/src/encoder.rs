@@ -1,10 +1,10 @@
 use ffmpeg_next::sys::*;
-use std::{ffi::CString, os::raw::c_char};
+use std::{ffi::CString, os::raw::c_char, sync::Arc};
 
 use crate::{
     ffmpeg_action,
     renderer_error::{self, AVError, AVResult},
-    stream,
+    stream, FFramesLogger,
 };
 
 #[inline(always)]
@@ -41,16 +41,18 @@ pub struct Encoder {
 }
 
 impl Encoder {
+    #[allow(clippy::too_many_arguments)]
     pub unsafe fn with_output<T, F: FnMut(&mut Encoder) -> T>(
         width: i32,
         height: i32,
         fps: i32,
         filename: &str,
         preferred_codec: &str,
+        logger: &Arc<dyn FFramesLogger>,
         with_audio: bool,
         function: &mut F,
     ) -> AVResult<T> {
-        // av_log_set_level(AV_LOG_FATAL);
+        av_log_set_level(logger.get_libav_log_level());
 
         let c_filename = CString::new(filename).unwrap();
         let mut oc: *mut AVFormatContext = std::ptr::null_mut();
@@ -91,7 +93,9 @@ impl Encoder {
             },
         };
 
-        av_dump_format(oc, 0, c_filename.as_ptr(), 1);
+        if logger.should_dump_format_info() {
+            av_dump_format(oc, 0, c_filename.as_ptr(), 1);
+        }
 
         ffmpeg_action!(
             avio_open(&mut (*oc).pb, c_filename.as_ptr(), 2),
@@ -106,8 +110,8 @@ impl Encoder {
         if let Some(audio_stream) = encoder.audio_stream {
             avcodec_send_frame(audio_stream.enc, std::ptr::null_mut());
         }
-        av_write_trailer(oc);
 
+        av_write_trailer(oc);
         video_stream.free();
 
         if let Some(audio_stream) = encoder.audio_stream {
@@ -130,9 +134,6 @@ impl Encoder {
         let frame = frame.0;
         let avcodec_send_frame = avcodec_send_frame(stream.enc, frame);
         let mut status = avcodec_send_frame;
-        // if status == FFMPEG_AVERROR(EAGAIN) {
-        //     self.b_frames_count += 1;
-        // }
 
         if status < 0 {
             let error_description = av_error_to_string(status);
@@ -193,8 +194,8 @@ impl EncoderFrame {
                     (*frame).height = (*stream.enc).height;
                 }
                 stream::StreamVariant::Audio(_) => {
-                    av_channel_layout_copy( &mut (*frame).ch_layout, &(*stream.enc).ch_layout);
-                    
+                    av_channel_layout_copy(&mut (*frame).ch_layout, &(*stream.enc).ch_layout);
+
                     (*frame).format = (*stream.enc).sample_fmt as i32;
                     (*frame).channel_layout = (*stream.enc).channel_layout;
                     (*frame).sample_rate = (*stream.enc).sample_rate;

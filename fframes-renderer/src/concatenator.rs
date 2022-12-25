@@ -93,9 +93,9 @@ unsafe fn create_encoder_copy_from_file(file: &str, output: &str) -> Result<Enco
         (*output_video_stream).codecpar,
         (*input_video_stream).codecpar,
     );
+    (*encoder.video_stream.st).time_base =(*input_video_stream).time_base;
 
     avformat_close_input(&mut input_format_ctx);
-    (*encoder.video_stream.st).time_base = (*input_video_stream).time_base;
 
     avio_open(
         &mut (*output_format_ctx).pb,

@@ -1,17 +1,27 @@
 use colored::*;
 use core::fmt::Debug;
+use ffmpeg_next::ffi::AV_LOG_FATAL;
 use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
-use std::{path::Path, sync::Arc};
+use std::{ffi::c_int, path::Path, sync::Arc};
 
+#[allow(unused_variables)]
 pub trait FFramesLogger: Sync + Send {
-    fn init_media_processing(&self, media_count: usize);
-    fn log_processed_media(&self, path: &Path);
-    fn log_unprocessed_media_file(&self, filename: &str);
-    fn log_media_processing_start(&self, filename: &str, path: &Path);
+    fn init_media_processing(&self, media_count: usize) {}
+    fn log_processed_media(&self, path: &Path) {}
+    fn log_unprocessed_media_file(&self, filename: &str) {}
+    fn log_media_processing_start(&self, filename: &str, path: &Path) {}
 
-    fn init_frames_rendering(&self, duration_in_frames: usize);
-    fn log_frame(&self, index: usize, thread_number: usize, svg: &str);
+    fn init_frames_rendering(&self, duration_in_frames: usize) {}
+    fn log_frame(&self, index: usize, thread_number: usize, svg: &str) {}
+
+    fn get_libav_log_level(&self) -> c_int {
+        AV_LOG_FATAL
+    }
+
+    fn should_dump_format_info(&self) -> bool {
+        false
+    }
 
     fn success(&self, output_path: &str, temp_files_dir: Option<&str>);
 }
@@ -59,8 +69,6 @@ impl FFramesLogger for CompactFFramesLogger {
         self.media_progress_bar.set(progress_bar).unwrap();
     }
 
-    fn log_media_processing_start(&self, _filename: &str, _path: &Path) {}
-
     fn log_processed_media(&self, _path: &Path) {
         let pb = self
             .media_progress_bar
@@ -74,21 +82,9 @@ impl FFramesLogger for CompactFFramesLogger {
 pub struct SilentLogger;
 
 impl FFramesLogger for SilentLogger {
-    fn log_unprocessed_media_file(&self, _filename: &str) {}
-
-    fn init_frames_rendering(&self, _all_frames: usize) {}
-
-    fn log_frame(&self, _index: usize, _thread_number: usize, _svg: &str) {}
-
     fn success(&self, output_path: &str, _temp_files_dir: Option<&str>) {
         println!("Success. Your video {output_path}");
     }
-
-    fn init_media_processing(&self, _all_frames: usize) {}
-
-    fn log_processed_media(&self, _path: &Path) {}
-
-    fn log_media_processing_start(&self, _filename: &str, _path: &Path) {}
 }
 
 impl Debug for dyn FFramesLogger {

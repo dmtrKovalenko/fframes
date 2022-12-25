@@ -223,12 +223,11 @@ impl Video for MarketingVideo {
     fn audio(&self) -> AudioMap {
         use fframes::AudioTimestamp::{Eof, Second};
 
-        // AudioMap::from([
-        //     ("marketing.mp3", (Second(0), Eof)),
-        //     ("woosh.mp3", (Second(6), Eof)),
-        //     ("end.mp3", (Second(16), Eof)),
-        // ])
-        AudioMap::none()
+        AudioMap::from([
+            ("marketing.mp3", (Second(0), Eof)),
+            ("woosh.mp3", (Second(6), Eof)),
+            ("end.mp3", (Second(16), Eof)),
+        ])
     }
 
     fn render_frame(&self, frame: fframes::Frame, ctx: &fframes_context::FFramesContext) -> Svgr {

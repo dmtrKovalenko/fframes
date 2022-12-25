@@ -37,7 +37,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
     let logger = fframes_logger::make_logger(options.logger);
 
     let (media_provider, image_data) =
-        media_processor::load_media_from_folder(&logger, options.media_dir).unwrap();
+        media_processor::load_media_from_folder(&logger, options.media_dir)?;
 
     let mut opt = usvgr::Options {
         image_data,

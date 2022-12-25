@@ -92,6 +92,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 TVideo::FPS as i32,
                 output,
                 render_options.preferred_codec,
+                &logger,
                 true,
                 &mut |video_encoder| -> FFramesResult<()> {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream);
