@@ -6,6 +6,8 @@ use std::{fs, process::Command};
 
 #[test]
 fn e2e_rendering() {
+    println!("Running e2e rendering tests for {OS}-{ARCH}");
+
     render(
         TestVideo {
             slug: "This frame index:".to_owned(),
