@@ -6,8 +6,6 @@ use std::{fs, process::Command};
 
 #[test]
 fn e2e_rendering() {
-    let a = std::env::current_dir().unwrap().join("e2e/media");
-
     render(
         TestVideo {
             slug: "This frame index:".to_owned(),
@@ -22,7 +20,7 @@ fn e2e_rendering() {
             preferred_codec: "libx264",
             media_dir: std::env::current_dir()
                 .unwrap()
-                .join("e2e/media")
+                .join("media")
                 .to_str()
                 .unwrap(),
             ..Default::default()
