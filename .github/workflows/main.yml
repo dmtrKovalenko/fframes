@@ -22,9 +22,18 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - uses: Iamshankhadeep/setup-ffmpeg@v1.2
+      - uses: Swatinem/rust-cache@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix-key: "v0-rust"
+      
+      - name: Configure Homebrew cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/Library/Caches/Homebrew/foo--*
+            ~/Library/Caches/Homebrew/downloads/*--foo-*
+          key: brew-${{ hashFiles('.github/brew-formulae') }}
+          restore-keys: brew-
 
       # - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
       - run: brew install ffmpeg
