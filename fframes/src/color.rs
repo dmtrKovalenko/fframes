@@ -7,9 +7,11 @@ use std::fmt;
 ///
 /// @example
 /// ```rust
-///const WHITE = Color::hex("#FFFFFF");
+///use fframes::{Color, svgr};
+/// 
+///const WHITE: Color = Color::hex("#FFFFFF");
 ///
-/// svgr!(<rect fill={WHITE} />)
+/// svgr!(<rect fill={WHITE} />);
 /// ```
 #[derive(Copy, Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Color {
