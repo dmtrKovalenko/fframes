@@ -32,7 +32,7 @@ impl Scene for CodeDemoScene {
                on 0.3, val 0. => 1., &animation::Easing::Linear(0.5)
              ))}
           />
-          
+
           <svg
             viewBox="0 0 1200 800"
             width="500"

@@ -23,8 +23,8 @@ pub use frame::*;
 pub use log::log::*;
 pub use scenes::*;
 pub use subtitles::*;
-pub use svgr_macro::*;
 pub use svgr::*;
+pub use svgr_macro::*;
 pub use video::*;
 
 pub use roxmltree;

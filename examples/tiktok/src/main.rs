@@ -4,7 +4,7 @@ use tiktok_example::GooseVideo;
 fn main() {
     render(
         GooseVideo {
-            audio_track: "thought.mp3"
+            audio_track: "thought.mp3",
         },
         "out.mp4",
         RenderOptions {

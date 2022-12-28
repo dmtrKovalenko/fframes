@@ -59,7 +59,7 @@ pub enum Easing {
     Spring(spring::SpringOptions),
     /// Specifies an animation that calculates value based on spring physics.
     /// Learn more about spring physics: https://www.joshwcomeau.com/animation/a-friendly-introduction-to-spring-physics/
-    /// Mass, Stiffness, Damping 
+    /// Mass, Stiffness, Damping
     Spring2(f32, f32, f32),
 }
 

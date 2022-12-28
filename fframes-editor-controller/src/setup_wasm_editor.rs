@@ -26,7 +26,6 @@ macro_rules! setup_wasm_editor {
                         .map(|(name, (start_ts, end_ts))| {
                             let start = audio_ts_to_frame(start_ts, name);
                             let end = audio_ts_to_frame(end_ts, name);
-                            // panic!("start: {}, end: {}", start, end);
 
                             AudioTrack {
                                 name,
@@ -108,8 +107,8 @@ macro_rules! setup_wasm_editor {
             }
         }
 
-        async fn load_audio_duration(audio: &str) -> fframes::error::Result<usize> {
-            let duration_in_frames = (load_audio_wasm_callback(audio)
+        async fn load_audio_duration(audio: String) -> fframes::error::Result<usize> {
+            let duration_in_frames = (load_audio_wasm_callback(audio.as_str())
                 .await
                 .expect("Can not get the duration of audio")
                 .as_f64()
@@ -122,29 +121,16 @@ macro_rules! setup_wasm_editor {
             Ok(duration_in_frames as usize)
         }
 
+
         async fn get_duration_frames() -> i32 {
             let (duration, scenes) =
-                fframes::resolve_duration_and_scenes_async(&VIDEO, async move |audio: String| {
-                    let duration_in_frames = (load_audio_wasm_callback(audio.as_str())
-                        .await
-                        .expect("Can not get the duration of audio")
-                        .as_f64()
-                        .expect("Can not convert the duration of audio to f64")
-                        * $x::FPS as f64) as i32;
-
-                    let mut durations_hash = AUDIO_DURATIONS.lock().unwrap();
-                    durations_hash.insert(audio.to_owned(), duration_in_frames);
-
-                    Ok(duration_in_frames as usize)
-                })
+                fframes::resolve_duration_and_scenes_async(&VIDEO, Box::new(|val| Box::pin(load_audio_duration(val))))
                 .await
                 .unwrap();
 
-                if let Some(scenes) = scenes {
-                    SCENES.lock().unwrap().replace(scenes);
-                }
-
-
+            if let Some(scenes) = scenes {
+                SCENES.lock().unwrap().replace(scenes);
+            }
             duration as i32
         }
 

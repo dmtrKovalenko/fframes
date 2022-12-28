@@ -190,7 +190,7 @@ impl<'l> Iterator for PathConvIter<'l> {
         }
 
         let next = self.iter.next();
-       
+
         match next {
             Some(PathSegment::MoveTo { x, y }) => {
                 if self.needs_end {

@@ -3,7 +3,15 @@ use std::fmt;
 
 /// The basic rgb color type. It is limited to the range of 0-255 because the most of video
 /// codecs only support 8-bit color depth.  
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Can be used in fframes animations and as a raw svgr! value.
+///
+/// @example
+/// ```rust
+///const WHITE = Color::hex("#FFFFFF");
+///
+/// svgr!(<rect fill={WHITE} />)
+/// ```
+#[derive(Copy, Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -30,13 +38,13 @@ pub const fn char_to_digit(char: char, radix: u32) -> u32 {
     if digit < radix {
         digit
     } else {
-        panic!("can not parse some char in a radix string");
+        panic!("can not parse char in a radix string");
     }
 }
 
 impl Color {
-    /// Creates a new color from the given hex string.
-    /// Make sure to not use it inside the `render_frame` meanwhile as it is not a compile-time.
+    /// Creates a new color from a hex string. #RGB and #RRGGBB formats are supported.
+    /// Available for const contexts.
     pub const fn hex(hex_str: &str) -> Self {
         let buffer = hex_str.as_bytes();
 

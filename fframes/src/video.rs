@@ -1,5 +1,5 @@
-
 use std::future::Future;
+use std::pin::Pin;
 
 use crate::audio_map::AudioMap;
 use crate::{fframes_context, frame, scenes::*};
@@ -13,17 +13,17 @@ pub enum Duration {
     Auto,
 }
 
+type AsyncAudioDurationCb =
+    Box<dyn Fn(String) -> Pin<Box<dyn Future<Output = super::error::Result<usize>>>>>;
+
 impl Duration {
-    pub(super) async fn to_frames_async<
-        TGetAudioFn: Fn(String) -> TResult,
-        TResult: Future<Output = super::error::Result<usize>>,
-    >(
+    pub(super) async fn to_frames_async(
         &self,
         fps: usize,
-        resolve_audio_duration: TGetAudioFn,
+        resolve_audio_duration: &AsyncAudioDurationCb,
     ) -> crate::error::Result<usize> {
         match self {
-            Duration::FromAudio(audio) => resolve_audio_duration((*audio).to_owned()).await,
+            Duration::FromAudio(audio) => resolve_audio_duration(audio.to_string()).await,
             Duration::Seconds(seconds) => Ok(seconds * fps),
             Duration::Frames(frames) => Ok(*frames),
             Duration::Auto => Err(crate::error::FFramesCoreError::MissingDurationOrScenes),
@@ -76,13 +76,9 @@ impl ResolvedScenesTimeline {
 
 // TODO figure out how to reuse. This function completely duplicates a sync version ot it.
 #[allow(dead_code)]
-pub async fn resolve_duration_and_scenes_async<
-    TGetAudioFn: Fn(String) -> TResult,
-    TResult: Future<Output = crate::error::Result<usize>>,
-    TVideo: Video,
->(
+pub async fn resolve_duration_and_scenes_async<TVideo: Video>(
     video: &TVideo,
-    resolve_audio_duration: TGetAudioFn,
+    resolve_audio_duration: AsyncAudioDurationCb,
 ) -> crate::error::Result<(usize, Option<ResolvedScenesTimeline>)> {
     match (video.define_scenes().0, TVideo::DURATION) {
         (Some(scenes), Duration::Auto) => {
@@ -111,7 +107,7 @@ pub async fn resolve_duration_and_scenes_async<
         }
         (None, duration) => Ok((
             duration
-                .to_frames_async(TVideo::FPS, resolve_audio_duration)
+                .to_frames_async(TVideo::FPS, &resolve_audio_duration)
                 .await?,
             None,
         )),

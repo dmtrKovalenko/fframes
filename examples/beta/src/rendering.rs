@@ -1,6 +1,5 @@
 use fframes::{animation, svgr, Scene};
 
-
 #[derive(Debug)]
 pub struct RenderingScene {}
 
@@ -18,13 +17,13 @@ impl Scene for RenderingScene {
 
         let gpu = frame.get_current_second() > GPU_SECOND;
         let derivation: f32 = rand::random();
-        
+
         let base_fps = frame.animate(&fframes::timeline!(
           on GPU_SECOND, val 60. => 100., &animation::Easing::Linear(0.8)
         ));
-        
+
         let fps_counter = (base_fps + (derivation * 4.)) as u8;
-        
+
         svgr!(
            <text
              font-family="DM Sans"

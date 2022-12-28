@@ -14,7 +14,7 @@ pub struct ExamplesScene {
 
 impl Scene for ExamplesScene {
     fn duration(&self) -> fframes::video::Duration {
-        fframes::Duration::Frames(500) 
+        fframes::Duration::Frames(500)
     }
 
     fn render_frame(

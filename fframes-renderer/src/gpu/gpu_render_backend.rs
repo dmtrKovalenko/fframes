@@ -98,15 +98,17 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream);
 
                     for fr in 0..duration_in_frames {
-                        let svg = video.render_frame(
-                            frame::Frame {
-                                fps: TVideo::FPS,
-                                index: fr,
-                                global_index: fr,
-                            },
-                            &ctx,
-                        ).into_string();
-                        
+                        let svg = video
+                            .render_frame(
+                                frame::Frame {
+                                    fps: TVideo::FPS,
+                                    index: fr,
+                                    global_index: fr,
+                                },
+                                &ctx,
+                            )
+                            .into_string();
+
                         let rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
                         let (mesh, transforms, primitives) = tesselate_svg(rtree);
 
@@ -305,8 +307,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         let u32_size = std::mem::size_of::<u32>() as u32;
 
                         let output_buffer_size =
-                            (u32_size * texture_size * texture_size)
-                                as wgpu::BufferAddress;
+                            (u32_size * texture_size * texture_size) as wgpu::BufferAddress;
                         let output_buffer_desc = wgpu::BufferDescriptor {
                             size: output_buffer_size,
                             // this tells wpgu that we want to read this buffer from the cpu

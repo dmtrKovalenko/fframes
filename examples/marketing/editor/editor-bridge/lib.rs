@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 use fframes_editor_controller::{prelude::*, setup_wasm_editor};
 use marketing_example::MarketingVideo;
 

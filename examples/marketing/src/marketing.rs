@@ -26,13 +26,13 @@ struct SpectrumValue<'a> {
 
 #[derive(Debug)]
 pub struct MarketingVideo {
-  pub audio_track: &'static str
+    pub audio_track: &'static str,
 }
 
 impl MarketingVideo {
     fn render_ferris(&self, frame: &Frame) -> Svgr {
         if !(2.3f32..5.0f32).contains(&frame.get_current_second()) {
-             return Svgr::default()
+            return Svgr::default();
         }
 
         svgr!(

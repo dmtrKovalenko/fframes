@@ -3,9 +3,10 @@ use crate::{animation, get_visualization, AnimationRuntime, VisualizeFrameInput}
 /// The Frame {} struct contains temporal information about the current frame.
 #[derive(Debug, Clone, Copy)]
 pub struct Frame {
-    /// The frame index of the current frame. If rendering a Scene it is relative to the current frame.
+    /// The frame index of the current scene. If rendering a Scene it is relative to the current frame.
     pub index: usize,
-    /// The frame index of the current frame. If rendering a Scene it is relative to  
+    /// The frame index of the current frame. If rendering within a scene will show the frame index within a whole video.
+    /// If rendering without scene always equal to self.index.
     pub global_index: usize,
     /// FPS of the video. Always equals to the Video::FPS constant.
     pub fps: usize,
@@ -73,11 +74,6 @@ impl Frame {
     }
 
     /// Returns the current value of the animation at the current second.
-    /// # Panics
-    ///
-    /// Panics if current value can't be calculate, this may happen if seconds are negative or timeline is broken.
-    ///
-    /// # Timeline
     ///
     /// Timeline is defined using fframes::timeline! macros. All the gaps between frames are filled automatically.
     ///
@@ -93,7 +89,7 @@ impl Frame {
     /// ```rust
     /// use fframes::{ Frame, svgr, animation::Easing};
     /// let frame = fframes::Frame { index: 0, global_index: 0, fps: 60 };
-    /// 
+    ///
     /// fframes::svgr!(
     ///   <rect
     ///     y={frame.animate(fframes::timeline!(
@@ -103,7 +99,7 @@ impl Frame {
     ///   />
     /// );
     /// ```
-    pub fn animate<T: crate::Animatable + Copy>(
+    pub fn animate<T: crate::Animatable + Copy + Default>(
         &self,
         animation: &animation::SteppedAnimation<T>,
     ) -> T {
@@ -116,7 +112,7 @@ impl Frame {
             .find(|keyframe| keyframe.seconds_range.contains(current_second));
 
         match keyframe {
-            None => panic!("frame.animate can not get the value for frame {}. It may mean that SteppedAnimation is not correctly filled out./", self.index),
+            None => T::default(),
             Some(keyframe) => {
                 let progress = keyframe
                     .animation_runtime

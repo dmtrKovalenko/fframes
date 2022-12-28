@@ -24,7 +24,9 @@ impl From<String> for Svgr {
 
 impl<'a> From<&'a str> for Svgr {
     fn from(val: &'a str) -> Self {
-        Svgr { value: val.to_owned() }
+        Svgr {
+            value: val.to_owned(),
+        }
     }
 }
 

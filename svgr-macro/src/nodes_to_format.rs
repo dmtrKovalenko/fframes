@@ -2,8 +2,7 @@ use crate::node::{Node, NodeType};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, Expr, ExprPath, ExprReference, Path, PathArguments,
-    PathSegment,
+    punctuated::Punctuated, Expr, ExprPath, ExprReference, Path, PathArguments, PathSegment,
 };
 
 pub(crate) fn prepare_svg_nodes_for_format_statement(

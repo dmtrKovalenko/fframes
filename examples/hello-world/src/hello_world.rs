@@ -8,7 +8,8 @@ pub struct HelloWorldVideo {
 
 impl Video for HelloWorldVideo {
     const FPS: usize = 30;
-    const WIDTH: usize = 1920; const HEIGHT: usize = 1080;
+    const WIDTH: usize = 1920;
+    const HEIGHT: usize = 1080;
     const DURATION: fframes::Duration = fframes::Duration::Seconds(19);
 
     fn audio(&self) -> AudioMap {

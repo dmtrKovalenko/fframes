@@ -147,7 +147,7 @@ impl Stream {
         Self::set_swr_option(swr_ctx, "out_sample_rate", (*c).sample_rate);
 
         Self::set_swr_chlayout(swr_ctx, "in_chlayout", &(*c).ch_layout);
-        Self::set_swr_chlayout(swr_ctx, "out_chlayout",&(*c).ch_layout);
+        Self::set_swr_chlayout(swr_ctx, "out_chlayout", &(*c).ch_layout);
 
         Self::set_swr_fmt(swr_ctx, "in_sample_fmt", AVSampleFormat::AV_SAMPLE_FMT_FLTP);
         Self::set_swr_fmt(swr_ctx, "out_sample_fmt", (*c).sample_fmt);
@@ -183,7 +183,7 @@ impl Stream {
         av_opt_set_chlayout(
             swr_ctx as *mut std::ffi::c_void,
             name.as_ptr(),
-             val as *const AVChannelLayout,
+            val as *const AVChannelLayout,
             0,
         );
     }

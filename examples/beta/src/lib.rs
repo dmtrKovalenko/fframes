@@ -1,14 +1,14 @@
 pub mod beta;
 pub mod code_demo;
-pub mod iphone;
-pub mod github;
-pub mod examples;
 mod end;
+pub mod examples;
+pub mod github;
+pub mod iphone;
 pub use beta::*;
 
 pub mod rendering;
-pub use rendering::*;
-pub use iphone::*;
-pub use github::*;
-pub use examples::*;
 pub use end::*;
+pub use examples::*;
+pub use github::*;
+pub use iphone::*;
+pub use rendering::*;
