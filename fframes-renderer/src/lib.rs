@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use encoder::EncoderOptions;
+use fframes::media_provider::MediaProvider;
 use fframes::video::Video;
-use fframes::{fframes_context, AudioData};
+use fframes::{fframes_context, AudioData, ResolvedScenesTimeline};
 use fframes_logger::FFramesLoggerVariant;
 use render_backend::FFramesRenderBackend;
 
@@ -11,6 +15,7 @@ pub mod fframes_logger;
 mod renderer_font_source;
 pub use fframes_logger::*;
 use renderer_error::FFramesResult;
+use usvgr::PreloadedImageData;
 
 use crate::renderer_font_source::RendererFontSource;
 
@@ -32,33 +37,29 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub preferred_codec: &'a str,
 }
 
-pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
-    video: TVideo,
-    output: &'a str,
-    options: RenderOptions<'a, TBackend>,
-) -> FFramesResult<()> {
-    let fps = TVideo::FPS;
-    let logger = fframes_logger::make_logger(options.logger);
-
+fn prepare_rendering_context<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
+    options: &RenderOptions<TBackend>,
+    video: &TVideo,
+) -> FFramesResult<(
+    usize,
+    MediaProvider,
+    usvgr_text_layout::fontdb::Database,
+    Option<ResolvedScenesTimeline>,
+    HashMap<String, Arc<PreloadedImageData>>,
+    Arc<dyn FFramesLogger>,
+)> {
+    let logger = fframes_logger::make_logger(options.logger.clone());
     let (media_provider, font_db, image_data) =
-        media_processor::load_media_from_folder(&logger, options.media_dir)?;
+        media_processor::load_media_from_folder(&logger, options.media_dir).unwrap();
 
-    let opt = usvgr::Options {
-        image_data,
-        font_family: options.default_font.to_string(),
-        fontdb: font_db,
-        keep_named_groups: true,
-        ..Default::default()
-    };
-
-    let (duration_in_frames, scenes) =
-        fframes::video::resolve_duration_and_scenes_sync(&video, |name| {
+    let (final_duration, scenes) =
+        fframes::video::resolve_duration_and_scenes_sync(video, |name| {
             media_provider
                 .audio
                 .get(name)
                 .map(|main_audio| match main_audio {
                     AudioData::Preloaded(data) => {
-                        data.samples.len() / data.sample_rate as usize * fps
+                        data.samples.len() / data.sample_rate as usize * TVideo::FPS
                     }
                     _ => 0,
                 })
@@ -67,29 +68,49 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
                 })
         })?;
 
-    let font_source = RendererFontSource {
-        fontdb: &opt.fontdb,
-    };
+    Ok((
+        final_duration,
+        media_provider,
+        font_db,
+        scenes,
+        image_data,
+        logger,
+    ))
+}
 
+pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
+    video: TVideo,
+    output: &'a str,
+    options: RenderOptions<'a, TBackend>,
+) -> FFramesResult<()> {
+    let (duration_in_frames, media_provider, font_db, scenes, image_data, logger) =
+        prepare_rendering_context(&options, &video)?;
+
+    logger.init_frames_rendering(duration_in_frames);
+
+    let font_source = RendererFontSource { fontdb: &font_db };
     let ctx = fframes_context::FFramesContext {
         sample_rate: 44100,
         mode: fframes::FFramesMode::Renderer,
-        fps,
+        fps: TVideo::FPS,
         media_provider: &media_provider,
-        duration_in_frames,
+        duration_in_frames: 1,
         scenes: scenes.as_ref(),
         font_source: Some(&font_source),
     };
-
-    logger.init_frames_rendering(duration_in_frames);
 
     options.render_backend.render(
         output,
         video,
         logger,
-        &opt.to_ref(),
+        &usvgr::Options {
+            image_data: Some(&image_data),
+            font_family: options.default_font.to_string(),
+            ..Default::default()
+        },
         duration_in_frames,
         options.encoder_options,
+        &font_db,
         ctx,
     )?;
 
@@ -105,36 +126,10 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
     output_png: &'a str,
     options: RenderOptions<'a, TBackend>,
 ) -> FFramesResult<()> {
-    let logger = fframes_logger::make_logger(options.logger);
-    let (media_provider, font_db, image_data) =
-        media_processor::load_media_from_folder(&logger, options.media_dir).unwrap();
+    let (_, media_provider, font_db, scenes, image_data, _) =
+        prepare_rendering_context(&options, &video)?;
 
-    let opt = usvgr::Options {
-        image_data,
-        font_family: options.default_font.to_string(),
-        fontdb: font_db,
-        ..Default::default()
-    };
-
-    let (_, scenes) = fframes::video::resolve_duration_and_scenes_sync(&video, |name| {
-        media_provider
-            .audio
-            .get(name)
-            .map(|main_audio| match main_audio {
-                AudioData::Preloaded(data) => {
-                    data.samples.len() / data.sample_rate as usize * TVideo::FPS
-                }
-                _ => 0,
-            })
-            .ok_or_else(|| {
-                fframes::error::FFramesCoreError::CanNotProcessAudioDuration(name.to_owned())
-            })
-    })?;
-
-    let font_source = RendererFontSource {
-        fontdb: &opt.fontdb,
-    };
-
+    let font_source = RendererFontSource { fontdb: &font_db };
     let ctx = fframes_context::FFramesContext {
         sample_rate: 44100,
         mode: fframes::FFramesMode::Renderer,
@@ -154,7 +149,11 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
         },
         output_png,
         video,
-        &opt.to_ref(),
+        &usvgr::Options {
+            image_data: Some(&image_data),
+            font_family: options.default_font.to_string(),
+            ..Default::default()
+        },
         ctx,
     )
 }

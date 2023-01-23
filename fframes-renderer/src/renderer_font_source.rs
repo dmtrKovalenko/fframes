@@ -1,6 +1,6 @@
 use fframes::{self, FontFace, FontStretch, FontStyle};
 use std::sync::Arc;
-use usvgr::fontdb::{Family, Query, Weight};
+use usvgr_text_layout::fontdb::{self, Family, Query, Weight};
 
 pub(crate) struct RendererFont<'a> {
     pub(crate) index: u32,
@@ -36,7 +36,7 @@ impl<'a> fframes::FontFace<'a> for RendererFont<'a> {
 
 #[derive(Debug)]
 pub(crate) struct RendererFontSource<'a> {
-    pub(crate) fontdb: &'a usvgr::fontdb::Database,
+    pub(crate) fontdb: &'a usvgr_text_layout::fontdb::Database,
 }
 
 impl<'a> fframes::FontSource<'a> for RendererFontSource<'a> {
@@ -51,28 +51,28 @@ impl<'a> fframes::FontSource<'a> for RendererFontSource<'a> {
             families: &[Family::Name(font_name)],
             weight: Weight(font_weight),
             style: match font_style {
-                FontStyle::Normal => usvgr::fontdb::Style::Normal,
-                FontStyle::Italic => usvgr::fontdb::Style::Italic,
-                FontStyle::Oblique => usvgr::fontdb::Style::Oblique,
+                FontStyle::Normal => fontdb::Style::Normal,
+                FontStyle::Italic => fontdb::Style::Italic,
+                FontStyle::Oblique => fontdb::Style::Oblique,
             },
             stretch: match font_stretch {
-                FontStretch::ExtraCondensed => usvgr::fontdb::Stretch::ExtraCondensed,
-                FontStretch::UltraCondensed => usvgr::fontdb::Stretch::UltraCondensed,
-                FontStretch::Condensed => usvgr::fontdb::Stretch::Condensed,
-                FontStretch::SemiCondensed => usvgr::fontdb::Stretch::SemiCondensed,
-                FontStretch::Normal => usvgr::fontdb::Stretch::Normal,
-                FontStretch::SemiExpanded => usvgr::fontdb::Stretch::SemiExpanded,
-                FontStretch::Expanded => usvgr::fontdb::Stretch::Expanded,
-                FontStretch::ExtraExpanded => usvgr::fontdb::Stretch::ExtraExpanded,
-                FontStretch::UltraExpanded => usvgr::fontdb::Stretch::UltraExpanded,
+                FontStretch::ExtraCondensed => fontdb::Stretch::ExtraCondensed,
+                FontStretch::UltraCondensed => fontdb::Stretch::UltraCondensed,
+                FontStretch::Condensed => fontdb::Stretch::Condensed,
+                FontStretch::SemiCondensed => fontdb::Stretch::SemiCondensed,
+                FontStretch::Normal => fontdb::Stretch::Normal,
+                FontStretch::SemiExpanded => fontdb::Stretch::SemiExpanded,
+                FontStretch::Expanded => fontdb::Stretch::Expanded,
+                FontStretch::ExtraExpanded => fontdb::Stretch::ExtraExpanded,
+                FontStretch::UltraExpanded => fontdb::Stretch::UltraExpanded,
             },
         })?;
 
         let (source, index) = self.fontdb.face_source(font_id)?;
         let data_ref = match source {
-            usvgr::fontdb::Source::Binary(data) => data.clone(),
-            usvgr::fontdb::Source::File(file) => Arc::new(std::fs::read(file).ok()?),
-            usvgr::fontdb::Source::SharedFile(_, data) => data.clone(),
+            fontdb::Source::Binary(data) => data.clone(),
+            fontdb::Source::File(file) => Arc::new(std::fs::read(file).ok()?),
+            fontdb::Source::SharedFile(_, data) => data.clone(),
         };
 
         Some(Box::new(RendererFont {

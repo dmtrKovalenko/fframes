@@ -27,9 +27,10 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         output: &'a str,
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
-        usvg_options: &usvgr::OptionsRef,
+        usvg_options: &usvgr::Options,
         duration_in_frames: usize,
         render_options: EncoderOptions<'a>,
+        _fontdb: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
@@ -90,13 +91,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         });
 
         let msaa_texture_view = msaa_texture.create_view(&Default::default());
-        let text_cache = if self.text_cache_capacity == 0 {
-            None
-        } else {
-            Some(BreaksLruCache::new(
-                NonZeroUsize::new(self.text_cache_capacity).unwrap(),
-            ))
-        };
+        let text_cache = BreaksLruCache::new(self.text_cache_capacity);
 
         unsafe {
             Encoder::with_output(
@@ -407,13 +402,14 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         Ok(())
     }
 
-    fn debug_frame<'a, TVideo: Video + Sync + Sized>(
+    fn debug_frame<TVideo: Video + Sync + Sized>(
         &self,
-        _frame_index: fframes::Frame,
-        _out: &str,
-        _video: TVideo,
-        _usvg_options: &usvgr::OptionsRef,
-        _ctx: fframes::FFramesContext,
+        frame: fframes::Frame,
+        out: &str,
+        video: TVideo,
+        usvg_options: &usvgr::Options,
+        fontdb: &usvgr_text_layout::fontdb::Database,
+        ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         todo!()
     }

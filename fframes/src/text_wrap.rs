@@ -62,8 +62,14 @@ impl Default for BreakLinesOpts<'_> {
 pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Svgr>>>);
 
 impl BreaksLruCache {
-    pub fn new(capacity: std::num::NonZeroUsize) -> Self {
-        Self(Arc::new(Mutex::new(lru::LruCache::new(capacity))))
+    pub fn new(size: usize) -> Option<Self> {
+        if size > 0 {
+            Some(Self(Arc::new(Mutex::new(lru::LruCache::new(
+                std::num::NonZeroUsize::new(size).unwrap(),
+            )))))
+        } else {
+            None
+        }
     }
 }
 

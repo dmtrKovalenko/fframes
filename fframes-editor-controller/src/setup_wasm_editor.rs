@@ -18,7 +18,7 @@ macro_rules! setup_wasm_editor {
         }
 
         lazy_static! {
-            static ref BREAK_LINES_CACHE: fframes::BreaksLruCache = fframes::BreaksLruCache::new(std::num::NonZeroUsize::new(10).unwrap());
+            static ref BREAK_LINES_CACHE: fframes::BreaksLruCache = fframes::BreaksLruCache::new(10).unwrap();
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
             static ref AUDIO_MAP: Mutex<Option<Vec<AudioTrack>>> = {

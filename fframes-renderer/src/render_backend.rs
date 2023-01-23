@@ -1,7 +1,8 @@
-use fframes::{frame, video::Video, BreaksLruCache, ResolvedAudioMap};
+use fframes::{frame, video::Video, BreaksLruCache, ResolvedAudioMap, Svgr};
 use rayon::prelude::*;
-use std::{num::NonZeroUsize, ops::Range, sync::Arc};
+use std::{ops::Range, sync::Arc};
 use svgr::SvgrCache;
+use usvgr_text_layout::{FontsCache, TreeTextToPath, UsvgrTextLayoutCache};
 use uuid::Uuid;
 
 use crate::{
@@ -20,7 +21,8 @@ pub trait FFramesRenderBackend {
         frame: fframes::Frame,
         out: &str,
         video: TVideo,
-        usvg_options: &usvgr::OptionsRef,
+        usvg_options: &usvgr::Options,
+        fontdb: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()>;
 
@@ -29,9 +31,10 @@ pub trait FFramesRenderBackend {
         output: &'a str,
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
-        usvg_options: &usvgr::OptionsRef,
+        usvg_options: &usvgr::Options,
         duration_in_frames: usize,
-        render_options: EncoderOptions<'a>,
+        encoder_options: EncoderOptions<'a>,
+        fontdb: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()>
     where
@@ -123,9 +126,10 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         output: &'a str,
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
-        usvg_options: &usvgr::OptionsRef,
+        usvg_options: &usvgr::Options,
         duration_in_frames: usize,
         _encoder_options: EncoderOptions<'a>,
+        fontdb: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let session = Uuid::new_v4();
@@ -162,19 +166,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             let mut last_svg = "".to_owned();
                             let mut frame = EncoderFrame::make(&encoder.video_stream);
 
-                            let mut svgr_cache = if self.cache_capacity == 0 {
-                                SvgrCache::none()
-                            } else {
-                                SvgrCache::new(NonZeroUsize::new(self.cache_capacity).unwrap())
-                            };
-
-                            let text_cache = if self.text_cache_capacity == 0 {
-                                None
-                            } else {
-                                Some(BreaksLruCache::new(
-                                    NonZeroUsize::new(self.text_cache_capacity).unwrap(),
-                                ))
-                            };
+                            let mut svgr_cache = SvgrCache::new(self.cache_capacity);
+                            let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
+                            let mut text_layout_cache =
+                                UsvgrTextLayoutCache::new(self.text_cache_capacity);
+                            let mut font_cache = FontsCache::new();
 
                             let mut pixmap = svgr::tiny_skia::Pixmap::new(
                                 TVideo::WIDTH as u32,
@@ -192,7 +188,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                                 fps: TVideo::FPS,
                                                 index: fr,
                                                 global_index: fr,
-                                                breaks_lru_cache: text_cache.clone(),
+                                                breaks_lru_cache: break_lines_cache.clone(),
                                             },
                                             &ctx,
                                         )
@@ -200,8 +196,16 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                                     logger.log_frame(index, thread_number, &svg);
                                     if svg != last_svg {
-                                        let rtree =
+                                        let mut rtree =
                                             usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+
+                                        rtree.convert_text_with_cache(
+                                            fontdb,
+                                            &mut text_layout_cache,
+                                            &mut font_cache,
+                                            true,
+                                        );
+
                                         svgr::render(
                                             &rtree,
                                             usvgr::FitTo::Original,
@@ -263,14 +267,16 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         frame: fframes::Frame,
         out: &str,
         video: TVideo,
-        usvg_options: &usvgr::OptionsRef,
+        usvg_options: &usvgr::Options,
+        fontdb: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let svg = video.render_frame(frame, &ctx).into_string();
 
         let mut pixmap =
             svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32).unwrap();
-        let rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+        let mut rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+        rtree.convert_text(fontdb, true);
 
         svgr::render(
             &rtree,

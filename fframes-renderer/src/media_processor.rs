@@ -22,14 +22,14 @@ pub(crate) fn load_media_from_folder(
     folder_path: &str,
 ) -> FFramesResult<(
     MediaProvider,
-    usvgr::fontdb::Database,
+    usvgr_text_layout::fontdb::Database,
     HashMap<String, Arc<usvgr::PreloadedImageData>>,
 )> {
     let audio_hash = Mutex::new(HashMap::new());
     let subtitles_hash = Mutex::new(HashMap::new());
     let image_hash = Mutex::new(HashMap::new());
     let usvgr_image_data = Mutex::new(HashMap::new());
-    let fontdb = Mutex::new(usvgr::fontdb::Database::new());
+    let fontdb = Mutex::new(usvgr_text_layout::fontdb::Database::new());
 
     let folder_path = Path::new(folder_path);
     if !folder_path.is_dir() {
