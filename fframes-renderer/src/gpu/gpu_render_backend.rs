@@ -1,7 +1,4 @@
-use std::{
-    num::{NonZeroU32, NonZeroUsize},
-    sync::Arc,
-};
+use std::{num::NonZeroU32, sync::Arc};
 
 use crate::{
     concatenator::fill_audio_stream,
@@ -404,12 +401,12 @@ impl FFramesRenderBackend for GpuRenderingBackend {
 
     fn debug_frame<TVideo: Video + Sync + Sized>(
         &self,
-        frame: fframes::Frame,
-        out: &str,
-        video: TVideo,
-        usvg_options: &usvgr::Options,
-        fontdb: &usvgr_text_layout::fontdb::Database,
-        ctx: fframes::FFramesContext,
+        _frame: fframes::Frame,
+        _out: &str,
+        _video: TVideo,
+        _usvg_options: &usvgr::Options,
+        _fontdb: &usvgr_text_layout::fontdb::Database,
+        _ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         todo!()
     }

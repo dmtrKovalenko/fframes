@@ -1,4 +1,4 @@
-use fframes::{frame, video::Video, BreaksLruCache, ResolvedAudioMap, Svgr};
+use fframes::{frame, video::Video, BreaksLruCache, ResolvedAudioMap};
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
 use svgr::SvgrCache;
@@ -22,7 +22,7 @@ pub trait FFramesRenderBackend {
         out: &str,
         video: TVideo,
         usvg_options: &usvgr::Options,
-        fontdb: &usvgr_text_layout::fontdb::Database,
+        font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()>;
 
@@ -34,7 +34,7 @@ pub trait FFramesRenderBackend {
         usvg_options: &usvgr::Options,
         duration_in_frames: usize,
         encoder_options: EncoderOptions<'a>,
-        fontdb: &usvgr_text_layout::fontdb::Database,
+        font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()>
     where
@@ -129,7 +129,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         usvg_options: &usvgr::Options,
         duration_in_frames: usize,
         _encoder_options: EncoderOptions<'a>,
-        fontdb: &usvgr_text_layout::fontdb::Database,
+        font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let session = Uuid::new_v4();
@@ -200,7 +200,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                             usvgr::Tree::from_str(&svg, usvg_options).unwrap();
 
                                         rtree.convert_text_with_cache(
-                                            fontdb,
+                                            font_db,
                                             &mut text_layout_cache,
                                             &mut font_cache,
                                             true,
@@ -268,7 +268,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         out: &str,
         video: TVideo,
         usvg_options: &usvgr::Options,
-        fontdb: &usvgr_text_layout::fontdb::Database,
+        font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let svg = video.render_frame(frame, &ctx).into_string();
@@ -276,7 +276,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         let mut pixmap =
             svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32).unwrap();
         let mut rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
-        rtree.convert_text(fontdb, true);
+        rtree.convert_text(font_db, true);
 
         svgr::render(
             &rtree,

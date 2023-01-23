@@ -97,8 +97,8 @@ impl Frame {
     /// * from 4.8 to 5.4 -> transition from 770 to 1400 (duration calculates based on spring duration)
     /// * from 5.4 to end of file -> 1400
     ///
-    /// ```rust
-    /// use fframes::{ Frame, svgr, animation::Easing};
+    /// ```no_run
+    /// use crate::fframes::{ Frame, svgr, Svgr, animation::Easing};
     /// let frame = fframes::Frame { index: 0, global_index: 0, fps: 60, ..Default::default() };
     ///
     /// fframes::svgr!(

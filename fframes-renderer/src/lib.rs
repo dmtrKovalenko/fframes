@@ -37,17 +37,19 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub preferred_codec: &'a str,
 }
 
-fn prepare_rendering_context<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
-    options: &RenderOptions<TBackend>,
-    video: &TVideo,
-) -> FFramesResult<(
+type RenderPreparation = (
     usize,
     MediaProvider,
     usvgr_text_layout::fontdb::Database,
     Option<ResolvedScenesTimeline>,
     HashMap<String, Arc<PreloadedImageData>>,
     Arc<dyn FFramesLogger>,
-)> {
+);
+
+fn prepare_rendering_context<TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
+    options: &RenderOptions<TBackend>,
+    video: &TVideo,
+) -> FFramesResult<RenderPreparation> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let (media_provider, font_db, image_data) =
         media_processor::load_media_from_folder(&logger, options.media_dir).unwrap();
@@ -154,6 +156,7 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
             font_family: options.default_font.to_string(),
             ..Default::default()
         },
+        &font_db,
         ctx,
     )
 }

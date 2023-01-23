@@ -6,8 +6,8 @@ use std::fmt;
 /// Can be used in fframes animations and as a raw svgr! value.
 ///
 /// @example
-/// ```rust
-///use fframes::{Color, Svgr, svgr};
+/// ```no_run
+///use crate::fframes::{Color, Svgr, svgr};
 /// 
 ///const WHITE: Color = Color::hex("#FFFFFF");
 ///
