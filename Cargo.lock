@@ -590,7 +590,7 @@ dependencies = [
  "serde",
  "svgr-macro",
  "ttf-parser 0.18.0",
- "usvgr 0.27.0",
+ "usvgr",
  "wasm-bindgen",
  "webvtt-parser",
 ]
@@ -627,7 +627,7 @@ dependencies = [
  "svgr",
  "svgr-macro",
  "syn",
- "usvgr 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "usvgr",
  "usvgr-text-layout",
  "uuid",
  "wgpu",
@@ -2080,8 +2080,6 @@ dependencies = [
 [[package]]
 name = "svgfilters"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "639abcebc15fdc2df179f37d6f5463d660c1c79cd552c12343a4600827a04bce"
 dependencies = [
  "float-cmp",
  "rgb",
@@ -2090,8 +2088,6 @@ dependencies = [
 [[package]]
 name = "svgr"
 version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b16e0a67b0635651d98056a6d9254654d1809a401e5e495af780b5574f3c2266"
 dependencies = [
  "gif",
  "jpeg-decoder 0.3.0",
@@ -2100,9 +2096,9 @@ dependencies = [
  "png",
  "rgb",
  "svgfilters",
- "svgrtypes 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "svgrtypes",
  "tiny-skia",
- "usvgr 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "usvgr",
  "usvgr-text-layout",
 ]
 
@@ -2115,7 +2111,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
- "usvgr 0.27.0",
+ "usvgr",
  "uuid",
 ]
 
@@ -2126,16 +2122,6 @@ dependencies = [
  "kurbo",
  "proc-macro2",
  "quote",
- "siphasher",
-]
-
-[[package]]
-name = "svgrtypes"
-version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9691efa6667d671abafd4871f61b450a435939ac934b22fe78019fa3e3b25de5"
-dependencies = [
- "kurbo",
  "siphasher",
 ]
 
@@ -2363,34 +2349,12 @@ dependencies = [
  "simplecss",
  "siphasher",
  "strict-num",
- "svgrtypes 0.27.0",
-]
-
-[[package]]
-name = "usvgr"
-version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0930b67c9aa97687dc9424ab9160a0ba8f08f90b661ede69ddc49cd12673d698"
-dependencies = [
- "base64",
- "data-url",
- "flate2",
- "imagesize",
- "kurbo",
- "log",
- "rctree",
- "roxmltree 0.15.1",
- "simplecss",
- "siphasher",
- "strict-num",
- "svgrtypes 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "svgrtypes",
 ]
 
 [[package]]
 name = "usvgr-text-layout"
 version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "128db00d46cb08b979982d0cdf5cd44bc95aa5a9865237bcf1a627fc0cc22a9d"
 dependencies = [
  "fontdb",
  "kurbo",
@@ -2400,7 +2364,7 @@ dependencies = [
  "unicode-bidi",
  "unicode-script",
  "unicode-vo",
- "usvgr 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "usvgr",
 ]
 
 [[package]]

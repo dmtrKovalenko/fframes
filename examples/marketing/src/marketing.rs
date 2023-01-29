@@ -45,17 +45,16 @@ impl MarketingVideo {
                 on 2.3, val 1400. => 770., animation::Easing::Spring2(1.85, 130.0, 16.0),
                 on 4.8, val 770. => 1400., animation::Easing::Spring2(1.85, 130.0, 16.0)
             ))}
-            version="1.1"
-            xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
-            xml:space="preserve"
-            xmlns:serif="http://www.serif.com/"
+            // xmlns="http://www.w3.org/2000/svg"
+            // xmlns:xlink="http://www.w3.org/1999/xlink"
+            // xml:space="preserve"
+            // xmlns:serif="http://www.serif.com/"
             fill-rule="evenodd"
             clip-rule="evenodd"
             stroke-linejoin="round"
             stroke-miterlimit="1.41421"
           >
-            <g id="Layer-1" serif:id="Layer 1">
+            <g id="Layer-1">
                 <g transform="matrix(1,0,0,1,597.344,637.02)">
                     <path
                         d="M0,-279.559C-121.238,-279.559 -231.39,-264.983 -312.939,-241.23L-312.939,-38.329C-231.39,-14.575 -121.238,0 0,0C138.76,0 262.987,-19.092 346.431,-49.186L346.431,-230.37C262.987,-260.465 138.76,-279.559 0,-279.559"
@@ -241,8 +240,8 @@ impl Video for MarketingVideo {
 
         svgr!(
           <svg
-            xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
+            // xmlns="http://www.w3.org/2000/svg"
+            // xml ns:xlink="http://www.w3.org/1999/xlink"
             width="1920"
             height="1080"
           >

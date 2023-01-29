@@ -1,5 +1,5 @@
 use std::{fmt, iter::FromIterator};
-use usvgr::svgtree::{Document, NestedSvgDocument};
+use usvgr::svgtree::{Document, NestedNodeData, NestedSvgDocument};
 
 /// This struct should represent the svg AST. WIP.
 #[derive(Default)]
@@ -20,16 +20,22 @@ pub trait IntoSvgr {
 
 impl From<String> for Svgr {
     fn from(val: String) -> Self {
-        Svgr { value: val, svg_tree: None }
+        Svgr {
+            value: val.clone(),
+            svg_tree: Some(NestedSvgDocument {
+                nodes: vec![Some(NestedNodeData {
+                    kind: usvgr::svgtree::NodeKind::Text(val),
+                    attrs: vec![],
+                    children: vec![],
+                })],
+            }),
+        }
     }
 }
 
 impl<'a> From<&'a str> for Svgr {
     fn from(val: &'a str) -> Self {
-        Svgr {
-            value: val.to_owned(),
-            svg_tree: None
-        }
+        Svgr::from(String::from(val))
     }
 }
 
