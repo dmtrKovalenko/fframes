@@ -44,4 +44,8 @@ pub mod serde {
   pub use serde::*;
 }
 
+pub mod usvgr { 
+  pub use usvgr::*;
+}
+
 mod tests;

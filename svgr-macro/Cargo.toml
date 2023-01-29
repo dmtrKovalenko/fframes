@@ -8,10 +8,10 @@ proc-macro = true
 
 [dependencies]
 proc-macro2 = "1"
-quote = "1"
+quote = "1.0.23"
 syn = { version = "1", features = ["full", "parsing", "extra-traits"] }
 uuid = { version = "0.8", features = ["v4"] }
-usvg = "0.23.0"
+usvgr = { path = "../../resvg/usvgr" }
 proc-macro-crate = "1.2.1"
 
 [dev-dependencies]

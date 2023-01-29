@@ -11,6 +11,7 @@ fn main() {
             render_backend: render_backend::CpuRenderingBackend {
                 // Not that big cache capacity because the whole sub-svg will be cached
                 cache_capacity: 5,
+                concurrency: 1,
                 ..Default::default()
             },
             preferred_codec: "libx264",

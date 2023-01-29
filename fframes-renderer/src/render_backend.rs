@@ -1,6 +1,10 @@
-use fframes::{frame, video::Video, BreaksLruCache, ResolvedAudioMap};
+use fframes::{frame, video::Video, BreaksLruCache, Duration, ResolvedAudioMap};
 use rayon::prelude::*;
-use std::{ops::Range, sync::Arc};
+use std::{
+    ops::{Add, Range},
+    sync::Arc,
+    time::Instant,
+};
 use svgr::SvgrCache;
 use usvgr_text_layout::{FontsCache, TreeTextToPath, UsvgrTextLayoutCache};
 use uuid::Uuid;
@@ -178,6 +182,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             )
                             .unwrap();
 
+                            let mut duration = std::time::Duration::default();
                             chunk_range
                                 .to_owned()
                                 .enumerate()
@@ -196,8 +201,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                                     logger.log_frame(index, thread_number, &svg);
                                     if svg != last_svg {
+                                        let start = Instant::now();
+
                                         let mut rtree =
                                             usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+                                        duration = duration.add(start.elapsed());
 
                                         rtree.convert_text_with_cache(
                                             font_db,
@@ -223,6 +231,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     let video_stream = encoder.video_stream;
                                     encoder.send_frame(&video_stream, frame)
                                 })?;
+
+                            println!("Time elapsed for string parsing {:?}", duration);
 
                             let frames_to_generate = chunk_range.end - chunk_range.start;
                             let submitted_frames =

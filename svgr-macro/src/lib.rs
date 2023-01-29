@@ -2,6 +2,7 @@ extern crate proc_macro2;
 
 mod node;
 mod nodes_to_format;
+mod nodes_to_svgtree;
 mod parser;
 mod validate_svg;
 
@@ -26,10 +27,13 @@ mod punctuation {
     custom_punctuation!(Dash, -);
 }
 
-fn parse(tokens: proc_macro::TokenStream) -> Result<Vec<Node>> {
+fn parse(tokens: proc_macro::TokenStream) -> Result<(Vec<Node>, proc_macro2::TokenStream)> {
     let parser = move |input: ParseStream| Parser::new(ParserOptions::default()).parse(input);
 
-    parser.parse(tokens)
+    let nodes = parser.parse(tokens)?;
+    let svg_tree = crate::nodes_to_svgtree::nodes_to_svgtree(nodes.as_slice())?;
+
+    Ok((nodes, svg_tree))
 }
 
 #[proc_macro]
@@ -42,22 +46,23 @@ pub fn svgr(tokens: TokenStream) -> TokenStream {
     };
 
     match parse(tokens) {
-        Ok(nodes) => {
+        Ok((nodes, svg_tree)) => {
             let (html_string, values, animations) =
                 prepare_svg_nodes_for_format_statement(nodes, &fframes_crate_ident);
 
-            quote! {
-            {
-                lazy_static::lazy_static! {
-                    #(#animations)*
-                }
+            quote! {{
+                 use #fframes_crate_ident::usvgr::svgtree::*;
 
-                #[allow(unused_braces)]
-                #fframes_crate_ident::Svgr {
-                    value: format!(#html_string, #(#values),*)
-                }
-            }
-            }
+                 lazy_static::lazy_static! {
+                     #(#animations)*
+                 }
+
+                 #[allow(unused_braces)]
+                 #fframes_crate_ident::Svgr {
+                     value: format!(#html_string, #(#values),*),
+                     svg_tree: Some(#svg_tree)
+                 }
+            }}
         }
         Err(error) => error.to_compile_error(),
     }

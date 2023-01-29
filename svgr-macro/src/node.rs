@@ -5,7 +5,7 @@ use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Colon, Expr, ExprBlock, ExprPath, Ident, Lit,
 };
 
-use crate::punctuation::Dash;
+use crate::{punctuation::Dash, nodes_to_svgtree::CompileTimeValue};
 
 /// Node in the tree
 #[derive(Debug)]
@@ -66,6 +66,10 @@ impl Node {
         self.name.as_ref().map(|name| name.span())
     }
 
+    pub fn value_span(&self) -> Option<Span> {
+        self.value.as_ref().map(|name| name.span())
+    }
+
     /// Returns `String` if `value` is a `Lit` or `Path` expression
     pub fn value_as_string(&self) -> Option<String> {
         match self.value.as_ref() {
@@ -86,6 +90,17 @@ impl Node {
         }
     }
 }
+
+impl CompileTimeValue for Node {
+    fn resolve_str(&self) -> Option<String> {
+        self.value_as_string()
+    }
+
+    fn resolve_block(&self) -> Option<ExprBlock> {
+        self.value_as_block()
+    }
+}
+
 
 // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
 /// Type of the node
@@ -142,6 +157,7 @@ pub enum NodeName {
     /// Arbitrary rust code in braced `{}` blocks
     Block(Expr),
 }
+
 
 impl NodeName {
     /// Returns the `Span` of this `NodeName`

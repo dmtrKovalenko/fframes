@@ -59,39 +59,39 @@ impl Video for HelloWorldMultiSceneVideo {
         const BACKGROUND_EASING: fframes::Easing = fframes::Easing::Linear(5.);
 
         fframes::svgr!(
-           <svg
-            xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
-          >
-            <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
-              x="0"
-              y="0"
-              fill={
-                frame.animate(fframes::timeline!(
-                  on 0., val Color::hex("#fff") => Color::hex("#f8fafc"), &BACKGROUND_EASING,
-                  on 5., val Color::hex("#f8fafc") => Color::hex("#fff7ed"), &BACKGROUND_EASING,
-                  on 10., val Color::hex("#fff7ed") => Color::hex("#fef2f2"), &BACKGROUND_EASING,
-                  on 15., val Color::hex("#fef2f2") => Color::hex("#f7fee7"), &BACKGROUND_EASING,
-                  on 20., val Color::hex("#f7fee7") => Color::hex("#ecfdf5"), &BACKGROUND_EASING,
-                  on 25., val Color::hex("#ecfdf5") => Color::hex("#faf5ff"), &BACKGROUND_EASING
-                ))
-              }
-            />
+          //  <svg
+          //   xmlns="http://www.w3.org/2000/svg"
+          //   xmlns:xlink="http://www.w3.org/1999/xlink"
+          //   width={Self::WIDTH}
+          //   height={Self::HEIGHT}
+          // >
+          //   <rect
+          //     width={Self::WIDTH}
+          //     height={Self::HEIGHT}
+          //     x="0"
+          //     y="0"
+          //     fill={
+          //       frame.animate(fframes::timeline!(
+          //         on 0., val Color::hex("#fff") => Color::hex("#f8fafc"), &BACKGROUND_EASING,
+          //         on 5., val Color::hex("#f8fafc") => Color::hex("#fff7ed"), &BACKGROUND_EASING,
+          //         on 10., val Color::hex("#fff7ed") => Color::hex("#fef2f2"), &BACKGROUND_EASING,
+          //         on 15., val Color::hex("#fef2f2") => Color::hex("#f7fee7"), &BACKGROUND_EASING,
+          //         on 20., val Color::hex("#f7fee7") => Color::hex("#ecfdf5"), &BACKGROUND_EASING,
+          //         on 25., val Color::hex("#ecfdf5") => Color::hex("#faf5ff"), &BACKGROUND_EASING
+          //       ))
+          //     }
+          //   />
 
-            {ctx.render_scenes(&frame)}
+          //   {ctx.render_scenes(&frame)}
 
-            <text font-weight="500" font-family="JetBrains Mono" x="100" y="440" font-size="74" fill="#4b5563">
-              {format!(
-                  "This frame index: {}, second: {:.2}",
-                  frame.index,
-                  frame.get_current_second()
-              )}
-            </text>
-          </svg>
+          //   <text font-weight="500" font-family="JetBrains Mono" x="100" y="440" font-size="74" fill="#4b5563">
+          //     {format!(
+          //         "This frame index: {}, second: {:.2}",
+          //         frame.index,
+          //         frame.get_current_second()
+          //     )}
+          //   </text>
+          // </svg>
         )
     }
 }

@@ -201,11 +201,12 @@ impl Frame {
             let cache = cache_guard.deref_mut();
 
             if let Some(cached_value) = cache.get(&hash).as_ref() {
-                let a = cached_value.to_owned();
-                Some(a.to_owned())
+                todo!();
+                // let a = cached_value.to_owned();
+                // Some(a.to_owned())
             } else {
                 let svgr = text_wrap_impl(value, hash, ctx.font_source?, *opts)?;
-                cache.put(hash, svgr.clone());
+                // cache.put(hash, svgr.clone());
 
                 Some(svgr)
             }
