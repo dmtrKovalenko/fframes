@@ -8,7 +8,7 @@ use std::fmt;
 /// @example
 /// ```no_run
 ///use crate::fframes::{Color, Svgr, svgr};
-/// 
+///
 ///const WHITE: Color = Color::hex("#FFFFFF");
 ///
 /// svgr!(<rect fill={WHITE} />);

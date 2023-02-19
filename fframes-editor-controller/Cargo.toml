@@ -7,11 +7,11 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build]
+target = "wasm32-unknown-unknown"
 
 [dependencies]
-
-fframes = { path = "../fframes" }
+fframes = { path = "../fframes", default-features=false }
 lazy_static = "1.4.0"
 console_error_panic_hook = "0.1.6"
 wasm-bindgen-futures= "0.4.28"

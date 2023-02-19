@@ -167,7 +167,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         &logger,
                         false,
                         &mut |encoder| {
-                            let mut last_svg = "".to_owned();
                             let mut frame = EncoderFrame::make(&encoder.video_stream);
 
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
@@ -187,44 +186,37 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                 .to_owned()
                                 .enumerate()
                                 .try_for_each(|(index, fr)| {
-                                    let svg = video
-                                        .render_frame(
-                                            frame::Frame {
-                                                fps: TVideo::FPS,
-                                                index: fr,
-                                                global_index: fr,
-                                                breaks_lru_cache: break_lines_cache.clone(),
-                                            },
-                                            &ctx,
-                                        )
-                                        .into_string();
+                                    let svg = video.render_frame(
+                                        frame::Frame {
+                                            fps: TVideo::FPS,
+                                            index: fr,
+                                            global_index: fr,
+                                            breaks_lru_cache: break_lines_cache.clone(),
+                                        },
+                                        &ctx,
+                                    );
 
-                                    logger.log_frame(index, thread_number, &svg);
-                                    if svg != last_svg {
-                                        let start = Instant::now();
+                                    logger.log_frame(index, thread_number);
+                                    
+                                    let start = Instant::now();
+                                    let mut rtree = svg.into_svg_tree(usvg_options).unwrap();
+                                    duration = duration.add(start.elapsed());
 
-                                        let mut rtree =
-                                            usvgr::Tree::from_str(&svg, usvg_options).unwrap();
-                                        duration = duration.add(start.elapsed());
+                                    rtree.convert_text_with_cache(
+                                        font_db,
+                                        &mut text_layout_cache,
+                                        &mut font_cache,
+                                        true,
+                                    );
 
-                                        rtree.convert_text_with_cache(
-                                            font_db,
-                                            &mut text_layout_cache,
-                                            &mut font_cache,
-                                            true,
-                                        );
-
-                                        svgr::render(
-                                            &rtree,
-                                            usvgr::FitTo::Original,
-                                            svgr::tiny_skia::Transform::default(),
-                                            pixmap.as_mut(),
-                                            &mut svgr_cache,
-                                        )
-                                        .unwrap();
-
-                                        last_svg = svg;
-                                    }
+                                    svgr::render(
+                                        &rtree,
+                                        usvgr::FitTo::Original,
+                                        svgr::tiny_skia::Transform::default(),
+                                        pixmap.as_mut(),
+                                        &mut svgr_cache,
+                                    )
+                                    .unwrap();
 
                                     frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
 
@@ -232,7 +224,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     encoder.send_frame(&video_stream, frame)
                                 })?;
 
-                            println!("Time elapsed for string parsing {:?}", duration);
+                            println!("Time elapsed for runtime tree parsing {:?}", duration);
 
                             let frames_to_generate = chunk_range.end - chunk_range.start;
                             let submitted_frames =
@@ -281,24 +273,24 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
-        let svg = video.render_frame(frame, &ctx).into_string();
+        // let svg = video.render_frame(frame, &ctx).into_string();
 
-        let mut pixmap =
-            svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32).unwrap();
-        let mut rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
-        rtree.convert_text(font_db, true);
+        // let mut pixmap =
+        //     svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32).unwrap();
+        // let mut rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
+        // rtree.convert_text(font_db, true);
 
-        svgr::render(
-            &rtree,
-            usvgr::FitTo::Original,
-            svgr::tiny_skia::Transform::default(),
-            pixmap.as_mut(),
-            &mut SvgrCache::none(),
-        )
-        .unwrap();
+        // svgr::render(
+        //     &rtree,
+        //     usvgr::FitTo::Original,
+        //     svgr::tiny_skia::Transform::default(),
+        //     pixmap.as_mut(),
+        //     &mut SvgrCache::none(),
+        // )
+        // .unwrap();
 
-        let buffer = pixmap.encode_png().unwrap();
-        std::fs::write(out, buffer)?;
+        // let buffer = pixmap.encode_png().unwrap();
+        // std::fs::write(out, buffer)?;
 
         Ok(())
     }

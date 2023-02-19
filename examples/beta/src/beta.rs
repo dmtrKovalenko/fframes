@@ -79,7 +79,7 @@ impl Video for BetaVideo {
             Box::new(crate::github::GithubScene {}),
             Box::new(crate::examples::ExamplesScene {
                 hello_world_video: hello_world_example::HelloWorldVideo {
-                    slug: "Hello World!".to_string(),
+                    slug: "Hello World!",
                 },
                 podcast_video: podcast_example::PodcastVideo {
                     goose_audio: "beta.mp3",
@@ -103,7 +103,6 @@ impl Video for BetaVideo {
         svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
             width={Self::WIDTH}
             height={Self::HEIGHT}
 
@@ -121,7 +120,7 @@ impl Video for BetaVideo {
               height={Self::HEIGHT}
               x="0"
               y="0"
-              xlink:href={ctx.get_image_link("background.png")}
+              href={ctx.get_image_link("background.png")}
               fill="#fff"
             />
 

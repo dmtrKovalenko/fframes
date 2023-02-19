@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use ffmpeg_next::ffi::AV_LOG_FATAL;
 use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
-use std::{ffi::c_int, path::Path, sync::Arc};
+use std::{default, ffi::c_int, path::Path, sync::Arc};
 
 #[allow(unused_variables)]
 pub trait FFramesLogger: Sync + Send {
@@ -13,7 +13,7 @@ pub trait FFramesLogger: Sync + Send {
     fn log_media_processing_start(&self, filename: &str, path: &Path) {}
 
     fn init_frames_rendering(&self, duration_in_frames: usize) {}
-    fn log_frame(&self, index: usize, thread_number: usize, svg: &str) {}
+    fn log_frame(&self, index: usize, thread_number: usize) {}
 
     fn get_libav_log_level(&self) -> c_int {
         AV_LOG_FATAL
@@ -51,7 +51,7 @@ impl FFramesLogger for CompactFFramesLogger {
         );
     }
 
-    fn log_frame(&self, _index: usize, _thread_number: usize, _svg: &str) {
+    fn log_frame(&self, _index: usize, _thread_number: usize) {
         self.frames_progress_bar.get().unwrap().inc(1);
     }
 
@@ -93,23 +93,18 @@ impl Debug for dyn FFramesLogger {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 /// Different options for logging rendering process.
 pub enum FFramesLoggerVariant {
     /// Doesn't show progress of rendering, only the output. Slightly faster.
     Silent,
     /// Renders one progress bar showing rendering progress frame by frame
+    #[default]
     Compact,
     /// Verbose logging for debugging purpose
     Debug,
     /// Pass custom logger functionality by implementing FFramesLogger trait
     Custom(Arc<dyn FFramesLogger>),
-}
-
-impl Default for FFramesLoggerVariant {
-    fn default() -> Self {
-        Self::Compact
-    }
 }
 
 pub fn make_logger(variant: FFramesLoggerVariant) -> Arc<dyn FFramesLogger> {

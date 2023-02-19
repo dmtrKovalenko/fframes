@@ -30,13 +30,12 @@ impl Video for LowPolyVideo {
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
             width={Self::WIDTH}
             height={Self::HEIGHT}
           >
             <defs>
               <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
-                <image xlink:href={ctx.get_image_link("white_noise.png")} x="0" y="0" width="230" height="177" />
+                <image href={ctx.get_image_link("white_noise.png")} x="0" y="0" width="230" height="177" />
               </pattern>
             </defs>
 

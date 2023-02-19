@@ -20,7 +20,7 @@ impl Scene for GithubScene {
         svgr!(
             <image
                 width="1920"
-                xlink:href={ctx.get_image_link("github_screenshot.png")}
+                href={ctx.get_image_link("github_screenshot.png")}
                 transform={format!("translate({} -{})",
                 frame.animate(&fframes::timeline!(
                     on 0.0, val 1920. => 0., &fframes::Easing::Spring2(0.3, 90., 26.)

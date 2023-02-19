@@ -1,10 +1,11 @@
-use crate::{animation, Frame};
+use crate::{animation, svgr, Svgr};
+use fframes_test_utils::assert_runtime_eq_compile_time;
+use usvgr::svgtree::{self, Document};
 
 mod fframes {
     pub use crate::*;
 }
 
-use svgr_macro::svgr;
 pub struct Ctx;
 
 impl Ctx {
@@ -15,7 +16,7 @@ impl Ctx {
 
 #[test]
 pub fn macro_animations() {
-    let frame = Frame {
+    let frame = crate::Frame {
         global_index: 50,
         fps: 50,
         index: 75,
@@ -35,15 +36,15 @@ pub fn macro_animations() {
             <image
               width="900"
               height="900"
-              xlink:href={ctx.get_image_link("code.png")}
+              // xlink:href={ctx.get_image_link("code.png")}
               y="10"
             />
 
             <rect
                 x={frame.animate(fframes::timeline!(
-                  on 0., val 10.0 => 12.2, animation::Easing::Linear(0.2),
-                  on 10., val 10.0 => 12.2, animation::Easing::Linear(0.2),
-                  on 12., val 10.0 => 12.2, animation::Easing::Linear(0.2)
+                  on 0., val 10.0 => 12.2, crate::Easing::Linear(0.2),
+                  on 10., val 10.0 => 12.2, crate::Easing::Linear(0.2),
+                  on 12., val 10.0 => 12.2, crate::Easing::Linear(0.2)
                 ))}
             />
           </svg>
@@ -53,3 +54,4 @@ pub fn macro_animations() {
         .to_owned()
     );
 }
+

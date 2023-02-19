@@ -4,13 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-svgr-macro = { path="../../svgr-macro" }
 fframes = {path="../../fframes"}
-lazy_static = "1.4.0"
+
+[dev-dependencies]
+fframes_test_utils = {path="../../fframes-test-utils"}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer ={path="../../fframes-renderer"}
 
+[features]
+default=["renderer"]
+renderer=["fframes/compile-time-svgtree"]
 
 [lib]
 name = "marketing_example"
@@ -19,3 +23,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "marketing_example_bin"
 path = "src/main.rs"
+required-features=["renderer"]

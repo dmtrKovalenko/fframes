@@ -103,7 +103,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream);
 
                     for fr in 0..duration_in_frames {
-                        let svg = video
+                        let rtree = video
                             .render_frame(
                                 fframes::Frame {
                                     fps: TVideo::FPS,
@@ -113,9 +113,9 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                                 },
                                 &ctx,
                             )
-                            .into_string();
+                            .into_svg_tree(usvg_options)
+                            .unwrap();
 
-                        let rtree = usvgr::Tree::from_str(&svg, usvg_options).unwrap();
                         let (mesh, transforms, primitives) = tesselate_svg(rtree);
 
                         let prim_buffer_byte_size =
@@ -384,7 +384,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         let stream = video_encoder.video_stream;
                         video_encoder.send_frame(&stream, frame)?;
 
-                        logger.log_frame(fr, 0, &svg)
+                        logger.log_frame(fr, 0)
                     }
 
                     let resolved_audio_map: Option<ResolvedAudioMap> = video.audio().resolve(&ctx);

@@ -46,7 +46,7 @@ type RenderPreparation = (
     Arc<dyn FFramesLogger>,
 );
 
-fn prepare_rendering_context<TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
+pub fn prepare_rendering_context<TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
     options: &RenderOptions<TBackend>,
     video: &TVideo,
 ) -> FFramesResult<RenderPreparation> {

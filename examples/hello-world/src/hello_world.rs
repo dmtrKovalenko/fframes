@@ -2,11 +2,11 @@ pub use fframes::{audio_data, fframes_context, frame, video::Video};
 use fframes::{AudioMap, Color};
 
 #[derive(Debug)]
-pub struct HelloWorldVideo {
-    pub slug: String,
+pub struct HelloWorldVideo<'a> {
+    pub slug: &'a str,
 }
 
-impl Video for HelloWorldVideo {
+impl Video for HelloWorldVideo<'_> {
     const FPS: usize = 30;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
@@ -25,8 +25,7 @@ impl Video for HelloWorldVideo {
 
         fframes::svgr!(
            <svg
-            // xmlns="http://www.w3.org/2000/svg"
-            // xmlns:xlink="http://www.w3.org/1999/xlink"
+            xmlns="http://www.w3.org/2000/svg"
             width={Self::WIDTH}
             height={Self::HEIGHT}
           >
@@ -48,7 +47,7 @@ impl Video for HelloWorldVideo {
             />
 
             <text font-family="DM Sans" x="100" y="300" font-size="150">
-              {self.slug.as_str()}
+              {self.slug}
             </text>
 
             <text font-weight="500" font-family="JetBrains Mono" x="100" y="440" font-size="74" fill="#4b5563">

@@ -27,7 +27,7 @@ impl Scene for CodeDemoScene {
              }
              y="50"
              transform={format!("skewX({tilt_angle}), skewY({y})", y=-tilt_angle + 0.4)}
-             xlink:href={_ctx.get_image_link("code.png")}
+             href={_ctx.get_image_link("code.png")}
              opacity={frame.animate(fframes::timeline!(
                on 0.3, val 0. => 1., &animation::Easing::Linear(0.5)
              ))}
@@ -44,17 +44,13 @@ impl Scene for CodeDemoScene {
               ))
             }
             y="250"
-            version="1.1"
             xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
-            xml:space="preserve"
-            xmlns:serif="http://www.serif.com/"
             fill-rule="evenodd"
             clip-rule="evenodd"
             stroke-linejoin="round"
             stroke-miterlimit="1.41421"
           >
-            <g id="Layer-1" serif:id="Layer 1">
+            <g id="Layer-1">
                 <g transform="matrix(1,0,0,1,597.344,637.02)">
                     <path
                         d="M0,-279.559C-121.238,-279.559 -231.39,-264.983 -312.939,-241.23L-312.939,-38.329C-231.39,-14.575 -121.238,0 0,0C138.76,0 262.987,-19.092 346.431,-49.186L346.431,-230.37C262.987,-260.465 138.76,-279.559 0,-279.559"

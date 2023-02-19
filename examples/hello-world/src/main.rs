@@ -4,7 +4,7 @@ use hello_world_example::HelloWorldVideo;
 fn main() {
     render(
         HelloWorldVideo {
-            slug: "Hello Renderer!".to_owned(),
+            slug: "Hello Renderer!",
         },
         "out.mp4",
         RenderOptions {
@@ -13,6 +13,7 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: render_backend::CpuRenderingBackend {
                 cache_capacity: 5,
+                concurrency: 1,
                 ..Default::default()
             },
             preferred_codec: "libx264",

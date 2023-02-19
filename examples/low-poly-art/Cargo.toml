@@ -5,13 +5,19 @@ edition = "2021"
 
 [dependencies]
 fframes = {path="../../fframes"}
-lazy_static = "1.4.0"
 libm="0.2.1"
 rand="0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 
+[dev-dependencies]
+fframes_test_utils = {path="../../fframes-test-utils"}
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer ={path="../../fframes-renderer"}
+
+[features]
+default=["renderer"]
+renderer=["fframes/compile-time-svgtree"]
 
 [lib]
 name = "low_poly_art_example"
@@ -20,3 +26,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "low_poly_art_example_bin"
 path = "src/main.rs"
+required-features=["renderer"]

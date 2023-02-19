@@ -7,6 +7,7 @@ members = [
     "webvtt-parser",
     "fframes-renderer",
     "fframes-editor-controller",
+    "fframes-test-utils",
     "examples/marketing",
     "examples/marketing/editor/editor-bridge",
     "examples/podcast",
@@ -22,7 +23,7 @@ members = [
 ]
 
 exclude = [
-    
+    "examples/low-poly-art/editor/editor-bridge",
 ]
 
 resolver="2"

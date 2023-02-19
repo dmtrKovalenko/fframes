@@ -46,7 +46,7 @@ impl Video for GooseVideo {
         let audio_visualization = prettify_spectrum(audio_visualization.as_slice());
 
         svgr!(
-            <svg width="1080" height="1920" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            <svg width="1080" height="1920" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <g clip-path="url(#a)">
                     <path fill="#000" d="M0 0h1080v1920H0z"/>
                     <g style="mix-blend-mode:hard-light" filter="url(#b)">
@@ -93,7 +93,7 @@ impl Video for GooseVideo {
                 <image
                   width="950"
                   height="950"
-                  xlink:href={ctx.get_image_link("goose2.png")}
+                  href={ctx.get_image_link("goose2.png")}
                   y={1920 - 950}
                   x={1080 / 2 - 400}
                 />

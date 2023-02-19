@@ -5,14 +5,14 @@ use podcast_example::PodcastVideo;
 use tiktok_example::GooseVideo;
 
 #[derive(Debug)]
-pub struct ExamplesScene {
-    pub hello_world_video: HelloWorldVideo,
+pub struct ExamplesScene<'a> {
+    pub hello_world_video: HelloWorldVideo<'a>,
     pub marketing_video: MarketingVideo,
     pub podcast_video: PodcastVideo,
     pub tiktok_video: GooseVideo,
 }
 
-impl Scene for ExamplesScene {
+impl Scene for ExamplesScene<'_> {
     fn duration(&self) -> fframes::video::Duration {
         fframes::Duration::Frames(500)
     }

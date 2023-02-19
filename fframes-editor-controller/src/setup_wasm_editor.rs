@@ -197,7 +197,7 @@ macro_rules! setup_wasm_editor {
                     fps: $x::FPS,
                     index: frame as usize,
                     global_index: frame as usize,
-                    breaks_lru_cache: Some(BREAK_LINES_CACHE.clone())
+                    breaks_lru_cache: None,/*  Some(BREAK_LINES_CACHE.clone()) */
                 },
                 &fframes_context::FFramesContext {
                     duration_in_frames: 0,
@@ -208,7 +208,7 @@ macro_rules! setup_wasm_editor {
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
                 },
-            ).into_string()
+            ).value
         }
 
         #[wasm_bindgen]
@@ -231,7 +231,7 @@ macro_rules! setup_wasm_editor {
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
                     font_source: None,
                 },
-            ).into_string()
+            ).value
         }
 
         #[wasm_bindgen]

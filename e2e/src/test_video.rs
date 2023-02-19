@@ -26,7 +26,6 @@ impl Video for TestVideo {
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
             width={Self::WIDTH}
             height={Self::HEIGHT}
           >
@@ -44,7 +43,7 @@ impl Video for TestVideo {
               }
             />
 
-            <svg xmlns="http://www.w3.org/2000/svg" x="40" y="40" width="100" height="100" viewBox="0 0 297.5 297.5" xml:space="preserve">
+            <svg xmlns="http://www.w3.org/2000/svg" x="40" y="40" width="100" height="100" viewBox="0 0 297.5 297.5">
               <path style="fill:#bce6ec"
                 d="m42.655 154.48 100.36 100.36c-12.37 9.4-27.39 14.49-43.19 14.49-19.14 0-37.13-7.45-50.67-20.99-13.53-13.53-20.99-31.53-20.99-50.67 0-15.8 5.1-30.81 14.49-43.19zM157.445 155.05c9.11 12.26 14.04 27.07 14.04 42.62 0 15.81-5.1 30.82-14.49 43.2L56.635 140.5c12.37-9.39 27.39-14.48 43.19-14.48 19.14 0 37.13 7.45 50.67 20.99a74.06 74.06 0 0 1 6.9 7.97c.01.03.03.05.05.07z" />
               <path style="fill:#ffd63f"

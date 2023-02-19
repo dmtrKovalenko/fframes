@@ -1,5 +1,5 @@
 [package]
-name = "hello-world-editor-bridge"
+name = "hello-world-editorfframes = { path = "../../../../fframes", default-features = false }
 version = "0.1.0"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2018"
@@ -14,4 +14,4 @@ path = "./lib.rs"
 wasm-bindgen = "0.2.74"
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
 hello-world-example = { path = "../../" }
-fframes = { path = "../../../../fframes" }
+fframes = { path = "../../../../fframes", default-features = false }

@@ -44,7 +44,7 @@ impl Video for PodcastVideo {
         });
 
         svgr!(
-        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1080">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">
           <g clip-path="url(#clip0)">
             <rect width="1920" height="1080" fill="white"/>
             <rect x="-648" y="-373" width="1946" height="2512" fill="#E7D850"/>
@@ -58,7 +58,7 @@ impl Video for PodcastVideo {
             <rect x="953.146" y="332.611" width="21.8877" height="18.8438" fill="white"/>
             <rect x="970.797" y="-142.854" width="1117.68" height="1446" fill="white"/>
 
-            <mask id="mask0" mask-type="alpha" maskUnits="userSpaceOnUse" x="970" y="-144" width="724" height="1447">
+            <mask id="mask0" /* mask-type="alpha" */ maskUnits="userSpaceOnUse" x="970" y="-144" width="724" height="1447">
               <rect x="970.797" y="-143.12" width="723" height="1446.02" fill="white"/>
             </mask>
             <g mask="url(#mask0)">
@@ -90,7 +90,7 @@ impl Video for PodcastVideo {
              <defs>
                <circle r="180" cx="400" stroke="black" stroke-width="16" cy="680" width="100%" height="100%" />
                <clipPath id="clip">
-                 <use xlink:href="#rect"/>
+                 <use href="#rect"/>
                </clipPath>
                <clipPath id="clip0">
                  <path fill="#fff" d="M0 0h1920v1080H0z" />
@@ -99,13 +99,13 @@ impl Video for PodcastVideo {
                  <path fill="#fff" transform="matrix(-1 0 0 1 1257.75 110.456)" d="M0 0h350.203v350.203H0z" />
                </clipPath>
                <pattern id="goose" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" xlink:href={ctx.get_image_link("goose.jpeg")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_link("goose.jpeg")}></image>
                </pattern>
                <pattern id="duck" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" xlink:href={ctx.get_image_link("duck.jpg")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_link("duck.jpg")}></image>
                </pattern>
                <pattern id="guest" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" xlink:href={ctx.get_image_link("guest.jpg")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_link("guest.jpg")}></image>
                </pattern>
              </defs>
 

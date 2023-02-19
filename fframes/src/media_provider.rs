@@ -7,7 +7,7 @@ pub struct ImageData {
     pub base64: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct MediaProvider {
     pub audio: HashMap<String, audio_data::AudioData>,
     pub images: HashMap<String, ImageData>,

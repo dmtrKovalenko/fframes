@@ -23,7 +23,7 @@ syn = { version = "1", features = ["full", "parsing", "extra-traits"] }
 uuid = { version = "0.8", features = ["v4"] }
 
 svgr-macro = { path="../svgr-macro" }
-fframes = {path="../fframes"}
+fframes = { path="../fframes" }
 media-loader = {path="../media-loader"}
 
 [build-dependencies]

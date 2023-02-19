@@ -176,9 +176,9 @@ impl Frame {
     ///     width: 500,
     ///     // font family name resolved. Can be checked in the editor for resolved font file.
     ///     font_family: "Roboto",
-    ///     // the x position of the text element 
+    ///     // the x position of the text element
     ///     x: "100",
-    ///     // the y position of the text element 
+    ///     // the y position of the text element
     ///     y: "100",
     ///     align: fframes::TextAlign::Center,
     ///     ..Default::default()

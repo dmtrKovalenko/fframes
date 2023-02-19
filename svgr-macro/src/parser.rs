@@ -11,7 +11,7 @@ use syn::{
     Result, Stmt, Token,
 };
 
-use crate::{node::*, punctuation::*, validate_svg::validate_attribute};
+use crate::{node::*, punctuation::*};
 
 type TransformBlockFn = dyn Fn(ParseStream) -> Result<Option<TokenStream>>;
 
@@ -306,8 +306,6 @@ impl<'a> Parser<'a> {
         }
 
         let (name, attributes, self_closing) = self.tag_open(fork)?;
-        crate::validate_svg::validate_node(input, &name)?;
-
         let mut children = vec![];
         if !self_closing {
             loop {
@@ -445,8 +443,6 @@ impl<'a> Parser<'a> {
                 .transpose()?;
 
             let (value, node_type) = if let Some((expr, node_type)) = res {
-                validate_attribute(input, &name, tag_name, matches!(expr, Expr::Block(_)))?;
-
                 (Some(expr), node_type)
             } else {
                 (None, NodeType::Attribute)

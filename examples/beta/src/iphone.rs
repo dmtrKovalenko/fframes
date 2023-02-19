@@ -9,7 +9,7 @@ pub struct IphoneScene {
 fn render_discord_message(x: usize, y: usize, name: &str, content: &str, image: String) -> Svgr {
     svgr!(
       <g>
-        <image x={x} y={y} width="80" height="80" xlink:href={image} />
+        <image x={x} y={y} width="80" height="80" href={image.as_str()} />
 
         <text font-weight="500" x={x + 80} y={y + 34} fill="white" font-size="18">
           {name}
@@ -66,7 +66,7 @@ impl Scene for IphoneScene {
                  fill="url(#pattern1)"
              />
               <image
-                 xlink:href={ctx.get_image_link("camera_ui.png")}
+                 href={ctx.get_image_link("camera_ui.png")}
                  width="370"
                  height="819"
                  rx="60"
@@ -75,7 +75,7 @@ impl Scene for IphoneScene {
               />
 
               <image
-                xlink:href={ctx.get_image_link("qr.png")}
+                href={ctx.get_image_link("qr.png")}
                 width="300"
                 height="300"
                 x="830"
@@ -122,7 +122,7 @@ impl Scene for IphoneScene {
               >
                 <rect x="790" y="154" width="370" height="819" fill="#292841" />
                 <image
-                   xlink:href={ctx.get_image_link("discord_ui.png")}
+                   href={ctx.get_image_link("discord_ui.png")}
                    width="370"
                    height="819"
                    rx="60"
@@ -158,7 +158,7 @@ impl Scene for IphoneScene {
               </g>
             </g>
 
-            <image xlink:href={ctx.get_image_link("iphone_frame.png")} x="30%" y="10%" width="800" />
+            <image href={ctx.get_image_link("iphone_frame.png")} x="30%" y="10%" width="800" />
 
             <rect
               x="916"
