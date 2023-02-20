@@ -1,0 +1,331 @@
+(Runtime)
+Document [
+    Element {
+        tag_name: Some(svg)
+        attributes: [
+            Attribute { name: width, value: Length(Length { number: 1920.0, unit: None }) }
+            Attribute { name: height, value: Length(Length { number: 1080.0, unit: None }) }
+        ]
+        children: [
+            Element {
+                tag_name: Some(defs)
+                children: [
+                    Element {
+                        tag_name: Some(linearGradient)
+                        attributes: [
+                            Attribute { name: id, value: String("gradient-test") }
+                            Attribute { name: x1, value: Length(Length { number: 1.0, unit: None }) }
+                            Attribute { name: y1, value: Length(Length { number: 1.0, unit: None }) }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: stop-color, value: Color(Color { red: 58, green: 28, blue: 113, alpha: 255 }) }
+                                ]
+                            }
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: offset, value: Length(Length { number: 0.5, unit: None }) }
+                                    Attribute { name: stop-color, value: Color(Color { red: 215, green: 109, blue: 119, alpha: 255 }) }
+                                ]
+                            }
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: offset, value: Length(Length { number: 1.0, unit: None }) }
+                                    Attribute { name: stop-color, value: Color(Color { red: 255, green: 175, blue: 123, alpha: 255 }) }
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(linearGradient)
+                        attributes: [
+                            Attribute { name: id, value: String("cover") }
+                            Attribute { name: gradientUnits, value: String("userSpaceOnUse") }
+                            Attribute { name: x1, value: Length(Length { number: 14.66, unit: Percent }) }
+                            Attribute { name: y1, value: Length(Length { number: 108.81, unit: Percent }) }
+                            Attribute { name: x2, value: Length(Length { number: 85.34, unit: Percent }) }
+                            Attribute { name: y2, value: Length(Length { number: -8.81, unit: Percent }) }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: stop-color, value: Color(Color { red: 255, green: 166, blue: 158, alpha: 255 }) }
+                                ]
+                            }
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: offset, value: Length(Length { number: 1.0, unit: None }) }
+                                    Attribute { name: stop-color, value: Color(Color { red: 115, green: 81, blue: 216, alpha: 255 }) }
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(linearGradient)
+                        attributes: [
+                            Attribute { name: id, value: String("anim") }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: stop-color, value: Color(Color { red: 236, green: 119, blue: 171, alpha: 255 }) }
+                                ]
+                            }
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: offset, value: Length(Length { number: 1.0, unit: None }) }
+                                    Attribute { name: stop-color, value: Color(Color { red: 79, green: 70, blue: 229, alpha: 255 }) }
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(linearGradient)
+                        attributes: [
+                            Attribute { name: id, value: String("g1") }
+                            Attribute { name: x1, value: Length(Length { number: 1.0, unit: None }) }
+                            Attribute { name: y1, value: Length(Length { number: 1.0, unit: None }) }
+                            Attribute { name: x2, value: Length(Length { number: 0.0, unit: None }) }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: stop-color, value: Color(Color { red: 45, green: 52, blue: 54, alpha: 255 }) }
+                                ]
+                            }
+                            Element {
+                                tag_name: Some(stop)
+                                attributes: [
+                                    Attribute { name: offset, value: Length(Length { number: 0.74, unit: None }) }
+                                    Attribute { name: stop-color, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 255 }) }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: x, value: Length(Length { number: 0.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 0.0, unit: None }) }
+                    Attribute { name: width, value: Length(Length { number: 100.0, unit: Percent }) }
+                    Attribute { name: height, value: Length(Length { number: 100.0, unit: Percent }) }
+                    Attribute { name: fill, value: Color(Color { red: 17, green: 24, blue: 39, alpha: 255 }) }
+                ]
+            }
+            Element {
+                tag_name: Some(filter)
+                attributes: [
+                    Attribute { name: id, value: String("shadow-1") }
+                    Attribute { name: x, value: Length(Length { number: -100.0, unit: Percent }) }
+                    Attribute { name: y, value: Length(Length { number: -100.0, unit: Percent }) }
+                    Attribute { name: width, value: Length(Length { number: 300.0, unit: Percent }) }
+                    Attribute { name: height, value: Length(Length { number: 300.0, unit: Percent }) }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(feGaussianBlur)
+                        attributes: [
+                            Attribute { name: in, value: String("SourceAlpha") }
+                            Attribute { name: stdDeviation, value: String("10.4") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(feOffset)
+                        attributes: [
+                            Attribute { name: dx, value: Number(0.0) }
+                            Attribute { name: dy, value: Number(3.0) }
+                            Attribute { name: result, value: String("offsetblur") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(feFlood)
+                        attributes: [
+                            Attribute { name: flood-color, value: Color(Color { red: 124, green: 124, blue: 122, alpha: 255 }) }
+                            Attribute { name: flood-opacity, value: Opacity(NormalizedF64(FiniteF64(0.5))) }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(feComposite)
+                        attributes: [
+                            Attribute { name: in2, value: String("offsetblur") }
+                            Attribute { name: operator, value: String("in") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(feMerge)
+                        children: [
+                            Element {
+                                tag_name: Some(feMergeNode)
+                            }
+                            Element {
+                                tag_name: Some(feMergeNode)
+                                attributes: [
+                                    Attribute { name: in, value: String("SourceGraphic") }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(linearGradient)
+                attributes: [
+                    Attribute { name: id, value: String("1-gradient") }
+                    Attribute { name: y2, value: Length(Length { number: 1.0, unit: None }) }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(stop)
+                        attributes: [
+                            Attribute { name: stop-color, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 255 }) }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(stop)
+                        attributes: [
+                            Attribute { name: offset, value: Length(Length { number: 1.0, unit: None }) }
+                            Attribute { name: stop-color, value: Color(Color { red: 124, green: 124, blue: 122, alpha: 255 }) }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: y, value: Length(Length { number: 400.0, unit: None }) }
+                    Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
+                    Attribute { name: height, value: Length(Length { number: 208.0, unit: None }) }
+                    Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
+                    Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
+                    Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
+                    Attribute { name: width, value: Length(Length { number: 28.0, unit: None }) }
+                    Attribute { name: rx, value: Length(Length { number: 10.0, unit: None }) }
+                    Attribute { name: ry, value: Length(Length { number: 10.0, unit: None }) }
+                ]
+            }
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: y, value: Length(Length { number: 400.0, unit: None }) }
+                    Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
+                    Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 255 }) }
+                    Attribute { name: filter, value: String("shadow-1") }
+                    Attribute { name: height, value: Length(Length { number: 200.0, unit: None }) }
+                    Attribute { name: width, value: Length(Length { number: 20.0, unit: None }) }
+                    Attribute { name: rx, value: Length(Length { number: 10.0, unit: None }) }
+                    Attribute { name: ry, value: Length(Length { number: 10.0, unit: None }) }
+                ]
+            }
+            Element {
+                tag_name: Some(svg)
+                attributes: [
+                    Attribute { name: x, value: Length(Length { number: 200.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 290.0, unit: None }) }
+                    Attribute { name: viewBox, value: ViewBox(ViewBox { x: 0.0, y: 0.0, w: 598.3520004127504, h: 417.989493060112 }) }
+                    Attribute { name: width, value: Length(Length { number: 298.0, unit: None }) }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(g)
+                        attributes: [
+                            Attribute { name: stroke-linecap, value: String("round") }
+                            Attribute { name: transform, value: Transform(Transform { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 12.76795062351539, f: 11.630295608565234 }) }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(path)
+                                attributes: [
+                                    Attribute { name: d, value: Path(PathData { commands: [MoveTo, CurveTo, CurveTo], points: [-2.19, -1.63, 8.29, 53.64, -34.21, 264.71, 62.09, 331.05, 158.39, 397.38, 490.59, 385.91, 575.58, 396.36] }) }
+                                    Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
+                                    Attribute { name: stroke-width, value: Length(Length { number: 4.5, unit: None }) }
+                                    Attribute { name: fill, value: None }
+                                    Attribute { name: stroke-dasharray, value: String("8 12") }
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(g)
+                        attributes: [
+                            Attribute { name: transform, value: Transform(Transform { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 12.76795062351539, f: 11.630295608565234 }) }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(path)
+                                attributes: [
+                                    Attribute { name: d, value: Path(PathData { commands: [MoveTo, CurveTo], points: [544.61, 406.42, 552.39, 404.4, 562.6, 396.92, 572.02, 395.84] }) }
+                                    Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
+                                    Attribute { name: stroke-width, value: Length(Length { number: 4.5, unit: None }) }
+                                    Attribute { name: fill, value: None }
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(g)
+                        attributes: [
+                            Attribute { name: transform, value: Transform(Transform { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 12.76795062351539, f: 11.630295608565234 }) }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(path)
+                                attributes: [
+                                    Attribute { name: d, value: Path(PathData { commands: [MoveTo, CurveTo], points: [545.58, 385.92, 553.02, 389.43, 562.97, 387.49, 572.02, 395.84] }) }
+                                    Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
+                                    Attribute { name: stroke-width, value: Length(Length { number: 4.5, unit: None }) }
+                                    Attribute { name: fill, value: None }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(text)
+                attributes: [
+                    Attribute { name: font-size, value: Length(Length { number: 64.0, unit: None }) }
+                    Attribute { name: y, value: String("87%") }
+                    Attribute { name: x, value: String("50%") }
+                    Attribute { name: text-anchor, value: String("middle") }
+                    Attribute { name: fill, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
+                    Attribute { name: font-family, value: String("Chalkboard SE") }
+                ]
+                children: [
+                    Text("012391u490u49012u4124")
+                ]
+            }
+            Element {
+                tag_name: Some(circle)
+                attributes: [
+                    Attribute { name: cx, value: Length(Length { number: 960.0, unit: None }) }
+                    Attribute { name: fill, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
+                    Attribute { name: cy, value: Length(Length { number: 500.0, unit: None }) }
+                ]
+            }
+            Element {
+                tag_name: Some(text)
+                attributes: [
+                    Attribute { name: x, value: String("960") }
+                    Attribute { name: y, value: String("610") }
+                    Attribute { name: font-family, value: String("Chalkboard SE") }
+                    Attribute { name: font-size, value: Length(Length { number: 30.0, unit: None }) }
+                    Attribute { name: text-anchor, value: String("middle") }
+                ]
+                children: [
+                    Text("Write some code. Get video. Enjoy!")
+                ]
+            }
+        ]
+    }
+]

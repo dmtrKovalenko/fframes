@@ -4,13 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-svgr-macro = { path="../../svgr-macro" }
 fframes = {path="../../fframes"}
-lazy_static = "1.4.0"
-libm="0.2.1"
+libm = "0.2.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer ={path="../../fframes-renderer"}
+
+[features]
+default=["renderer"]
+renderer=["fframes/compile-time-svgtree"]
 
 [lib]
 name = "podcast_example"
@@ -19,3 +21,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "podcast_example_bin"
 path = "src/main.rs"
+required-features=["renderer"]

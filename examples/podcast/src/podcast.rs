@@ -1,5 +1,6 @@
-use fframes::{audio_data, fframes_context, frame, video::Video, AudioMap, AudioTimestamp, Svgr};
-use svgr_macro::{self, svgr};
+use fframes::{
+    audio_data, fframes_context, frame, svgr, video::Video, AudioMap, AudioTimestamp, Svgr,
+};
 
 #[derive(Debug)]
 pub struct PodcastVideo {
@@ -119,7 +120,7 @@ impl Video for PodcastVideo {
                  let db = 10.0 * libm::log10f(*fr);
                  let save_height = if db.is_nan() || db < 10.0 { &10.0 } else { &db };
 
-                 svgr_macro::svgr!(
+                 svgr!(
                    <rect
                      y={(950) as f32 - save_height / 2.0}
                      x={240 + (i * 20)}
@@ -152,7 +153,7 @@ impl Video for PodcastVideo {
                  let db = 10.0*libm::log10f(*fr);
                  let save_height = db.max(10.0);
 
-                 svgr_macro::svgr!(
+                 svgr!(
                    <rect
                      y={(950) as f32 - save_height / 2.0}
                      x={800 + (i * 20)}
@@ -175,7 +176,7 @@ impl Video for PodcastVideo {
                  let db = 10.0 * libm::log10f(*fr);
                  let save_height = if db.is_nan() || db < 10.0 { &10.0 } else { &db };
 
-                 svgr_macro::svgr!(
+                 svgr!(
                    <rect
                      y={(950) as f32 - save_height / 2.0}
                      x={1360 + (i * 20)}

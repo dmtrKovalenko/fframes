@@ -1,0 +1,119 @@
+(Runtime)
+Document [
+    Element {
+        tag_name: Some(svg)
+        attributes: [
+            Attribute { name: width, value: Length(Length { number: 1920.0, unit: None }) }
+            Attribute { name: height, value: Length(Length { number: 1080.0, unit: None }) }
+        ]
+        children: [
+            Element {
+                tag_name: Some(g)
+                children: [
+                    Element {
+                        tag_name: Some(text)
+                        attributes: [
+                            Attribute { name: font-family, value: String("Arial") }
+                        ]
+                        children: [
+                            Text("Nested svg")
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(polygon)
+                        attributes: [
+                            Attribute { name: points, value: String("594,403 0,0 535,471") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(text)
+                        attributes: [
+                            Attribute { name: font-family, value: String("Arial") }
+                        ]
+                        children: [
+                            Text("Nested text 0")
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(polygon)
+                        attributes: [
+                            Attribute { name: points, value: String("594,403 0,0 535,471") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(g)
+                        children: [
+                            Element {
+                                tag_name: Some(text)
+                                attributes: [
+                                    Attribute { name: font-family, value: String("Arial") }
+                                ]
+                                children: [
+                                    Text("Super nested svg block")
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(text)
+                        attributes: [
+                            Attribute { name: font-family, value: String("Arial") }
+                        ]
+                        children: [
+                            Text("Nested text 1")
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(polygon)
+                        attributes: [
+                            Attribute { name: points, value: String("594,403 0,0 535,471") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(g)
+                        children: [
+                            Element {
+                                tag_name: Some(text)
+                                attributes: [
+                                    Attribute { name: font-family, value: String("Arial") }
+                                ]
+                                children: [
+                                    Text("Super nested svg block")
+                                ]
+                            }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(text)
+                        attributes: [
+                            Attribute { name: font-family, value: String("Arial") }
+                        ]
+                        children: [
+                            Text("Nested text 2")
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(polygon)
+                        attributes: [
+                            Attribute { name: points, value: String("594,403 0,0 535,471") }
+                        ]
+                    }
+                    Element {
+                        tag_name: Some(g)
+                        children: [
+                            Element {
+                                tag_name: Some(text)
+                                attributes: [
+                                    Attribute { name: font-family, value: String("Arial") }
+                                ]
+                                children: [
+                                    Text("Super nested svg block")
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]

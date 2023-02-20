@@ -1,0 +1,56 @@
+(Runtime)
+Document [
+    Element {
+        tag_name: Some(svg)
+        attributes: [
+            Attribute { name: id, value: String("svg1") }
+            Attribute { name: viewBox, value: ViewBox(ViewBox { x: 0.0, y: 0.0, w: 200.0, h: 200.0 }) }
+        ]
+        children: [
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: id, value: String("rect1") }
+                    Attribute { name: x, value: Length(Length { number: 20.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 20.0, unit: None }) }
+                    Attribute { name: width, value: Length(Length { number: 160.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 70.0, unit: None }) }
+                    Attribute { name: fill, value: Color(Color { red: 0, green: 128, blue: 0, alpha: 255 }) }
+                ]
+            }
+            Element {
+                tag_name: Some(use)
+                attributes: [
+                    Attribute { name: id, value: String("use1") }
+                    Attribute { name: href, value: Link("rect1") }
+                    Attribute { name: x, value: Length(Length { number: 0.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 90.0, unit: None }) }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(rect)
+                        attributes: [
+                            Attribute { name: x, value: Length(Length { number: 20.0, unit: None }) }
+                            Attribute { name: y, value: Length(Length { number: 20.0, unit: None }) }
+                            Attribute { name: width, value: Length(Length { number: 160.0, unit: None }) }
+                            Attribute { name: height, value: Length(Length { number: 70.0, unit: None }) }
+                            Attribute { name: fill, value: Color(Color { red: 0, green: 128, blue: 0, alpha: 255 }) }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: id, value: String("frame") }
+                    Attribute { name: x, value: Length(Length { number: 1.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 1.0, unit: None }) }
+                    Attribute { name: width, value: Length(Length { number: 198.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 198.0, unit: None }) }
+                    Attribute { name: fill, value: None }
+                    Attribute { name: stroke, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 255 }) }
+                ]
+            }
+        ]
+    }
+]

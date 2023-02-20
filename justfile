@@ -24,8 +24,8 @@ watch-editor:
 run example:
   cd examples/{{example}}/editor && yarn dev
 
-render example:
-  cd examples/{{example}} && cargo run --release && just play {{example}}
+render example *ARGS:
+  cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}
 
 play example:
   cd examples/{{example}} && ffplay out.mp4

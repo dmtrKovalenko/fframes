@@ -5,11 +5,13 @@ edition = "2021"
 
 [dependencies]
 fframes = {path="../../fframes"}
-lazy_static = "1.4.0"
-libm="0.2.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer ={path="../../fframes-renderer"}
+
+[features]
+default=["renderer"]
+renderer=["fframes/compile-time-svgtree"]
 
 [lib]
 name = "hello_world_example"
@@ -18,3 +20,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "hello_world_example_bin"
 path = "src/main.rs"
+required-features = ["renderer"]

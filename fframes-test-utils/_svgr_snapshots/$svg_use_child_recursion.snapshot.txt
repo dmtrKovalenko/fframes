@@ -1,0 +1,42 @@
+(Runtime)
+Document [
+    Element {
+        tag_name: Some(svg)
+        attributes: [
+            Attribute { name: id, value: String("svg1") }
+            Attribute { name: viewBox, value: ViewBox(ViewBox { x: 0.0, y: 0.0, w: 200.0, h: 200.0 }) }
+        ]
+        children: [
+            Element {
+                tag_name: Some(g)
+                attributes: [
+                    Attribute { name: id, value: String("g1") }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(use)
+                        attributes: [
+                            Attribute { name: href, value: Link("use1") }
+                            Attribute { name: id, value: String("use2") }
+                        ]
+                        children: [
+                            Element {
+                                tag_name: Some(use)
+                                attributes: [
+                                    Attribute { name: href, value: Link("g1") }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(use)
+                attributes: [
+                    Attribute { name: href, value: Link("g1") }
+                    Attribute { name: id, value: String("use1") }
+                ]
+            }
+        ]
+    }
+]

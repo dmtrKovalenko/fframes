@@ -1,12 +1,10 @@
+use fframes::lazy_static::lazy_static;
 use fframes::{
-    animation::{self, AnimationRuntime},
-    prettify_spectrum, AudioMap, AudioTimestamp, Svgr,
+    animation, prettify_spectrum, svgr, AnimationRuntime, AudioMap, AudioTimestamp, Svgr,
 };
 pub use fframes::{
     audio_data, audio_window_functions, fframes_context, frame::Frame, subtitles, video::Video,
 };
-use lazy_static::lazy_static;
-use svgr_macro::{self, svgr};
 
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
 const BAR_SIZE: usize = 30;
@@ -74,8 +72,7 @@ impl Video for GooseVideo {
                  }
 
                 {frame.text_break_lines(
-                    ctx,
-                    subtitles.get_phrase_for_frame(&frame).unwrap_or_default(),
+                    ctx, subtitles.get_phrase_for_frame(&frame).unwrap_or_default(),
                     &fframes::BreakLinesOpts {
                       width: 1000,
                       line_height: 1.2,

@@ -130,24 +130,23 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
         }
     }
 
-    // Some(svgr_macro::svgr!(
-    //  <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight}>
-    //    {
-    //        structure
-    //         .into_iter()
-    //         .enumerate()
-    //         .map(|(index, (line, line_width))| {
-    //             let dx = match align {
-    //                 TextAlign::Left => 0,
-    //                 TextAlign::Center => (width - line_width) / 2,
-    //                 TextAlign::Right => width - line_width
-    //             };
+    Some(svgr_macro::svgr!(
+     <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight}>
+       {
+           structure
+            .into_iter()
+            .enumerate()
+            .map(|(index, (line, line_width))| {
+                let dx = match align {
+                    TextAlign::Left => 0,
+                    TextAlign::Center => (width - line_width) / 2,
+                    TextAlign::Right => width - line_width
+                };
 
-    //             svgr_macro::svgr!(<tspan x={x} y={y} dx={dx} dy={format!("{}em", index as f32 * line_height)}>{line}</tspan>)
-    //         })
-    //         .collect::<Vec<_>>()
-    //    }
-    //  </text>
-    // ))
-    None
+                svgr_macro::svgr!(<tspan x={x} y={y} dx={dx} dy={format!("{}em", index as f32 * line_height)}>{line}</tspan>)
+            })
+            .collect::<Vec<_>>()
+       }
+     </text>
+    ))
 }

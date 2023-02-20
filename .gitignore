@@ -13,3 +13,4 @@ dist/
 .rsw/
 e2e/frames/results/*
 e2e/frames/diff/*
+**/_svgr_snapshots/**/*-diff.txt

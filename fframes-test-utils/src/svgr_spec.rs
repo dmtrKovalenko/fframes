@@ -1,53 +1,22 @@
-pub use fframes::{
-    animation::{self, AnimationRuntime},
-    audio_data, audio_window_functions, fframes_context,
-    frame::Frame,
-    subtitles,
-    video::Video,
-    AnimateRuntimeInput, AudioMap, Svgr,
-};
+use crate::assert_compile_time_svgr_eq_runtime;
+use fframes::svgr;
 
-const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
-
-fframes::lazy_static::lazy_static! {
-    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from_easing(&SPRING);
-}
-
-struct SpectrumValue<'a> {
-    /// position represents how points are displayed on the screen, while the real array position represents stacking context.
-    position: usize,
-    spectrum_index: usize,
-    from_color: &'a str,
-    to_color: &'a str,
-}
-
-#[derive(Debug)]
-pub struct MarketingVideo {
-    pub audio_track: &'static str,
-}
-
-impl MarketingVideo {
-    fn render_ferris(&self, frame: &Frame) -> Svgr {
-        if !(2.3f32..5.0f32).contains(&frame.get_current_second()) {
-            return Svgr::default();
-        }
-
-        fframes::svgr!(
+#[test]
+pub fn inlined_tree_1() {
+    assert_compile_time_svgr_eq_runtime(
+        "inlined_tree_1",
+        svgr!(
           <svg
             viewBox="0 0 1200 800"
             width="400"
             height="400"
             x="1456"
-            y={frame.animate(fframes::timeline!(
-                on 2.3, val 1400. => 770., animation::Easing::Spring2(1.85, 130.0, 16.0),
-                on 4.8, val 770. => 1400., animation::Easing::Spring2(1.85, 130.0, 16.0)
-            ))}
             xmlns="http://www.w3.org/2000/svg"
             fill-rule="evenodd"
             clip-rule="evenodd"
             stroke-linejoin="round"
             stroke-miterlimit="1.41421"
-         >
+          >
             <g id="Layer-1">
                 <g transform="matrix(1,0,0,1,597.344,637.02)">
                     <path
@@ -90,12 +59,7 @@ impl MarketingVideo {
                         style="fill-rule:nonzero;" />
                 </g>
                 <g
-                  transform={format!("matrix(1,0,0,1,{},435.209)",
-                    frame.animate(&fframes::timeline!(
-                        on 3.4, val 727. => 777., animation::Easing::Linear(0.25),
-                        on 4.1, val 777. => 727., animation::Easing::Linear(0.25)
-                    ))
-                  )}
+                  transform="matrix(1,0,0,1,727,435.209)"
                 >
                     <path
                         d="M0,0.002C0,18.543 -10.93,33.574 -24.408,33.574C-37.885,33.574 -48.814,18.543 -48.814,0.002C-48.814,-18.539 -37.885,-33.572 -24.408,-33.572C-10.93,-33.572 0,-18.539 0,0.002"
@@ -108,12 +72,7 @@ impl MarketingVideo {
                     />
                 </g>
                 <g
-                  transform={format!("matrix(1,0,0,1,{},436.428)",
-                    frame.animate(&fframes::timeline!(
-                      on 3.4, val 520. => 570., animation::Easing::Linear(0.25),
-                      on 4.1, val 570. => 520., animation::Easing::Linear(0.25)
-                    ))
-                  )}
+                  transform="matrix(1,0,0,1,524,436.428)"
                 >
                     <path
                         d="M0,0C0,19.119 -11.27,34.627 -25.173,34.627C-39.071,34.627 -50.344,19.119 -50.344,0C-50.344,-19.124 -39.071,-34.627 -25.173,-34.627C-11.27,-34.627 0,-19.124 0,0"
@@ -149,90 +108,21 @@ impl MarketingVideo {
                     <stop offset="1" style="stop-color:rgb(247,76,0);stop-opacity:1" />
                 </linearGradient>
             </defs>
-        </svg>
-        )
-    }
+          </svg>
+        ),
+    );
 }
 
-const PRETTY_SPECTRUM: [SpectrumValue; 7] = [
-    SpectrumValue {
-        position: 6,
-        spectrum_index: 6,
-        from_color: "#ec4899",
-        to_color: "#f43f5e",
-    },
-    SpectrumValue {
-        position: 0,
-        spectrum_index: 3,
-        from_color: "#d946ef",
-        to_color: "#9333ea",
-    },
-    SpectrumValue {
-        position: 5,
-        spectrum_index: 5,
-        from_color: "#facc15",
-        to_color: "#f97316",
-    },
-    SpectrumValue {
-        position: 1,
-        spectrum_index: 7,
-        from_color: "#38bdf8",
-        to_color: "#6366f1",
-    },
-    SpectrumValue {
-        position: 4,
-        spectrum_index: 4,
-        from_color: "#4ade80",
-        to_color: "#06b6d4",
-    },
-    SpectrumValue {
-        position: 2,
-        spectrum_index: 2,
-        from_color: "#22d3ee",
-        to_color: "#0ea5e9",
-    },
-    SpectrumValue {
-        position: 3,
-        spectrum_index: 1,
-        from_color: "#fff",
-        to_color: "#fff",
-    },
-];
+#[test]
+pub fn inlined_tree_2() {
+    const BAR_SIZE: usize = 20;
+    let bar_height = 200f32;
+    let from_color = fframes::Color::rgb(0, 0, 0);
+    let to_color = fframes::Color::rgb(124, 124, 122);
 
-const BAR_SIZE: usize = 96;
-const BAR_SIZE_F32: f32 = BAR_SIZE as f32;
-const BAR_MARGIN: usize = 20;
-const BAR_WIDTH_WITH_MARGIN: usize = BAR_SIZE + BAR_MARGIN;
-
-// viewbox width - space that all bars will take - right margin
-const SPECTRUM_LEN: usize = 1920 - BAR_WIDTH_WITH_MARGIN * PRETTY_SPECTRUM.len() - BAR_MARGIN;
-
-impl Video for MarketingVideo {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-    const DURATION: fframes::Duration = fframes::Duration::FromAudio("marketing.mp3");
-
-    fn audio(&self) -> AudioMap {
-        use fframes::AudioTimestamp::{Eof, Second};
-
-        AudioMap::from([
-            ("marketing.mp3", (Second(0), Eof)),
-            ("woosh.mp3", (Second(6), Eof)),
-            ("end.mp3", (Second(16), Eof)),
-        ])
-    }
-
-    fn render_frame(&self, frame: fframes::Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
-        let subtitles = ctx.get_subtitles("subtitles.vtt");
-        let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
-            audio: ctx.get_audio_data(self.audio_track),
-            sample_size: fframes::SampleSize::S16,
-            smooth_level: 3,
-            window: Some(fframes::WindowFunction::Hamming),
-        });
-
-        fframes::svgr!(
+    assert_compile_time_svgr_eq_runtime(
+        "inlined_tree2",
+        svgr!(
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="1920"
@@ -248,89 +138,52 @@ impl Video for MarketingVideo {
                 <stop stop-color="#ffa69e"/>
                 <stop offset="1" stop-color="#7351d8"/>
               </linearGradient>
-              <linearGradient id="anim">
-                <stop stop-color="#ec77ab"/>
-                <stop offset="1" stop-color="#4F46E5"/>
-              </linearGradient>
-              <linearGradient id="g1" x1="1" y1="1" x2="0">
-                <stop stop-color="#2d3436"/>
-                <stop offset=".74" stop-color="#000000"/>
-              </linearGradient>
+            <linearGradient id="anim">
+              <stop stop-color="#ec77ab"/>
+              <stop offset="1" stop-color="#4F46E5"/>
+            </linearGradient>
+            <linearGradient id="g1" x1="1" y1="1" x2="0">
+              <stop stop-color="#2d3436"/>
+              <stop offset=".74" stop-color="#000000"/>
+            </linearGradient>
             </defs>
 
-
             <rect x="0" y="0" width="100%" height="100%" fill="#111827" />
-
-            {
-              PRETTY_SPECTRUM
-              .iter()
-              .map(|SpectrumValue { spectrum_index, from_color, to_color, position }|  {
-                let val: f32 = audio_visualization[*spectrum_index];
-
-                let bar_height = match val / 20.0 {
-                  height if height.is_nan() => BAR_SIZE_F32,
-                  height if height < BAR_SIZE_F32 => BAR_SIZE_F32,
-                  height if height > 720.0 => 720.0,
-                  height => height.to_owned()
-                };
-
-                 fframes::svgr!(
-                  <filter id={format!("{position}-shadow")} x="-100%" y="-100%" width="300%" height="300%">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="10.4"/>
-                    <feOffset dx="0" dy="3" result="offsetblur"/>
-                    <feFlood flood-color={to_color}  flood-opacity="0.5" />
-                    <feComposite in2="offsetblur" operator="in"/>
-                    <feMerge>
-                      <feMergeNode/>
-                      <feMergeNode in="SourceGraphic"/>
-                    </feMerge>
-                  </filter>
-
-                  <linearGradient id={format!("{position}-gradient")} y2="1">
-                     <stop stop-color={from_color}/>
-                     <stop offset="1" stop-color={to_color} />
-                  </linearGradient>
-                   <rect
-                    y={500. - bar_height / 2.0}
-                    x={frame.animate_runtime(
-                      AnimateRuntimeInput {
-                        on: 16.0,
-                        from: ((SPECTRUM_LEN / 2) + (position * BAR_WIDTH_WITH_MARGIN)) as f32,
-                        to: 944.,
-                        animation_runtime: &SPRING_RUNTIME,
-                      }
-                    )}
-                    transform-origin="center center"
-                    height={bar_height + 8.0}
-                    fill="transparent"
-                    stroke="white"
-                    stroke-width="4"
-                    width={BAR_SIZE + 8}
-                    rx={BAR_SIZE / 2}
-                    ry={BAR_SIZE / 2}
-                  />
-                  <rect
-                    y={500. - bar_height / 2.0}
-                    x={frame.animate_runtime(
-                      AnimateRuntimeInput {
-                        on: 16.0,
-                        from: ((SPECTRUM_LEN / 2) + (position * BAR_WIDTH_WITH_MARGIN)) as f32,
-                        to: 944.,
-                        animation_runtime: &SPRING_RUNTIME,
-                      }
-                    )}
-                    transform-origin="center center"
-                    fill={format!("url(#{position}-gradient)")}
-                    filter={format!("url(#{position}-shadow)")}
-                    height={bar_height}
-                    width={BAR_SIZE}
-                    rx={BAR_SIZE / 2}
-                    ry={BAR_SIZE / 2}
-                  />
-               )
-               })
-              .collect::<Vec<_>>()
-          }
+             <filter id="shadow-1" x="-100%" y="-100%" width="300%" height="300%">
+               <feGaussianBlur in="SourceAlpha" stdDeviation="10.4"/>
+               <feOffset dx="0" dy="3" result="offsetblur"/>
+               <feFlood flood-color={to_color}  flood-opacity="0.5" />
+               <feComposite in2="offsetblur" operator="in"/>
+               <feMerge>
+                 <feMergeNode/>
+                 <feMergeNode in="SourceGraphic"/>
+               </feMerge>
+             </filter>
+             <linearGradient id="1-gradient" y2="1">
+                <stop stop-color={from_color}/>
+                <stop offset="1" stop-color={to_color} />
+             </linearGradient>
+              <rect
+               y={500. - bar_height / 2.0}
+               transform-origin="center center"
+               height={bar_height + 8.0}
+               fill="transparent"
+               stroke="white"
+               stroke-width="4"
+               width={BAR_SIZE + 8}
+               rx={BAR_SIZE / 2}
+               ry={BAR_SIZE / 2}
+             />
+             <rect
+               y={500. - bar_height / 2.0}
+               transform-origin="center center"
+               fill="1-gradient"
+               filter="shadow-1"
+               height={bar_height}
+               width={BAR_SIZE}
+               rx={BAR_SIZE / 2}
+               ry={BAR_SIZE / 2}
+             />
 
             <svg
               x="200"
@@ -338,10 +191,6 @@ impl Video for MarketingVideo {
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 598.3520004127504 417.989493060112"
               width="298"
-              opacity={frame.animate(fframes::timeline!(
-                  on 5.8, val 0. => 1., &animation::Easing::Spring2(1.85, 130., 16.),
-                  on 9.0, val 1. => 0., &animation::Easing::Spring2(1.85, 130., 16.)
-              ))}
             >
               <g stroke-linecap="round" transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)">
               <path d="M-2.19 -1.63 C8.29 53.64, -34.21 264.71, 62.09 331.05 C158.39 397.38, 490.59 385.91, 575.58 396.36" stroke="#fff" stroke-width="4.5" fill="none" stroke-dasharray="8 12"></path></g><g transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)"><path d="M544.61 406.42 C552.39 404.4, 562.6 396.92, 572.02 395.84" stroke="#fff" stroke-width="4.5" fill="none"></path></g><g transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)"><path d="M545.58 385.92 C553.02 389.43, 562.97 387.49, 572.02 395.84" stroke="#fff" stroke-width="4.5" fill="none"></path></g>
@@ -355,84 +204,142 @@ impl Video for MarketingVideo {
               fill="white"
               font-family="Chalkboard SE"
             >
-              {subtitles.get_phrase_for_frame(&frame).unwrap_or("")}
+              {"012391u490u49012u4124"}
             </text>
-
-            <image
-              width="900"
-              height="900"
-              href={ctx.get_image_link("code.png")}
-              x={frame.animate(fframes::timeline!(
-                  on 5.8, val -1000. => 40., &animation::Easing::Spring2(0.85, 80., 16.),
-                  on 9.0, val 40. => -1200., &animation::Easing::Spring2(0.85, 80., 16.)
-              ))}
-              y="10"
-            />
-
-            {self.render_ferris(&frame)}
 
             <circle
               cx={960}
               fill="#fff"
               cy="500"
-              r={frame.animate(fframes::timeline!(
-                on 16.2, val 0. => 1200.0, &animation::Easing::Linear(0.3)
-              ))}
             />
 
-            {if frame.get_current_second() > 16.25  {
-              fframes::svgr!(
-                <g>
-                  <text x="960" y="570" font-family="Bubble Bobble" font-size="154" text-anchor="middle">
-                    <tspan fill={if frame.get_current_second() > 18.8 { "#7351d8" } else { "#000" }}>"ff"</tspan>"rames"
-                  </text>
-                  <text x="960" y="610" font-family="Chalkboard SE" font-size="30" text-anchor="middle">
-                    "Write some code. Get video. Enjoy!"
-                  </text>
-
-                  <g y="540" transform="scale(2.7) translate(-218, 110)">
-                    <path
-                     fill="none"
-                     stroke="url(#anim)"
-                     stroke-width="10"
-                     stroke-linecap="round"
-                     stroke-linejoin="round"
-                     stroke-miterlimit="10"
-                     stroke-dashoffset={frame.animate(fframes::timeline!(
-                       on 16.3, val -700. => 41.0, &animation::Easing::Linear(2.5)
-                     ))}
-                     stroke-dasharray="40.4579px, 796.447px"
-                     d="M505,55c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50S5,27.4,5,55"
-                    />
-
-                    <path
-                      fill="none"
-                      stroke="#4F46E5"
-                      stroke-width="6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      opacity={frame.animate(
-                        fframes::timeline!(
-                          on 18.6, val 1. => 0.55, &animation::Easing::Linear(0.2)
-                        )
-                      )}
-                      stroke-dashoffset={frame.animate(fframes::timeline!(
-                       on 18.7, val -40. => 0.0, &animation::Easing::Linear(0.2)
-                      ))}
-                      stroke-dasharray={
-                        format!("{}, 137px", frame.animate(
-                          &fframes::timeline!(on 18.7, val 30.0 => 12.0, &animation::Easing::Linear(0.2)))
-                        )
-                      }
-                      d="M549.7,46.6l-21.8,12.6 M531.9,25.8l-12.6,21.8 M504.2,18.3v25.1 M476.4,25.8L489,47.6 M458.7,46.6l21.8,12.6"
-                    />
-                  </g>
-                </g>
-              )
-            } else {
-              Svgr::default()
-            }}
+            <text x="960" y="610" font-family="Chalkboard SE" font-size="30" text-anchor="middle">
+              "Write some code. Get video. Enjoy!"
+            </text>
           </svg>
-        )
-    }
+        ),
+    );
+}
+
+#[test]
+pub fn inlined_tree_complex_path() {
+    assert_compile_time_svgr_eq_runtime(
+        "complex_paths",
+        svgr!(
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1920"
+            height="1080"
+          >
+           <g>
+             <g y="540" transform-origin="center center" transform="scale(2.7) translate(-218, 110)">
+               <path
+                fill="none"
+                stroke="url(#anim)"
+                stroke-width="10"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-miterlimit="10"
+                stroke-dasharray="40.4579px, 796.447px"
+                d="M505,55c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50S5,27.4,5,55"
+               />
+               <path
+                 fill="none"
+                 stroke="#4F46E5"
+                 stroke-width="6"
+                 stroke-linecap="round"
+                 stroke-linejoin="round"
+                 opacity="0.4412"
+                 stroke-dashoffset="-124"
+                 stroke-dasharray="127 45"
+                 d="M549.7,46.6l-21.8,12.6 M531.9,25.8l-12.6,21.8 M504.2,18.3v25.1 M476.4,25.8L489,47.6 M458.7,46.6l21.8,12.6"
+               />
+             </g>
+           </g>
+         </svg>
+        ),
+    )
+}
+
+#[test]
+pub fn nested_trees() {
+    assert_compile_time_svgr_eq_runtime(
+        "nested_trees",
+        svgr!(
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1920"
+            height="1080"
+          >
+           <g>
+             {
+              svgr!(
+                <text font-family="Arial"> "Nested svg" </text>
+                <polygon points="594,403 0,0 535,471" />
+              )
+             }
+
+             {
+              (0..3).into_iter().map(|i| {
+                svgr!(
+                  <text font-family="Arial">{format!("Nested text {i}")}</text>
+                  <polygon points="594,403 0,0 535,471" />
+                  <g>
+                    {svgr!(
+                      <text font-family="Arial"> {"Super nested svg block"} </text>
+                    )}
+                  </g>
+                )
+              })
+              .collect::<Vec<_>>()
+             }
+           </g>
+         </svg>
+        ),
+    )
+}
+
+#[test]
+pub fn svg_use() {
+    assert_compile_time_svgr_eq_runtime(
+        "svg_use",
+        svgr!(
+          <svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <rect id="rect1" x="20" y="20" width="160" height="70" fill="green" />
+            <use id="use1" href="#rect1" x="0" y="90" />
+
+            <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black" />
+        </svg>
+        ),
+    )
+}
+
+#[test]
+pub fn svg_use_recursive() {
+    assert_compile_time_svgr_eq_runtime(
+        "svg_use_recursive",
+        svgr!(
+         <svg id="svg1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+             <use id="use1" href="#use2"/>
+             <use id="use2" href="#use1"/>
+
+             <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+         </svg>
+        ),
+    )
+}
+
+#[test]
+pub fn svg_use_child_recursion() {
+    assert_compile_time_svgr_eq_runtime(
+        "svg_use_child_recursion",
+        svgr!(
+           <svg id="svg1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+             <g id="g1">
+              <use href="#use1" id="use2"/>
+            </g>
+            <use href="#g1" id="use1"/>
+           </svg>
+        ),
+    )
 }

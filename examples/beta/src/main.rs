@@ -13,7 +13,6 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: render_backend::CpuRenderingBackend {
                 cache_capacity: 20,
-                concurrency: 1,
                 ..Default::default()
             },
             preferred_codec: "libx264",

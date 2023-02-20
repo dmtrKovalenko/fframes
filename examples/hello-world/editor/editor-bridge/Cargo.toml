@@ -13,4 +13,4 @@ path = "./lib.rs"
 [dependencies]
 wasm-bindgen = "0.2.74"
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
-hello-world-example = { path = "../../" }
+hello-world-example = { path = "../../", default-features=false}

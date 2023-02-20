@@ -8,11 +8,12 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 path = "./lib.rs"
 
+[build]
+target = "wasm32-unknown-unknown"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 wasm-bindgen = "0.2.74"
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
-podcast-example = { path = "../../" }
-fframes = { path = "../../../../fframes", default-features = false }
+podcast-example = { path = "../../", default-features=false}

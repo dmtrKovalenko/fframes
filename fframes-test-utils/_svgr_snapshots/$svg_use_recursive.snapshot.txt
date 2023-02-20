@@ -1,0 +1,54 @@
+(Runtime)
+Document [
+    Element {
+        tag_name: Some(svg)
+        attributes: [
+            Attribute { name: id, value: String("svg1") }
+            Attribute { name: viewBox, value: ViewBox(ViewBox { x: 0.0, y: 0.0, w: 200.0, h: 200.0 }) }
+        ]
+        children: [
+            Element {
+                tag_name: Some(use)
+                attributes: [
+                    Attribute { name: id, value: String("use1") }
+                    Attribute { name: href, value: Link("use2") }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(use)
+                        attributes: [
+                            Attribute { name: href, value: Link("use1") }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(use)
+                attributes: [
+                    Attribute { name: id, value: String("use2") }
+                    Attribute { name: href, value: Link("use1") }
+                ]
+                children: [
+                    Element {
+                        tag_name: Some(use)
+                        attributes: [
+                            Attribute { name: href, value: Link("use2") }
+                        ]
+                    }
+                ]
+            }
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: id, value: String("frame") }
+                    Attribute { name: x, value: Length(Length { number: 1.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 1.0, unit: None }) }
+                    Attribute { name: width, value: Length(Length { number: 198.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 198.0, unit: None }) }
+                    Attribute { name: fill, value: None }
+                    Attribute { name: stroke, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 255 }) }
+                ]
+            }
+        ]
+    }
+]

@@ -35,7 +35,7 @@ fn create_svgr_ident(
     fframes_crate_ident: &Ident,
     nodes: Vec<Node>,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let svg_tree = crate::nodes_to_svgtree::nodes_to_svgtree(&nodes)?;
+    let svg_tree = crate::nodes_to_svgtree::nodes_to_svgtree(&nodes, fframes_crate_ident)?;
 
     Ok(quote! {
         #fframes_crate_ident::Svgr {
@@ -85,7 +85,7 @@ pub fn svgr(tokens: TokenStream) -> TokenStream {
             Ok(quote! {{
                  use #fframes_crate_ident::usvgr::svgtree::macro_prelude::*;
 
-                 fframes::lazy_static::lazy_static! {
+                 #fframes_crate_ident::lazy_static::lazy_static! {
                      #(#animations)*
                  }
 
