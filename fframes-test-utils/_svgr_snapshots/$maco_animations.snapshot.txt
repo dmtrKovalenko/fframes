@@ -1,0 +1,26 @@
+(Runtime)
+Document [
+    Element {
+        tag_name: Some(svg)
+        attributes: [
+            Attribute { name: width, value: Length(Length { number: 1920.0, unit: None }) }
+            Attribute { name: height, value: Length(Length { number: 1080.0, unit: None }) }
+        ]
+        children: [
+            Element {
+                tag_name: Some(image)
+                attributes: [
+                    Attribute { name: width, value: Length(Length { number: 900.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 900.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 10.0, unit: None }) }
+                ]
+            }
+            Element {
+                tag_name: Some(rect)
+                attributes: [
+                    Attribute { name: x, value: Length(Length { number: 12.2, unit: None }) }
+                ]
+            }
+        ]
+    }
+]

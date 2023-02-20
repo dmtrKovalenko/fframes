@@ -1,1 +1,1 @@
-mod svgr_spec;
+mod animations_spec;

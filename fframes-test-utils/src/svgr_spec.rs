@@ -343,3 +343,38 @@ pub fn svg_use_child_recursion() {
         ),
     )
 }
+
+#[test]
+pub fn macro_animations() {
+    let frame = fframes::Frame {
+        global_index: 50,
+        fps: 50,
+        index: 75,
+        ..Default::default()
+    };
+
+    assert_compile_time_svgr_eq_runtime(
+        "maco_animations",
+        svgr!(
+           <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1920"
+            height="1080"
+          >
+            <image
+              width="900"
+              height="900"
+              y="10"
+            />
+
+            <rect
+                x={frame.animate(fframes::timeline!(
+                  on 0., val 10.0 => 12.2, fframes::Easing::Linear(0.2),
+                  on 10., val 10.0 => 12.2, fframes::Easing::Linear(0.2),
+                  on 12., val 10.0 => 12.2, fframes::Easing::Linear(0.2)
+                ))}
+            />
+          </svg>
+        ),
+    );
+}

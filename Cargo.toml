@@ -9,22 +9,11 @@ members = [
     "fframes-editor-controller",
     "fframes-test-utils",
     "examples/marketing",
-    "examples/marketing/editor/editor-bridge",
     "examples/podcast",
-    "examples/podcast/editor/editor-bridge",
     "examples/hello-world",
-    "examples/hello-world/editor/editor-bridge",
     "examples/tiktok",
-    "examples/tiktok/editor/editor-bridge",
     "examples/low-poly-art",
-    "examples/low-poly-art/editor/editor-bridge",
     "examples/beta",
-    "examples/beta/editor/editor-bridge",
-]
-
-exclude = [
-    "examples/low-poly-art/editor/editor-bridge",
 ]
 
 resolver="2"
-

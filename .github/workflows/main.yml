@@ -47,7 +47,7 @@ jobs:
 
       # We have to use the Release mode, otherwise it would take forever.
       - name: Test
-        run: cargo test
+        run: just test-release
 
       - name: Upload visual regression results and diff
         uses: actions/upload-artifact@v3

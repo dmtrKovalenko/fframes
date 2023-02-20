@@ -1,3 +1,4 @@
+(inlined)
 Document [
     Element {
         tag_name: Some(svg)
