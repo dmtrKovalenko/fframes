@@ -2,6 +2,7 @@ use crate::node::{Node, NodeType};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+#[allow(dead_code)]
 pub(crate) fn prepare_svg_nodes_for_format_statement(
     nodes: Vec<Node>,
     fframes_crate_ident: &syn::Ident,

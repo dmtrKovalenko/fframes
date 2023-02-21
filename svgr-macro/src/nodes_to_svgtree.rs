@@ -273,8 +273,7 @@ fn map_text_node_children(
             continue;
         }
 
-        let mut tag_name = parse_tag_name(node)?;
-
+        let tag_name = parse_tag_name(node)?;
         if tag_name == EId::A {
             return Err(syn::Error::new(
                 node.name_span().unwrap(),
@@ -330,7 +329,6 @@ fn parse_tag_name(node: &Node) -> Result<EId, syn::Error> {
 fn map_inline_or_runtime_nodes(
     nodes: &[Node],
     fframes_crate_ident: &syn::Ident,
-    style_blocks: &mut TokenizeableVec<syn::ExprBlock>,
 ) -> syn::Result<Vec<MaybeParsedValue<MaybeNodeData>>> {
     let mut parsed_nodes = Vec::with_capacity(nodes.len());
 
@@ -359,7 +357,7 @@ fn map_inline_or_runtime_nodes(
 
         let children = match tag_name {
             EId::Text => map_text_node_children(&node.children, tag_name, fframes_crate_ident),
-            _ => map_inline_or_runtime_nodes(&node.children, fframes_crate_ident, style_blocks),
+            _ => map_inline_or_runtime_nodes(&node.children, fframes_crate_ident),
         }?;
 
         parsed_nodes.push(MaybeParsedValue::Value(MaybeNodeData {
@@ -373,8 +371,7 @@ fn map_inline_or_runtime_nodes(
 }
 
 pub fn nodes_to_svgtree(nodes: &[Node], fframes_crate_ident: &syn::Ident) -> syn::Result<TokenStream> {
-    let mut style_blocks = TokenizeableVec(vec![]);
-    let nodes = map_inline_or_runtime_nodes(nodes, &fframes_crate_ident, &mut style_blocks)?;
+    let nodes = map_inline_or_runtime_nodes(nodes, fframes_crate_ident)?;
 
     let tokens = tokenize_nodes(&nodes);
     let output_tree = quote! {

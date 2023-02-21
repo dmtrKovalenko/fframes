@@ -1,7 +1,7 @@
 use fframes::{
     audio_data,
     media_provider::{ImageData, MediaProvider},
-    Subtitles,
+    usvgr, Subtitles,
 };
 use rayon::prelude::*;
 use std::{

@@ -1,12 +1,11 @@
 use std::{fmt, iter::FromIterator};
-use usvgr::svgtree::{NestedNodeData, NestedSvgDocument};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Svgr {
     #[cfg(not(feature = "compile-time-svgtree"))]
     pub value: String,
     #[cfg(feature = "compile-time-svgtree")]
-    pub svg_tree: NestedSvgDocument,
+    pub svg_tree: usvgr::svgtree::NestedSvgDocument<usvgr::svgtree::NestedNodeData>,
 }
 
 impl Svgr {
@@ -35,6 +34,8 @@ impl From<String> for Svgr {
 #[cfg(feature = "compile-time-svgtree")]
 impl From<String> for Svgr {
     fn from(val: String) -> Self {
+        use usvgr::svgtree::{NestedNodeData, NestedSvgDocument};
+
         Svgr {
             svg_tree: NestedSvgDocument {
                 nodes: vec![Some(NestedNodeData {
@@ -61,7 +62,7 @@ impl FromIterator<Svgr> for Svgr {
 #[cfg(feature = "compile-time-svgtree")]
 impl FromIterator<Svgr> for Svgr {
     fn from_iter<T: IntoIterator<Item = Svgr>>(iter: T) -> Self {
-        let mut child_nodes = NestedSvgDocument { nodes: vec![] };
+        let mut child_nodes = usvgr::svgtree::NestedSvgDocument { nodes: vec![] };
 
         for sub_tree in iter {
             let mut nested_tree = sub_tree.svg_tree;

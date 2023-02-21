@@ -7,7 +7,7 @@ use crate::{
     render_backend::FFramesRenderBackend,
     renderer_error::FFramesResult,
 };
-use fframes::{video::Video, BreaksLruCache, ResolvedAudioMap};
+use fframes::{usvgr, video::Video, BreaksLruCache, ResolvedAudioMap};
 use futures::executor::block_on;
 use wgpu::{include_wgsl, util::DeviceExt};
 

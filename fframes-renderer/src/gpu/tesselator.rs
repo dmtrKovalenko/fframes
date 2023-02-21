@@ -1,3 +1,4 @@
+use fframes::usvgr;
 use lyon::{
     lyon_tessellation::{
         BuffersBuilder, FillOptions, FillVertexConstructor, StrokeVertexConstructor,
@@ -89,7 +90,7 @@ pub fn tesselate_svg(
     let mut transforms = Vec::new();
     let mut primitives = Vec::new();
 
-    let mut prev_transform = usvgr::Transform {
+    let mut prev_transform = fframes::usvgr::Transform {
         a: std::f64::NAN,
         b: std::f64::NAN,
         c: std::f64::NAN,

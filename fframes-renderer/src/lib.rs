@@ -4,7 +4,7 @@ use std::sync::Arc;
 use encoder::EncoderOptions;
 use fframes::media_provider::MediaProvider;
 use fframes::video::Video;
-use fframes::{fframes_context, AudioData, ResolvedScenesTimeline};
+use fframes::{fframes_context, usvgr, AudioData, ResolvedScenesTimeline};
 use fframes_logger::FFramesLoggerVariant;
 use render_backend::FFramesRenderBackend;
 
@@ -105,7 +105,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
         output,
         video,
         logger,
-        &usvgr::Options {
+        &fframes::usvgr::Options {
             image_data: Some(&image_data),
             font_family: options.default_font.to_string(),
             ..Default::default()

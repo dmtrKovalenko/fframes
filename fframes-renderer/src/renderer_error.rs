@@ -45,7 +45,9 @@ pub enum FFramesError {
     MissingRequiredMedia(String),
     CoreError(fframes::error::FFramesCoreError),
     ImageError((String, image::ImageError)),
+    ParserError(fframes::usvgr::Error),
     ConcurrencyError,
+    CustomError(String),
 }
 
 impl fmt::Debug for FFramesError {
@@ -69,7 +71,9 @@ impl fmt::Debug for FFramesError {
                 Self::CoreError(err) => format!("{err:?}"),
                 Self::ImageError((file, err)) =>
                     format!("Can not decode image {file}. Error {err:?}"),
-                Self::ConcurrencyError => "Something not correct happened while trying concurrently access one of the resources".to_owned()
+                Self::ConcurrencyError => "Something not correct happened while trying concurrently access one of the resources".to_owned(),
+                Self::ParserError(err) => format!("SVG parsing error: {err:?}"),
+                Self::CustomError(err) => err.to_owned(),
             }
         )
     }
@@ -104,5 +108,11 @@ impl From<fframes::error::FFramesCoreError> for FFramesError {
 impl<T> From<PoisonError<T>> for FFramesError {
     fn from(_: PoisonError<T>) -> Self {
         Self::ConcurrencyError
+    }
+}
+
+impl From<fframes::usvgr::Error> for FFramesError {
+    fn from(err: fframes::usvgr::Error) -> Self {
+        Self::ParserError(err.into())
     }
 }

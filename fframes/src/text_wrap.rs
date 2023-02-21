@@ -1,8 +1,6 @@
-use std::sync::{Arc, Mutex};
-
-use lru::LruCache;
-
 use crate::{FontSource, FontStretch, FontStyle, Svgr};
+use lru::LruCache;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TextAlign {
@@ -59,7 +57,7 @@ impl Default for BreakLinesOpts<'_> {
 }
 
 #[derive(Debug, Clone)]
-pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Svgr>>>);
+pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Option<Svgr>>>>);
 
 impl BreaksLruCache {
     pub fn new(size: usize) -> Option<Self> {

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ops::Deref, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use syn::{
@@ -142,28 +142,6 @@ impl<'a> Parser<'a> {
             },
         }
         .into())
-    }
-
-    fn is_animation_macro_statement(statements: &[Stmt]) -> bool {
-        use Stmt::*;
-
-        let first_statement = &statements[0];
-        match first_statement {
-            Expr(syn::Expr::MethodCall(method_call)) => {
-                method_call.method == "animate"
-                    && method_call.args.len() == 1
-                    && match &method_call.args[0] {
-                        syn::Expr::Macro(macro_expr) => macro_expr
-                            .mac
-                            .path
-                            .segments
-                            .iter()
-                            .any(|segment| segment.ident == "timeline"),
-                        _ => false,
-                    }
-            }
-            _ => false,
-        }
     }
 
     fn process_block(&self, statements: &[Stmt]) -> Option<Vec<Stmt>> {
@@ -410,7 +388,7 @@ impl<'a> Parser<'a> {
         Ok(nodes)
     }
 
-    fn attribute(&self, input: ParseStream, tag_name: &NodeName) -> Result<Node> {
+    fn attribute(&self, input: ParseStream, _tag_name: &NodeName) -> Result<Node> {
         let fork = &input.fork();
 
         if fork.peek(Brace) {

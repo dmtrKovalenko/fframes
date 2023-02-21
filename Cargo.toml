@@ -1,5 +1,5 @@
 [workspace]
-
+resolver="2"
 members = [
     "e2e",
     "svgr-macro",
@@ -16,4 +16,11 @@ members = [
     "examples/beta",
 ]
 
-resolver="2"
+
+[workspace.dependencies]  
+# svgr = { path = "../resvg"}
+# usvgr = { path = "../resvg/usvgr"}
+# usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
+svgr = "0.28.2"
+usvgr = "0.28.2"
+usvgr-text-layout = "0.28.2"

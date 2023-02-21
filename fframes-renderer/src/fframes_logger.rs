@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use ffmpeg_next::ffi::AV_LOG_FATAL;
 use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
-use std::{default, ffi::c_int, path::Path, sync::Arc};
+use std::{ffi::c_int, path::Path, sync::Arc};
 
 #[allow(unused_variables)]
 pub trait FFramesLogger: Sync + Send {

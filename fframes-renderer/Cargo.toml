@@ -4,9 +4,8 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-svgr = { path = "../../resvg" }
-usvgr = { path = "../../resvg/usvgr" }
-usvgr-text-layout = { path = "../../resvg/usvgr-text-layout" }
+svgr ={ workspace = true}
+usvgr-text-layout = { workspace = true }
 rayon = "1.5.1"
 colored = "2"
 indicatif = "0.16.2"
