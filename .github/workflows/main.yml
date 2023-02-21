@@ -38,6 +38,8 @@ jobs:
 
       # - run: sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
       - run: brew install ffmpeg
+      - run: brew link --force ffmpeg
+      - run: ffmpeg -version
 
       - name: Build
         run: just build
