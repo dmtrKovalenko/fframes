@@ -45,6 +45,7 @@ jobs:
       - run: sudo add-apt-repository ppa:savoury1/ffmpeg5 -y
       - run: sudo apt update && sudo apt upgrade
       - run: sudo apt install ffmpeg
+      - run: pkg-config --libs --cflags libavutil
       - run: ffmpeg -version
 
       - name: Build
