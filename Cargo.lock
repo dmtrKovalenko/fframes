@@ -2064,13 +2064,14 @@ dependencies = [
 
 [[package]]
 name = "svgr"
-version = "0.28.2"
+version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bc877394ca25342f8a41799b3269d2a690d8ccd662f0bcac2377d8900b1e868"
+checksum = "ced3e09fce9273f6f1945fa04ad208a89aa51c5e5c27eeda879978d271530ae4"
 dependencies = [
  "gif",
  "jpeg-decoder 0.3.0",
  "log",
+ "lru",
  "pico-args",
  "png",
  "rgb",
@@ -2098,9 +2099,9 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.28.2"
+version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d12f3f458052853127a5e6684b28b676735631311a547ffa0b89c90a16512c7"
+checksum = "48b4163a226e766a9a8d5554ee265e22349938b6ea1bca590915bd7357f8df32"
 dependencies = [
  "kurbo",
  "proc-macro2",
@@ -2305,9 +2306,9 @@ checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "usvgr"
-version = "0.28.2"
+version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f31ef78fa255c8825c8d8a97a4ac526059648f3de25fe62d0b54c3808ae359e5"
+checksum = "35af68798bfa6adb87259b1f7ff851a42de5aca1a9d4b363249298145f4c5a32"
 dependencies = [
  "base64",
  "data-url",
@@ -2327,9 +2328,9 @@ dependencies = [
 
 [[package]]
 name = "usvgr-text-layout"
-version = "0.28.2"
+version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ecfccacab1c04a00f22d5d4ba132b73740af9805f18f30c9a32bc0606bda2cd"
+checksum = "d439c3e7eea73564cec920cf9c3d5fe79d36388273d891f86162909f2597cb1d"
 dependencies = [
  "fontdb",
  "kurbo",

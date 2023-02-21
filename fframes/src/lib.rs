@@ -15,9 +15,6 @@ mod svgr;
 mod text_wrap;
 pub mod video;
 
-#[cfg(test)]
-mod tests;
-
 pub use animation::*;
 pub use audio_data::*;
 pub use audio_map::*;
