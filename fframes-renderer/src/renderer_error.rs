@@ -113,6 +113,6 @@ impl<T> From<PoisonError<T>> for FFramesError {
 
 impl From<fframes::usvgr::Error> for FFramesError {
     fn from(err: fframes::usvgr::Error) -> Self {
-        Self::ParserError(err.into())
+        Self::ParserError(err)
     }
 }
