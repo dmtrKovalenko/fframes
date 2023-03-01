@@ -1,19 +1,24 @@
-use std::{
-    collections::hash_map::DefaultHasher,
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    ops::DerefMut,
-};
+use std::{fmt::Debug, ops::DerefMut};
 
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
-    AnimationRuntime, BreaksLruCache, VisualizeFrameInput,
+    AnimationRuntime, BreaksLruCache, VisualizeFrameInput, WrappedTextLine,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub struct SceneInfo {
+    /// Resolved duration of scene in frames. The `frame.index` is always < `frame.scene_info.duration_in_frames`
+    pub duration_in_frames: usize,
+    /// The index of the scene in a video
+    pub index: usize,
+    /// If `true` then this scene is defined last in the video.
+    pub is_last: bool,
+}
 
 /// The Frame {} struct contains temporal information about the current frame.
 #[derive(Debug, Clone, Default)]
-pub struct Frame {
+pub struct Frame<'a> {
     /// The frame index of the current scene. If rendering a Scene it is relative to the current frame.
     pub index: usize,
     /// The frame index of the current frame. If rendering within a scene will show the frame index within a whole video.
@@ -22,6 +27,8 @@ pub struct Frame {
     /// FPS of the video. Always equals to the Video::FPS constant.
     pub fps: usize,
     pub breaks_lru_cache: Option<BreaksLruCache>,
+    /// Represents the current scene information. If rendering top level video always `None`.
+    pub scene_info: Option<&'a SceneInfo>,
 }
 
 pub struct AnimateRuntimeInput<'a> {
@@ -31,7 +38,7 @@ pub struct AnimateRuntimeInput<'a> {
     pub animation_runtime: &'a AnimationRuntime,
 }
 
-impl Frame {
+impl Frame<'_> {
     /// Borrows the frame into the same one, but removes relative index in favor of global one.
     /// Can be useful for using global-videos API from the scene.
     pub fn into_global(self) -> Self {
@@ -185,17 +192,14 @@ impl Frame {
     /// });
     ///
     /// ```  
-    pub fn text_break_lines<'a>(
+    pub fn text_break_lines<'a: 'b, 'b>(
         &mut self,
         ctx: &crate::FFramesContext<'a>,
-        value: &'a str,
+        value: &'b str,
         opts: &BreakLinesOpts,
     ) -> Option<crate::Svgr> {
         let font_source = ctx.font_source?;
-        let mut s = DefaultHasher::new();
-        value.hash(&mut s);
-        opts.hash(&mut s);
-        let hash = s.finish();
+        let hash = opts.hash_with_value(value);
 
         if let Some(cache_mutex) = self.breaks_lru_cache.as_ref() {
             cache_mutex
@@ -203,10 +207,37 @@ impl Frame {
                 .lock()
                 .ok()?
                 .deref_mut()
-                .get_or_insert(hash, || text_wrap_impl(value, hash, font_source, *opts))
+                .get_or_insert(hash, || text_wrap_impl(value, font_source, *opts))
+                .as_ref()
+                .map(|res| WrappedTextLine::as_svgr(res, hash, opts))
+        } else {
+            text_wrap_impl(value, ctx.font_source?, *opts)
+                .map(|res| WrappedTextLine::as_svgr(&res, hash, opts))
+        }
+    }
+
+    /// Same as `text_break_lines` but returns inner lines structure instead of ready-to-render svgr.
+    /// It may be used to customize renderer of wrapped text lines. Every line contains `dx` and `dy` fields which must
+    /// be passed to `dx={line.dx} dy={line.dy}` attribute of the every line <tspan> element.
+    pub fn text_break_lines_strcuture<'a: 'b, 'b>(
+        &mut self,
+        ctx: &crate::FFramesContext<'a>,
+        value: &'b str,
+        opts: &BreakLinesOpts,
+    ) -> Option<Vec<WrappedTextLine>> {
+        let font_source = ctx.font_source?;
+        let hash = opts.hash_with_value(value);
+
+        if let Some(cache_mutex) = self.breaks_lru_cache.as_ref() {
+            cache_mutex
+                .0
+                .lock()
+                .ok()?
+                .deref_mut()
+                .get_or_insert(hash, || text_wrap_impl(value, font_source, *opts))
                 .clone()
         } else {
-            text_wrap_impl(value, hash, ctx.font_source?, *opts)
+            text_wrap_impl(value, font_source, *opts)
         }
     }
 }

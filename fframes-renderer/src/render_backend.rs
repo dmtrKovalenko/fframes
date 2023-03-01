@@ -1,4 +1,4 @@
-use fframes::{frame, usvgr, video::Video, BreaksLruCache, ResolvedAudioMap};
+use fframes::{frame, usvgr, video::Video, BreaksLruCache, ResolvedAudioMap, ResolvedAudioUnit};
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
 use svgr::SvgrCache;
@@ -141,7 +141,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         }
 
         let concurrent_chunks = self.split_video_chunks(duration_in_frames);
-        let resolved_audio_map: Option<ResolvedAudioMap> = video.audio().resolve(&ctx);
+        let resolved_audio_map: Option<ResolvedAudioMap> =
+            video.audio().resolve(ResolvedAudioUnit::Samples, &ctx);
 
         let files = concurrent_chunks
             .par_iter()
@@ -187,6 +188,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                             index: fr,
                                             global_index: fr,
                                             breaks_lru_cache: break_lines_cache.clone(),
+                                            scene_info: None,
                                         },
                                         &ctx,
                                     );

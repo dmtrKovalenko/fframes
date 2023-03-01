@@ -33,22 +33,10 @@ pub trait Scene: Debug + Sync + Send {
     fn overlap(&self) -> Overlap {
         Overlap::None
     }
-}
 
-#[macro_export]
-macro_rules! ff {
-    ($(on $start: expr, val $from:expr => $to:expr, $easing:expr),+) => {
-        fframes::animation::SteppedAnimation::make_from_tweens(vec![
-           $(
-            fframes::animation::Tween {
-                start: $start,
-                from: $from,
-                to: $to,
-                easing: &$easing,
-            }
-           ),+
-    ])
-    };
+    fn audio_map(&self) -> crate::audio_map::AudioMap {
+        crate::audio_map::AudioMap::none()
+    }
 }
 
 pub struct Scenes(pub(crate) Option<Vec<Box<dyn Scene>>>);

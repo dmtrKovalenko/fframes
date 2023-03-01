@@ -30,13 +30,10 @@ impl Subtitles {
     }
 
     pub fn get_phrase_for_frame(&self, frame: &Frame) -> Option<&str> {
+        let milliseconds = (frame.get_current_second() * 1000.0) as u64;
+
         self.subtitles.cues.iter().rev().find_map(|cue| {
-            match (frame.get_current_second() * 1000.0) as u64 {
-                milliseconds if milliseconds >= cue.start.0 && milliseconds <= cue.end.0 => {
-                    Some(cue.text.as_str())
-                }
-                _ => None,
-            }
+            (milliseconds >= cue.start.0 && milliseconds <= cue.end.0).then_some(cue.text.as_str())
         })
     }
 }

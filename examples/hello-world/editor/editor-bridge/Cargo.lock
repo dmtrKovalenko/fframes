@@ -230,7 +230,7 @@ dependencies = [
  "encode_unicode",
  "lazy_static",
  "libc",
- "windows-sys",
+ "windows-sys 0.42.0",
 ]
 
 [[package]]
@@ -431,6 +431,7 @@ dependencies = [
  "lru",
  "microfft",
  "num",
+ "parking_lot 0.12.1",
  "rangemap",
  "roxmltree 0.14.1",
  "serde",
@@ -473,7 +474,6 @@ dependencies = [
  "svgr",
  "svgr-macro",
  "syn",
- "usvgr",
  "usvgr-text-layout",
  "uuid",
  "wgpu",
@@ -1346,7 +1346,17 @@ checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
 dependencies = [
  "instant",
  "lock_api",
- "parking_lot_core",
+ "parking_lot_core 0.8.6",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
+dependencies = [
+ "lock_api",
+ "parking_lot_core 0.9.7",
 ]
 
 [[package]]
@@ -1361,6 +1371,19 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "winapi",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.9.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9069cbb9f99e3a5083476ccb29ceb1de18b9118cafa53e90c9551235de2b9521"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "redox_syscall",
+ "smallvec",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -1759,6 +1782,8 @@ dependencies = [
 [[package]]
 name = "svgfilters"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "639abcebc15fdc2df179f37d6f5463d660c1c79cd552c12343a4600827a04bce"
 dependencies = [
  "float-cmp",
  "rgb",
@@ -1766,11 +1791,14 @@ dependencies = [
 
 [[package]]
 name = "svgr"
-version = "0.27.0"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ced3e09fce9273f6f1945fa04ad208a89aa51c5e5c27eeda879978d271530ae4"
 dependencies = [
  "gif",
  "jpeg-decoder",
  "log",
+ "lru",
  "pico-args",
  "png",
  "rgb",
@@ -1797,7 +1825,9 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.27.0"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48b4163a226e766a9a8d5554ee265e22349938b6ea1bca590915bd7357f8df32"
 dependencies = [
  "kurbo",
  "proc-macro2",
@@ -1969,7 +1999,9 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 
 [[package]]
 name = "usvgr"
-version = "0.27.0"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35af68798bfa6adb87259b1f7ff851a42de5aca1a9d4b363249298145f4c5a32"
 dependencies = [
  "base64",
  "data-url",
@@ -1989,7 +2021,9 @@ dependencies = [
 
 [[package]]
 name = "usvgr-text-layout"
-version = "0.27.0"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d439c3e7eea73564cec920cf9c3d5fe79d36388273d891f86162909f2597cb1d"
 dependencies = [
  "fontdb",
  "kurbo",
@@ -2131,7 +2165,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
- "parking_lot",
+ "parking_lot 0.11.2",
  "raw-window-handle",
  "smallvec",
  "wasm-bindgen",
@@ -2156,7 +2190,7 @@ dependencies = [
  "fxhash",
  "log",
  "naga",
- "parking_lot",
+ "parking_lot 0.11.2",
  "profiling",
  "raw-window-handle",
  "smallvec",
@@ -2191,7 +2225,7 @@ dependencies = [
  "metal",
  "naga",
  "objc",
- "parking_lot",
+ "parking_lot 0.11.2",
  "profiling",
  "range-alloc",
  "raw-window-handle",
@@ -2248,6 +2282,30 @@ name = "windows-sys"
 version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a3e1820f08b8513f676f7ab6c1f99ff312fb97b553d30ff4dd86f9f15728aa7"
+dependencies = [
+ "windows_aarch64_gnullvm",
+ "windows_aarch64_msvc",
+ "windows_i686_gnu",
+ "windows_i686_msvc",
+ "windows_x86_64_gnu",
+ "windows_x86_64_gnullvm",
+ "windows_x86_64_msvc",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75283be5efb2831d37ea142365f009c02ec203cd29a3ebecbc093d52315b66d0"
+dependencies = [
+ "windows-targets",
+]
+
+[[package]]
+name = "windows-targets"
+version = "0.42.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e2522491fbfcd58cc84d47aeb2958948c4b8982e9a2d8a2a35bbaed431390e7"
 dependencies = [
  "windows_aarch64_gnullvm",
  "windows_aarch64_msvc",

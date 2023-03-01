@@ -1,11 +1,13 @@
 mod setup_wasm_editor;
 pub use setup_wasm_editor::*;
 
+pub mod wasm_audio_resolver;
 pub mod wasm_font_source;
 
 pub mod prelude {
-    pub use crate::wasm_font_source;
+    pub use crate::{wasm_audio_resolver, wasm_font_source};
     pub use console_error_panic_hook;
+    pub use fframes;
     pub use fframes::lru;
     pub use fframes::serde;
     pub use fframes::ttf_parser;
@@ -16,5 +18,4 @@ pub mod prelude {
     pub use wasm_bindgen;
     pub use wasm_bindgen::prelude::*;
     pub use wasm_bindgen_futures;
-    pub use fframes;
 }

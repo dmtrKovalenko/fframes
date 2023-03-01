@@ -1,6 +1,10 @@
 use crate::{FontSource, FontStretch, FontStyle, Svgr};
 use lru::LruCache;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TextAlign {
@@ -22,6 +26,16 @@ pub struct BreakLinesOpts<'a> {
     pub fill: &'a str,
     pub font_style: FontStyle,
     pub font_stretch: FontStretch,
+}
+
+impl BreakLinesOpts<'_> {
+    pub(crate) fn hash_with_value(&self, value: &str) -> u64 {
+        let mut s = DefaultHasher::new();
+        value.hash(&mut s);
+        self.hash(&mut s);
+
+        s.finish()
+    }
 }
 
 impl std::hash::Hash for BreakLinesOpts<'_> {
@@ -57,7 +71,7 @@ impl Default for BreakLinesOpts<'_> {
 }
 
 #[derive(Debug, Clone)]
-pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Option<Svgr>>>>);
+pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Option<Vec<WrappedTextLine>>>>>);
 
 impl BreaksLruCache {
     pub fn new(size: usize) -> Option<Self> {
@@ -71,24 +85,59 @@ impl BreaksLruCache {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct WrappedTextLine {
+    pub words: Vec<String>,
+    pub width: usize,
+    pub dx: usize,
+    pub dy: String,
+}
+
+impl WrappedTextLine {
+    pub fn as_svgr(
+        lines: &Vec<Self>,
+        hash: u64,
+        BreakLinesOpts {
+            x,
+            y,
+            fill,
+            font_size,
+            font_family,
+            font_weight,
+            ..
+        }: &BreakLinesOpts,
+    ) -> Svgr {
+        svgr_macro::svgr!(
+         <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight}>
+           {
+            lines.iter().map(|line| {
+                svgr_macro::svgr!(
+                   <tspan x={x} y={y} dx={line.dx} dy={line.dy.to_string()}>
+                    {line.words.join(" ")}
+                   </tspan>
+                )
+            }).collect::<Vec<_>>()
+           }
+        </text>
+        )
+    }
+}
+
 pub(crate) fn text_wrap_impl<'a, 'b>(
     value: &'b str,
-    hash: u64,
     font_source: &'a (dyn FontSource<'a> + 'a),
     BreakLinesOpts {
         width,
-        line_height,
-        x,
-        y,
         align,
         font_family,
         font_size,
         font_weight,
-        fill,
         font_style,
         font_stretch,
+        line_height,
+        ..
     }: BreakLinesOpts,
-) -> Option<crate::Svgr> {
+) -> Option<Vec<WrappedTextLine>> {
     let font_face = font_source.resolve_font(font_family, font_weight, font_style, font_stretch)?;
 
     let font_variant = font_face.font_variant(font_size)?;
@@ -109,42 +158,43 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
         Some(raw_width)
     };
 
-    let mut structure = vec![(String::new(), 0usize)];
+    let mut structure = vec![(vec![], 0usize)];
     for word in value.split_whitespace() {
         let word_width = resolve_word_width(word)?;
         let (last_line, last_line_width) = structure.last_mut().unwrap();
 
         if *last_line_width + space_width + word_width > width {
-            structure.push((String::from(word), word_width));
+            structure.push((vec![word.to_owned()], word_width));
         } else {
             if *last_line_width != 0 {
-                last_line.push(' ');
+                // last_line.push(' ');
                 *last_line_width += space_width;
             }
 
-            last_line.push_str(word);
+            last_line.push(word.to_owned());
 
             *last_line_width += word_width;
         }
     }
 
-    Some(svgr_macro::svgr!(
-     <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight}>
-       {
-           structure
+    Some(
+        structure
             .into_iter()
             .enumerate()
-            .map(|(index, (line, line_width))| {
+            .map(|(index, (words, line_width))| {
                 let dx = match align {
                     TextAlign::Left => 0,
                     TextAlign::Center => (width - line_width) / 2,
-                    TextAlign::Right => width - line_width
+                    TextAlign::Right => width - line_width,
                 };
 
-                svgr_macro::svgr!(<tspan x={x} y={y} dx={dx} dy={format!("{}em", index as f32 * line_height)}>{line}</tspan>)
+                WrappedTextLine {
+                    words,
+                    width: line_width,
+                    dx,
+                    dy: format!("{}em", index as f32 * line_height),
+                }
             })
-            .collect::<Vec<_>>()
-       }
-     </text>
-    ))
+            .collect(),
+    )
 }

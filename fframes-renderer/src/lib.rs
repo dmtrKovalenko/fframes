@@ -148,6 +148,7 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
             global_index: frame_index,
             fps: TVideo::FPS,
             breaks_lru_cache: None,
+            scene_info: None,
         },
         output_png,
         video,

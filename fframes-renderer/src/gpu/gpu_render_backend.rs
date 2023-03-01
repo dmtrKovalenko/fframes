@@ -7,7 +7,7 @@ use crate::{
     render_backend::FFramesRenderBackend,
     renderer_error::FFramesResult,
 };
-use fframes::{usvgr, video::Video, BreaksLruCache, ResolvedAudioMap};
+use fframes::{usvgr, video::Video, BreaksLruCache, ResolvedAudioMap, ResolvedAudioUnit};
 use futures::executor::block_on;
 use wgpu::{include_wgsl, util::DeviceExt};
 
@@ -110,6 +110,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                                     index: fr,
                                     global_index: fr,
                                     breaks_lru_cache: text_cache.clone(),
+                                    scene_info: None,
                                 },
                                 &ctx,
                             )
@@ -387,7 +388,9 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         logger.log_frame(fr, 0)
                     }
 
-                    let resolved_audio_map: Option<ResolvedAudioMap> = video.audio().resolve(&ctx);
+                    let resolved_audio_map: Option<ResolvedAudioMap> =
+                        video.audio().resolve(ResolvedAudioUnit::Samples, &ctx);
+
                     fill_audio_stream(video_encoder, resolved_audio_map.as_ref(), &ctx)?;
 
                     Ok(())

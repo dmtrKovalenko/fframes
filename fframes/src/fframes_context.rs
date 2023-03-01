@@ -57,7 +57,7 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
 
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr {
         if let Some(scenes) = self.scenes.as_ref() {
-            Svgr::from_iter(scenes.0.iter().filter_map(|(range, scene)| {
+            Svgr::from_iter(scenes.0.iter().filter_map(|(range, scene_info, scene)| {
                 if range.contains(&global_frame.index) {
                     Some(scene.render_frame(
                         Frame {
@@ -65,6 +65,7 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
                             global_index: global_frame.index,
                             index: global_frame.index - range.start,
                             breaks_lru_cache: global_frame.breaks_lru_cache.clone(),
+                            scene_info: Some(scene_info),
                         },
                         self,
                     ))
@@ -87,7 +88,7 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
     ) -> Vec<f32> {
         let mut audio_data = vec![0.0; frame_size];
 
-        audio_map.0.iter().for_each(|(f, sample_range)| {
+        audio_map.1.iter().for_each(|(f, sample_range)| {
             if sample_range.contains(&start_sample) {
                 let start_of_this_frame_in_file = start_sample - sample_range.start;
 

@@ -2,12 +2,12 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::audio_map::AudioMap;
-use crate::{fframes_context, frame, scenes::*};
+use crate::{fframes_context, frame, scenes::*, SceneInfo};
 
 #[allow(dead_code)]
-pub enum Duration {
+pub enum Duration<'a> {
     /// Get the duration from the audio file.
-    FromAudio(&'static str),
+    FromAudio(&'a str),
     Seconds(usize),
     Frames(usize),
     Auto,
@@ -16,7 +16,7 @@ pub enum Duration {
 type AsyncAudioDurationCb =
     Box<dyn Fn(String) -> Pin<Box<dyn Future<Output = super::error::Result<usize>>>>>;
 
-impl Duration {
+impl Duration<'_> {
     pub(super) async fn to_frames_async(
         &self,
         fps: usize,
@@ -48,7 +48,7 @@ pub trait Video: Sync + Sized {
     const FPS: usize;
     const WIDTH: usize;
     const HEIGHT: usize;
-    const DURATION: Duration = Duration::Auto;
+    const DURATION: Duration<'static> = Duration::Auto;
 
     fn audio(&self) -> AudioMap;
     fn define_scenes(&self) -> Scenes {
@@ -63,14 +63,16 @@ pub trait Video: Sync + Sized {
 }
 
 #[derive(Debug)]
-pub struct ResolvedScenesTimeline(pub(crate) Vec<(std::ops::Range<usize>, Box<dyn Scene>)>);
+pub struct ResolvedScenesTimeline(
+    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Box<dyn Scene>)>,
+);
 
 impl ResolvedScenesTimeline {
     pub fn find_relative_index(&self, frame_index: usize) -> Option<usize> {
         self.0
             .iter()
-            .find(|(range, _)| range.contains(&frame_index))
-            .map(|(range, _)| frame_index - range.start)
+            .find(|(range, _, _)| range.contains(&frame_index))
+            .map(|(range, _, _)| frame_index - range.start)
     }
 }
 
@@ -84,8 +86,9 @@ pub async fn resolve_duration_and_scenes_async<TVideo: Video>(
         (Some(scenes), Duration::Auto) => {
             let mut final_duration = 0;
             let mut resolved_scenes = Vec::new();
+            let scenes_count = scenes.len();
 
-            for scene in scenes {
+            for (index, scene) in scenes.into_iter().enumerate() {
                 let duration = scene
                     .duration()
                     .to_frames_async(TVideo::FPS, &resolve_audio_duration)
@@ -94,6 +97,11 @@ pub async fn resolve_duration_and_scenes_async<TVideo: Video>(
                 let (overlap_prev, overlap_next) = scene.overlap().to_frames(TVideo::FPS);
                 resolved_scenes.push((
                     final_duration - overlap_prev..final_duration + duration + overlap_next,
+                    SceneInfo {
+                        index,
+                        duration_in_frames: duration,
+                        is_last: index == scenes_count - 1,
+                    },
                     scene,
                 ));
 
@@ -127,8 +135,9 @@ pub fn resolve_duration_and_scenes_sync<
         (Some(scenes), Duration::Auto) => {
             let mut final_duration = 0;
             let mut resolved_scenes = Vec::new();
+            let scenes_count = scenes.len();
 
-            for scene in scenes {
+            for (index, scene) in scenes.into_iter().enumerate() {
                 let duration = scene
                     .duration()
                     .to_frames_sync(TVideo::FPS, &resolve_audio_duration)?;
@@ -156,7 +165,16 @@ pub fn resolve_duration_and_scenes_sync<
                     ));
                 }
 
-                resolved_scenes.push((start..end, scene));
+                resolved_scenes.push((
+                    start..end,
+                    SceneInfo {
+                        index,
+                        duration_in_frames: duration,
+                        is_last: index == scenes_count - 1,
+                    },
+                    scene,
+                ));
+
                 final_duration += duration;
             }
 
