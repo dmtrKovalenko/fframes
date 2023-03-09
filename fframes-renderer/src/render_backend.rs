@@ -40,9 +40,10 @@ pub trait FFramesRenderBackend {
         Self: Sized;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum RenderBackendVariant {
     Gpu,
+    #[default]
     Cpu,
 }
 
@@ -56,12 +57,6 @@ impl RenderBackendVariant {
                 ..Default::default()
             },
         }
-    }
-}
-
-impl Default for RenderBackendVariant {
-    fn default() -> Self {
-        RenderBackendVariant::Cpu
     }
 }
 

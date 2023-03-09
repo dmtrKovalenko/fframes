@@ -153,12 +153,10 @@ impl Frame {
 
         let frames_to_smooth = ((self.index - input.smooth_level)
             ..(self.index + input.smooth_level))
-            .into_iter()
             .map(|i| get_visualization(i, self.fps, &input))
             .collect::<Vec<_>>();
 
         (0..frames_to_smooth[1].len())
-            .into_iter()
             .map(|frame| {
                 frames_to_smooth.iter().map(|arr| arr[frame]).sum::<f32>()
                     / frames_to_smooth.len() as f32

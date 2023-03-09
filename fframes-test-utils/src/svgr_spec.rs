@@ -280,7 +280,7 @@ pub fn nested_trees() {
              }
 
              {
-              (0..3).into_iter().map(|i| {
+              (0..3).map(|i| {
                 svgr!(
                   <text font-family="Arial">{format!("Nested text {i}")}</text>
                   <polygon points="594,403 0,0 535,471" />
