@@ -7,7 +7,7 @@ use crate::{
     render_backend::FFramesRenderBackend,
     renderer_error::FFramesResult,
 };
-use fframes::{usvgr, video::Video, BreaksLruCache, ResolvedAudioMap, ResolvedAudioUnit};
+use fframes::{usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedAudioMap};
 use futures::executor::block_on;
 use wgpu::{include_wgsl, util::DeviceExt};
 
@@ -25,7 +25,6 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
-        duration_in_frames: usize,
         render_options: EncoderOptions<'a>,
         _fontdb: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
@@ -102,7 +101,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 &mut |video_encoder| -> FFramesResult<()> {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream);
 
-                    for fr in 0..duration_in_frames {
+                    for fr in 0..ctx.duration_in_frames {
                         let rtree = video
                             .render_frame(
                                 fframes::Frame {
@@ -110,7 +109,6 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                                     index: fr,
                                     global_index: fr,
                                     breaks_lru_cache: text_cache.clone(),
-                                    scene_info: None,
                                 },
                                 &ctx,
                             )
@@ -388,8 +386,8 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         logger.log_frame(fr, 0)
                     }
 
-                    let resolved_audio_map: Option<ResolvedAudioMap> =
-                        video.audio().resolve(ResolvedAudioUnit::Samples, &ctx);
+                    let resolved_audio_map: Option<ResolvedAudioMap<AudioTimelineSamples>> =
+                        video.audio().resolve(&ctx);
 
                     fill_audio_stream(video_encoder, resolved_audio_map.as_ref(), &ctx)?;
 

@@ -1,10 +1,10 @@
 #[derive(Clone, Copy, Debug)]
 pub struct SpringRuntime {
-    pub m_zeta: f32,
-    pub w0: f32,
-    pub wd: f32,
-    pub a: f32,
-    pub b: f32,
+    pub(crate) m_zeta: f32,
+    pub(crate) w0: f32,
+    pub(crate) wd: f32,
+    pub(crate) a: f32,
+    pub(crate) b: f32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]

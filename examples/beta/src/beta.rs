@@ -12,7 +12,7 @@ struct HeadingScene {}
 
 impl Scene for HeadingScene {
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Seconds(3)
+        fframes::Duration::Seconds(3.)
     }
 
     fn render_frame(&self, frame: frame::Frame, _ctx: &fframes_context::FFramesContext) -> Svgr {

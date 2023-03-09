@@ -12,7 +12,7 @@ const BAR_PADDING: usize = 20;
 const SPECTRUM_WIDTH: usize = 16 * (BAR_SIZE + BAR_PADDING) - BAR_PADDING;
 
 lazy_static! {
-    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from_easing(&SPRING);
+    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from(&SPRING);
 }
 
 #[derive(Debug)]

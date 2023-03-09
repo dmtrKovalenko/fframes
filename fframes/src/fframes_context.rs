@@ -1,8 +1,8 @@
 use std::iter::FromIterator;
 
 use crate::{
-    audio_data, media_provider, subtitles, video::ResolvedScenesTimeline, FontSource, Frame,
-    ResolvedAudioMap, Svgr,
+    audio_data, media_provider, subtitles, video::ResolvedScenesTimeline, AudioTimelineSamples,
+    AudioTimelineUnit, FontSource, Frame, ResolvedAudioMap, Svgr,
 };
 
 #[derive(Clone, Debug)]
@@ -57,24 +57,36 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
 
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr {
         if let Some(scenes) = self.scenes.as_ref() {
-            Svgr::from_iter(scenes.0.iter().filter_map(|(range, scene_info, scene)| {
-                if range.contains(&global_frame.index) {
-                    Some(scene.render_frame(
+            Svgr::from_iter(scenes.0.iter().filter_map(|(range, _, scene)| {
+                range.contains(&global_frame.index).then(|| {
+                    scene.render_frame(
                         Frame {
                             fps: global_frame.fps,
                             global_index: global_frame.index,
                             index: global_frame.index - range.start,
                             breaks_lru_cache: global_frame.breaks_lru_cache.clone(),
-                            scene_info: Some(scene_info),
                         },
                         self,
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             }))
         } else {
             Svgr::default()
+        }
+    }
+
+    /// Finds the scene layout and duration information based on the layout of defined in `define_scenes` of the `Video`.
+    pub fn get_scene_info<T: crate::Scene>(&self, scene: &T) -> Option<&crate::SceneInfo> {
+        if let Some(scenes) = self.scenes.as_ref() {
+            scenes.0.iter().find_map(|(_, info, boxed_scene)| {
+                #[allow(clippy::ptr_eq)]
+                let pointers_equal = boxed_scene.as_ref() as *const dyn crate::Scene as *const T
+                    == scene as *const T;
+
+                pointers_equal.then_some(info)
+            })
+        } else {
+            None
         }
     }
 
@@ -82,15 +94,16 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
     #[allow(clippy::option_map_unit_fn)]
     pub fn get_mixed_audio_data_in_fltp(
         &self,
-        audio_map: &ResolvedAudioMap,
-        start_sample: usize,
+        audio_map: &ResolvedAudioMap<AudioTimelineSamples>,
+        start_sample: AudioTimelineSamples,
         frame_size: usize,
     ) -> Vec<f32> {
         let mut audio_data = vec![0.0; frame_size];
 
-        audio_map.1.iter().for_each(|(f, sample_range)| {
+        audio_map.0.iter().for_each(|(f, sample_range)| {
             if sample_range.contains(&start_sample) {
-                let start_of_this_frame_in_file = start_sample - sample_range.start;
+                let start_of_this_frame_in_file =
+                    start_sample.as_usize() - sample_range.start.as_usize();
 
                 self.get_audio_data(f)
                     .get_range(

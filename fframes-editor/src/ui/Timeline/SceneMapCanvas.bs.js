@@ -26,16 +26,18 @@ function renderRoundedRect(ctx, x, y, width, height, radius, param) {
   
 }
 
-function clipOverTimeLineElement(ctx, y, width) {
+function clipOverTimeLineElement(ctx, y, width, fill) {
   renderRoundedRect(ctx, 32, y, width, 120, 8.0, undefined);
   ctx.clip();
+  Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, fill);
+  ctx.fillRect(32, y, width, 120);
   
 }
 
 function renderMainScene(ctx, size, editorContext) {
   var aspectRatio = editorContext.videoMeta.width / editorContext.videoMeta.height;
   var width = Math.floor(120 * aspectRatio);
-  clipOverTimeLineElement(ctx, 64, size.maxSceneWidth);
+  clipOverTimeLineElement(ctx, 64, size.maxSceneWidth, "#000");
   var maxFramesInScene = Caml_int32.div(size.maxSceneWidth | 0, width);
   var framesBreak = Caml_int32.div(editorContext.videoMeta.durationInFrames, maxFramesInScene);
   Belt_Range.forEach(0, maxFramesInScene, (function (i) {
@@ -50,13 +52,6 @@ function renderMainScene(ctx, size, editorContext) {
             });
           
         }));
-  
-}
-
-function renderScenesPlaceholder(ctx, size, _editorContext) {
-  clipOverTimeLineElement(ctx, 64, size.maxSceneWidth);
-  Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, "#9ca3af");
-  ctx.fillRect(32, 64, size.maxSceneWidth, 120);
   
 }
 
@@ -197,7 +192,6 @@ export {
   renderRoundedRect ,
   clipOverTimeLineElement ,
   renderMainScene ,
-  renderScenesPlaceholder ,
   renderAudioWaveForm ,
   renderAudioMap ,
   renderTimeSlots ,

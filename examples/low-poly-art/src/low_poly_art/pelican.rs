@@ -8,7 +8,7 @@ pub(crate) struct Pelican {}
 
 impl Scene for Pelican {
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Seconds(15)
+        fframes::Duration::Seconds(15.)
     }
 
     fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr {

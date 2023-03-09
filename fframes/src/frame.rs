@@ -3,22 +3,12 @@ use std::{fmt::Debug, ops::DerefMut};
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
-    AnimationRuntime, BreaksLruCache, VisualizeFrameInput, WrappedTextLine,
+    Animatable, AnimationRuntime, BreaksLruCache, VisualizeFrameInput, WrappedTextLine,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub struct SceneInfo {
-    /// Resolved duration of scene in frames. The `frame.index` is always < `frame.scene_info.duration_in_frames`
-    pub duration_in_frames: usize,
-    /// The index of the scene in a video
-    pub index: usize,
-    /// If `true` then this scene is defined last in the video.
-    pub is_last: bool,
-}
 
 /// The Frame {} struct contains temporal information about the current frame.
 #[derive(Debug, Clone, Default)]
-pub struct Frame<'a> {
+pub struct Frame {
     /// The frame index of the current scene. If rendering a Scene it is relative to the current frame.
     pub index: usize,
     /// The frame index of the current frame. If rendering within a scene will show the frame index within a whole video.
@@ -27,18 +17,23 @@ pub struct Frame<'a> {
     /// FPS of the video. Always equals to the Video::FPS constant.
     pub fps: usize,
     pub breaks_lru_cache: Option<BreaksLruCache>,
-    /// Represents the current scene information. If rendering top level video always `None`.
-    pub scene_info: Option<&'a SceneInfo>,
 }
 
-pub struct AnimateRuntimeInput<'a> {
-    pub on: f32,
-    pub from: f32,
-    pub to: f32,
+pub struct AnimateRuntimeInput<'a, TValue: Animatable> {
+    /// The second when animation should start.
+    /// If you want to animate based on frames then use `frame.animate_runtime(AnimateRuntimeInput { on_second: frame.frame_to_second(10), .. })`
+    ///
+    /// If current frame is before this second then `from` value will be returned.
+    pub on_second: f32,
+    /// The value to animate from.
+    pub from: TValue,
+    /// The value to animate to.
+    pub to: TValue,
+    /// The easing function to use.
     pub animation_runtime: &'a AnimationRuntime,
 }
 
-impl Frame<'_> {
+impl Frame {
     /// Borrows the frame into the same one, but removes relative index in favor of global one.
     /// Can be useful for using global-videos API from the scene.
     pub fn into_global(self) -> Self {
@@ -48,8 +43,19 @@ impl Frame<'_> {
         }
     }
 
+    /// Returns current frame timestamp in seconds.
     pub fn get_current_second(&self) -> f32 {
-        self.index as f32 / self.fps as f32
+        self.frame_to_second(self.index)
+    }
+
+    /// Converts frame index to second.
+    pub fn frame_to_second(&self, frame: usize) -> f32 {
+        frame as f32 / self.fps as f32
+    }
+
+    /// Converts a second value to a frame index within current scene.
+    pub fn second_to_frame(&self, second: f32) -> usize {
+        (second * self.fps as f32) as usize
     }
 
     /// Calculates animation in runtime.
@@ -68,25 +74,24 @@ impl Frame<'_> {
     ///
     /// let value = frame.animate_runtime(AnimateRuntimeInput {  on: 3.2, from: 1000., to: 2000., animation_runtime: &runtime }); assert_eq!(value, 1000.);
     /// ```
-    pub fn animate_runtime(
+    pub fn animate_runtime<TValue: Animatable>(
         &self,
         AnimateRuntimeInput {
-            on,
+            on_second,
             from,
             to,
             animation_runtime,
-        }: AnimateRuntimeInput,
-    ) -> f32 {
+        }: AnimateRuntimeInput<TValue>,
+    ) -> TValue {
         let duration = animation_runtime.get_duration();
 
         match &self.get_current_second() {
-            second if second < &on => from,
-            second if second > &(on + duration) => to,
+            second if second < &on_second => from,
+            second if second > &(on_second + duration) => to,
             second => {
-                let progress = animation_runtime.solve(&(second - on));
+                let progress = animation_runtime.solve(&(second - on_second));
 
-                let animation_range = to - from;
-                from + animation_range * progress
+                from.apply_progress(&to, progress)
             }
         }
     }
@@ -119,7 +124,7 @@ impl Frame<'_> {
     /// ```
     pub fn animate<T: crate::Animatable + Copy + Default>(
         &self,
-        animation: &animation::SteppedAnimation<T>,
+        animation: &animation::KeyFramesAnimation<T>,
     ) -> T {
         let current_second = &self.get_current_second();
 

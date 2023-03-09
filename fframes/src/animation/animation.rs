@@ -2,6 +2,7 @@ use super::spring;
 use std::ops::Range;
 
 #[derive(Clone, Copy, Debug)]
+/// Resolved easing function.
 pub enum AnimationRuntime {
     /// No animation, used internally for filling gaps keyframe
     Static(f32),
@@ -9,8 +10,8 @@ pub enum AnimationRuntime {
     SpringRuntime(spring::SpringRuntime, f32),
 }
 
-impl AnimationRuntime {
-    pub fn from_easing(easing: &Easing) -> Self {
+impl From<&Easing> for AnimationRuntime {
+    fn from(easing: &Easing) -> Self {
         match easing {
             Easing::Spring(options) => {
                 let spring_runtime = spring::SpringRuntime::from_options(options);
@@ -31,7 +32,9 @@ impl AnimationRuntime {
             }
         }
     }
+}
 
+impl AnimationRuntime {
     pub fn get_duration(&self) -> f32 {
         match &self {
             AnimationRuntime::Linear(duration) => *duration,
@@ -64,17 +67,15 @@ pub enum Easing {
     Spring2(f32, f32, f32),
 }
 
-pub struct LinearRuntime {}
-
 #[derive(Clone, Copy, Debug)]
-pub struct Tween<'a, T: Animatable> {
+pub struct KeyFrame<'a, T: Animatable> {
     pub start: f32,
     pub to: T,
     pub from: T,
     pub easing: &'a Easing,
 }
 
-pub trait Animatable {
+pub trait Animatable: Copy {
     fn apply_progress(&self, to: &Self, progress: f32) -> Self;
 }
 
@@ -87,19 +88,20 @@ impl Animatable for f32 {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct KeyFrame<T: Animatable + Copy> {
+pub(crate) struct Tween<T: Animatable + Copy> {
     pub(crate) seconds_range: Range<f32>,
     pub(crate) from: T,
     pub(crate) to: T,
     pub(crate) animation_runtime: AnimationRuntime,
 }
 
-pub struct SteppedAnimation<T: Animatable + Copy> {
-    pub(crate) keyframes: Vec<KeyFrame<T>>,
+#[derive(Debug)]
+pub struct KeyFramesAnimation<T: Animatable + Copy> {
+    pub(crate) keyframes: Vec<Tween<T>>,
 }
 
-impl<T: Animatable + Copy> SteppedAnimation<T> {
-    pub fn make_from_tweens(tweens: Vec<Tween<T>>) -> Self {
+impl<T: Animatable + Copy> KeyFramesAnimation<T> {
+    pub fn new(tweens: Vec<KeyFrame<T>>) -> Self {
         let mut sorted_tweens = tweens;
         sorted_tweens.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap());
 
@@ -107,8 +109,8 @@ impl<T: Animatable + Copy> SteppedAnimation<T> {
             .iter()
             .enumerate()
             .flat_map(|(i, tween)| {
-                let animation_runtime = AnimationRuntime::from_easing(tween.easing);
-                let keyframe = KeyFrame {
+                let animation_runtime = AnimationRuntime::from(tween.easing);
+                let keyframe = Tween {
                     to: tween.to,
                     from: tween.from,
                     seconds_range: (tween.start..tween.start + animation_runtime.get_duration()),
@@ -122,7 +124,7 @@ impl<T: Animatable + Copy> SteppedAnimation<T> {
                     }
                     Some(next_tween) => {
                         let filler_keyframe_range = keyframe.seconds_range.end..next_tween.start;
-                        let filler_keyframe = KeyFrame {
+                        let filler_keyframe = Tween {
                             from: keyframe.to,
                             to: keyframe.to,
                             animation_runtime: AnimationRuntime::Linear(
@@ -141,7 +143,7 @@ impl<T: Animatable + Copy> SteppedAnimation<T> {
             let seconds_range = 0f32..sorted_tweens[0].start;
             keyframes.insert(
                 0,
-                KeyFrame {
+                Tween {
                     from: sorted_tweens[0].from,
                     to: sorted_tweens[0].from,
                     animation_runtime: AnimationRuntime::Static(
@@ -154,7 +156,7 @@ impl<T: Animatable + Copy> SteppedAnimation<T> {
 
         let last_keyframe = &keyframes[keyframes.len() - 1];
         if last_keyframe.seconds_range.end < f32::MAX {
-            let last_filling_keyframe = KeyFrame {
+            let last_filling_keyframe = Tween {
                 from: last_keyframe.to,
                 to: last_keyframe.to,
                 animation_runtime: AnimationRuntime::Static(
@@ -166,16 +168,16 @@ impl<T: Animatable + Copy> SteppedAnimation<T> {
             keyframes.push(last_filling_keyframe);
         }
 
-        SteppedAnimation { keyframes }
+        KeyFramesAnimation { keyframes }
     }
 }
 
 #[macro_export]
 macro_rules! timeline {
     ($(on $start: expr, val $from:expr => $to:expr, $easing:expr),+) => {
-        fframes::animation::SteppedAnimation::make_from_tweens(vec![
+        fframes::animation::KeyFramesAnimation::new(vec![
            $(
-            fframes::animation::Tween {
+            fframes::animation::KeyFrame {
                 start: $start,
                 from: $from,
                 to: $to,

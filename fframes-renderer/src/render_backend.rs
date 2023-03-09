@@ -1,4 +1,4 @@
-use fframes::{frame, usvgr, video::Video, BreaksLruCache, ResolvedAudioMap, ResolvedAudioUnit};
+use fframes::{frame, usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedAudioMap};
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
 use svgr::SvgrCache;
@@ -32,7 +32,6 @@ pub trait FFramesRenderBackend {
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
-        duration_in_frames: usize,
         encoder_options: EncoderOptions<'a>,
         font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
@@ -127,7 +126,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
-        duration_in_frames: usize,
         _encoder_options: EncoderOptions<'a>,
         font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
@@ -140,9 +138,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             std::fs::create_dir(&directory)?;
         }
 
-        let concurrent_chunks = self.split_video_chunks(duration_in_frames);
-        let resolved_audio_map: Option<ResolvedAudioMap> =
-            video.audio().resolve(ResolvedAudioUnit::Samples, &ctx);
+        let concurrent_chunks = self.split_video_chunks(ctx.duration_in_frames);
+        let resolved_audio_map: Option<ResolvedAudioMap<AudioTimelineSamples>> =
+            video.audio().resolve(&ctx);
 
         let files = concurrent_chunks
             .par_iter()
@@ -188,7 +186,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                             index: fr,
                                             global_index: fr,
                                             breaks_lru_cache: break_lines_cache.clone(),
-                                            scene_info: None,
                                         },
                                         &ctx,
                                     );

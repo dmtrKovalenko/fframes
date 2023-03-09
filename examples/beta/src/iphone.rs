@@ -24,7 +24,7 @@ fn render_discord_message(x: usize, y: usize, name: &str, content: &str, image: 
 
 impl Scene for IphoneScene {
     fn duration(&self) -> fframes::video::Duration {
-        fframes::video::Duration::Seconds(8)
+        fframes::video::Duration::Seconds(8.)
     }
 
     fn render_frame(

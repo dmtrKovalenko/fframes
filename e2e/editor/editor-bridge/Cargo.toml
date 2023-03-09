@@ -2,7 +2,7 @@
 name = "hello-world-editorfframes = { path = "../../../../fframes", default-features = false }
 version = "0.1.0"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

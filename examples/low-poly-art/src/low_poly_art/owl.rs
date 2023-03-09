@@ -8,7 +8,7 @@ pub(crate) struct Owl {}
 
 impl Scene for Owl {
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Seconds(10)
+        fframes::Duration::Seconds(10.)
     }
 
     fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> Svgr {

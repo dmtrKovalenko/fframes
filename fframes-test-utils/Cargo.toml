@@ -10,6 +10,7 @@ path = "./src/lib.rs"
 
 [dependencies]
 fframes = { path = "../fframes" }
+futures = "0.3"
 
 [features]
 default = ["compile-time-svgtree"]

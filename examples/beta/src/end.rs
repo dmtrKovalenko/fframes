@@ -5,7 +5,7 @@ pub struct EndScene {}
 
 impl Scene for EndScene {
     fn duration(&self) -> fframes::video::Duration {
-        fframes::Duration::Seconds(2)
+        fframes::Duration::Seconds(2.)
     }
 
     fn render_frame(

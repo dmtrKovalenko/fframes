@@ -9,7 +9,7 @@ impl Scene for GithubScene {
     }
 
     fn duration(&self) -> fframes::video::Duration {
-        fframes::Duration::Seconds(5)
+        fframes::Duration::Seconds(5.)
     }
 
     fn render_frame(

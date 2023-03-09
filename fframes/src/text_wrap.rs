@@ -1,4 +1,4 @@
-use crate::{FontSource, FontStretch, FontStyle, Svgr};
+use crate::{svgr, FontSource, FontStretch, FontStyle, Svgr};
 use lru::LruCache;
 use std::{
     collections::hash_map::DefaultHasher,
@@ -26,6 +26,8 @@ pub struct BreakLinesOpts<'a> {
     pub fill: &'a str,
     pub font_style: FontStyle,
     pub font_stretch: FontStretch,
+    pub dominant_baseline: &'a str,
+    pub text_anchor: &'a str,
 }
 
 impl BreakLinesOpts<'_> {
@@ -35,6 +37,26 @@ impl BreakLinesOpts<'_> {
         self.hash(&mut s);
 
         s.finish()
+    }
+
+    pub fn create_text_svgr(&self, children: Svgr) -> Svgr {
+        let BreakLinesOpts {
+            font_family,
+            font_size,
+            font_weight,
+            x,
+            y,
+            fill,
+            dominant_baseline,
+            text_anchor,
+            ..
+        } = self;
+
+        svgr!(
+          <text x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
+             {children}
+          </text>
+        )
     }
 }
 
@@ -48,7 +70,9 @@ impl std::hash::Hash for BreakLinesOpts<'_> {
         self.align.hash(state);
         self.font_weight.hash(state);
         self.fill.hash(state);
-        self.font_family.hash(state)
+        self.font_family.hash(state);
+        self.dominant_baseline.hash(state);
+        self.text_anchor.hash(state);
     }
 }
 
@@ -66,6 +90,8 @@ impl Default for BreakLinesOpts<'_> {
             font_style: Default::default(),
             font_stretch: Default::default(),
             font_weight: 400,
+            dominant_baseline: "auto",
+            text_anchor: "start",
         }
     }
 }
@@ -90,12 +116,12 @@ pub struct WrappedTextLine {
     pub words: Vec<String>,
     pub width: usize,
     pub dx: usize,
-    pub dy: String,
+    pub dy: usize,
 }
 
 impl WrappedTextLine {
     pub fn as_svgr(
-        lines: &Vec<Self>,
+        lines: &[Self],
         hash: u64,
         BreakLinesOpts {
             x,
@@ -104,11 +130,13 @@ impl WrappedTextLine {
             font_size,
             font_family,
             font_weight,
+            dominant_baseline,
+            text_anchor,
             ..
         }: &BreakLinesOpts,
     ) -> Svgr {
         svgr_macro::svgr!(
-         <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight}>
+         <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
            {
             lines.iter().map(|line| {
                 svgr_macro::svgr!(
@@ -192,7 +220,7 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
                     words,
                     width: line_width,
                     dx,
-                    dy: format!("{}em", index as f32 * line_height),
+                    dy: (index as f32 * line_height * font_size as f32) as usize,
                 }
             })
             .collect(),

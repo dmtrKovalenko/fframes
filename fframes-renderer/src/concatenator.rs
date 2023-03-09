@@ -1,5 +1,5 @@
 use ffmpeg_next::sys::*;
-use fframes::{FFramesContext, ResolvedAudioMap};
+use fframes::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
 use std::ffi::CString;
 
 use crate::{
@@ -156,24 +156,28 @@ unsafe fn fill_video_stream_from_files(
 
 pub unsafe fn fill_audio_stream(
     encoder: &mut Encoder,
-    audio_map: Option<&ResolvedAudioMap>,
+    audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     ctx: &FFramesContext,
 ) -> Result<(), AVError> {
     if let (Some(audio_map), Some(audio_stream)) = (audio_map, encoder.audio_stream) {
+        let stream_duration_in_samples =
+            AudioTimelineSamples::from_frames(ctx.duration_in_frames, ctx);
+
         let mut audio_frame = EncoderFrame::make(
             &encoder
                 .audio_stream
                 .ok_or_else(|| AVError::Internal("Missing audio_stream".to_owned()))?,
         );
 
-        let audio_stream_duration = audio_map.calc_stream_duration_in_samples();
-
         let mut audio_frame_pts = 0usize;
         let frame_size = (*audio_stream.enc).frame_size as usize;
 
-        while audio_frame_pts <= audio_stream_duration {
-            let audio_data =
-                ctx.get_mixed_audio_data_in_fltp(audio_map, audio_frame_pts, frame_size);
+        while audio_frame_pts <= stream_duration_in_samples.as_usize() {
+            let audio_data = ctx.get_mixed_audio_data_in_fltp(
+                audio_map,
+                AudioTimelineSamples::from_usize(audio_frame_pts),
+                frame_size,
+            );
 
             audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
             encoder.send_frame(&audio_stream, audio_frame)?;
@@ -191,7 +195,7 @@ pub unsafe fn fill_audio_stream(
 pub unsafe fn concat_video_files_with_audio(
     files: &[String],
     output: &str,
-    audio_map: Option<&ResolvedAudioMap>,
+    audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     ctx: &FFramesContext,
 ) -> Result<(), AVError> {
     let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output)?;

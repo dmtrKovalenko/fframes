@@ -13,7 +13,7 @@ impl Video for PodcastVideo {
     const FPS: usize = 60;
     const HEIGHT: usize = 1080;
     const WIDTH: usize = 1920;
-    const DURATION: fframes::Duration = fframes::Duration::FromAudio("final.mp3");
+    const DURATION: fframes::Duration<'static> = fframes::Duration::FromAudio("final.mp3");
 
     fn audio(&self) -> AudioMap {
         AudioMap::from([(

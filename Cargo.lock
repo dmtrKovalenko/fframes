@@ -612,6 +612,7 @@ name = "fframes_test_utils"
 version = "0.1.0"
 dependencies = [
  "fframes",
+ "futures",
 ]
 
 [[package]]
@@ -1232,6 +1233,7 @@ dependencies = [
  "fframes",
  "fframes_renderer",
  "fframes_test_utils",
+ "futures",
 ]
 
 [[package]]

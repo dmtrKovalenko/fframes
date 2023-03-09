@@ -113,7 +113,7 @@ function MakePlayer(Wasm) {
       }
     }
     var frame = action._0;
-    if (frame >= Wasm.videoMeta.durationInFrames || frame < 0) {
+    if (frame > Wasm.videoMeta.durationInFrames || frame < 0) {
       var svg = Curry._1(Wasm.controller.render_frame, BigInt(0));
       return {
               frame: 0,

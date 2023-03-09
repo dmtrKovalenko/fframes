@@ -97,7 +97,11 @@ impl Stream {
         let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
 
         let crf = CString::new("crf").unwrap();
-        let crfval = CString::new("23").unwrap();
+        let crfval = CString::new("18").unwrap();
+        av_dict_set(opts, crf.as_ptr(), crfval.as_ptr(), 0);
+
+        let crf = CString::new("tune").unwrap();
+        let crfval = CString::new("animation").unwrap();
         av_dict_set(opts, crf.as_ptr(), crfval.as_ptr(), 0);
 
         ffmpeg_loggable_action!(avcodec_open2(c, codec, opts));

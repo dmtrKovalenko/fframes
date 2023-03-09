@@ -198,11 +198,11 @@ impl<'a> Parser<'a> {
                             Some(proc_macro2::TokenTree::Punct(val)) if val.as_char() == '-' => quote! { f32 },
                             Some(proc_macro2::TokenTree::Literal(_)) => quote! { f32 },
                             Some(proc_macro2::TokenTree::Ident(_)) => quote! { #fframes_crate_ident::Color },
-                            _ => panic!("Can not infer the type of animation value. Did you set something else than a f32 or fframes::Color as the animation value? {:?}", first_animation_value),
+                            _ => panic!("Can not infer the type of animation value. Did you set something else than `f32` or `fframes::Color` as the animation value? {:?}", first_animation_value),
                         };
 
                         self.animation_attributes.borrow_mut().push(quote::quote! {
-                            static ref #identifier: #fframes_crate_ident::animation::SteppedAnimation<#animation_type> = #macro_expr;
+                            static ref #identifier: #fframes_crate_ident::animation::KeyFramesAnimation<#animation_type> = #macro_expr;
                         });
 
                         let mut processed_method_call = method_call.clone();

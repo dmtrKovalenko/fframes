@@ -1,11 +1,10 @@
 use crate::node::{Node, NodeType};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{ExprBlock};
+use syn::ExprBlock;
 
 use usvgr::svgtree::{
-    self, attributes_list, parse::SVG_NS, AId, AttributeValue, EId,
-    NestedNodeKind,
+    self, attributes_list, parse::SVG_NS, AId, AttributeValue, EId, NestedNodeKind,
 };
 
 #[derive(Debug)]
@@ -184,7 +183,7 @@ fn detail_attribute_error(attribute: &str, span: Span) -> syn::Error {
                 "The `xmlns:` attributes and dynamic xml namespaces are not supported.\n\nMost of that popular namespaces are deprecated and will be resolved without namespace,\ne.g. the `xlink:href` will be resolved exactly the same as `href`.".to_owned()
             },
             "xml:space" => "xml:space attribute is used to control string trimming in XML and makes no sense in svgr macro,\nwhere you explicitly control the child string length, so if you need to trim the string just add `{text.trim()}` as children of `<text>`\n\nPlease remove this attribute.".to_owned(),
-            _ => { 
+            _ => {
                 let fuzzy_match = rust_fuzzy_search::fuzzy_search_best_n(attribute, &ATTRIBUTE_NAMES_LIST, 1);
                 let suggestion = match fuzzy_match.first() {
                     Some((suggestion, value)) if *value > 0.6 => format!("\n\nMaybe you meant `{suggestion}`?"),
@@ -246,7 +245,7 @@ fn maybe_parse_svg_attribute(
 fn map_text_node_children(
     nodes: &[Node],
     parent: EId,
-    fframes_crate_ident: &syn::Ident
+    fframes_crate_ident: &syn::Ident,
 ) -> syn::Result<Vec<MaybeParsedValue<MaybeNodeData>>> {
     let mut parsed_nodes = Vec::with_capacity(nodes.len());
 
@@ -292,7 +291,11 @@ fn map_text_node_children(
 
         parsed_nodes.push(MaybeParsedValue::Value(MaybeNodeData {
             attrs: parse_element_attributes(node, tag_name)?,
-            children: map_text_node_children(node.children.as_slice(), tag_name, fframes_crate_ident)?,
+            children: map_text_node_children(
+                node.children.as_slice(),
+                tag_name,
+                fframes_crate_ident,
+            )?,
             kind: NestedNodeKind::Element { tag_name },
         }))
     }
@@ -300,7 +303,10 @@ fn map_text_node_children(
     Ok(parsed_nodes)
 }
 
-fn parse_svgr_subtree(node: &Node, fframes_crate_ident: &syn::Ident) -> Option<Result<MaybeParsedValue<MaybeNodeData>, syn::Error>> {
+fn parse_svgr_subtree(
+    node: &Node,
+    fframes_crate_ident: &syn::Ident,
+) -> Option<Result<MaybeParsedValue<MaybeNodeData>, syn::Error>> {
     node.value_as_block().map(|block| {
         Ok(MaybeParsedValue::Expression(quote! {
             #fframes_crate_ident::Svgr::from(#block).svg_tree.nodes
@@ -370,7 +376,10 @@ fn map_inline_or_runtime_nodes(
     Ok(parsed_nodes)
 }
 
-pub fn nodes_to_svgtree(nodes: &[Node], fframes_crate_ident: &syn::Ident) -> syn::Result<TokenStream> {
+pub fn nodes_to_svgtree(
+    nodes: &[Node],
+    fframes_crate_ident: &syn::Ident,
+) -> syn::Result<TokenStream> {
     let nodes = map_inline_or_runtime_nodes(nodes, fframes_crate_ident)?;
 
     let tokens = tokenize_nodes(&nodes);

@@ -10,7 +10,7 @@ pub use fframes::{
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
 
 fframes::lazy_static::lazy_static! {
-    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from_easing(&SPRING);
+    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from(&SPRING);
 }
 
 struct SpectrumValue<'a> {
@@ -211,7 +211,7 @@ impl Video for MarketingVideo {
     const FPS: usize = 60;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
-    const DURATION: fframes::Duration = fframes::Duration::FromAudio("marketing.mp3");
+    const DURATION: fframes::Duration<'static> = fframes::Duration::FromAudio("marketing.mp3");
 
     fn audio(&self) -> AudioMap {
         use fframes::AudioTimestamp::{Eof, Second};
@@ -294,7 +294,7 @@ impl Video for MarketingVideo {
                     y={500. - bar_height / 2.0}
                     x={frame.animate_runtime(
                       AnimateRuntimeInput {
-                        on: 16.0,
+                        on_second: 16.0,
                         from: ((SPECTRUM_LEN / 2) + (position * BAR_WIDTH_WITH_MARGIN)) as f32,
                         to: 944.,
                         animation_runtime: &SPRING_RUNTIME,
@@ -313,7 +313,7 @@ impl Video for MarketingVideo {
                     y={500. - bar_height / 2.0}
                     x={frame.animate_runtime(
                       AnimateRuntimeInput {
-                        on: 16.0,
+                        on_second: 16.0,
                         from: ((SPECTRUM_LEN / 2) + (position * BAR_WIDTH_WITH_MARGIN)) as f32,
                         to: 944.,
                         animation_runtime: &SPRING_RUNTIME,

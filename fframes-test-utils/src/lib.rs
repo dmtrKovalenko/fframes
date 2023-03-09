@@ -7,6 +7,8 @@ use std::{
 
 use fframes::{usvgr::svgtree::Document, Svgr};
 
+pub use futures;
+
 #[cfg(feature = "compile-time-svgtree")]
 fn resolve_maybe_precompiled_tree(svgr: Svgr) -> Document {
     svgr.svg_tree.try_into().unwrap()

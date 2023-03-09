@@ -23,10 +23,11 @@ macro_rules! setup_wasm_editor {
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
             static ref AUDIO_MAP: Mutex<Option<Vec<AudioTrack>>> = {
+                use fframes::AudioTimelineUnit;
+
                 Mutex::new(
-                    fframes::AudioMap::resolve(
+                    fframes::AudioMap::resolve::<fframes::AudioTimelineFrames>(
                         &$x::audio(&VIDEO),
-                        fframes::ResolvedAudioUnit::Frames,
                         &fframes_context::FFramesContext {
                             duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                             mode: fframes_context::FFramesMode::EditorTimelinePreview,
@@ -37,11 +38,11 @@ macro_rules! setup_wasm_editor {
                             font_source: None,
                         }
                     ).map(
-                        |resolved_map| resolved_map.1.into_iter().map(|(name, range)| {
+                        |resolved_map| resolved_map.0.into_iter().map(|(name, range)| {
                             AudioTrack {
                                 name,
-                                start: range.start,
-                                end: range.end,
+                                start: range.start.as_usize(),
+                                end: range.end.as_usize(),
                             }
                         })
                         .collect::<Vec<_>>()
@@ -118,9 +119,9 @@ macro_rules! setup_wasm_editor {
             Ok(duration_in_frames as usize)
         }
 
-        async fn get_duration_frames() -> i32 {
+        async fn resolve_duration_and_scenes() -> i32 {
             let (duration, scenes) =
-                fframes::resolve_duration_and_scenes_async(&VIDEO, Box::new(|val| Box::pin(load_audio_duration(val))))
+                fframes::resolve_duration_and_scenes_async(&VIDEO, |val| Box::pin(load_audio_duration(val)))
                 .await
                 .unwrap();
 
@@ -128,7 +129,8 @@ macro_rules! setup_wasm_editor {
                 SCENES.lock().unwrap().replace(scenes);
             }
 
-            // DURATION_IN_FRAMES.lock().unwrap().replace(duration);
+            let mut duration_mutex_ref =  DURATION_IN_FRAMES.lock().unwrap();
+            *duration_mutex_ref = duration;
             duration as i32
         }
 
@@ -136,7 +138,7 @@ macro_rules! setup_wasm_editor {
         pub async fn prepare() -> Result<VideoMetadata, JsValue> {
             console_error_panic_hook::set_once();
 
-            let duration = get_duration_frames().await;
+            let duration = resolve_duration_and_scenes().await;
             Ok(VideoMetadata { duration })
         }
 
@@ -195,7 +197,7 @@ macro_rules! setup_wasm_editor {
                     fps: $x::FPS,
                     index: frame as usize,
                     global_index: frame as usize,
-                    breaks_lru_cache: None,/*  Some(BREAK_LINES_CACHE.clone()) */
+                    breaks_lru_cache: Some(BREAK_LINES_CACHE.clone()),
                 },
                 &fframes_context::FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
@@ -218,7 +220,7 @@ macro_rules! setup_wasm_editor {
                     fps: $x::FPS,
                     index: frame as usize,
                     global_index: frame as usize,
-                    breaks_lru_cache: None.into()
+                    breaks_lru_cache: None.into(),
                 },
                 &fframes_context::FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),

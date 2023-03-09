@@ -5,7 +5,7 @@ use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Colon, Expr, ExprBlock, ExprPath, Ident, Lit,
 };
 
-use crate::{punctuation::Dash};
+use crate::punctuation::Dash;
 
 /// Node in the tree
 #[derive(Debug)]
@@ -90,7 +90,6 @@ impl Node {
         }
     }
 }
-
 
 // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
 /// Type of the node

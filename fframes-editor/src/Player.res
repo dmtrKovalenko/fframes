@@ -42,9 +42,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       ->Utils.Option.flatten
       ->Utils.Option.unwrapOr(0)
 
-    let volume = switch (
-      Dom.Storage.getItem(volume_key, Dom.Storage.localStorage)
-    ) {
+    let volume = switch Dom.Storage.getItem(volume_key, Dom.Storage.localStorage) {
     | Some(savedValue) if Wasm.videoMeta.hasAudio => Some(savedValue->Js.Float.fromString)
     | None if Wasm.videoMeta.hasAudio => Some(0.6)
     | _ => None
@@ -75,7 +73,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
   let reducer = action => {
     let state = get()
     switch action {
-    | Seek(frame) | NewFrame(frame) if frame >= Wasm.videoMeta.durationInFrames || frame < 0 => {
+    | Seek(frame) | NewFrame(frame) if frame > Wasm.videoMeta.durationInFrames || frame < 0 => {
         let frame = 0
         let svg = Wasm.controller.render_frame(frame->Js.BigInt.fromInt)
 

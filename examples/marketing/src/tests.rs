@@ -10,12 +10,14 @@ fn compile_time_svg() {
     };
 
     let (duration_in_frames, media_provider, _, _, _, _) =
-        fframes_renderer::prepare_rendering_context::<MarketingVideo, CpuRenderingBackend>(
-            &fframes_renderer::RenderOptions {
-                media_dir: "media",
-                ..Default::default()
-            },
-            &video,
+        fframes_test_utils::futures::executor::block_on(
+            fframes_renderer::prepare_rendering_context::<MarketingVideo, CpuRenderingBackend>(
+                &fframes_renderer::RenderOptions {
+                    media_dir: "media",
+                    ..Default::default()
+                },
+                &video,
+            ),
         )
         .unwrap();
 
