@@ -309,7 +309,7 @@ fn parse_svgr_subtree(
 ) -> Option<Result<MaybeParsedValue<MaybeNodeData>, syn::Error>> {
     node.value_as_block().map(|block| {
         Ok(MaybeParsedValue::Expression(quote! {
-            #fframes_crate_ident::Svgr::from(#block).svg_tree.nodes
+            #fframes_crate_ident::Svgr::from(#block).as_subtree()
         }))
     })
 }

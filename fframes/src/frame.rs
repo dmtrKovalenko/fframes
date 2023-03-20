@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::DerefMut};
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
-    Animatable, AnimationRuntime, BreaksLruCache, VisualizeFrameInput, WrappedTextLine,
+    Animatable, AnimationRuntime, BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
 };
 
 /// The Frame {} struct contains temporal information about the current frame.
@@ -210,12 +210,15 @@ impl Frame {
                 .lock()
                 .ok()?
                 .deref_mut()
-                .get_or_insert(hash, || text_wrap_impl(value, font_source, *opts))
+                .get_or_insert(hash, || {
+                    text_wrap_impl(value, font_source, *opts)
+                        .map(|lines| WrappedTextStructure::new(lines, hash))
+                })
                 .as_ref()
-                .map(|res| WrappedTextLine::as_svgr(res, hash, opts))
+                .map(|structure| structure.as_svgr(opts))
         } else {
             text_wrap_impl(value, ctx.font_source?, *opts)
-                .map(|res| WrappedTextLine::as_svgr(&res, hash, opts))
+                .map(|lines| WrappedTextStructure::new(lines, hash).as_svgr(opts))
         }
     }
 
@@ -227,7 +230,7 @@ impl Frame {
         ctx: &crate::FFramesContext<'a>,
         value: &'b str,
         opts: &BreakLinesOpts,
-    ) -> Option<Vec<WrappedTextLine>> {
+    ) -> Option<WrappedTextStructure> {
         let font_source = ctx.font_source?;
         let hash = opts.hash_with_value(value);
 
@@ -237,10 +240,14 @@ impl Frame {
                 .lock()
                 .ok()?
                 .deref_mut()
-                .get_or_insert(hash, || text_wrap_impl(value, font_source, *opts))
+                .get_or_insert(hash, || {
+                    text_wrap_impl(value, font_source, *opts)
+                        .map(|lines| WrappedTextStructure::new(lines, hash))
+                })
                 .clone()
         } else {
             text_wrap_impl(value, font_source, *opts)
+                .map(|lines| WrappedTextStructure::new(lines, hash))
         }
     }
 }

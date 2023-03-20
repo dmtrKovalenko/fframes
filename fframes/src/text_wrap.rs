@@ -97,7 +97,7 @@ impl Default for BreakLinesOpts<'_> {
 }
 
 #[derive(Debug, Clone)]
-pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Option<Vec<WrappedTextLine>>>>>);
+pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Option<WrappedTextStructure>>>>);
 
 impl BreaksLruCache {
     pub fn new(size: usize) -> Option<Self> {
@@ -119,10 +119,19 @@ pub struct WrappedTextLine {
     pub dy: usize,
 }
 
-impl WrappedTextLine {
+#[derive(Debug, Clone, Default)]
+pub struct WrappedTextStructure {
+    pub lines: Vec<WrappedTextLine>,
+    hash: u64,
+}
+
+impl WrappedTextStructure {
+    pub fn new(lines: Vec<WrappedTextLine>, hash: u64) -> Self {
+        Self { lines, hash }
+    }
+
     pub fn as_svgr(
-        lines: &[Self],
-        hash: u64,
+        &self,
         BreakLinesOpts {
             x,
             y,
@@ -136,9 +145,9 @@ impl WrappedTextLine {
         }: &BreakLinesOpts,
     ) -> Svgr {
         svgr_macro::svgr!(
-         <text id={hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
+         <text id={self.hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
            {
-            lines.iter().map(|line| {
+            self.lines.iter().map(|line| {
                 svgr_macro::svgr!(
                    <tspan x={x} y={y} dx={line.dx} dy={line.dy.to_string()}>
                     {line.words.join(" ")}
@@ -148,6 +157,17 @@ impl WrappedTextLine {
            }
         </text>
         )
+    }
+
+    pub fn occupied_height(&self) -> usize {
+        let lines = &self.lines;
+
+        if lines.len() < 2 {
+            return 0;
+        }
+
+        let line_height = lines[1].dy - lines[0].dy;
+        (lines.len() - 1) * line_height
     }
 }
 

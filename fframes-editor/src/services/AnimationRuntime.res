@@ -51,30 +51,31 @@ module AudioRuntime = {
   let connectAudioFiles = (ctx, videoMeta: WasmController.videoMeta) => {
     let {mediaList} = MediaLoader.MediaLoaderObserver.get()
 
+
     videoMeta.audioMap
     ->Js.Nullable.toOption
     ->Utils.Option.unwrapOr([])
-        ->Array.keepMap(track => {
-          mediaList
-          ->Map.String.getExn(track.name)
-          ->(
-            (media: MediaLoader.loadableMedia) =>
-              switch media {
-              | Media(media) =>
-                switch media {
-                | Audio(info) => Some((track, info))
-                | _ => None
-                }
-              | _ => None
-              }
-          )
-        })
-        ->Array.map(((track, info)) => {
-          let source = ctx->AudioContext.createBufferSource
-          source->AudioNode.setBuffer(info.audioData)
+    ->Array.keepMap(track => {
+      mediaList
+      ->Map.String.getExn(track.name)
+      ->(
+        (media: MediaLoader.loadableMedia) =>
+          switch media {
+          | Media(media) =>
+            switch media {
+            | Audio(info) => Some((track, info))
+            | _ => None
+            }
+          | _ => None
+          }
+      )
+    })
+    ->Array.map(((track, info)) => {
+      let source = ctx->AudioContext.createBufferSource
+      source->AudioNode.setBuffer(info.audioData)
 
-          (track, source)
-        })
+      (track, source)
+    })
   }
 
   let startAnimation = (~onFrame, ~currentFrame, ~videoMeta) => {
@@ -88,21 +89,21 @@ module AudioRuntime = {
     @inline
     let framesToSeconds = frames => frames->Float.fromInt /. videoMeta.fps->Float.fromInt
 
-      playingSources.contents->Array.forEach(((track, source)) => {
-        let offset = (currentFrame - track.start)->framesToSeconds
-        let duration = (track.end - currentFrame)->framesToSeconds->Js.Math.max(0.)
+    playingSources.contents->Array.forEach(((track, source)) => {
+      let offset = (currentFrame - track.start)->framesToSeconds
+      let duration = (track.end - currentFrame)->framesToSeconds->Js.Math.max(0.)
 
-        source->AudioNode.connect(gain)
+      source->AudioNode.connect(gain)
 
-        if offset < 0. {
-          source->AudioNode.startWithOffset(
-            ~startTime=startTime.contents +. Js.Math.abs(offset),
-            ~offset=0.,
-            ~duration,
-          )
-        } else {
-          source->AudioNode.startWithOffset(~startTime=startTime.contents, ~offset, ~duration)
-        }
+      if offset < 0. {
+        source->AudioNode.startWithOffset(
+          ~startTime=startTime.contents +. Js.Math.abs(offset),
+          ~offset=0.,
+          ~duration,
+        )
+      } else {
+        source->AudioNode.startWithOffset(~startTime=startTime.contents, ~offset, ~duration)
+      }
     })
 
     Webapi.requestAnimationFrame(frame(~onFrame))

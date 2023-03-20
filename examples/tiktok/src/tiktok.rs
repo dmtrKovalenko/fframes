@@ -27,9 +27,9 @@ impl Video for GooseVideo {
     const DURATION: fframes::Duration<'static> = fframes::Duration::FromAudio("thought.mp3");
 
     fn audio(&self) -> AudioMap {
-        use AudioTimestamp::{Eof, Second};
+        use AudioTimestamp::*;
 
-        AudioMap::from([("thought.mp3", (Second(0), Eof))])
+        AudioMap::from([("thought.mp3", (Frame(0)..Eof))])
     }
 
     fn render_frame(&self, mut frame: Frame, ctx: &fframes_context::FFramesContext) -> Svgr {

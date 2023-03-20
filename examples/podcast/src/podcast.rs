@@ -18,7 +18,7 @@ impl Video for PodcastVideo {
     fn audio(&self) -> AudioMap {
         AudioMap::from([(
             "final.mp3",
-            (AudioTimestamp::Second(0), AudioTimestamp::Eof),
+            (AudioTimestamp::Second(0.)..AudioTimestamp::Eof),
         )])
     }
 

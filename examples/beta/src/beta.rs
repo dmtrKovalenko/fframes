@@ -57,13 +57,12 @@ impl Video for BetaVideo {
     const HEIGHT: usize = 1080;
 
     fn audio(&self) -> AudioMap {
+        use AudioTimestamp::*;
+
         AudioMap::from([
-            (
-                "beta.mp3",
-                (AudioTimestamp::Second(0), AudioTimestamp::Second(35)),
-            ),
-            ("pop.mp3", (AudioTimestamp::Frame(95), AudioTimestamp::Eof)),
-            ("pop.mp3", (AudioTimestamp::Frame(440), AudioTimestamp::Eof)),
+            ("beta.mp3", (Frame(0)..Eof)),
+            ("pop.mp3", (Frame(95)..Eof)),
+            ("pop.mp3", (Frame(440)..Eof)),
         ])
     }
 

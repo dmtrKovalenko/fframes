@@ -30,7 +30,7 @@ macro_rules! setup_wasm_editor {
                         &$x::audio(&VIDEO),
                         &fframes_context::FFramesContext {
                             duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
-                            mode: fframes_context::FFramesMode::EditorTimelinePreview,
+                            mode: fframes_context::FFramesMode::Editor,
                             fps: $x::FPS,
                             sample_rate: 44100,
                             scenes:  SCENES.lock().unwrap().as_ref(),
@@ -88,7 +88,7 @@ macro_rules! setup_wasm_editor {
 
             #[wasm_bindgen(getter, js_name=hasAudio)]
             pub fn has_audio(&self) -> bool {
-                AUDIO_MAP.lock().unwrap().is_some()
+                $x::audio(&VIDEO).0.is_some()
             }
 
             #[wasm_bindgen(getter, js_name = audioMap)]
@@ -163,8 +163,8 @@ macro_rules! setup_wasm_editor {
         pub fn add_subtitles_source(file: String, content: String) -> usize {
             use std::str::FromStr;
 
-            let parsed_subtitle = Subtitles::from_str(content.as_str()).unwrap();
-            let phrases_count = parsed_subtitle.get_phrases_count();
+            let parsed_subtitle = Subtitles::parse(content.as_str(), $x::FPS).unwrap();
+            let phrases_count = parsed_subtitle.cues_count();
 
             let mut media_provider = MEDIA_PROVIDER
                 .lock()

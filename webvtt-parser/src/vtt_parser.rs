@@ -1,4 +1,5 @@
 use crate::Span;
+use nom::branch::alt;
 use nom::character::complete::{digit1, newline, space0};
 use nom::error::{context, Error};
 use nom::{
@@ -10,7 +11,7 @@ use nom::{
 };
 
 use crate::cue_settings_parser::parse_cue_settings;
-use crate::{Cue, Time, Vtt, START_MARKER};
+use crate::{Time, Vtt, VttCue, START_MARKER};
 
 fn parse_note(input: Span) -> IResult<Span, Option<String>> {
     let (rest, line) = take_until("\n")(input)?;
@@ -41,7 +42,7 @@ pub(crate) fn parse_number<TNumber: std::str::FromStr>(input: Span) -> IResult<S
         })
 }
 
-fn parse_time(input: Span) -> IResult<Span, Time> {
+fn parse_time_without_hours(input: Span) -> IResult<Span, Time> {
     let (input, minute) = parse_number::<u64>(input)?;
     let (input, _) = tag(":")(input)?;
     let (input, second) = parse_number::<u64>(input)?;
@@ -49,6 +50,21 @@ fn parse_time(input: Span) -> IResult<Span, Time> {
     let (input, millisecond) = parse_number::<u64>(input)?;
 
     Ok((input, Time(minute * 60000 + second * 1000 + millisecond)))
+}
+
+fn parse_time_with_hours(input: Span) -> IResult<Span, Time> {
+    let (input, hour) = parse_number::<u64>(input)?;
+    let (input, _) = tag(":")(input)?;
+    let (input, minute) = parse_number::<u64>(input)?;
+    let (input, _) = tag(":")(input)?;
+    let (input, second) = parse_number::<u64>(input)?;
+    let (input, _) = tag(".")(input)?;
+    let (input, millisecond) = parse_number::<u64>(input)?;
+
+    Ok((
+        input,
+        Time(hour * 3600000 * minute * 60000 + second * 1000 + millisecond),
+    ))
 }
 
 fn parse_cue_identifier(input: Span) -> IResult<Span, Option<String>> {
@@ -63,9 +79,11 @@ fn parse_cue_identifier(input: Span) -> IResult<Span, Option<String>> {
     }
 }
 
-fn parse_cue(input: Span) -> IResult<Span, Cue> {
+fn parse_cue(input: Span) -> IResult<Span, VttCue> {
     let (input, _) = opt(newline)(input)?;
     let (input, _) = opt(newline)(input)?;
+
+    let mut parse_time = alt((parse_time_without_hours, parse_time_with_hours));
 
     let (input, note) = parse_note(input)?;
     let (input, name) = parse_cue_identifier(input)?;
@@ -82,7 +100,7 @@ fn parse_cue(input: Span) -> IResult<Span, Cue> {
 
     Ok((
         input,
-        Cue {
+        VttCue {
             start,
             end,
             name,

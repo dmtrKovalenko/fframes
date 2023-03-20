@@ -22,6 +22,16 @@ impl Svgr {
     pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree, usvgr::Error> {
         usvgr::Tree::from_str(self.value.as_str(), opt)
     }
+
+    #[cfg(feature = "compile-time-svgtree")]
+    pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData>> {
+        self.svg_tree.nodes
+    }
+
+    #[cfg(not(feature = "compile-time-svgtree"))]
+    pub fn as_subtree(self, _opt: &usvgr::Options) -> Result<usvgr::Tree, usvgr::Error> {
+        unimplemented!("Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly.")
+    }
 }
 
 #[cfg(not(feature = "compile-time-svgtree"))]

@@ -20,6 +20,7 @@ use crate::{
 pub(crate) fn load_media_from_folder(
     logger: &Arc<dyn FFramesLogger>,
     folder_path: &str,
+    fps: usize,
 ) -> FFramesResult<(
     MediaProvider,
     usvgr_text_layout::fontdb::Database,
@@ -80,7 +81,7 @@ pub(crate) fn load_media_from_folder(
                     "vtt" => {
                         subtitles_hash
                             .lock()?
-                            .insert(filename.to_owned(), Subtitles::from_file(&path)?);
+                            .insert(filename.to_owned(), Subtitles::from_file(&path, fps)?);
                     }
                     "ttf" | "ttc" | "otf" | "otc" => {
                         if let Some(font_path) = path.to_str() {

@@ -57,7 +57,7 @@ pub async fn prepare_rendering_context<
 ) -> FFramesResult<RenderPreparation> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let (media_provider, font_db, image_data) =
-        media_processor::load_media_from_folder(&logger, options.media_dir).unwrap();
+        media_processor::load_media_from_folder(&logger, options.media_dir, TVideo::FPS).unwrap();
 
     let media_provider = Arc::new(media_provider);
     let (final_duration, scenes) =

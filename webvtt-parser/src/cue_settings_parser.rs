@@ -9,7 +9,7 @@ use nom::{
 };
 
 use crate::vtt_parser::parse_number;
-use crate::{Align, CueSettings, NumberOrPercentage, Vertical};
+use crate::{Align, NumberOrPercentage, Vertical, VttCueSettings};
 
 fn parse_percentage(input: Span) -> IResult<Span, u8> {
     terminated(parse_number::<u8>, tag("%"))(input)
@@ -84,7 +84,7 @@ fn parse_size(input: Span) -> IResult<Span, u8> {
     Ok((input, value))
 }
 
-pub(crate) fn parse_cue_settings(input: Span) -> IResult<Span, CueSettings> {
+pub(crate) fn parse_cue_settings(input: Span) -> IResult<Span, VttCueSettings> {
     let (input, _) = space0(input)?;
     let (input, cue_settings_part) = take_until("\n")(input)?;
 
@@ -96,7 +96,7 @@ pub(crate) fn parse_cue_settings(input: Span) -> IResult<Span, CueSettings> {
 
     Ok((
         input,
-        CueSettings {
+        VttCueSettings {
             vertical,
             align,
             line,

@@ -31,7 +31,8 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
         }
     }
 
-    pub fn get_subtitles(&self, filename: &str) -> &'b subtitles::Subtitles {
+    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> &'b subtitles::Subtitles {
+        let filename = filename.as_ref();
         match self.media_provider.subtitles.get(filename) {
             Some(data) => data,
             None => panic!(

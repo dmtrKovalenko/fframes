@@ -16,7 +16,7 @@ impl Video for LowPolyVideo {
     fn audio(&self) -> AudioMap {
         AudioMap::from([(
             "owl.mp3",
-            (AudioTimestamp::Frame(0), AudioTimestamp::Second(10)),
+            (AudioTimestamp::Frame(0)..AudioTimestamp::Second(10.)),
         )])
     }
 

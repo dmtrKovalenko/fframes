@@ -217,9 +217,9 @@ impl Video for MarketingVideo {
         use fframes::AudioTimestamp::{Eof, Second};
 
         AudioMap::from([
-            ("marketing.mp3", (Second(0), Eof)),
-            ("woosh.mp3", (Second(6), Eof)),
-            ("end.mp3", (Second(16), Eof)),
+            ("marketing.mp3", Second(0.)..Eof),
+            ("woosh.mp3", Second(6.)..Eof),
+            ("end.mp3", Second(16.)..Eof),
         ])
     }
 

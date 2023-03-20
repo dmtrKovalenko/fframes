@@ -9,15 +9,11 @@ struct FakeScene {}
 
 impl Scene for FakeScene {
     fn audio_map(&self, _: &SceneInfo) -> AudioMap {
+        use AudioTimestamp::*;
+
         AudioMap::from([
-            (
-                "scene1.mp3",
-                (AudioTimestamp::Second(0), AudioTimestamp::Second(10)),
-            ),
-            (
-                "scene2.mp3",
-                (AudioTimestamp::Second(20), AudioTimestamp::Second(40)),
-            ),
+            ("scene1.mp3", Second(0.)..Second(10.)),
+            ("scene2.mp3", Second(20.)..Second(40.)),
         ])
     }
 
@@ -38,15 +34,11 @@ impl Video for FakeVideo {
     const HEIGHT: usize = 100;
 
     fn audio(&self) -> AudioMap {
+        use AudioTimestamp::*;
+
         AudioMap::from([
-            (
-                "audio1.mp3",
-                (AudioTimestamp::Second(0), AudioTimestamp::Second(10)),
-            ),
-            (
-                "audio2.mp3",
-                (AudioTimestamp::Second(10), AudioTimestamp::Second(20)),
-            ),
+            ("audio1.mp3", Second(0.)..Second(10.)),
+            ("audio2.mp3", Second(10.)..Second(20.)),
         ])
     }
 
