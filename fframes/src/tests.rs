@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 use crate::{
-    media_provider::MediaProvider, resolve_timeline, AudioMap, AudioTimelineSamples,
-    AudioTimestamp, FFramesContext, Frame, Scene, Video,
+    resolve_timeline, AudioMap, AudioTimelineSamples, AudioTimestamp, FFramesContext, Frame,
+    ResolvedRenderingTimeline, Scene, Video,
 };
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct FakeScene {}
@@ -69,7 +68,7 @@ fn test_audio_map_resolve() {
         fps: 24,
     };
 
-    let (_, _, resolved_map) = resolve_timeline::<AudioTimelineSamples, _>(
+    let ResolvedRenderingTimeline { audio_map, .. } = resolve_timeline::<AudioTimelineSamples, _>(
         &video.duration(),
         &crate::ScenesWithAudio::from(&video.define_scenes()),
         &tb,
@@ -79,7 +78,7 @@ fn test_audio_map_resolve() {
     .unwrap();
 
     assert_eq!(
-        resolved_map.0,
+        audio_map.unwrap().0,
         vec![
             (
                 "audio1.mp3".to_string(),
@@ -87,7 +86,7 @@ fn test_audio_map_resolve() {
             ),
             (
                 "audio2.mp3".to_string(),
-                AudioTimelineSamples(10000)..AudioTimelineSamples(30000)
+                AudioTimelineSamples(10000)..AudioTimelineSamples(20000)
             ),
             (
                 "scene1.mp3".to_string(),
@@ -95,11 +94,11 @@ fn test_audio_map_resolve() {
             ),
             (
                 "scene2.mp3".to_string(),
-                AudioTimelineSamples(20000)..AudioTimelineSamples(60000)
+                AudioTimelineSamples(20000)..AudioTimelineSamples(40000)
             ),
             (
                 "scene1.mp3".to_string(),
-                AudioTimelineSamples(30000)..AudioTimelineSamples(60000)
+                AudioTimelineSamples(30000)..AudioTimelineSamples(40000)
             ),
             (
                 "scene2.mp3".to_string(),

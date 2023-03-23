@@ -74,7 +74,7 @@ impl<'a> Duration<'a> {
             Duration::Auto => {
                 let resolved_audio_map = related_audio_map
                     .resolve::<AudioTimelineFrames>(
-                        0,
+                        AudioTimelineFrames::from_usize(0),
                         &crate::TimeBase {
                             fps,
                             sample_rate: 44100,

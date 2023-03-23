@@ -1,4 +1,5 @@
 use crate::MarketingVideo;
+use fframes::TimeBase;
 use fframes_renderer::render_backend::CpuRenderingBackend;
 
 #[test]
@@ -9,15 +10,13 @@ fn compile_time_svg() {
         audio_track: "marketing.mp3",
     };
 
-    let (duration_in_frames, media_provider, _, _, _, _) =
-        fframes_test_utils::futures::executor::block_on(
-            fframes_renderer::prepare_rendering_context::<MarketingVideo, CpuRenderingBackend>(
-                &fframes_renderer::RenderOptions {
-                    media_dir: "media",
-                    ..Default::default()
-                },
-                &video,
-            ),
+    let (media_provider, _, timeline, _, _) =
+        fframes_renderer::prepare_rendering_context::<MarketingVideo, CpuRenderingBackend>(
+            &fframes_renderer::RenderOptions {
+                media_dir: "media",
+                ..Default::default()
+            },
+            &video,
         )
         .unwrap();
 
@@ -29,11 +28,13 @@ fn compile_time_svg() {
             breaks_lru_cache: None,
         },
         &fframes::FFramesContext {
-            fps: crate::MarketingVideo::FPS,
-            sample_rate: 44100,
+            time_base: TimeBase {
+                fps: crate::MarketingVideo::FPS,
+                sample_rate: 44100,
+            },
             mode: fframes::FFramesMode::Renderer,
             media_provider: &media_provider,
-            duration_in_frames,
+            duration_in_frames: timeline.duration_in_frames,
             font_source: None,
             scenes: None,
         },

@@ -12,12 +12,17 @@ const START_MARKER: &str = "WEBVTT";
 
 /// A start/end time of
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Time(u64);
+pub struct Time(pub(crate) u64);
 
 impl Time {
     #[inline]
     pub fn as_milliseconds(&self) -> u64 {
         self.0
+    }
+
+    #[inline]
+    pub fn from_milliseconds(millis: u64) -> Self {
+        Self(millis)
     }
 }
 
@@ -226,9 +231,9 @@ impl Display for Vtt {
 
 /// Parse [webvtt subtitles](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API) from provided string.
 /// # Example
-/// ```rust
-/// use webvtt_parser::{parse_vtt, Cue, CueSettings, Align, Time};
 ///
+/// ```rust
+/// use webvtt_parser::{parse_vtt, VttCue, VttCueSettings, Align, Time};
 ///
 /// let vtt = parse_vtt("WEBVTT
 ///
@@ -240,10 +245,9 @@ impl Display for Vtt {
 ///").unwrap();
 ///
 /// assert_eq!(vtt.cues.len(), 2);
-/// assert_eq!(vtt.cues[0], Cue { start: Time(0), end: Time(5000), text: "Hey subtitle one".to_owned(), name: None, note: None, cue_settings: None });
-/// assert_eq!(vtt.cues[1].cue_settings, Some(CueSettings { align: Some(Align::End), position: None, vertical: None, size: None, line: None }));
+/// assert_eq!(vtt.cues[0], VttCue { start: Time::from_milliseconds(0), end: Time::from_milliseconds(5000), text: "Hey subtitle one".to_owned(), name: None, note: None, cue_settings: None });
+/// assert_eq!(vtt.cues[1].cue_settings, Some(VttCueSettings { align: Some(Align::End), position: None, vertical: None, size: None, line: None }));
 /// ```
-
 pub type Span<'a> = LocatedSpan<&'a str>;
 
 pub fn parse_vtt(content: &str) -> Result<Vtt, VttError> {

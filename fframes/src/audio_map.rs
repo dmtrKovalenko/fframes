@@ -274,10 +274,11 @@ impl<'a> AudioMap<'a> {
 
     pub(crate) fn resolve<TUnit: AudioTimelineUnit + std::fmt::Debug>(
         &self,
-        offset: usize,
+        offset: TUnit,
         tb: &TimeBase,
         resolve_audio_duration_in_frames: impl Fn(&str) -> error::Result<usize>,
     ) -> error::Result<Option<AudioTimeline<TUnit>>> {
+        let offset = offset.as_usize();
         self.0
             .as_ref()
             .map(|file_durations| {
@@ -298,10 +299,6 @@ impl<'a> AudioMap<'a> {
 
                         if matches!(range.end, AudioTimestamp::Eof) {
                             end_sample += start_sample - offset;
-                            crate::log!(
-                                "Changing {filename}: {end_sample} dur -> {}",
-                                end_sample - start_sample,
-                            );
                         };
 
                         Ok((
@@ -320,7 +317,8 @@ impl<'a> AudioMap<'a> {
         tb: &TimeBase,
         resolve_audio_duration_in_frames: impl Fn(&str) -> error::Result<usize>,
     ) -> error::Result<Option<ResolvedAudioMap<TUnit>>> {
-        let global_resolved_map = self.resolve(0, tb, &resolve_audio_duration_in_frames)?;
+        let global_resolved_map =
+            self.resolve(TUnit::from_usize(0), tb, &resolve_audio_duration_in_frames)?;
 
         let scenes_resolved_map = scenes
             .map(|scenes| {
@@ -329,7 +327,7 @@ impl<'a> AudioMap<'a> {
                     .iter()
                     .map(|(range, _, scene)| {
                         scene.audio_map().resolve(
-                            range.start,
+                            TUnit::from_frames(range.start, tb),
                             tb,
                             &resolve_audio_duration_in_frames,
                         )
