@@ -79,7 +79,7 @@ pub fn prepare_rendering_context<
                 .get(name)
                 .map(|main_audio| match main_audio {
                     AudioData::Preloaded(data) => {
-                        data.samples.len() / data.sample_rate as usize * TVideo::FPS
+                        data.samples.len() * TVideo::FPS / data.sample_rate as usize
                     }
                     _ => 0,
                 })

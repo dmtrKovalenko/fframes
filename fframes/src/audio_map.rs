@@ -67,6 +67,12 @@ pub struct AudioTimelineSamples(pub(crate) usize);
 
 impl AudioTimelineUnit for AudioTimelineSamples {
     fn from_frames(frames: usize, tb: &TimeBase) -> Self {
+        println!(
+            "frames {} into {} equal to {}",
+            frames,
+            tb.sample_rate,
+            frames * tb.sample_rate / tb.fps
+        );
         AudioTimelineSamples(frames * tb.sample_rate / tb.fps)
     }
     fn as_usize(&self) -> usize {

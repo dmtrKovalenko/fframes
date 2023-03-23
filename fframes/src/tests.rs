@@ -13,7 +13,7 @@ impl Scene for FakeScene {
 
         AudioMap::from([
             ("scene1.mp3", Second(0.)..Second(10.)),
-            ("scene2.mp3", Second(20.)..Second(40.)),
+            ("scene2.mp3", Second(20.)..Eof + Second(1.)),
         ])
     }
 
@@ -73,7 +73,7 @@ fn test_audio_map_resolve() {
         &crate::ScenesWithAudio::from(&video.define_scenes()),
         &tb,
         &audio_map,
-        |_| Ok(0),
+        |_| Ok(24),
     )
     .unwrap();
 
