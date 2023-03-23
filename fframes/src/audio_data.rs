@@ -44,7 +44,7 @@ impl AudioData {
     pub fn duration_in_frames(&self, ctx: &FFramesContext) -> usize {
         match self {
             AudioData::Lazy => 0,
-            AudioData::Preloaded(data) => data.duration_in_frames(ctx.fps),
+            AudioData::Preloaded(data) => data.duration_in_frames(ctx.time_base.fps),
         }
     }
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub use fframes::{audio_data, fframes_context, frame, video::Video, Color};
 use fframes::{AudioMap, FFramesContext, Frame, Scene, Svgr};
 
@@ -51,12 +53,16 @@ impl Video for HelloWorldMultiSceneVideo {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Auto
+    }
+
     fn audio(&self) -> AudioMap {
         AudioMap::none()
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Box<dyn Scene>> = vec![Box::new(SceneOne {}), Box::new(SceneTwo {})];
+        let vec: Vec<Arc<dyn Scene>> = vec![Arc::new(SceneOne {}), Arc::new(SceneTwo {})];
 
         fframes::Scenes::from(vec)
     }

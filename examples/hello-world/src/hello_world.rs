@@ -10,7 +10,10 @@ impl Video for HelloWorldVideo<'_> {
     const FPS: usize = 30;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
-    const DURATION: fframes::Duration<'static> = fframes::Duration::Seconds(19.);
+
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Seconds(20.)
+    }
 
     fn audio(&self) -> AudioMap {
         AudioMap::none()

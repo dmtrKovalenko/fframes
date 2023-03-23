@@ -12,10 +12,15 @@ pub enum FFramesMode {
     Renderer,
 }
 
-#[derive(Debug, Clone)]
-pub struct FFramesContext<'a> {
+#[derive(Debug, Clone, Copy)]
+pub struct TimeBase {
     pub fps: usize,
     pub sample_rate: usize,
+}
+
+#[derive(Debug)]
+pub struct FFramesContext<'a> {
+    pub time_base: TimeBase,
     pub mode: FFramesMode,
     pub media_provider: &'a media_provider::MediaProvider,
     pub duration_in_frames: usize,

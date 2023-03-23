@@ -1,6 +1,6 @@
 open UseDimensions
 
-let min_timeline_height = 400
+let min_timeline_height = 450
 let min_media_controls_width = 370
 
 type sectionSize = {

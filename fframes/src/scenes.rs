@@ -1,5 +1,5 @@
-use crate::Svgr;
-use std::fmt::Debug;
+use crate::{AudioMap, Svgr};
+use std::{fmt::Debug, sync::Arc};
 
 pub enum Overlap {
     Previous(f32),
@@ -48,15 +48,66 @@ pub trait Scene: Debug + Sync + Send {
         Overlap::None
     }
 
-    fn audio_map(&self, scene_info: &SceneInfo) -> crate::audio_map::AudioMap {
+    fn audio_map(&self) -> crate::audio_map::AudioMap {
         crate::audio_map::AudioMap::none()
     }
 }
 
-pub struct Scenes(pub(crate) Option<Vec<Box<dyn Scene>>>);
+pub struct Scenes(pub(crate) Option<Vec<Arc<dyn Scene>>>);
 
-impl From<Vec<Box<dyn Scene>>> for Scenes {
-    fn from(arr: Vec<Box<dyn Scene>>) -> Self {
+impl Scenes {
+    pub fn len(&self) -> usize {
+        self.0.as_ref().map(|s| s.len()).unwrap_or(0)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl From<Vec<Arc<dyn Scene>>> for Scenes {
+    fn from(arr: Vec<Arc<dyn Scene>>) -> Self {
         Self(Some(arr))
+    }
+}
+
+pub struct SceneWithAudio<'a> {
+    pub audio_map: AudioMap<'a>,
+    pub scene: &'a Arc<dyn Scene>,
+}
+
+pub struct ScenesWithAudio<'a>(pub(crate) Option<Vec<SceneWithAudio<'a>>>);
+
+impl ScenesWithAudio<'_> {
+    pub fn len(&self) -> usize {
+        self.0.as_ref().map(|s| s.len()).unwrap_or(0)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl ScenesWithAudio<'_> {
+    pub fn used_audio_files(&self) -> Option<Vec<&str>> {
+        self.0.as_ref().map(|s| {
+            s.iter()
+                .flat_map(|s| s.audio_map.used_audio_files())
+                .flatten()
+                .collect::<Vec<_>>()
+        })
+    }
+}
+
+impl<'a> From<&'a Scenes> for ScenesWithAudio<'a> {
+    fn from(scenes: &'a Scenes) -> Self {
+        Self(scenes.0.as_ref().map(|s| {
+            s.iter()
+                .map(|s| SceneWithAudio {
+                    audio_map: s.audio_map(),
+                    scene: s,
+                })
+                .collect::<Vec<_>>()
+        }))
     }
 }

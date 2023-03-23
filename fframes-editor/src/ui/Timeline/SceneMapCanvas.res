@@ -122,18 +122,46 @@ let renderAudioWaveForm = (
 }
 
 let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => {
+  let xStack = []
+  Js.Console.log(editorContext.videoMeta.audioMap)
+
   editorContext.videoMeta.audioMap
   ->Js.Nullable.toOption
-  ->Option.forEach(audioMap => audioMap->Js.Array.reduceWithIndex((startY, track, i) => {
-      let y = Float.fromInt(timeline_margin_y + scene_height_size + startY)
+  ->Option.forEach(audioMap => audioMap->Js.Array.reduce((startY, track) => {
       let x =
         Float.fromInt(track.start) *. size.frameToPxRatio +. (timeline_margin_x / 2)->Float.fromInt
+      let startY =
+        xStack
+        ->Array.getIndexBy(((lastX, _)) => x > lastX)
+        ->Option.map(index => {
+          let (_, startY) = xStack[index]->Utils.Option.unwrap
+          xStack->Belt.Array.truncateToLengthUnsafe(index)
+
+          startY
+        })
+        ->Utils.Option.unwrapOr(startY)
+
+      let y = Float.fromInt(timeline_margin_y + scene_height_size + startY)
       let width = Float.fromInt(track.end - track.start) *. size.frameToPxRatio
 
+      xStack->Js.Array.push((x +. width, startY))->ignore
       ctx->Canvas2d.save
 
+      let textWidth = ctx |> Canvas2d.measureText(track.name) |> Canvas2d.width
+      let textX = x +. 2.
+      let textY = y -. 8.
+      let textHeight = 14.
+
+      ctx->Canvas2d.setFillStyle(String, "#1f2937")
+      ctx->Canvas2d.fillRect(
+        ~x=textX -. 10.,
+        ~y=textY -. textHeight +. 4.,
+        ~w=textWidth +. 10.,
+        ~h=textHeight,
+      )
+
       ctx->Canvas2d.setFillStyle(String, "#e2e8f0")
-      track.name->Canvas2d.fillText(ctx, ~x=x +. 2., ~y=y -. 8.)
+      track.name->Canvas2d.fillText(ctx, ~x=textX, ~y=textY)
       ctx->Canvas2d.beginPath
 
       ctx->renderRoundedRect(
@@ -164,15 +192,7 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
       ctx->Canvas2d.closePath
       ctx->Canvas2d.restore
 
-      if (
-        audioMap[i + 1]
-        ->Option.map(previousTrack => previousTrack.name === track.name)
-        ->Utils.Option.unwrapOr(false)
-      ) {
-        startY
-      } else {
-        startY + audio_height + audio_height / 2
-      }
+      startY + audio_height + audio_height / 2
     }, 32)->ignore)
 }
 

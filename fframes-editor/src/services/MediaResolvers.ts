@@ -113,7 +113,7 @@ export const resolveImage: MediaResolver = async (
 ) => {
   const image = await loadImage(url);
   const base64 =
-    image.naturalHeight * image.naturalWidth > 250000
+    image.naturalHeight * image.naturalWidth > 2073600 // full-hd
       ? null
       : imageToBase64(image);
 

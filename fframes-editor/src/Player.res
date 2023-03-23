@@ -102,32 +102,28 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     | Pause => {...state, playState: Paused}
     | SetVolume(volume) => {
         ...state,
-        volume: switch volume {
-        | volume if volume > max_volume => Some(max_volume)
-        | volume if volume < min_volume => Some(min_volume)
-        | _ => Some(volume)
-        },
+        volume: volume->Js.Math.max(min_volume)->Js.Math.min(max_volume)->Utils.Option.some,
       }
     }
   }
 
+  let onFrame = (dispatch, ~secondsFromStart) => {
+    let nextFrame =
+      (secondsFromStart *. Wasm.videoMeta.fps->Float.fromInt +.
+        get().startPlayingFrame->Float.fromInt)->Utils.Math.floor
+
+    if nextFrame !== get().frame {
+      dispatch(NewFrame(nextFrame))
+    }
+
+    get().playState === Playing
+  }
+
   let sideEffect = (action, dispatch) => {
     let startPlaying = currentFrame => {
-      let onFrame = (~secondsFromStart) => {
-        let nextFrame =
-          (secondsFromStart *. Wasm.videoMeta.fps->Float.fromInt +.
-            get().startPlayingFrame->Float.fromInt)->Utils.Math.floor
-
-        if nextFrame !== get().frame {
-          dispatch(NewFrame(nextFrame))
-        }
-
-        get().playState === Playing
-      }
-
       get().volume->Option.map(AnimationRuntime.AudioRuntime.setVolume)->ignore
       AnimationRuntime.AudioRuntime.startAnimation(
-        ~onFrame,
+        ~onFrame=onFrame(dispatch),
         ~currentFrame,
         ~videoMeta=Wasm.videoMeta,
       )

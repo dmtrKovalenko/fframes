@@ -24,7 +24,10 @@ impl Video for GooseVideo {
     const FPS: usize = 60;
     const WIDTH: usize = 1080;
     const HEIGHT: usize = 1920;
-    const DURATION: fframes::Duration<'static> = fframes::Duration::FromAudio("thought.mp3");
+
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Auto
+    }
 
     fn audio(&self) -> AudioMap {
         use AudioTimestamp::*;

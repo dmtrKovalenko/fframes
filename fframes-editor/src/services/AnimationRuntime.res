@@ -15,7 +15,13 @@ module AudioRuntime = {
   let gain = ctx->AudioContext.createGain
 
   let setVolume = value => {
-    gain["gain"]["value"] = value
+    gain["gain"]["value"] = if value < 0. {
+      // this is a very dumb protection from https://0.30000000000000004.com/ problem. We do some math
+      // on the value and here check that value after bumping is not less then 0.
+      0.
+    } else {
+      value
+    }
   }
 
   let stop = () => {
@@ -50,7 +56,6 @@ module AudioRuntime = {
 
   let connectAudioFiles = (ctx, videoMeta: WasmController.videoMeta) => {
     let {mediaList} = MediaLoader.MediaLoaderObserver.get()
-
 
     videoMeta.audioMap
     ->Js.Nullable.toOption

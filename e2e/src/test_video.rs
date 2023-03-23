@@ -10,7 +10,10 @@ impl Video for TestVideo {
     const FPS: usize = 24;
     const WIDTH: usize = 854;
     const HEIGHT: usize = 480;
-    const DURATION: fframes::Duration<'static> = fframes::Duration::Seconds(15.);
+
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Seconds(15.)
+    }
 
     fn audio(&self) -> AudioMap {
         AudioMap::none()

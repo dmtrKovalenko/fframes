@@ -101,14 +101,32 @@ function renderAudioWaveForm(ctx, endFrame, startFrame, x0, y0, audioSpaceWidth,
 }
 
 function renderAudioMap(ctx, size, editorContext) {
+  var xStack = [];
+  console.log(editorContext.videoMeta.audioMap);
   return Belt_Option.forEach(Caml_option.nullable_to_opt(editorContext.videoMeta.audioMap), (function (audioMap) {
-                audioMap.reduce((function (startY, track, i) {
-                        var y = 184 + startY | 0;
+                audioMap.reduce((function (startY, track) {
                         var x = track.start * size.frameToPxRatio + 32;
+                        var startY$1 = Utils.$$Option.unwrapOr(Belt_Option.map(Belt_Array.getIndexBy(xStack, (function (param) {
+                                        return x > param[0];
+                                      })), (function (index) {
+                                    var match = Utils.$$Option.unwrap(Belt_Array.get(xStack, index));
+                                    xStack.length = index;
+                                    return match[1];
+                                  })), startY);
+                        var y = 184 + startY$1 | 0;
                         var width = (track.end - track.start | 0) * size.frameToPxRatio;
+                        xStack.push([
+                              x + width,
+                              startY$1
+                            ]);
                         ctx.save();
+                        var textWidth = ctx.measureText(track.name).width;
+                        var textX = x + 2;
+                        var textY = y - 8;
+                        Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, "#1f2937");
+                        ctx.fillRect(textX - 10, textY - 14 + 4, textWidth + 10, 14);
                         Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, "#e2e8f0");
-                        ctx.fillText(track.name, x + 2, y - 8, undefined);
+                        ctx.fillText(track.name, textX, textY, undefined);
                         ctx.beginPath();
                         renderRoundedRect(ctx, x, y, width, 60, 4.0, undefined);
                         ctx.clip();
@@ -117,13 +135,7 @@ function renderAudioMap(ctx, size, editorContext) {
                         renderAudioWaveForm(ctx, track.end, track.start, x, y, width, track.name, editorContext);
                         ctx.closePath();
                         ctx.restore();
-                        if (Utils.$$Option.unwrapOr(Belt_Option.map(Belt_Array.get(audioMap, i + 1 | 0), (function (previousTrack) {
-                                      return previousTrack.name === track.name;
-                                    })), false)) {
-                          return startY;
-                        } else {
-                          return (startY + CanvasSize.audio_height | 0) + (CanvasSize.audio_height / 2 | 0) | 0;
-                        }
+                        return (startY$1 + CanvasSize.audio_height | 0) + (CanvasSize.audio_height / 2 | 0) | 0;
                       }), 32);
                 
               }));

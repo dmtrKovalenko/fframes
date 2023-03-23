@@ -98,16 +98,13 @@ function MakePlayer(Wasm) {
         case /* NewFrame */1 :
             break;
         case /* SetVolume */2 :
-            var volume = action._0;
             return {
                     frame: state.frame,
                     startPlayingFrame: state.startPlayingFrame,
                     playState: state.playState,
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
-                    volume: volume > 1 ? 1 : (
-                        volume < 0 ? 0 : volume
-                      )
+                    volume: Utils.$$Option.some(Math.min(Math.max(action._0, 0), 1))
                   };
         
       }
@@ -137,20 +134,22 @@ function MakePlayer(Wasm) {
             volume: state.volume
           };
   };
+  var onFrame = function (dispatch, secondsFromStart) {
+    var nextFrame = Math.floor(secondsFromStart * Wasm.videoMeta.fps + Curry._1(get, undefined).startPlayingFrame);
+    if (nextFrame !== Curry._1(get, undefined).frame) {
+      Curry._1(dispatch, {
+            TAG: /* NewFrame */1,
+            _0: nextFrame
+          });
+    }
+    return Curry._1(get, undefined).playState === /* Playing */0;
+  };
   var sideEffect = function (action, dispatch) {
     var startPlaying = function (currentFrame) {
-      var onFrame = function (secondsFromStart) {
-        var nextFrame = Math.floor(secondsFromStart * Wasm.videoMeta.fps + Curry._1(get, undefined).startPlayingFrame);
-        if (nextFrame !== Curry._1(get, undefined).frame) {
-          Curry._1(dispatch, {
-                TAG: /* NewFrame */1,
-                _0: nextFrame
-              });
-        }
-        return Curry._1(get, undefined).playState === /* Playing */0;
-      };
       Belt_Option.map(Curry._1(get, undefined).volume, AnimationRuntime.AudioRuntime.setVolume);
-      AnimationRuntime.AudioRuntime.startAnimation(onFrame, currentFrame, Wasm.videoMeta);
+      AnimationRuntime.AudioRuntime.startAnimation((function (param) {
+              return onFrame(dispatch, param);
+            }), currentFrame, Wasm.videoMeta);
       
     };
     if (typeof action === "number") {
@@ -203,6 +202,7 @@ function MakePlayer(Wasm) {
           subscribe: include.subscribe,
           useObservable: include.useObservable,
           reducer: reducer,
+          onFrame: onFrame,
           sideEffect: sideEffect,
           dispatch: dispatch
         };

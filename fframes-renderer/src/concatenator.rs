@@ -161,7 +161,7 @@ pub unsafe fn fill_audio_stream(
 ) -> Result<(), AVError> {
     if let (Some(audio_map), Some(audio_stream)) = (audio_map, encoder.audio_stream) {
         let stream_duration_in_samples =
-            AudioTimelineSamples::from_frames(ctx.duration_in_frames, ctx);
+            AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
 
         let mut audio_frame = EncoderFrame::make(
             &encoder

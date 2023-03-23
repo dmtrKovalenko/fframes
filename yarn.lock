@@ -504,6 +504,13 @@
   dependencies:
     "follow-redirects" "^1.14.0"
 
+"axios@^0.26.1":
+  "integrity" "sha512-fPwcX4EvnSHuInCMItEhAGnaSEXRBjtzh9fOtsE6E1G6p7vl7edEeZe11QHf18+6+9gR5PbKV/sGKNaD8YaMeA=="
+  "resolved" "https://registry.npmjs.org/axios/-/axios-0.26.1.tgz"
+  "version" "0.26.1"
+  dependencies:
+    "follow-redirects" "^1.14.8"
+
 "balanced-match@^1.0.0":
   "integrity" "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="
   "resolved" "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz"
@@ -533,6 +540,15 @@
     "axios" "^0.21.1"
     "rimraf" "^3.0.2"
     "tar" "^6.1.0"
+
+"binary-install@^1.0.1":
+  "integrity" "sha512-h3K4jaC4jEauK3csXI9GxGBJldkpuJlHCIBv8i+XBNhPuxnlERnD1PWVczQYDqvhJfv0IHUbB3lhDrZUMHvSgw=="
+  "resolved" "https://registry.npmjs.org/binary-install/-/binary-install-1.0.6.tgz"
+  "version" "1.0.6"
+  dependencies:
+    "axios" "^0.26.1"
+    "rimraf" "^3.0.2"
+    "tar" "^6.1.11"
 
 "brace-expansion@^1.1.7":
   "integrity" "sha512-iCuPHDFgrHX7H2vEI/5xpz07zSHB00TpugqhmYtVmMO6518mCuRMoOYFldEBl0g187ufozdaHgWKcYFb61qGiA=="
@@ -960,6 +976,11 @@
   "resolved" "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.1.tgz"
   "version" "1.15.1"
 
+"follow-redirects@^1.14.8":
+  "integrity" "sha512-VQLG33o04KaQ8uYi2tVNbdrWp1QWxNNea+nmIB4EVM28v0hmP17z7aG1+wAkNzVq4KeXTq3221ye5qTJP91JwA=="
+  "resolved" "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.2.tgz"
+  "version" "1.15.2"
+
 "fs-minipass@^2.0.0":
   "integrity" "sha512-V/JgOLFCS+R6Vcq0slCuaeWEdNC3ouDlJMNIsacH2VtALiu9mV4LPrHc5cDl8k5aw6J8jwgWWpiTo5RYhmIzvg=="
   "resolved" "https://registry.npmjs.org/fs-minipass/-/fs-minipass-2.1.0.tgz"
@@ -1270,7 +1291,7 @@
   dependencies:
     "fframes-editor" "*"
     "vite" "^3.0.4"
-    "wasm-pack" "^0.10.3"
+    "wasm-pack" "^0.11.0"
 
 "meow@^6.0.0":
   "integrity" "sha512-3YffViIt2QWgTy6Pale5QpopX/IvU3LPL03jOTqp6pGj3VjesdO/U8CuHMKpnQr4shCNCM5fd5XFFvIIl6JBHg=="
@@ -1339,6 +1360,11 @@
   "version" "3.3.4"
   dependencies:
     "yallist" "^4.0.0"
+
+"minipass@^4.0.0":
+  "integrity" "sha512-+yQl7SX3bIT83Lhb4BVorMAHVuqsskxRdlmO9kTpyukp8vsm2Sn/fUOV9xlnG8/a5JsypJzap21lz/y3FBMJ8Q=="
+  "resolved" "https://registry.npmjs.org/minipass/-/minipass-4.2.5.tgz"
+  "version" "4.2.5"
 
 "minizlib@^2.1.1":
   "integrity" "sha512-bAxsR8BVfj60DWXHE3u30oHzfl4G7khkSuPW+qvpd7jFRHm7dLxOjUk1EHACJ/hxLY8phGJ0YhYHZo7jil7Qdg=="
@@ -1936,6 +1962,18 @@
     "mkdirp" "^1.0.3"
     "yallist" "^4.0.0"
 
+"tar@^6.1.11":
+  "integrity" "sha512-jdIBIN6LTIe2jqzay/2vtYLlBHa3JF42ot3h1dW8Q0PaAG4v8rm0cvpVePtau5C6OKXGGcgO9q2AMNSWxiLqKw=="
+  "resolved" "https://registry.npmjs.org/tar/-/tar-6.1.13.tgz"
+  "version" "6.1.13"
+  dependencies:
+    "chownr" "^2.0.0"
+    "fs-minipass" "^2.0.0"
+    "minipass" "^4.0.0"
+    "minizlib" "^2.1.1"
+    "mkdirp" "^1.0.3"
+    "yallist" "^4.0.0"
+
 "tiktok-editor-bridge@file:/Users/dmtrkovalenko/dev/fframes/examples/tiktok/editor/editor-bridge/pkg":
   "resolved" "file:examples/tiktok/editor/editor-bridge/pkg"
   "version" "0.1.0"
@@ -1946,7 +1984,7 @@
   dependencies:
     "fframes-editor" "*"
     "vite" "^3.0.4"
-    "wasm-pack" "^0.10.3"
+    "wasm-pack" "^0.11.0"
 
 "to-fast-properties@^2.0.0":
   "integrity" "sha1-3F5pjL0HkmW8c+A3doGk5Og/YW4="
@@ -2056,6 +2094,13 @@
   "version" "0.10.3"
   dependencies:
     "binary-install" "^0.1.0"
+
+"wasm-pack@^0.11.0":
+  "integrity" "sha512-PB/4QcPNo02d3cyfxxw/T8RvB9G3uMMfKT1cD028+NaC8Gnoqz8qfRQa446vgneK/4V5FUZY9Nvoi/lVI1/wKw=="
+  "resolved" "https://registry.npmjs.org/wasm-pack/-/wasm-pack-0.11.0.tgz"
+  "version" "0.11.0"
+  dependencies:
+    "binary-install" "^1.0.1"
 
 "which@^2.0.2":
   "integrity" "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA=="

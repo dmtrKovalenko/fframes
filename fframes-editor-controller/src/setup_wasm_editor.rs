@@ -9,47 +9,13 @@ macro_rules! setup_wasm_editor {
 
         static VIDEO: $x = $x $params;
 
-        #[derive(Clone, fframes::serde::Serialize)]
-        #[serde(crate = "fframes::serde")] // https://github.com/serde-rs/serde/issues/1465
-        pub struct AudioTrack {
-            pub name: String,
-            pub start: usize,
-            pub end: usize
-        }
-
         lazy_static! {
             static ref DURATION_IN_FRAMES: Mutex<usize> = Mutex::new(0);
             static ref BREAK_LINES_CACHE: fframes::BreaksLruCache = fframes::BreaksLruCache::new(10).unwrap();
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
-            static ref AUDIO_MAP: Mutex<Option<Vec<AudioTrack>>> = {
-                use fframes::AudioTimelineUnit;
-
-                Mutex::new(
-                    fframes::AudioMap::resolve::<fframes::AudioTimelineFrames>(
-                        &$x::audio(&VIDEO),
-                        &fframes_context::FFramesContext {
-                            duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
-                            mode: fframes_context::FFramesMode::Editor,
-                            fps: $x::FPS,
-                            sample_rate: 44100,
-                            scenes:  SCENES.lock().unwrap().as_ref(),
-                            media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
-                            font_source: None,
-                        }
-                    ).map(
-                        |resolved_map| resolved_map.0.into_iter().map(|(name, range)| {
-                            AudioTrack {
-                                name,
-                                start: range.start.as_usize(),
-                                end: range.end.as_usize(),
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                    )
-                )
-            };
-            static ref AUDIO_DURATIONS: Mutex<HashMap<String, i32>> = Mutex::new(HashMap::new());
+            static ref AUDIO_MAP: Mutex<Option<Vec<wasm_audio_map::AudioTrack>>> = Mutex::new(None);
+            static ref TIME_BASE: Mutex<Option<fframes::TimeBase>> = Mutex::new(None);
             static ref MEDIA_PROVIDER: Mutex<fframes::media_provider::MediaProvider> =
                 Mutex::new(fframes::media_provider::MediaProvider {
                     audio: HashMap::new(),
@@ -88,7 +54,7 @@ macro_rules! setup_wasm_editor {
 
             #[wasm_bindgen(getter, js_name=hasAudio)]
             pub fn has_audio(&self) -> bool {
-                $x::audio(&VIDEO).0.is_some()
+                AUDIO_MAP.lock().unwrap().is_some()
             }
 
             #[wasm_bindgen(getter, js_name = audioMap)]
@@ -105,41 +71,31 @@ macro_rules! setup_wasm_editor {
             }
         }
 
-        async fn load_audio_duration(audio: String) -> fframes::error::Result<usize> {
-            let duration_in_frames = (load_audio_wasm_callback(audio.as_str())
-                .await
-                .expect("Can not get the duration of audio")
-                .as_f64()
-                .expect("Can not convert the duration of audio to f64")
-                * $x::FPS as f64) as i32;
+        #[wasm_bindgen]
+        pub async fn prepare() -> Result<VideoMetadata, JsValue> {
+            console_error_panic_hook::set_once();
 
-            let mut durations_hash = AUDIO_DURATIONS.lock().unwrap();
-            durations_hash.insert(audio.to_owned(), duration_in_frames);
+            let tb = fframes::TimeBase {
+                fps: $x::FPS,
+                sample_rate: 44100,
+            };
 
-            Ok(duration_in_frames as usize)
-        }
-
-        async fn resolve_duration_and_scenes() -> i32 {
-            let (duration, scenes) =
-                fframes::resolve_duration_and_scenes_async(&VIDEO, |val| Box::pin(load_audio_duration(val)))
-                .await
-                .unwrap();
+            let (duration, scenes, audio_map) = wasm_audio_map::prepare_video_with_audio(&VIDEO, &tb).await;
 
             if let Some(scenes) = scenes {
                 SCENES.lock().unwrap().replace(scenes);
             }
 
+            if let Some(audio_map) = audio_map {
+                AUDIO_MAP.lock().unwrap().replace(audio_map);
+            }
+
             let mut duration_mutex_ref =  DURATION_IN_FRAMES.lock().unwrap();
             *duration_mutex_ref = duration;
-            duration as i32
-        }
 
-        #[wasm_bindgen]
-        pub async fn prepare() -> Result<VideoMetadata, JsValue> {
-            console_error_panic_hook::set_once();
+            TIME_BASE.lock().unwrap().replace(tb);
 
-            let duration = resolve_duration_and_scenes().await;
-            Ok(VideoMetadata { duration })
+            Ok(VideoMetadata { duration: duration as i32 })
         }
 
         #[wasm_bindgen]
@@ -153,10 +109,6 @@ macro_rules! setup_wasm_editor {
 
             let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
             media_provider.audio.insert(file.clone(), audio_data);
-
-            let duration_in_frames = input.len() as f64 / 44100 as f64 * $x::FPS as f64;
-            let mut durations_hash = AUDIO_DURATIONS.lock().unwrap();
-            durations_hash.insert(file, duration_in_frames as i32);
         }
 
         #[wasm_bindgen]
@@ -202,8 +154,7 @@ macro_rules! setup_wasm_editor {
                 &fframes_context::FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: fframes_context::FFramesMode::Editor,
-                    fps: $x::FPS,
-                    sample_rate: 44100,
+                    time_base: TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering."),
                     font_source: Some(FONTS.lock().unwrap().deref()),
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
@@ -225,11 +176,10 @@ macro_rules! setup_wasm_editor {
                 &fframes_context::FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: fframes_context::FFramesMode::EditorTimelinePreview,
-                    fps: $x::FPS,
-                    sample_rate: 44100,
+                    time_base: TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering."),
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
-                    font_source: None,
+                    font_source: Some(FONTS.lock().unwrap().deref()),
                 },
             ).value
         }

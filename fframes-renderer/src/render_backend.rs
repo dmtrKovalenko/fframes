@@ -1,4 +1,6 @@
-use fframes::{frame, usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedAudioMap};
+use fframes::{
+    frame, usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
+};
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
 use svgr::SvgrCache;
@@ -34,6 +36,7 @@ pub trait FFramesRenderBackend {
         usvg_options: &usvgr::Options,
         encoder_options: EncoderOptions<'a>,
         font_db: &usvgr_text_layout::fontdb::Database,
+        timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()>
     where
@@ -123,6 +126,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         usvg_options: &usvgr::Options,
         _encoder_options: EncoderOptions<'a>,
         font_db: &usvgr_text_layout::fontdb::Database,
+        timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: fframes::FFramesContext,
     ) -> FFramesResult<()> {
         let session = Uuid::new_v4();
@@ -134,8 +138,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         }
 
         let concurrent_chunks = self.split_video_chunks(ctx.duration_in_frames);
-        let resolved_audio_map: Option<ResolvedAudioMap<AudioTimelineSamples>> =
-            video.audio().resolve(&ctx);
 
         let files = concurrent_chunks
             .par_iter()
@@ -238,7 +240,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             concatenator::concat_video_files_with_audio(
                 files.as_slice(),
                 output,
-                resolved_audio_map.as_ref(),
+                timeline.audio_map.as_ref(),
                 &ctx,
             )?;
         }

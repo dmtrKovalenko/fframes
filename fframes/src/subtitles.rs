@@ -37,12 +37,14 @@ impl Subtitles {
 
     pub fn parse(content: &str, fps: usize) -> Result<Subtitles, VttError> {
         parse_vtt(content).map(|subtitles| Subtitles {
-            start_frame: subtitles.cues.get(0).map(|cue| {
-                ((cue.start.as_milliseconds() as f64 / 1000 as f64) * fps as f64) as usize
-            }),
-            end_frame: subtitles.cues.last().map(|cue| {
-                ((cue.start.as_milliseconds() as f64 / 1000 as f64) * fps as f64) as usize
-            }),
+            start_frame: subtitles
+                .cues
+                .get(0)
+                .map(|cue| ((cue.start.as_milliseconds() as f64 / 1000.) * fps as f64) as usize),
+            end_frame: subtitles
+                .cues
+                .last()
+                .map(|cue| ((cue.start.as_milliseconds() as f64 / 1000.) * fps as f64) as usize),
 
             subtitles,
         })

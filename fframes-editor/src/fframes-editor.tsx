@@ -27,6 +27,7 @@ export function renderEditor(imports: Imports, wasmController: WasmController) {
 }
 
 export async function load_audio_wasm_callback(name: string) {
+  console.log("load_audio_wasm_callback", name);
   if (!lastImports) {
     throw new Error(
       `Can not process audio duration callback for ${name} imports glob not provided.`

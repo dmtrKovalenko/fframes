@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub use fframes::{audio_data, fframes_context, frame, video::Video};
 use fframes::{AudioMap, AudioTimestamp, Scene, Svgr};
 
@@ -13,6 +15,10 @@ impl Video for LowPolyVideo {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Auto
+    }
+
     fn audio(&self) -> AudioMap {
         AudioMap::from([(
             "owl.mp3",
@@ -21,7 +27,7 @@ impl Video for LowPolyVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Box<dyn Scene>> = vec![Box::new(owl::Owl {})];
+        let vec: Vec<Arc<dyn Scene>> = vec![Arc::new(owl::Owl {})];
 
         fframes::Scenes::from(vec)
     }

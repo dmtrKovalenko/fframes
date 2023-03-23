@@ -1,4 +1,4 @@
-use crate::FFramesContext;
+use crate::{error, FFramesContext, ResolvedScenesTimeline, ScenesWithAudio, TimeBase};
 use std::{
     iter::FromIterator,
     ops::{Add, Range, Sub},
@@ -41,16 +41,16 @@ impl<'a> Sub for AudioTimestamp<'a> {
 }
 
 pub trait AudioTimelineUnit {
-    fn from_frames(frames: usize, ctx: &FFramesContext) -> Self;
+    fn from_frames(frames: usize, tb: &TimeBase) -> Self;
     fn from_usize(val: usize) -> Self;
     fn as_usize(&self) -> usize;
 }
 
-#[derive(PartialEq, PartialOrd, Debug)]
+#[derive(PartialEq, PartialOrd, Debug, Copy, Clone)]
 pub struct AudioTimelineFrames(usize);
 
 impl AudioTimelineUnit for AudioTimelineFrames {
-    fn from_frames(frames: usize, _ctx: &FFramesContext) -> Self {
+    fn from_frames(frames: usize, _: &TimeBase) -> Self {
         AudioTimelineFrames(frames)
     }
 
@@ -62,12 +62,12 @@ impl AudioTimelineUnit for AudioTimelineFrames {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Debug)]
+#[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
 pub struct AudioTimelineSamples(pub(crate) usize);
 
 impl AudioTimelineUnit for AudioTimelineSamples {
-    fn from_frames(frames: usize, ctx: &FFramesContext) -> Self {
-        AudioTimelineSamples(frames * ctx.sample_rate / ctx.fps)
+    fn from_frames(frames: usize, tb: &TimeBase) -> Self {
+        AudioTimelineSamples(frames * tb.sample_rate / tb.fps)
     }
     fn as_usize(&self) -> usize {
         self.0
@@ -78,52 +78,95 @@ impl AudioTimelineUnit for AudioTimelineSamples {
 }
 
 impl AudioTimestamp<'_> {
-    pub fn to_seconds(&self, filename: &str, ctx: &FFramesContext) -> f32 {
+    fn infer_relying_on_dynamic_duration_audio_files<'a>(
+        &self,
+        name: &'a str,
+    ) -> Option<Vec<&'a str>> {
         match self {
-            AudioTimestamp::Frame(frame) => *frame as f32 * ctx.fps as f32,
-            AudioTimestamp::Second(seconds) => *seconds,
-            AudioTimestamp::Eof => ctx.get_audio_data(filename).duration_in_seconds(),
-            AudioTimestamp::DurationOfAudio(filename) => {
-                ctx.get_audio_data(filename).duration_in_seconds()
-            }
-            AudioTimestamp::Add(add) => {
+            AudioTimestamp::Eof => Some(vec![name]),
+            AudioTimestamp::DurationOfAudio(_) => Some(vec![name]),
+            AudioTimestamp::Subtract(add) | AudioTimestamp::Add(add) => {
                 let (a, b) = &**add;
-                a.to_seconds(filename, ctx) + b.to_seconds(filename, ctx)
+                let a = a.infer_relying_on_dynamic_duration_audio_files(name);
+                let b = b.infer_relying_on_dynamic_duration_audio_files(name);
+
+                match (a, b) {
+                    (Some(mut a), Some(mut b)) => {
+                        a.append(&mut b);
+                        Some(a)
+                    }
+                    (Some(a), None) => Some(a),
+                    (None, Some(b)) => Some(b),
+                    (None, None) => None,
+                }
             }
-            AudioTimestamp::Subtract(add) => {
-                let (a, b) = &**add;
-                a.to_seconds(filename, ctx) - b.to_seconds(filename, ctx)
-            }
+            AudioTimestamp::Frame(_) => None,
+            AudioTimestamp::Second(_) => None,
         }
     }
 
-    pub(crate) fn to_frames(&self, filename: &str, ctx: &FFramesContext) -> usize {
-        match self {
-            AudioTimestamp::Frame(frame) => *frame,
-            AudioTimestamp::Second(seconds) => (*seconds * ctx.fps as f32) as usize,
+    pub fn to_seconds(
+        &self,
+        filename: &str,
+        tb: &TimeBase,
+        resolve_audio_duration_in_frames: &impl Fn(&str) -> error::Result<usize>,
+    ) -> error::Result<f32> {
+        Ok(match self {
+            AudioTimestamp::Frame(frame) => *frame as f32 * tb.fps as f32,
+            AudioTimestamp::Second(seconds) => *seconds,
             AudioTimestamp::Eof => {
-                (ctx.get_audio_data(filename).duration_in_seconds() * ctx.fps as f32) as usize
+                resolve_audio_duration_in_frames(filename)? as f32 * tb.fps as f32
             }
             AudioTimestamp::DurationOfAudio(filename) => {
-                (ctx.get_audio_data(filename).duration_in_seconds() * ctx.fps as f32) as usize
+                resolve_audio_duration_in_frames(filename)? as f32 * tb.fps as f32
             }
             AudioTimestamp::Add(add) => {
                 let (a, b) = &**add;
-                a.to_frames(filename, ctx) + b.to_frames(filename, ctx)
+                a.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
+                    + b.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
             }
             AudioTimestamp::Subtract(add) => {
                 let (a, b) = &**add;
-                a.to_frames(filename, ctx) - b.to_frames(filename, ctx)
+                a.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
+                    - b.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
             }
-        }
+        })
+    }
+
+    pub(crate) fn to_frames(
+        &self,
+        filename: &str,
+        tb: &TimeBase,
+        resolve_audio_duration_in_frames: &impl Fn(&str) -> error::Result<usize>,
+    ) -> error::Result<usize> {
+        Ok(match self {
+            AudioTimestamp::Frame(frame) => *frame,
+            AudioTimestamp::Second(seconds) => (*seconds * tb.fps as f32) as usize,
+            AudioTimestamp::Eof => resolve_audio_duration_in_frames(filename)?,
+            AudioTimestamp::DurationOfAudio(filename) => {
+                resolve_audio_duration_in_frames(filename)?
+            }
+            AudioTimestamp::Add(add) => {
+                let (a, b) = &**add;
+                a.to_frames(filename, tb, resolve_audio_duration_in_frames)?
+                    + b.to_frames(filename, tb, resolve_audio_duration_in_frames)?
+            }
+            AudioTimestamp::Subtract(add) => {
+                let (a, b) = &**add;
+                a.to_frames(filename, tb, resolve_audio_duration_in_frames)?
+                    - b.to_frames(filename, tb, resolve_audio_duration_in_frames)?
+            }
+        })
     }
 
     pub(crate) fn to_unit<TUnit: AudioTimelineUnit>(
         &self,
         filename: &str,
-        ctx: &FFramesContext,
-    ) -> TUnit {
-        TUnit::from_frames(self.to_frames(filename, ctx), ctx)
+        tb: &TimeBase,
+        resolve_audio_duration_in_frames: impl Fn(&str) -> error::Result<usize>,
+    ) -> error::Result<TUnit> {
+        let frames = self.to_frames(filename, tb, &resolve_audio_duration_in_frames)?;
+        Ok(TUnit::from_frames(frames, tb))
     }
 }
 
@@ -151,47 +194,155 @@ type AudioDuration<'a> = Range<AudioTimestamp<'a>>;
 /// In this case audio 1 will be playing from second 10 to second 20 and audio 2 will be playing from second 5 to the end of file.
 pub struct AudioMap<'a>(pub Option<Vec<(&'a str, AudioDuration<'a>)>>);
 
+type AudioTimeline<TUnit> = Vec<(String, Range<TUnit>)>;
+
 /// The resolved audio_map contain each audio file position and duration in specified units.
 #[derive(Debug)]
-pub struct ResolvedAudioMap<TUnit: AudioTimelineUnit>(pub Vec<(String, Range<TUnit>)>);
+pub struct ResolvedAudioMap<TUnit: AudioTimelineUnit>(pub AudioTimeline<TUnit>);
 
-impl ResolvedAudioMap<AudioTimelineSamples> {
-    pub fn calc_stream_duration_in_samples(&self) -> usize {
+impl<TUnit: AudioTimelineUnit + Copy> ResolvedAudioMap<TUnit> {
+    pub(crate) fn round_max_duration(&mut self, max_duration: TUnit) {
+        let max_duration_usize = max_duration.as_usize();
+
+        for (_, range) in self.0.iter_mut() {
+            if range.end.as_usize() > max_duration_usize {
+                range.end = max_duration;
+            }
+        }
+    }
+
+    pub fn calc_stream_duration(&self) -> usize {
         self.0
             .iter()
-            .map(|(_, range)| (range.start.0 + range.end.0))
+            .map(|(_, range)| (range.start.as_usize() + range.end.as_usize()))
             .max()
             .unwrap_or(0)
     }
 }
 
 impl<'a> AudioMap<'a> {
-    pub fn resolve<TUnit: AudioTimelineUnit + std::fmt::Debug>(
-        &'a self,
-        ctx: &FFramesContext,
-    ) -> Option<ResolvedAudioMap<TUnit>> {
-        let total_duration_units = TUnit::from_frames(ctx.duration_in_frames, ctx);
-        let global_resolved_map = self
-            .0
+    /// Creates a new empty audio map. It means that no audio files will be played within the video/scene.
+    /// If scene or video duration that defines this audio map uses `fframes::Duration::FromAudioMap` – rendering won't be possible.
+    pub fn none() -> Self {
+        AudioMap(None)
+    }
+
+    pub fn unstable_flatten_with_scenes(self, scene_audios: &'a ScenesWithAudio) -> Self {
+        if self.0.is_none() && scene_audios.0.is_none() {
+            return Self(None);
+        }
+
+        let mut map = self.0.unwrap_or_default();
+
+        if let Some(scenes) = scene_audios.0.as_ref() {
+            for audio_map in scenes.iter() {
+                if let Some(scene_audio_map) = audio_map.audio_map.0.as_ref() {
+                    map.extend(scene_audio_map.iter().cloned())
+                }
+            }
+        }
+
+        Self(Some(map))
+    }
+
+    pub fn used_audio_files(&'a self) -> Option<Vec<&'a str>> {
+        self.0.as_ref().map(|map| {
+            map.iter()
+                .filter_map(|(filename, range)| {
+                    let start = range
+                        .start
+                        .infer_relying_on_dynamic_duration_audio_files(filename);
+
+                    let end = range
+                        .end
+                        .infer_relying_on_dynamic_duration_audio_files(filename);
+
+                    match (start, end) {
+                        (Some(mut start), Some(mut end)) => {
+                            start.append(&mut end);
+                            Some(start)
+                        }
+                        (Some(start), None) => Some(start),
+                        (None, Some(end)) => Some(end),
+                        (None, None) => None,
+                    }
+                })
+                .flatten()
+                .collect()
+        })
+    }
+
+    pub(crate) fn resolve<TUnit: AudioTimelineUnit + std::fmt::Debug>(
+        &self,
+        offset: usize,
+        tb: &TimeBase,
+        resolve_audio_duration_in_frames: impl Fn(&str) -> error::Result<usize>,
+    ) -> error::Result<Option<AudioTimeline<TUnit>>> {
+        self.0
             .as_ref()
-            .map(|map| resolve_map(map, 0, ctx, &total_duration_units));
+            .map(|file_durations| {
+                file_durations
+                    .iter()
+                    .map(|(filename, range)| {
+                        let start_sample = offset
+                            + range
+                                .start
+                                .to_unit::<TUnit>(filename, tb, &resolve_audio_duration_in_frames)?
+                                .as_usize();
 
-        let scenes_resolved_map = ctx.scenes.map(|scenes| {
-            scenes
-                .0
-                .iter()
-                .filter_map(|(range, scene_info, scene)| {
-                    scene.audio_map(scene_info).0.map(|map| (range, map))
-                })
-                .flat_map(|(scene_range, map)| {
-                    let scene_start_unit = TUnit::from_frames(scene_range.start, ctx).as_usize();
+                        let mut end_sample = offset
+                            + range
+                                .end
+                                .to_unit::<TUnit>(filename, tb, &resolve_audio_duration_in_frames)?
+                                .as_usize();
 
-                    resolve_map(&map, scene_start_unit, ctx, &total_duration_units)
-                })
-                .collect::<Vec<_>>()
-        });
+                        if matches!(range.end, AudioTimestamp::Eof) {
+                            end_sample += start_sample - offset;
+                            crate::log!(
+                                "Changing {filename}: {end_sample} dur -> {}",
+                                end_sample - start_sample,
+                            );
+                        };
 
-        match (scenes_resolved_map, global_resolved_map) {
+                        Ok((
+                            filename.to_string(),
+                            TUnit::from_usize(start_sample)..TUnit::from_usize(end_sample),
+                        ))
+                    })
+                    .collect::<error::Result<Vec<_>>>()
+            })
+            .transpose()
+    }
+
+    pub fn resolve_with_scenes<TUnit: AudioTimelineUnit + std::fmt::Debug>(
+        &'a self,
+        scenes: Option<&ResolvedScenesTimeline>,
+        tb: &TimeBase,
+        resolve_audio_duration_in_frames: impl Fn(&str) -> error::Result<usize>,
+    ) -> error::Result<Option<ResolvedAudioMap<TUnit>>> {
+        let global_resolved_map = self.resolve(0, tb, &resolve_audio_duration_in_frames)?;
+
+        let scenes_resolved_map = scenes
+            .map(|scenes| {
+                Ok(scenes
+                    .0
+                    .iter()
+                    .map(|(range, _, scene)| {
+                        scene.audio_map().resolve(
+                            range.start,
+                            tb,
+                            &resolve_audio_duration_in_frames,
+                        )
+                    })
+                    .collect::<error::Result<Vec<_>>>()?
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .collect::<Vec<_>>())
+            })
+            .transpose()?;
+
+        Ok(match (scenes_resolved_map, global_resolved_map) {
             (Some(scenes_resolved_map), Some(mut global_resolved_map)) => {
                 global_resolved_map.extend(scenes_resolved_map);
                 Some(ResolvedAudioMap(global_resolved_map))
@@ -199,37 +350,17 @@ impl<'a> AudioMap<'a> {
             (Some(scene_maps), None) => Some(ResolvedAudioMap(scene_maps)),
             (None, Some(global_maps)) => Some(ResolvedAudioMap(global_maps)),
             (None, None) => None,
-        }
-    }
-
-    pub fn none() -> Self {
-        AudioMap(None)
-    }
-}
-
-fn resolve_map<'a, TUnit: AudioTimelineUnit + std::fmt::Debug>(
-    map: &[(&'a str, AudioDuration<'a>)],
-    offset: usize,
-    ctx: &FFramesContext,
-    total_duration_units: &TUnit,
-) -> Vec<(String, Range<TUnit>)> {
-    map.iter()
-        .map(|(f, range)| {
-            let start_sample = offset + range.start.to_unit::<TUnit>(f, ctx).as_usize();
-            let mut end_sample = offset + range.end.to_unit::<TUnit>(f, ctx).as_usize();
-
-            if matches!(range.end, AudioTimestamp::Eof) {
-                end_sample += start_sample
-            };
-
-            let end_sample = end_sample.min(total_duration_units.as_usize());
-
-            (
-                f.to_string(),
-                TUnit::from_usize(start_sample)..TUnit::from_usize(end_sample),
-            )
         })
-        .collect::<Vec<_>>()
+    }
+
+    pub fn resolve_with_ctx<TUnit: AudioTimelineUnit + std::fmt::Debug>(
+        &'a self,
+        tb: &FFramesContext,
+    ) -> error::Result<Option<ResolvedAudioMap<TUnit>>> {
+        self.resolve_with_scenes(tb.scenes, &tb.time_base, |filename| {
+            Ok(tb.get_audio_data(filename).duration_in_frames(tb))
+        })
+    }
 }
 
 impl<'a, const N: usize> From<[(&'a str, AudioDuration<'a>); N]> for AudioMap<'a> {

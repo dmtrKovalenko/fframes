@@ -1,14 +1,15 @@
+use std::sync::Arc;
+
 use crate::{
-    media_provider::MediaProvider, resolve_duration_and_scenes_async, AudioMap,
-    AudioTimelineSamples, AudioTimestamp, FFramesContext, Frame, Scene, SceneInfo, Video,
+    media_provider::MediaProvider, resolve_timeline, AudioMap, AudioTimelineSamples,
+    AudioTimestamp, FFramesContext, Frame, Scene, Video,
 };
-use futures::executor::block_on;
 
 #[derive(Debug)]
 struct FakeScene {}
 
 impl Scene for FakeScene {
-    fn audio_map(&self, _: &SceneInfo) -> AudioMap {
+    fn audio_map(&self) -> AudioMap {
         use AudioTimestamp::*;
 
         AudioMap::from([
@@ -33,6 +34,10 @@ impl Video for FakeVideo {
     const WIDTH: usize = 100;
     const HEIGHT: usize = 100;
 
+    fn duration(&self) -> crate::Duration {
+        crate::Duration::Auto
+    }
+
     fn audio(&self) -> AudioMap {
         use AudioTimestamp::*;
 
@@ -44,8 +49,8 @@ impl Video for FakeVideo {
 
     fn define_scenes(&self) -> crate::Scenes {
         crate::Scenes::from(vec![
-            Box::new(FakeScene {}) as Box<dyn Scene>,
-            Box::new(FakeScene {}) as Box<dyn Scene>,
+            Arc::new(FakeScene {}) as Arc<dyn Scene>,
+            Arc::new(FakeScene {}) as Arc<dyn Scene>,
         ])
     }
 
@@ -57,22 +62,21 @@ impl Video for FakeVideo {
 #[test]
 fn test_audio_map_resolve() {
     let video = FakeVideo {};
-    let (duration_in_frames, scenes) = block_on(resolve_duration_and_scenes_async(&video, |_| {
-        Box::pin(async move { Ok(0) })
-    }))
-    .unwrap();
+    let audio_map = video.audio();
 
-    let ctx = FFramesContext {
-        fps: 24,
-        duration_in_frames,
+    let tb = crate::TimeBase {
         sample_rate: 1000,
-        mode: crate::FFramesMode::Editor,
-        media_provider: &MediaProvider::default(),
-        scenes: scenes.as_ref(),
-        font_source: None,
+        fps: 24,
     };
 
-    let resolved_map = video.audio().resolve::<AudioTimelineSamples>(&ctx).unwrap();
+    let (_, _, resolved_map) = resolve_timeline::<AudioTimelineSamples, _>(
+        &video.duration(),
+        &crate::ScenesWithAudio::from(&video.define_scenes()),
+        &tb,
+        &audio_map,
+        |_| Ok(0),
+    )
+    .unwrap();
 
     assert_eq!(
         resolved_map.0,

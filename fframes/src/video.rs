@@ -1,9 +1,11 @@
 use crate::audio_map::AudioMap;
-use crate::{fframes_context, frame, scenes::*, SceneInfo};
-use std::future::Future;
+use crate::{
+    fframes_context, frame, scenes::*, AudioTimelineFrames, AudioTimelineUnit, ResolvedAudioMap,
+    SceneInfo, TimeBase,
+};
 use std::ops::{Add, Sub};
-use std::pin::Pin;
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[allow(dead_code)]
 pub enum Duration<'a> {
@@ -11,16 +13,18 @@ pub enum Duration<'a> {
     FromAudio(&'a str),
     Seconds(f32),
     Frames(usize),
+    /// The duration that will be inferred automatically either from scenes or audio map.
+    /// If neither provided – rendering is not possible.
     Auto,
-    Add(Rc<(Duration<'a>, Duration<'a>)>),
-    Subtract(Rc<(Duration<'a>, Duration<'a>)>),
+    __Add(Rc<(Duration<'a>, Duration<'a>)>),
+    __Subtract(Rc<(Duration<'a>, Duration<'a>)>),
 }
 
 impl<'a> Add for Duration<'a> {
     type Output = Duration<'a>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self::Add(Rc::new((self, rhs)))
+        Self::__Add(Rc::new((self, rhs)))
     }
 }
 
@@ -28,40 +32,83 @@ impl<'a> Sub for Duration<'a> {
     type Output = Duration<'a>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self::Subtract(Rc::new((self, rhs)))
+        Self::__Subtract(Rc::new((self, rhs)))
     }
 }
 
 impl<'a> Duration<'a> {
-    pub(super) fn to_frames_async<
-        TFun: Fn(String) -> Pin<Box<dyn Future<Output = super::error::Result<usize>>>>,
-    >(
-        &'a self,
-        fps: usize,
-        resolve_audio_duration: &'a TFun,
-    ) -> Pin<Box<dyn Future<Output = crate::error::Result<usize>> + 'a>> {
-        Box::pin(async move {
-            match self {
-                Duration::FromAudio(audio) => resolve_audio_duration(audio.to_string()).await,
-                Duration::Seconds(seconds) => Ok((seconds * fps as f32) as usize),
-                Duration::Frames(frames) => Ok(*frames),
-                Duration::Auto => Err(crate::error::FFramesCoreError::MissingDurationOrScenes),
-                Duration::Add(sum) => {
-                    let (left, right) = sum.as_ref();
+    pub fn used_audio_files(&self) -> Option<Vec<&str>> {
+        match self {
+            Duration::FromAudio(audio) => Some(vec![audio]),
+            Duration::Seconds(_) => None,
+            Duration::Frames(_) => None,
+            Duration::Auto => None,
+            Duration::__Subtract(alt) | Duration::__Add(alt) => {
+                let (left, right) = alt.as_ref();
+                let left = left.used_audio_files();
+                let right = right.used_audio_files();
 
-                    let left = left.to_frames_async(fps, resolve_audio_duration).await?;
-                    let right = right.to_frames_async(fps, resolve_audio_duration).await?;
-                    Ok(left + right)
-                }
-                Duration::Subtract(sub) => {
-                    let (left, right) = sub.as_ref();
-
-                    let left = left.to_frames_async(fps, resolve_audio_duration).await?;
-                    let right = right.to_frames_async(fps, resolve_audio_duration).await?;
-                    Ok(left + right)
+                match (left, right) {
+                    (Some(mut left), Some(mut right)) => {
+                        left.append(&mut right);
+                        Some(left)
+                    }
+                    (Some(start), None) => Some(start),
+                    (None, Some(end)) => Some(end),
+                    (None, None) => None,
                 }
             }
-        })
+        }
+    }
+
+    pub(super) fn to_frames_async<TFun: Fn(&str) -> super::error::Result<usize>>(
+        &'a self,
+        fps: usize,
+        related_audio_map: &AudioMap,
+        resolve_audio_duration: &'a TFun,
+    ) -> crate::error::Result<usize> {
+        match self {
+            Duration::FromAudio(audio) => resolve_audio_duration(audio),
+            Duration::Seconds(seconds) => Ok((seconds * fps as f32) as usize),
+            Duration::Frames(frames) => Ok(*frames),
+            Duration::Auto => {
+                let resolved_audio_map = related_audio_map
+                    .resolve::<AudioTimelineFrames>(
+                        0,
+                        &crate::TimeBase {
+                            fps,
+                            sample_rate: 44100,
+                        },
+                        resolve_audio_duration,
+                    )?
+                    .ok_or(crate::error::FFramesCoreError::MissingDurationOrScenes)?;
+
+                let max_frame = resolved_audio_map
+                    .into_iter()
+                    .map(|(_, range)| range.end.as_usize())
+                    .max()
+                    .ok_or(crate::error::FFramesCoreError::MissingDurationOrScenes)?;
+
+                Ok(max_frame)
+            }
+            Duration::__Add(sum) => {
+                let (left, right) = sum.as_ref();
+
+                let left = left.to_frames_async(fps, related_audio_map, resolve_audio_duration)?;
+                let right =
+                    right.to_frames_async(fps, related_audio_map, resolve_audio_duration)?;
+                Ok(left + right)
+            }
+            Duration::__Subtract(sub) => {
+                let (left, right) = sub.as_ref();
+
+                let left = left.to_frames_async(fps, related_audio_map, resolve_audio_duration)?;
+                let right =
+                    right.to_frames_async(fps, related_audio_map, resolve_audio_duration)?;
+
+                Ok(left + right)
+            }
+        }
     }
 }
 
@@ -69,9 +116,10 @@ pub trait Video: Sync + Sized {
     const FPS: usize;
     const WIDTH: usize;
     const HEIGHT: usize;
-    const DURATION: Duration<'static> = Duration::Auto;
 
     fn audio(&self) -> AudioMap;
+    fn duration(&self) -> Duration;
+
     fn define_scenes(&self) -> Scenes {
         Scenes(None)
     }
@@ -85,30 +133,40 @@ pub trait Video: Sync + Sized {
 
 #[derive(Debug)]
 pub struct ResolvedScenesTimeline(
-    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Box<dyn Scene>)>,
+    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene>)>,
 );
 
-#[allow(dead_code)]
-pub async fn resolve_duration_and_scenes_async<
-    TVideo: Video,
-    TFun: Fn(String) -> Pin<Box<dyn Future<Output = super::error::Result<usize>>>>,
+pub struct ResolvedRenderingTimeline<TAudioUnit: AudioTimelineUnit + std::fmt::Debug> {
+    pub audio_map: Option<ResolvedAudioMap<TAudioUnit>>,
+    pub scenes: Option<ResolvedScenesTimeline>,
+    pub duration_in_frames: usize,
+}
+
+pub fn resolve_timeline<
+    TAudioUnit: AudioTimelineUnit + std::fmt::Debug + Copy,
+    TFun: Fn(&str) -> super::error::Result<usize>,
 >(
-    video: &TVideo,
+    duration: &Duration,
+    scenes: &ScenesWithAudio,
+    time_base: &TimeBase,
+    top_level_audio_map: &AudioMap,
     resolve_audio_duration: TFun,
-) -> crate::error::Result<(usize, Option<ResolvedScenesTimeline>)> {
-    match (video.define_scenes().0, TVideo::DURATION) {
-        (Some(scenes), Duration::Auto) => {
+) -> crate::error::Result<ResolvedRenderingTimeline<TAudioUnit>> {
+    let scenes_count = scenes.len();
+
+    let (duration, resolved_scenes) = match (scenes.0.as_deref(), duration) {
+        (Some(scenes_iter), Duration::Auto) => {
             let mut final_duration = 0;
             let mut resolved_scenes = Vec::new();
-            let scenes_count = scenes.len();
 
-            for (index, scene) in scenes.into_iter().enumerate() {
-                let duration = scene
-                    .duration()
-                    .to_frames_async(TVideo::FPS, &resolve_audio_duration)
-                    .await?;
+            for (index, SceneWithAudio { scene, audio_map }) in scenes_iter.iter().enumerate() {
+                let duration = scene.duration().to_frames_async(
+                    time_base.fps,
+                    audio_map,
+                    &resolve_audio_duration,
+                )?;
 
-                let (overlap_prev, overlap_next) = scene.overlap().to_frames(TVideo::FPS);
+                let (overlap_prev, overlap_next) = scene.overlap().to_frames(time_base.fps);
                 resolved_scenes.push((
                     final_duration - overlap_prev..final_duration + duration + overlap_next,
                     SceneInfo {
@@ -117,7 +175,7 @@ pub async fn resolve_duration_and_scenes_async<
                         duration_in_frames: duration + overlap_next,
                         is_last: index == scenes_count - 1,
                     },
-                    scene,
+                    Arc::clone(scene),
                 ));
 
                 final_duration += duration;
@@ -129,11 +187,29 @@ pub async fn resolve_duration_and_scenes_async<
             ))
         }
         (None, duration) => Ok((
-            duration
-                .to_frames_async(TVideo::FPS, &resolve_audio_duration)
-                .await?,
+            duration.to_frames_async(
+                time_base.fps,
+                top_level_audio_map,
+                &resolve_audio_duration,
+            )?,
             None,
         )),
         _ => Err(crate::error::FFramesCoreError::MissingDurationOrScenes),
-    }
+    }?;
+
+    let mut resolved_audio_map = top_level_audio_map.resolve_with_scenes::<TAudioUnit>(
+        resolved_scenes.as_ref(),
+        time_base,
+        &resolve_audio_duration,
+    )?;
+
+    if let Some(resolved_audio_map) = resolved_audio_map.as_mut() {
+        resolved_audio_map.round_max_duration(TAudioUnit::from_frames(duration, time_base));
+    };
+
+    Ok(ResolvedRenderingTimeline {
+        audio_map: resolved_audio_map,
+        scenes: resolved_scenes,
+        duration_in_frames: duration,
+    })
 }

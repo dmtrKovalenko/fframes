@@ -120,7 +120,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
         | "m" | "M" if e->Dom.KeyboardEvent.metaKey => setMagnet()
         | "m" => toggleMute()
         | "h" | "H" => toggleDock()
-        | "f" | "F"  => fullScreenToggler.toggle()
+        | "f" | "F" => fullScreenToggler.toggle()
         | _ => ()
         }
       }

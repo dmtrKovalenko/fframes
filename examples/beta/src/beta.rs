@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use fframes::{animation, AudioMap, AudioTimestamp, Scene, Svgr};
 pub use fframes::{audio_data, fframes_context, frame, video::Video};
 use svgr_macro::{self, svgr};
@@ -56,6 +58,10 @@ impl Video for BetaVideo {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Auto
+    }
+
     fn audio(&self) -> AudioMap {
         use AudioTimestamp::*;
 
@@ -67,16 +73,16 @@ impl Video for BetaVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Box<dyn Scene>> = vec![
-            Box::new(HeadingScene {}),
-            Box::new(crate::code_demo::CodeDemoScene {}),
-            Box::new(crate::rendering::RenderingScene {}),
-            Box::new(crate::iphone::IphoneScene {
+        let vec: Vec<Arc<dyn Scene>> = vec![
+            Arc::new(HeadingScene {}),
+            Arc::new(crate::code_demo::CodeDemoScene {}),
+            Arc::new(crate::rendering::RenderingScene {}),
+            Arc::new(crate::iphone::IphoneScene {
                 hours: self.hours,
                 minutes: self.minutes,
             }),
-            Box::new(crate::github::GithubScene {}),
-            Box::new(crate::examples::ExamplesScene {
+            Arc::new(crate::github::GithubScene {}),
+            Arc::new(crate::examples::ExamplesScene {
                 hello_world_video: hello_world_example::HelloWorldVideo {
                     slug: "Hello World!",
                 },
@@ -92,7 +98,7 @@ impl Video for BetaVideo {
                     audio_track: "beta.mp3",
                 },
             }),
-            Box::new(crate::end::EndScene {}),
+            Arc::new(crate::end::EndScene {}),
         ];
 
         fframes::Scenes::from(vec)
