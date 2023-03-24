@@ -7,28 +7,28 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub enum AudioTimestamp<'a> {
+    /// It is a **very specific** timestamp value. When used as end of audio range will be decoded as a whole duration of audio + start timestamp.
+    /// So in case of range like `Second(10)..Eof` audio will be played from second 10 to the end of audio file.
+    Eof,
     /// A flat frame within a video.
     Frame(usize),
     /// A second within a video timeline.
     Second(f32),
-    /// It is a **very specific** timestamp value. When used as end of audio range will be decoded as a whole duration of audio + start timestamp.
-    /// So in case of range like `Second(10)..Eof` audio will be played from second 10 to the end of audio file.
-    Eof,
     /// Represents a flat duration of audio file. It is different from `Eof` in a way that it will always be decoded as a whole duration of audio file.
     /// So in case of range like `Second(10)..DurationOfAudio("audio20seconds.mp3")`, where audio20seconds's duration is 20 seconds, audio will be played only **10 seconds**.
     /// Because `DurationOfAudio` will always be resolved to 20 seconds.
     DurationOfAudio(&'a str),
     /// Represents a sum of two timestamps. Can be constructed using `+` operator.
-    Add(Rc<(AudioTimestamp<'a>, AudioTimestamp<'a>)>),
+    __Add(Rc<(AudioTimestamp<'a>, AudioTimestamp<'a>)>),
     /// Represents a subtraction of two timestamps. Can be constructed using `-` operator.
-    Subtract(Rc<(AudioTimestamp<'a>, AudioTimestamp<'a>)>),
+    __Subtract(Rc<(AudioTimestamp<'a>, AudioTimestamp<'a>)>),
 }
 
 impl<'a> Add for AudioTimestamp<'a> {
     type Output = AudioTimestamp<'a>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self::Add(Rc::new((self, rhs)))
+        Self::__Add(Rc::new((self, rhs)))
     }
 }
 
@@ -36,7 +36,7 @@ impl<'a> Sub for AudioTimestamp<'a> {
     type Output = AudioTimestamp<'a>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self::Subtract(Rc::new((self, rhs)))
+        Self::__Subtract(Rc::new((self, rhs)))
     }
 }
 
@@ -44,6 +44,7 @@ pub trait AudioTimelineUnit {
     fn from_frames(frames: usize, tb: &TimeBase) -> Self;
     fn from_usize(val: usize) -> Self;
     fn as_usize(&self) -> usize;
+    fn to_frames(&self, tb: &TimeBase) -> usize;
 }
 
 #[derive(PartialEq, PartialOrd, Debug, Copy, Clone)]
@@ -53,12 +54,14 @@ impl AudioTimelineUnit for AudioTimelineFrames {
     fn from_frames(frames: usize, _: &TimeBase) -> Self {
         AudioTimelineFrames(frames)
     }
-
     fn as_usize(&self) -> usize {
         self.0
     }
     fn from_usize(val: usize) -> Self {
         AudioTimelineFrames(val)
+    }
+    fn to_frames(&self, _: &TimeBase) -> usize {
+        self.0
     }
 }
 
@@ -67,12 +70,6 @@ pub struct AudioTimelineSamples(pub(crate) usize);
 
 impl AudioTimelineUnit for AudioTimelineSamples {
     fn from_frames(frames: usize, tb: &TimeBase) -> Self {
-        println!(
-            "frames {} into {} equal to {}",
-            frames,
-            tb.sample_rate,
-            frames * tb.sample_rate / tb.fps
-        );
         AudioTimelineSamples(frames * tb.sample_rate / tb.fps)
     }
     fn as_usize(&self) -> usize {
@@ -80,6 +77,9 @@ impl AudioTimelineUnit for AudioTimelineSamples {
     }
     fn from_usize(val: usize) -> Self {
         AudioTimelineSamples(val)
+    }
+    fn to_frames(&self, tb: &TimeBase) -> usize {
+        self.0 * tb.fps / tb.sample_rate
     }
 }
 
@@ -91,7 +91,7 @@ impl AudioTimestamp<'_> {
         match self {
             AudioTimestamp::Eof => Some(vec![name]),
             AudioTimestamp::DurationOfAudio(_) => Some(vec![name]),
-            AudioTimestamp::Subtract(add) | AudioTimestamp::Add(add) => {
+            AudioTimestamp::__Subtract(add) | AudioTimestamp::__Add(add) => {
                 let (a, b) = &**add;
                 let a = a.infer_relying_on_dynamic_duration_audio_files(name);
                 let b = b.infer_relying_on_dynamic_duration_audio_files(name);
@@ -111,56 +111,31 @@ impl AudioTimestamp<'_> {
         }
     }
 
-    pub fn to_seconds(
-        &self,
-        filename: &str,
-        tb: &TimeBase,
-        resolve_audio_duration_in_frames: &impl Fn(&str) -> error::Result<usize>,
-    ) -> error::Result<f32> {
-        Ok(match self {
-            AudioTimestamp::Frame(frame) => *frame as f32 * tb.fps as f32,
-            AudioTimestamp::Second(seconds) => *seconds,
-            AudioTimestamp::Eof => {
-                resolve_audio_duration_in_frames(filename)? as f32 * tb.fps as f32
-            }
-            AudioTimestamp::DurationOfAudio(filename) => {
-                resolve_audio_duration_in_frames(filename)? as f32 * tb.fps as f32
-            }
-            AudioTimestamp::Add(add) => {
-                let (a, b) = &**add;
-                a.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
-                    + b.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
-            }
-            AudioTimestamp::Subtract(add) => {
-                let (a, b) = &**add;
-                a.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
-                    - b.to_seconds(filename, tb, resolve_audio_duration_in_frames)?
-            }
-        })
-    }
-
     pub(crate) fn to_frames(
         &self,
         filename: &str,
         tb: &TimeBase,
+        eof_offset: Option<usize>,
         resolve_audio_duration_in_frames: &impl Fn(&str) -> error::Result<usize>,
     ) -> error::Result<usize> {
         Ok(match self {
             AudioTimestamp::Frame(frame) => *frame,
             AudioTimestamp::Second(seconds) => (*seconds * tb.fps as f32) as usize,
-            AudioTimestamp::Eof => resolve_audio_duration_in_frames(filename)?,
+            AudioTimestamp::Eof => {
+                resolve_audio_duration_in_frames(filename)? + eof_offset.unwrap_or(0)
+            }
             AudioTimestamp::DurationOfAudio(filename) => {
                 resolve_audio_duration_in_frames(filename)?
             }
-            AudioTimestamp::Add(add) => {
+            AudioTimestamp::__Add(add) => {
                 let (a, b) = &**add;
-                a.to_frames(filename, tb, resolve_audio_duration_in_frames)?
-                    + b.to_frames(filename, tb, resolve_audio_duration_in_frames)?
+                a.to_frames(filename, tb, eof_offset, resolve_audio_duration_in_frames)?
+                    + b.to_frames(filename, tb, eof_offset, resolve_audio_duration_in_frames)?
             }
-            AudioTimestamp::Subtract(add) => {
+            AudioTimestamp::__Subtract(add) => {
                 let (a, b) = &**add;
-                a.to_frames(filename, tb, resolve_audio_duration_in_frames)?
-                    - b.to_frames(filename, tb, resolve_audio_duration_in_frames)?
+                a.to_frames(filename, tb, eof_offset, resolve_audio_duration_in_frames)?
+                    - b.to_frames(filename, tb, eof_offset, resolve_audio_duration_in_frames)?
             }
         })
     }
@@ -169,9 +144,11 @@ impl AudioTimestamp<'_> {
         &self,
         filename: &str,
         tb: &TimeBase,
+        eof_offset: Option<usize>,
         resolve_audio_duration_in_frames: impl Fn(&str) -> error::Result<usize>,
     ) -> error::Result<TUnit> {
-        let frames = self.to_frames(filename, tb, &resolve_audio_duration_in_frames)?;
+        let frames = self.to_frames(filename, tb, eof_offset, &resolve_audio_duration_in_frames)?;
+
         Ok(TUnit::from_frames(frames, tb))
     }
 }
@@ -291,25 +268,24 @@ impl<'a> AudioMap<'a> {
                 file_durations
                     .iter()
                     .map(|(filename, range)| {
-                        let start_sample = offset
-                            + range
-                                .start
-                                .to_unit::<TUnit>(filename, tb, &resolve_audio_duration_in_frames)?
-                                .as_usize();
+                        let start_unit = range.start.to_unit::<TUnit>(
+                            filename,
+                            tb,
+                            None,
+                            &resolve_audio_duration_in_frames,
+                        )?;
 
-                        let mut end_sample = offset
-                            + range
-                                .end
-                                .to_unit::<TUnit>(filename, tb, &resolve_audio_duration_in_frames)?
-                                .as_usize();
-
-                        if matches!(range.end, AudioTimestamp::Eof) {
-                            end_sample += start_sample - offset;
-                        };
+                        let end_unit = range.end.to_unit::<TUnit>(
+                            filename,
+                            tb,
+                            Some(start_unit.to_frames(tb)),
+                            &resolve_audio_duration_in_frames,
+                        )?;
 
                         Ok((
                             filename.to_string(),
-                            TUnit::from_usize(start_sample)..TUnit::from_usize(end_sample),
+                            TUnit::from_usize(start_unit.as_usize() + offset)
+                                ..TUnit::from_usize(end_unit.as_usize() + offset),
                         ))
                     })
                     .collect::<error::Result<Vec<_>>>()

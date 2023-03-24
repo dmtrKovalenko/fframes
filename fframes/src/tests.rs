@@ -94,7 +94,7 @@ fn test_audio_map_resolve() {
             ),
             (
                 "scene2.mp3".to_string(),
-                AudioTimelineSamples(20000)..AudioTimelineSamples(40000)
+                AudioTimelineSamples(20000)..AudioTimelineSamples(22000)
             ),
             (
                 "scene1.mp3".to_string(),
@@ -102,7 +102,7 @@ fn test_audio_map_resolve() {
             ),
             (
                 "scene2.mp3".to_string(),
-                AudioTimelineSamples(50000)..AudioTimelineSamples(60000)
+                AudioTimelineSamples(50000)..AudioTimelineSamples(52000)
             )
         ]
     );
