@@ -40,11 +40,12 @@ jobs:
       # - run: brew install ffmpeg
       # - run: brew link --force ffmpeg
       # - run: ffmpeg -version
-
-      - run: sudo add-apt-repository ppa:savoury1/ffmpeg5 -y
-      - run: sudo apt-get update
-      - run: sudo apt-get upgrade
-      - run: sudo apt-get install ffmpeg libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
+      - run: |
+          sudo add-apt-repository ppa:savoury1/ffmpeg4
+          sudo add-apt-repository ppa:savoury1/ffmpeg5
+          sudo apt-get update
+          sudo apt-get upgrade && sudo apt-get dist-upgrade
+          sudo apt-get install ffmpeg
 
       - name: Build
         run: just build
