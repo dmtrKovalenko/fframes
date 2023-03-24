@@ -42,7 +42,7 @@ jobs:
       # - run: ffmpeg -version
       - run: |
           sudo add-apt-repository ppa:savoury1/ffmpeg4
-          sudo add-apt-repository ppa:savoury1/ffmpeg5
+          sudo add-apt-repository ppa:savoury1/ffmpeg6
           sudo apt-get update
           sudo apt-get upgrade && sudo apt-get dist-upgrade
           sudo apt-get install ffmpeg
