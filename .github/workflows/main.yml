@@ -42,6 +42,8 @@ jobs:
       # - run: ffmpeg -version
 
       - run: sudo add-apt-repository ppa:savoury1/ffmpeg5 -y
+      - run: sudo apt-get update
+      - run: sudo apt-get upgrade
       - run: sudo apt-get install ffmpeg libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
 
       - name: Build
