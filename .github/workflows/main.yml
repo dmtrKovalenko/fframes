@@ -9,6 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:5.1.2-ubuntu2004
+    env:
+      DEBIAN_FRONTEND: noninteractive
     steps:
       - name: Checkout
         uses: actions/checkout@v3
