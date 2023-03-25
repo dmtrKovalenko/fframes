@@ -19,7 +19,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: apt-get update
-      - run: apt-get install curl
+      - run: apt-get install wget -y
 
       - uses: actions-rs/toolchain@v1
         with:
