@@ -141,24 +141,33 @@ function Dock(Props) {
             var match = e.key;
             var exit = 0;
             switch (match) {
-              case "A" :
-              case "ArrowLeft" :
-              case "a" :
-                  exit = 1;
-                  break;
-              case "ArrowRight" :
-              case "D" :
-              case "d" :
-                  return Curry._1(handleSeekRight, undefined);
+              case " " :
+                  return Curry._1(handlePlayOrPause, undefined);
+              case "0" :
+                  return Curry._1(dispatch, {
+                              TAG: /* Seek */0,
+                              _0: 0
+                            });
               case "F" :
               case "f" :
                   return Curry._1(fullScreenToggler.toggle, undefined);
+              case "ArrowLeft" :
               case "H" :
               case "h" :
-                  return ;
-              case " " :
+                  exit = 1;
+                  break;
+              case "ArrowDown" :
+              case "J" :
+              case "j" :
+                  return Curry._1(decreaseVolume, undefined);
+              case "ArrowUp" :
+              case "K" :
               case "k" :
-                  return Curry._1(handlePlayOrPause, undefined);
+                  return Curry._1(increaseVolume, undefined);
+              case "ArrowRight" :
+              case "L" :
+              case "l" :
+                  return Curry._1(handleSeekRight, undefined);
               case "M" :
               case "m" :
                   if (e.metaKey) {
@@ -166,20 +175,15 @@ function Dock(Props) {
                   }
                   exit = 2;
                   break;
-              case "ArrowDown" :
-              case "S" :
-              case "s" :
-                  return Curry._1(decreaseVolume, undefined);
-              case "ArrowUp" :
-              case "W" :
-              case "w" :
-                  return Curry._1(increaseVolume, undefined);
+              case "T" :
+              case "t" :
+                  return ;
               default:
                 exit = 2;
             }
             switch (exit) {
               case 1 :
-                  if (e.metaKey) {
+                  if (e.altKey) {
                     return Curry._1(dispatch, {
                                 TAG: /* Seek */0,
                                 _0: 0

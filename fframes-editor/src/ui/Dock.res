@@ -111,15 +111,16 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
         ->Utils.Bool.invert
       ) {
         switch e->Dom.KeyboardEvent.key {
-        | " " | "k" => handlePlayOrPause()
-        | "ArrowLeft" | "a" | "A" if e->Dom.KeyboardEvent.metaKey => dispatch(Seek(0))
-        | "ArrowLeft" | "a" | "A" => handleSeekLeft()
-        | "ArrowRight" | "d" | "D" => handleSeekRight()
-        | "ArrowUp" | "w" | "W" => increaseVolume()
-        | "ArrowDown" | "s" | "S" => decreaseVolume()
+        | " " => handlePlayOrPause()
+        | "0" => dispatch(Seek(0))
+        | "ArrowLeft" | "h" | "H" if e->Dom.KeyboardEvent.altKey => dispatch(Seek(0))
+        | "ArrowLeft" | "h" | "H" => handleSeekLeft()
+        | "ArrowRight" | "l" | "L" => handleSeekRight()
+        | "ArrowUp" | "k" | "K" => increaseVolume()
+        | "ArrowDown" | "j" | "J" => decreaseVolume()
         | "m" | "M" if e->Dom.KeyboardEvent.metaKey => setMagnet()
         | "m" => toggleMute()
-        | "h" | "H" => toggleDock()
+        | "t" | "T" => toggleDock()
         | "f" | "F" => fullScreenToggler.toggle()
         | _ => ()
         }
