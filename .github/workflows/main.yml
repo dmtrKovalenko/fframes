@@ -8,6 +8,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: rottenberg/ffmpeg:5.1.2-ubuntu2004
     steps:
       - name: Checkout
         uses: actions/checkout@v3
