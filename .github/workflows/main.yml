@@ -28,6 +28,9 @@ jobs:
           prefix-key: "v0-rust"
           cache-on-failure: true
 
+      - run: apt-get update
+      - run: apt-get install curl
+
       # TODO support macos
       # - name: Configure Homebrew cache
       #   uses: actions/cache@v2
@@ -41,10 +44,6 @@ jobs:
       # - run: brew install ffmpeg
       # - run: brew link --force ffmpeg
       # - run: ffmpeg -version
-
-      - run: sudo add-apt-repository ppa:savoury1/ffmpeg4 -y
-      - run: sudo add-apt-repository ppa:savoury1/ffmpeg5 -y
-      - run: sudo apt-get install ffmpeg libavformat-dev libavcodec-dev libavutil-dev libavfilter-dev libswscale-dev libavdevice-dev
 
       - name: Build
         run: just build
