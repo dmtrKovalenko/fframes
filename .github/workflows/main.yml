@@ -17,6 +17,10 @@ jobs:
       - uses: extractions/setup-just@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: apt-get update
+      - run: apt-get install curl
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -27,9 +31,6 @@ jobs:
         with:
           prefix-key: "v0-rust"
           cache-on-failure: true
-
-      - run: apt-get update
-      - run: apt-get install curl
 
       # TODO support macos
       # - name: Configure Homebrew cache
