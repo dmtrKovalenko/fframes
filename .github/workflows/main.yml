@@ -20,7 +20,8 @@ jobs:
 
       - run: apt-get update
       - run: apt install build-essential -y
-      - run: apt-get install wget -y
+      - run: apt-get install wget pkg-config -y
+      - run: pkg-config --libs --cflags libavutil
 
       - uses: actions-rs/toolchain@v1
         with:
