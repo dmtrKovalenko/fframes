@@ -21,7 +21,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: apt-get update
-      - run: apt install build-essential -y
+      - run: apt install -y build-essential apt install lsb-release wget software-properties-common gnupg
       - run: apt-get install  -y wget pkg-config
       - run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
