@@ -19,6 +19,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: apt-get update
+      - run: apt install build-essential -y
       - run: apt-get install wget -y
 
       - uses: actions-rs/toolchain@v1
