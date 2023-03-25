@@ -21,6 +21,6 @@ members = [
 # svgr = { path = "../resvg"}
 # usvgr = { path = "../resvg/usvgr"}
 # usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
-svgr = "0.28.3"
-usvgr = "0.28.3"
-usvgr-text-layout = "0.28.3"
+svgr = "0.28.4"
+usvgr = "0.28.4"
+usvgr-text-layout = "0.28.4"
