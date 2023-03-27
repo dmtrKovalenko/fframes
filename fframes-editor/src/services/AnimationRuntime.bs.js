@@ -33,7 +33,7 @@ var ctx = new AudioContext();
 var gain = ctx.createGain();
 
 function setVolume(value) {
-  gain.gain.value = value < 0 ? 0 : value;
+  gain.gain.value = value / 100;
   
 }
 

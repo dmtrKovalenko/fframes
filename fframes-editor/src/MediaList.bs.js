@@ -2,11 +2,11 @@
 
 import * as Cx from "rescript-classnames/src/Cx.bs.js";
 import * as Curry from "rescript/lib/es6/curry.js";
-import * as Icons from "./icons/Icons.bs.js";
-import * as Utils from "../Utils.bs.js";
+import * as Icons from "./ui/icons/Icons.bs.js";
+import * as Utils from "./Utils.bs.js";
 import * as React from "react";
 import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
-import * as MediaLoader from "../services/mediaLoader.bs.js";
+import * as MediaLoader from "./services/mediaLoader.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
 
 var iconClassName = "overflow-hidden bg-gray-400 h-10 w-10 2xl:h-12 2xl:w-12 rounded-xl bg-gradient-to-r from-indigo-400 to-pink-400 flex justify-center items-center";

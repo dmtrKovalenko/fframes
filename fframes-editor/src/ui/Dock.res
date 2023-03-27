@@ -74,11 +74,15 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
   })
 
   let increaseVolume = Hooks.useEvent(() => {
-    player.volume->Option.forEach(volume => dispatch(SetVolume(volume +. 0.2)))
+    player.volume->Option.forEach(volume =>
+      (volume + 20)->Player.validateVolume->SetVolume->dispatch
+    )
   })
 
   let decreaseVolume = Hooks.useEvent(() => {
-    player.volume->Option.forEach(volume => dispatch(SetVolume(volume -. 0.2)))
+    player.volume->Option.forEach(volume =>
+      (volume - 20)->Player.validateVolume->SetVolume->dispatch
+    )
   })
 
   let handleSeekLeft = Hooks.useEvent(() => {
@@ -94,7 +98,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
   }
 
   let toggleMute = () => {
-    ()
+    dispatch(SetVolume(0))
   }
 
   let setMagnet = () => {
@@ -190,7 +194,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
     </DockButton>
     <DockSpace>
       {switch player.volume {
-      | Some(volume) if volume > 0. => <VolumeIcon className="h-6 w-6" />
+      | Some(volume) if volume > 0 => <VolumeIcon className="h-6 w-6" />
       | Some(_) => <VolumeMuteIcon className="h-6 w-6" />
       | _ => <VolumeMuteIcon className="h-6 w-6 text-gray-500" />
       }}
@@ -198,8 +202,8 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
         disabled={player.volume->Option.isNone}
         min=Player.min_volume
         max=Player.max_volume
-        step=0.1
-        value={player.volume->Utils.Option.unwrapOr(0.0)}
+        step=1
+        value={player.volume->Utils.Option.unwrapOr(0)}
         onValueChange={handleSetVolume}
       />
     </DockSpace>

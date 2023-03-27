@@ -18,3 +18,4 @@ wasm-bindgen-futures= "0.4.28"
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
 js-sys = "0.3.55"
 futures = "0.3.27"
+serde-wasm-bindgen = "0.5"

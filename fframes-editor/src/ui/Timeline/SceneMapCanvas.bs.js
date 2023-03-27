@@ -27,10 +27,64 @@ function renderRoundedRect(ctx, x, y, width, height, radius, param) {
 }
 
 function clipOverTimeLineElement(ctx, y, width, fill) {
-  renderRoundedRect(ctx, 32, y, width, 120, 8.0, undefined);
+  renderRoundedRect(ctx, 32, y, width, 120, 16.0, undefined);
   ctx.clip();
   Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, fill);
   ctx.fillRect(32, y, width, 120);
+  
+}
+
+var sceneColors = [
+  "#f87171",
+  "#fbbf24",
+  "#4ade80",
+  "#2dd4bf",
+  "#38bdf8",
+  "#818cf8",
+  "#c084fc",
+  "#f472b6",
+  "#fb7185"
+];
+
+function frameToX(frame, size) {
+  return frame * size.frameToPxRatio + 32;
+}
+
+function renderScenes(ctx, size, editorContext) {
+  Belt_Option.forEach(Caml_option.nullable_to_opt(editorContext.videoMeta.scenesTimeline), (function (array) {
+          array.forEach(function (scene, i) {
+                var sceneColor = Belt_Array.get(sceneColors, Caml_int32.mod_(i, sceneColors.length));
+                Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, Utils.$$Option.unwrapOr(sceneColor, "#fbbf24"));
+                var x1 = frameToX(scene.start, size);
+                var x2 = frameToX(scene.end, size);
+                var overflowSafeX = Utils.$$Option.unwrapOr(Belt_Option.map(array[i - 1 | 0], (function (prev) {
+                            return frameToX(Math.max(prev.end, scene.start), size);
+                          })), x1);
+                var width = x2 - x1;
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.moveTo(x2, 24);
+                ctx.lineTo(x2 - 12, 24);
+                ctx.lineTo(x2, 36);
+                ctx.fill();
+                ctx.globalAlpha = 0.8;
+                ctx.fillRect(overflowSafeX, 24, x2 - overflowSafeX, 4);
+                ctx.closePath();
+                ctx.save();
+                ctx.rect(x1, 24, width - 4, 20);
+                ctx.clip();
+                Belt_Option.forEach(Utils.$$Array.last(scene.name.split("::")), (function (name) {
+                        ctx.fillText(name, overflowSafeX + 4, 40, undefined);
+                        
+                      }));
+                ctx.restore();
+                ctx.globalAlpha = 0.25;
+                ctx.fillRect(x1, 24, width, size.scaledHeight);
+                
+              });
+          
+        }));
+  ctx.globalAlpha = 1;
   
 }
 
@@ -102,10 +156,9 @@ function renderAudioWaveForm(ctx, endFrame, startFrame, x0, y0, audioSpaceWidth,
 
 function renderAudioMap(ctx, size, editorContext) {
   var xStack = [];
-  console.log(editorContext.videoMeta.audioMap);
   return Belt_Option.forEach(Caml_option.nullable_to_opt(editorContext.videoMeta.audioMap), (function (audioMap) {
                 audioMap.reduce((function (startY, track) {
-                        var x = track.start * size.frameToPxRatio + 32;
+                        var x = frameToX(track.start, size);
                         var startY$1 = Utils.$$Option.unwrapOr(Belt_Option.map(Belt_Array.getIndexBy(xStack, (function (param) {
                                         return x > param[0];
                                       })), (function (index) {
@@ -120,15 +173,16 @@ function renderAudioMap(ctx, size, editorContext) {
                               startY$1
                             ]);
                         ctx.save();
-                        var textWidth = ctx.measureText(track.name).width;
                         var textX = x + 2;
                         var textY = y - 8;
-                        Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, "#1f2937");
-                        ctx.fillRect(textX - 10, textY - 14 + 4, textWidth + 10, 14);
+                        ctx.save();
+                        ctx.rect(textX - 10, textY - 14 + 4, width + 8.0, 14);
+                        ctx.clip();
                         Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, "#e2e8f0");
                         ctx.fillText(track.name, textX, textY, undefined);
+                        ctx.restore();
                         ctx.beginPath();
-                        renderRoundedRect(ctx, x, y, width, 60, 4.0, undefined);
+                        renderRoundedRect(ctx, x, y, width, 60, 8.0, undefined);
                         ctx.clip();
                         Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, "#059669");
                         ctx.fillRect(x, y, width, 60);
@@ -172,6 +226,7 @@ function SceneMapCanvas(Props) {
                   element.width = Math.floor(size.scaledWidth) | 0;
                   ctx.scale(size.scale, size.scale);
                   renderTimeSlots(ctx, size, editorContext);
+                  renderScenes(ctx, size, editorContext);
                   ctx.save();
                   renderAudioMap(ctx, size, editorContext);
                   ctx.restore();
@@ -203,6 +258,9 @@ export {
   Canvas2d ,
   renderRoundedRect ,
   clipOverTimeLineElement ,
+  sceneColors ,
+  frameToX ,
+  renderScenes ,
   renderMainScene ,
   renderAudioWaveForm ,
   renderAudioMap ,

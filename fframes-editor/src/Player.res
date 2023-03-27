@@ -10,7 +10,7 @@ type state = {
   playState: playState,
   fpsLimit: option<int>,
   svg: option<string>,
-  volume: option<float>,
+  volume: option<int>,
 }
 
 @genType
@@ -20,7 +20,7 @@ type action =
   | AllowPlay
   | Play
   | Pause
-  | SetVolume(float)
+  | SetVolume(int)
 
 let currentFps: ref<option<int>> = ref(None)
 
@@ -29,8 +29,9 @@ let volume_key = "ffvolume"
 @inline
 let frame_key = "fframe"
 
-let min_volume = 0.
-let max_volume = 1.
+let min_volume = 0
+let max_volume = 100
+let validateVolume = Utils.Math.minMax(~min=min_volume, ~max=max_volume)
 
 module MakePlayer = (Wasm: WasmController.WasmBridge) => {
   module PlayerState = {
@@ -43,8 +44,8 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       ->Utils.Option.unwrapOr(0)
 
     let volume = switch Dom.Storage.getItem(volume_key, Dom.Storage.localStorage) {
-    | Some(savedValue) if Wasm.videoMeta.hasAudio => Some(savedValue->Js.Float.fromString)
-    | None if Wasm.videoMeta.hasAudio => Some(0.6)
+    | Some(savedValue) if Wasm.videoMeta.hasAudio => savedValue->Js.Int.fromString
+    | None if Wasm.videoMeta.hasAudio => Some(60)
     | _ => None
     }
 
@@ -102,7 +103,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     | Pause => {...state, playState: Paused}
     | SetVolume(volume) => {
         ...state,
-        volume: volume->Js.Math.max(min_volume)->Js.Math.min(max_volume)->Utils.Option.some,
+        volume: Some(volume),
       }
     }
   }
@@ -129,6 +130,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       )
       ()
     }
+    
 
     switch action {
     | Play if get().playState !== Playing => startPlaying(get().frame)
@@ -141,9 +143,9 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     | NewFrame(newFrame) if mod(newFrame, Wasm.videoMeta.fps) === 0 =>
       Dom.Storage.localStorage |> Dom.Storage.setItem(frame_key, newFrame->Js.Int.toString)
     | Pause => AnimationRuntime.AudioRuntime.stop()
-    | SetVolume(value) => {
-        AnimationRuntime.AudioRuntime.setVolume(value)
-        Dom.Storage.localStorage |> Dom.Storage.setItem(volume_key, value->Js.Float.toString)
+    | SetVolume(volume) => {
+        AnimationRuntime.AudioRuntime.setVolume(volume)
+        Dom.Storage.localStorage |> Dom.Storage.setItem(volume_key, volume->Js.Int.toString)
       }
     | _ => ()
     }

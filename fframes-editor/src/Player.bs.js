@@ -14,13 +14,19 @@ var currentFps = {
   contents: undefined
 };
 
+var func = Utils.$$Math.minMax;
+
+function validateVolume(param) {
+  return Curry._3(func, param, 0, 100);
+}
+
 function MakePlayer(Wasm) {
   var previousSavedFrame = Utils.$$Option.unwrapOr(Utils.$$Option.flatten(Belt_Option.map(Dom_storage.getItem("fframe", localStorage), Js__Int.fromString)), 0);
   var savedValue = Dom_storage.getItem("ffvolume", localStorage);
   var volume = savedValue !== undefined ? (
-      Wasm.videoMeta.hasAudio ? Number(savedValue) : undefined
+      Wasm.videoMeta.hasAudio ? Js__Int.fromString(savedValue) : undefined
     ) : (
-      Wasm.videoMeta.hasAudio ? 0.6 : undefined
+      Wasm.videoMeta.hasAudio ? 60 : undefined
     );
   var state = Curry._1(MediaLoader.MediaLoaderObserver.get, undefined);
   var initial = state.allMediaLoaded ? ({
@@ -104,7 +110,7 @@ function MakePlayer(Wasm) {
                     playState: state.playState,
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
-                    volume: Utils.$$Option.some(Math.min(Math.max(action._0, 0), 1))
+                    volume: action._0
                   };
         
       }
@@ -181,9 +187,9 @@ function MakePlayer(Wasm) {
               return ;
             }
         case /* SetVolume */2 :
-            var value = action._0;
-            AnimationRuntime.AudioRuntime.setVolume(value);
-            return Dom_storage.setItem("ffvolume", value.toString(), localStorage);
+            var volume = action._0;
+            AnimationRuntime.AudioRuntime.setVolume(volume);
+            return Dom_storage.setItem("ffvolume", volume.toString(), localStorage);
         
       }
     }
@@ -210,12 +216,13 @@ function MakePlayer(Wasm) {
 
 var min_volume = 0;
 
-var max_volume = 1;
+var max_volume = 100;
 
 export {
   currentFps ,
   min_volume ,
   max_volume ,
+  validateVolume ,
   MakePlayer ,
   
 }

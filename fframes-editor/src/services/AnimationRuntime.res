@@ -6,7 +6,7 @@ type onFrame = (~secondsFromStart: float) => bool
 
 module AudioRuntime = {
   let rafId: ref<option<Webapi.rafId>> = ref(None)
-  let playingSources: ref<array<(WasmController.audioTrack, AudioNode.t)>> = ref([])
+  let playingSources: ref<array<(WasmController.namedRange, AudioNode.t)>> = ref([])
   let startTime = ref(0.)
   let lastFrameTime = ref(None)
   let runtimeFps = ref(None)
@@ -15,13 +15,7 @@ module AudioRuntime = {
   let gain = ctx->AudioContext.createGain
 
   let setVolume = value => {
-    gain["gain"]["value"] = if value < 0. {
-      // this is a very dumb protection from https://0.30000000000000004.com/ problem. We do some math
-      // on the value and here check that value after bumping is not less then 0.
-      0.
-    } else {
-      value
-    }
+    gain["gain"]["value"] = value->Float.fromInt /. 100.
   }
 
   let stop = () => {

@@ -27,6 +27,10 @@ module Math = {
   let divideWithReminder = (x, y) => {
     (Js.Math.floor(x /. y), Js.Float.mod(x, y))
   }
+
+  let minMax = (val, ~min, ~max) => {
+    val < min ? min : val > max ? max : val
+  }
 }
 
 module Option = {

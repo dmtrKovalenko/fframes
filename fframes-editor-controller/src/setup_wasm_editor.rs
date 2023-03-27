@@ -14,7 +14,6 @@ macro_rules! setup_wasm_editor {
             static ref BREAK_LINES_CACHE: fframes::BreaksLruCache = fframes::BreaksLruCache::new(10).unwrap();
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
-            static ref AUDIO_MAP: Mutex<Option<Vec<wasm_audio_map::AudioTrack>>> = Mutex::new(None);
             static ref TIME_BASE: Mutex<Option<fframes::TimeBase>> = Mutex::new(None);
             static ref MEDIA_PROVIDER: Mutex<fframes::media_provider::MediaProvider> =
                 Mutex::new(fframes::media_provider::MediaProvider {
@@ -25,77 +24,33 @@ macro_rules! setup_wasm_editor {
         }
 
         #[wasm_bindgen]
-        pub struct VideoMetadata {
-            duration: i32,
-        }
-
-        #[wasm_bindgen]
-        /// Can not be pulled out of macro because wasm_bindgen does not work with generics
-        impl VideoMetadata {
-            #[wasm_bindgen(getter, js_name=durationInFrames)]
-            pub fn duration_in_frames(&self) -> i32 {
-                self.duration
-            }
-
-            #[wasm_bindgen(getter)]
-            pub fn height(&self) -> f64 {
-                $x::HEIGHT as f64
-            }
-
-            #[wasm_bindgen(getter)]
-            pub fn width(&self) -> f64 {
-                $x::WIDTH as f64
-            }
-
-            #[wasm_bindgen(getter = name)]
-            pub fn name(&self) -> String {
-                std::any::type_name::<$x>().to_owned()
-            }
-
-            #[wasm_bindgen(getter, js_name=hasAudio)]
-            pub fn has_audio(&self) -> bool {
-                AUDIO_MAP.lock().unwrap().is_some()
-            }
-
-            #[wasm_bindgen(getter, js_name = audioMap)]
-            /// Returns a resolved audio_map with audio timestamps converted to frames.
-            /// The audio timestamp fallbacks to 0 if audio not loaded yet
-            /// @returns {Record<string, [number, number]>}
-            pub fn audio_map(&self) -> JsValue {
-                JsValue::from_serde(&AUDIO_MAP.lock().unwrap().clone()).unwrap()
-            }
-
-            #[wasm_bindgen(getter)]
-            pub fn fps(&self) -> f64 {
-                $x::FPS as f64
-            }
-        }
-
-        #[wasm_bindgen]
-        pub async fn prepare() -> Result<VideoMetadata, JsValue> {
+        pub async fn prepare() -> Result<video_metadata::VideoMetadata, JsValue> {
             console_error_panic_hook::set_once();
 
+            // TODO configurable fps
             let tb = fframes::TimeBase {
                 fps: $x::FPS,
                 sample_rate: 44100,
             };
 
+            TIME_BASE.lock().unwrap().replace(tb);
+
             let (duration, scenes, audio_map) = wasm_audio_map::prepare_video_with_audio(&VIDEO, &tb).await;
+
+            let mut duration_mutex_ref = DURATION_IN_FRAMES.lock().unwrap();
+            *duration_mutex_ref = duration;
+
+            let video_metadata = video_metadata::VideoMetadata::new::<$x>(
+                duration as i32,
+                audio_map,
+                scenes.as_ref()
+            );
 
             if let Some(scenes) = scenes {
                 SCENES.lock().unwrap().replace(scenes);
             }
 
-            if let Some(audio_map) = audio_map {
-                AUDIO_MAP.lock().unwrap().replace(audio_map);
-            }
-
-            let mut duration_mutex_ref =  DURATION_IN_FRAMES.lock().unwrap();
-            *duration_mutex_ref = duration;
-
-            TIME_BASE.lock().unwrap().replace(tb);
-
-            Ok(VideoMetadata { duration: duration as i32 })
+            Ok(video_metadata)
         }
 
         #[wasm_bindgen]

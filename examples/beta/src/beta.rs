@@ -110,16 +110,7 @@ impl Video for BetaVideo {
             xmlns="http://www.w3.org/2000/svg"
             width={Self::WIDTH}
             height={Self::HEIGHT}
-
           >
-            <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
-              x="0"
-              y="0"
-             fill="#fff"
-            />
-
             <image
               width={Self::WIDTH}
               height={Self::HEIGHT}

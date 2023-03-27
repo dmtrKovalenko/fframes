@@ -181,7 +181,7 @@ type AudioTimeline<TUnit> = Vec<(String, Range<TUnit>)>;
 
 /// The resolved audio_map contain each audio file position and duration in specified units.
 #[derive(Debug)]
-pub struct ResolvedAudioMap<TUnit: AudioTimelineUnit>(pub AudioTimeline<TUnit>);
+pub struct ResolvedAudioMap<TUnit: AudioTimelineUnit>(pub(crate) AudioTimeline<TUnit>);
 
 impl<TUnit: AudioTimelineUnit + Copy> ResolvedAudioMap<TUnit> {
     pub(crate) fn round_max_duration(&mut self, max_duration: TUnit) {

@@ -17,5 +17,7 @@ let timeline_margin_x = 64
 let timeline_margin_y = 64
 @inline
 let scene_height_size = 120
+@inline
+let timeline_scenes_start_y = 24
 
 let audio_height = scene_height_size / 2

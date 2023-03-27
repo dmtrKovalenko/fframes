@@ -6,8 +6,9 @@ import * as Hooks from "../hooks/Hooks.bs.js";
 import * as Utils from "../Utils.bs.js";
 import * as React from "react";
 import * as Timeline from "./Timeline/Timeline.bs.js";
-import * as $$MediaList from "./MediaList.bs.js";
+import * as $$MediaList from "../MediaList.bs.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
+import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as ReactHelmet from "react-helmet";
 import * as EditorContext from "../EditorContext.bs.js";
 import * as UseEditorLayout from "../hooks/useEditorLayout.bs.js";
@@ -22,6 +23,7 @@ function Editor(Props) {
   var match = Curry._1(context.usePlayer, undefined);
   var match$1 = Hooks.useToggle(false);
   var layout = Hooks.useEditorLayout(match$1[0]);
+  var previewRef = React.useRef(null);
   var videoTitle = React.useMemo((function () {
           var name = Utils.$$Array.last(context.videoMeta.name.split("::"));
           if (name !== undefined) {
@@ -30,6 +32,13 @@ function Editor(Props) {
             return "Unknown video";
           }
         }), [context.videoMeta]);
+  React.useEffect((function () {
+          Belt_Option.forEach(Caml_option.nullable_to_opt(previewRef.current), (function (param) {
+                  console.log("Happy video hacking! Your preview will be rendered at", param);
+                  
+                }));
+          
+        }), []);
   return React.createElement("div", {
               className: "w-screen h-screen bg-gray-900"
             }, React.createElement(ReactHelmet.Helmet, {
@@ -46,6 +55,7 @@ function Editor(Props) {
                                             className: "text-2xl mb-6 font-medium text-white px-6"
                                           }, videoTitle), React.createElement($$MediaList.make, {}));
                           })), null), React.createElement("div", {
+                      ref: previewRef,
                       className: "bg-black",
                       id: "editor-preview",
                       style: UseEditorLayout.sizeToStyle(layout.preview)

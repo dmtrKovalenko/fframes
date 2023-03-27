@@ -51,6 +51,10 @@ pub trait Scene: Debug + Sync + Send {
     fn audio_map(&self) -> crate::audio_map::AudioMap {
         crate::audio_map::AudioMap::none()
     }
+
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub struct Scenes(pub(crate) Option<Vec<Arc<dyn Scene>>>);

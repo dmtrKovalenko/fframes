@@ -3,11 +3,12 @@ module Window = {
 }
 
 module Document = {
-  @send external hasFocus: (Webapi.Dom.Document.t) => bool = "hasFocus"
+  @send external hasFocus: Webapi.Dom.Document.t => bool = "hasFocus"
 }
 
 module Element = {
   @get external style: Webapi.Dom.Element.t => {..} = "style"
+  @get external firstChild: Webapi.Dom.Element.t => option<Webapi.Dom.Element.t> = "children[0]"
 
   let targetAsElement = %raw(`_ => _`)
 

@@ -30,10 +30,86 @@ let clipOverTimeLineElement = (ctx, ~y, ~width, ~fill) => {
   let x = Float.fromInt(timeline_margin_x / 2)
   let height = Float.fromInt(scene_height_size)
 
-  ctx->renderRoundedRect(~x, ~y, ~width, ~height, ~radius=8.0, ())
+  ctx->renderRoundedRect(~x, ~y, ~width, ~height, ~radius=16.0, ())
   ctx->Canvas2d.clip
   ctx->Canvas2d.setFillStyle(String, fill)
   ctx->Canvas2d.fillRect(~x, ~y, ~w=width, ~h=height)
+}
+
+let sceneColors = [
+  "#f87171",
+  "#fbbf24",
+  "#4ade80",
+  "#2dd4bf",
+  "#38bdf8",
+  "#818cf8",
+  "#c084fc",
+  "#f472b6",
+  "#fb7185",
+]
+
+let frameToX = (frame, size: canvasSize) =>
+  Float.fromInt(frame) *. size.frameToPxRatio +. (timeline_margin_x / 2)->Float.fromInt
+
+let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorContext) => {
+  editorContext.videoMeta.scenesTimeline
+  ->Js.Nullable.toOption
+  ->Belt.Option.forEach(array =>
+    array->Js.Array.forEachWithIndex((scene, i) => {
+      let sceneColor = sceneColors |> Js.Array.length |> mod(i) |> Belt.Array.get(sceneColors)
+      ctx->Canvas2d.setFillStyle(String, sceneColor->Utils.Option.unwrapOr("#fbbf24"))
+
+      let x1 = scene.start->frameToX(size)
+      let x2 = scene.end->frameToX(size)
+      let overflowSafeX =
+        array
+        ->Js.Array.get(i - 1)
+        ->Belt.Option.map(prev => frameToX(Utils.Math.maxI(prev.end, scene.start), size))
+        ->Utils.Option.unwrapOr(x1)
+
+      let width = x2 -. x1
+      let markSize = 12
+
+      // rescript cannot precalculate float expressions so using as much ints as possible
+      let uninlided_y = timeline_scenes_start_y->Int.toFloat
+
+      ctx->Canvas2d.globalAlpha(1.)
+
+      ctx->Canvas2d.beginPath
+      ctx->Canvas2d.moveTo(~x=x2, ~y=timeline_scenes_start_y->Float.fromInt)
+      ctx->Canvas2d.lineTo(
+        ~x=x2 -. markSize->Float.fromInt,
+        ~y=timeline_scenes_start_y->Float.fromInt,
+      )
+      ctx->Canvas2d.lineTo(~x=x2, ~y=(timeline_scenes_start_y + markSize)->Float.fromInt)
+      ctx->Canvas2d.fill
+      ctx->Canvas2d.globalAlpha(0.8)
+      ctx->Canvas2d.fillRect(~x=overflowSafeX, ~y=uninlided_y, ~w=x2 -. overflowSafeX, ~h=4.)
+      ctx->Canvas2d.closePath
+
+      ctx->Canvas2d.save
+
+      ctx->Canvas2d.rect(~x=x1, ~y=uninlided_y, ~w=width -. 4., ~h=20.)
+      ctx->Canvas2d.clip
+      scene.name
+      ->Js.String.split("::")
+      ->Utils.Array.last
+      ->Belt.Option.forEach(name =>
+        name->Canvas2d.fillText(
+          ctx,
+          ~x=overflowSafeX +. 4.,
+          ~y=(timeline_scenes_start_y + 16)->Int.toFloat,
+        )
+      )
+
+      ctx->Canvas2d.restore
+
+      ctx->Canvas2d.globalAlpha(0.25)
+      ctx->Canvas2d.fillRect(~x=x1, ~y=uninlided_y, ~w=width, ~h=size.scaledHeight)
+    })
+  )
+
+  ctx->Canvas2d.globalAlpha(1.)
 }
 
 let renderMainScene = (ctx, size, editorContext: EditorContext.editorContext) => {
@@ -123,13 +199,12 @@ let renderAudioWaveForm = (
 
 let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => {
   let xStack = []
-  Js.Console.log(editorContext.videoMeta.audioMap)
 
   editorContext.videoMeta.audioMap
   ->Js.Nullable.toOption
   ->Option.forEach(audioMap => audioMap->Js.Array.reduce((startY, track) => {
-      let x =
-        Float.fromInt(track.start) *. size.frameToPxRatio +. (timeline_margin_x / 2)->Float.fromInt
+      let x = frameToX(track.start, size)
+
       let startY =
         xStack
         ->Array.getIndexBy(((lastX, _)) => x > lastX)
@@ -147,21 +222,23 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
       xStack->Js.Array.push((x +. width, startY))->ignore
       ctx->Canvas2d.save
 
-      let textWidth = ctx |> Canvas2d.measureText(track.name) |> Canvas2d.width
       let textX = x +. 2.
       let textY = y -. 8.
       let textHeight = 14.
 
-      ctx->Canvas2d.setFillStyle(String, "#1f2937")
-      ctx->Canvas2d.fillRect(
+      // this is level 2 safe needed for a clip around track name text to prevent same stack names overflow.
+      ctx->Canvas2d.save
+      ctx->Canvas2d.rect(
         ~x=textX -. 10.,
         ~y=textY -. textHeight +. 4.,
-        ~w=textWidth +. 10.,
+        ~w=width +. 8.0,
         ~h=textHeight,
       )
 
+      ctx->Canvas2d.clip
       ctx->Canvas2d.setFillStyle(String, "#e2e8f0")
       track.name->Canvas2d.fillText(ctx, ~x=textX, ~y=textY)
+      ctx->Canvas2d.restore
       ctx->Canvas2d.beginPath
 
       ctx->renderRoundedRect(
@@ -169,7 +246,7 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
         ~y,
         ~width,
         ~height=Float.fromInt(scene_height_size / 2),
-        ~radius=4.0,
+        ~radius=8.0,
         (),
       )
       ctx->Canvas2d.clip
@@ -246,7 +323,9 @@ let make = (~size: canvasSize) => {
       element->Canvas.CanvasElement.setWidth(size.scaledWidth->Js.Math.floor->Float.toInt)
 
       ctx->Canvas2d.scale(~x=size.scale, ~y=size.scale)
+
       ctx->renderTimeSlots(size, editorContext)
+      ctx->renderScenes(size, editorContext)
 
       ctx->Canvas2d.save
       ctx->renderAudioMap(size, editorContext)

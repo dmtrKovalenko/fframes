@@ -13,7 +13,7 @@ import type {Js_Promise_t as ReScriptJs_Js_Promise_t} from './shims/Js.shim';
 import type {Js_Uint8Array_t as ReScriptJs_Js_Uint8Array_t} from './shims/Js.shim';
 
 // tslint:disable-next-line:interface-over-type-literal
-export type audioTrack = {
+export type namedRange = {
   readonly name: string; 
   readonly start: number; 
   readonly end: number
@@ -27,7 +27,8 @@ export type videoMeta = {
   readonly fps: number; 
   readonly durationInFrames: number; 
   readonly hasAudio: boolean; 
-  readonly audioMap: ReScriptJs_Js_Nullable_t<audioTrack[]>
+  readonly audioMap: ReScriptJs_Js_Nullable_t<namedRange[]>; 
+  readonly scenesTimeline: ReScriptJs_Js_Nullable_t<namedRange[]>
 };
 export type VideoMeta = videoMeta;
 

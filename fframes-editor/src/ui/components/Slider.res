@@ -2,11 +2,11 @@ module RadixSlider = {
   module Root = {
     @react.component @module("@radix-ui/react-slider")
     external make: (
-      ~value: array<float>,
-      ~onValueChange: array<float> => unit=?,
-      ~step: float,
-      ~min: float,
-      ~max: float,
+      ~value: array<int>,
+      ~onValueChange: array<int> => unit=?,
+      ~step: int,
+      ~min: int,
+      ~max: int,
       ~disabled: bool=?,
       ~children: React.element,
       ~className: string=?,

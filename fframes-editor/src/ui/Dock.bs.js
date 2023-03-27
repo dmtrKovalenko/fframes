@@ -109,7 +109,7 @@ function Dock(Props) {
         return Belt_Option.forEach(player.volume, (function (volume) {
                       return Curry._1(dispatch, {
                                   TAG: /* SetVolume */2,
-                                  _0: volume + 0.2
+                                  _0: Player.validateVolume(volume + 20 | 0)
                                 });
                     }));
       });
@@ -117,7 +117,7 @@ function Dock(Props) {
         return Belt_Option.forEach(player.volume, (function (volume) {
                       return Curry._1(dispatch, {
                                   TAG: /* SetVolume */2,
-                                  _0: volume - 0.2
+                                  _0: Player.validateVolume(volume - 20 | 0)
                                 });
                     }));
       });
@@ -192,7 +192,14 @@ function Dock(Props) {
                     return Curry._1(handleSeekLeft, undefined);
                   }
               case 2 :
-                  return ;
+                  if (match === "m") {
+                    return Curry._1(dispatch, {
+                                TAG: /* SetVolume */2,
+                                _0: 0
+                              });
+                  } else {
+                    return ;
+                  }
               
             }
           };
@@ -275,10 +282,10 @@ function Dock(Props) {
                       }), React.createElement(Slider.make, {
                       onValueChange: handleSetVolume,
                       disabled: Belt_Option.isNone(player.volume),
-                      value: Utils.$$Option.unwrapOr(player.volume, 0.0),
+                      value: Utils.$$Option.unwrapOr(player.volume, 0),
                       min: Player.min_volume,
                       max: Player.max_volume,
-                      step: 0.1
+                      step: 1
                     })), React.createElement(make, {}), React.createElement(make$2, {
                   children: React.createElement(Icons.MagnetIcon.make, {
                         className: "h-6 w-6"

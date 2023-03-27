@@ -9,6 +9,7 @@ let make = () => {
   let (player, _) = context.usePlayer()
   let (isFullScreen, fullScreenToggler) = Hooks.useToggle(false)
   let layout = useEditorLayout(~isFullScreen)
+  let previewRef = React.useRef(Js.Nullable.null)
 
   let videoTitle = React.useMemo1(() => {
     switch context.videoMeta.name->Js.String.split("::")->Utils.Array.last {
@@ -16,6 +17,14 @@ let make = () => {
     | _ => React.string("Unknown video")
     }
   }, [context.videoMeta])
+
+  React.useEffect0(() => {
+    previewRef.current
+    ->Js.Nullable.toOption
+    ->Belt.Option.forEach(Js.Console.log2("Happy video hacking! Your preview will be rendered at"))
+
+    None
+  })
 
   <div className="w-screen h-screen bg-gray-900">
     <ReactHelmet>
@@ -48,6 +57,7 @@ let make = () => {
       // Preview
       <div
         id="editor-preview"
+        ref={ReactDOM.Ref.domRef(previewRef)}
         style={layout.preview->UseEditorLayout.sizeToStyle}
         className="bg-black">
         {player.svg

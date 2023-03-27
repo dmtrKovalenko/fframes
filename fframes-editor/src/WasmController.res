@@ -1,4 +1,4 @@
-type audioTrack = {
+type namedRange = {
   name: string,
   start: int,
   end: int,
@@ -12,7 +12,8 @@ type videoMeta = {
   fps: int,
   durationInFrames: int,
   hasAudio: bool,
-  audioMap: Js.Nullable.t<array<audioTrack>>,
+  audioMap: Js.Nullable.t<array<namedRange>>,
+  scenesTimeline: Js.Nullable.t<array<namedRange>>,
 }
 
 type fontInfo = {

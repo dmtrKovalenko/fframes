@@ -136,6 +136,14 @@ pub struct ResolvedScenesTimeline(
     pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene>)>,
 );
 
+impl ResolvedScenesTimeline {
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene>)> {
+        self.0.iter()
+    }
+}
+
 pub struct ResolvedRenderingTimeline<TAudioUnit: AudioTimelineUnit + std::fmt::Debug> {
     pub audio_map: Option<ResolvedAudioMap<TAudioUnit>>,
     pub scenes: Option<ResolvedScenesTimeline>,
