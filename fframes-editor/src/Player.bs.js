@@ -21,7 +21,11 @@ function validateVolume(param) {
 }
 
 function MakePlayer(Wasm) {
-  var previousSavedFrame = Utils.$$Option.unwrapOr(Utils.$$Option.flatten(Belt_Option.map(Dom_storage.getItem("fframe", localStorage), Js__Int.fromString)), 0);
+  var sceneIndex = Belt_Option.flatMap(Dom_storage.getItem("ffscene", localStorage), Js__Int.fromString);
+  var match = Wasm.videoMeta.scenesTimeline;
+  var initialFrame = Utils.$$Option.unwrapOr(!(match == null) && sceneIndex !== undefined ? Belt_Option.map(match[sceneIndex], (function (scene) {
+                return scene.start;
+              })) : Belt_Option.flatMap(Dom_storage.getItem("fframe", localStorage), Js__Int.fromString), 0);
   var savedValue = Dom_storage.getItem("ffvolume", localStorage);
   var volume = savedValue !== undefined ? (
       Wasm.videoMeta.hasAudio ? Js__Int.fromString(savedValue) : undefined
@@ -30,22 +34,25 @@ function MakePlayer(Wasm) {
     );
   var state = Curry._1(MediaLoader.MediaLoaderObserver.get, undefined);
   var initial = state.allMediaLoaded ? ({
-        frame: previousSavedFrame,
-        startPlayingFrame: previousSavedFrame,
+        frame: initialFrame,
+        startPlayingFrame: initialFrame,
         playState: /* WaitingForAction */2,
         fpsLimit: Wasm.videoMeta.fps,
         svg: Utils.$$Option.some(Curry._1(Wasm.controller.render_frame, BigInt(0))),
-        volume: volume
+        volume: volume,
+        sceneIndex: sceneIndex
       }) : ({
-        frame: previousSavedFrame,
-        startPlayingFrame: previousSavedFrame,
+        frame: initialFrame,
+        startPlayingFrame: initialFrame,
         playState: /* CantPlay */3,
         fpsLimit: Wasm.videoMeta.fps,
         svg: undefined,
-        volume: volume
+        volume: volume,
+        sceneIndex: sceneIndex
       });
   var PlayerState = {
-    previousSavedFrame: previousSavedFrame,
+    sceneIndex: sceneIndex,
+    initialFrame: initialFrame,
     volume: volume,
     initial: initial
   };
@@ -54,6 +61,16 @@ function MakePlayer(Wasm) {
       });
   var get = include.get;
   var set = include.set;
+  var recordFrame = function (frame) {
+    var scenes = Wasm.videoMeta.scenesTimeline;
+    if (scenes == null) {
+      return Dom_storage.setItem("fframe", frame.toString(), localStorage);
+    }
+    var currentScene = scenes.findIndex(function (scene) {
+          return scene.end > frame;
+        });
+    return Dom_storage.setItem("ffscene", currentScene.toString(), localStorage);
+  };
   var reducer = function (action) {
     var state = Curry._1(get, undefined);
     if (typeof action === "number") {
@@ -65,7 +82,8 @@ function MakePlayer(Wasm) {
                     playState: /* WaitingForAction */2,
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
-                    volume: state.volume
+                    volume: state.volume,
+                    sceneIndex: state.sceneIndex
                   };
         case /* Play */1 :
             if (state.frame <= 0 || state.frame >= Wasm.videoMeta.durationInFrames) {
@@ -75,7 +93,8 @@ function MakePlayer(Wasm) {
                       playState: /* Playing */0,
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
-                      volume: state.volume
+                      volume: state.volume,
+                      sceneIndex: state.sceneIndex
                     };
             } else {
               return {
@@ -84,7 +103,8 @@ function MakePlayer(Wasm) {
                       playState: /* Playing */0,
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
-                      volume: state.volume
+                      volume: state.volume,
+                      sceneIndex: state.sceneIndex
                     };
             }
         case /* Pause */2 :
@@ -94,7 +114,8 @@ function MakePlayer(Wasm) {
                     playState: /* Paused */1,
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
-                    volume: state.volume
+                    volume: state.volume,
+                    sceneIndex: state.sceneIndex
                   };
         
       }
@@ -110,7 +131,8 @@ function MakePlayer(Wasm) {
                     playState: state.playState,
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
-                    volume: action._0
+                    volume: action._0,
+                    sceneIndex: state.sceneIndex
                   };
         
       }
@@ -124,7 +146,8 @@ function MakePlayer(Wasm) {
               playState: /* Paused */1,
               fpsLimit: state.fpsLimit,
               svg: svg,
-              volume: state.volume
+              volume: state.volume,
+              sceneIndex: state.sceneIndex
             };
     }
     var frame$1 = action._0;
@@ -137,7 +160,8 @@ function MakePlayer(Wasm) {
             playState: state.playState,
             fpsLimit: state.fpsLimit,
             svg: svg$1,
-            volume: state.volume
+            volume: state.volume,
+            sceneIndex: state.sceneIndex
           };
   };
   var onFrame = function (dispatch, secondsFromStart) {
@@ -178,11 +202,11 @@ function MakePlayer(Wasm) {
             var newFrame = action._0;
             AnimationRuntime.AudioRuntime.stop(undefined);
             startPlaying(newFrame);
-            return Dom_storage.setItem("fframe", newFrame.toString(), localStorage);
+            return recordFrame(newFrame);
         case /* NewFrame */1 :
             var newFrame$1 = action._0;
             if (Caml_int32.mod_(newFrame$1, Wasm.videoMeta.fps) === 0) {
-              return Dom_storage.setItem("fframe", newFrame$1.toString(), localStorage);
+              return recordFrame(newFrame$1);
             } else {
               return ;
             }
@@ -207,6 +231,7 @@ function MakePlayer(Wasm) {
           nextId: include.nextId,
           subscribe: include.subscribe,
           useObservable: include.useObservable,
+          recordFrame: recordFrame,
           reducer: reducer,
           onFrame: onFrame,
           sideEffect: sideEffect,

@@ -11,6 +11,7 @@ type state = {
   fpsLimit: option<int>,
   svg: option<string>,
   volume: option<int>,
+  sceneIndex: option<int>,
 }
 
 @genType
@@ -28,6 +29,8 @@ let currentFps: ref<option<int>> = ref(None)
 let volume_key = "ffvolume"
 @inline
 let frame_key = "fframe"
+@inline
+let scene_key = "ffscene"
 
 let min_volume = 0
 let max_volume = 100
@@ -36,12 +39,16 @@ let validateVolume = Utils.Math.minMax(~min=min_volume, ~max=max_volume)
 module MakePlayer = (Wasm: WasmController.WasmBridge) => {
   module PlayerState = {
     type t = state
+    open WasmController
 
-    let previousSavedFrame =
-      Dom.Storage.getItem(frame_key, Dom.Storage.localStorage)
-      ->Option.map(Js.Int.fromString)
-      ->Utils.Option.flatten
-      ->Utils.Option.unwrapOr(0)
+    let sceneIndex =
+      Dom.Storage.getItem(scene_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
+
+    let initialFrame = switch (Wasm.videoMeta.scenesTimeline->Js.Nullable.toOption, sceneIndex) {
+    | (Some(scenes), Some(index)) => scenes->Js.Array.get(index)->Option.map(scene => scene.start)
+    | _ =>
+      Dom.Storage.getItem(frame_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
+    }->Utils.Option.unwrapOr(0)
 
     let volume = switch Dom.Storage.getItem(volume_key, Dom.Storage.localStorage) {
     | Some(savedValue) if Wasm.videoMeta.hasAudio => savedValue->Js.Int.fromString
@@ -51,25 +58,37 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
 
     let initial = switch MediaLoader.MediaLoaderObserver.get() {
     | state if state.allMediaLoaded => {
-        frame: previousSavedFrame,
-        startPlayingFrame: previousSavedFrame,
+        frame: initialFrame,
+        startPlayingFrame: initialFrame,
         playState: WaitingForAction,
         fpsLimit: Some(Wasm.videoMeta.fps),
         volume: volume,
         svg: Wasm.controller.render_frame(0->Js.BigInt.fromInt)->Utils.Option.some,
+        sceneIndex: sceneIndex,
       }
     | _ => {
-        frame: previousSavedFrame,
-        startPlayingFrame: previousSavedFrame,
+        frame: initialFrame,
+        startPlayingFrame: initialFrame,
         playState: CantPlay,
         svg: None,
         volume: volume,
         fpsLimit: Some(Wasm.videoMeta.fps),
+        sceneIndex: sceneIndex,
       }
     }
   }
 
   include UseObservable.Pubsub(PlayerState)
+
+  let recordFrame = frame => {
+    switch Wasm.videoMeta.scenesTimeline->Js.Nullable.toOption {
+    | Some(scenes) => {
+        let currentScene = scenes->Js.Array.findIndex(scene => scene.end > frame)
+        Dom.Storage.localStorage |> Dom.Storage.setItem(scene_key, currentScene->Js.Int.toString)
+      }
+    | _ => Dom.Storage.localStorage |> Dom.Storage.setItem(frame_key, frame->Js.Int.toString)
+    }
+  }
 
   let reducer = action => {
     let state = get()
@@ -130,18 +149,15 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       )
       ()
     }
-    
 
     switch action {
     | Play if get().playState !== Playing => startPlaying(get().frame)
     | Seek(newFrame) => {
         AnimationRuntime.AudioRuntime.stop()
         startPlaying(newFrame)
-
-        Dom.Storage.localStorage |> Dom.Storage.setItem(frame_key, newFrame->Js.Int.toString)
+        recordFrame(newFrame)
       }
-    | NewFrame(newFrame) if mod(newFrame, Wasm.videoMeta.fps) === 0 =>
-      Dom.Storage.localStorage |> Dom.Storage.setItem(frame_key, newFrame->Js.Int.toString)
+    | NewFrame(newFrame) if mod(newFrame, Wasm.videoMeta.fps) === 0 => recordFrame(newFrame)
     | Pause => AnimationRuntime.AudioRuntime.stop()
     | SetVolume(volume) => {
         AnimationRuntime.AudioRuntime.setVolume(volume)
