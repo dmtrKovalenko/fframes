@@ -7,6 +7,8 @@ import * as MagnetIcon from "./MagnetIcon";
 import * as VolumeIcon from "./VolumeIcon";
 import * as CaptionsIcon from "./CaptionsIcon";
 import * as CollapseIcon from "./CollapseIcon";
+import * as GridViewIcon from "./GridViewIcon";
+import * as ListViewIcon from "./ListViewIcon";
 import * as PlayBackIcon from "./PlayBackIcon";
 import * as FullScreenIcon from "./FullScreenIcon";
 import * as VolumeMuteIcon from "./VolumeMuteIcon";
@@ -85,6 +87,18 @@ var PauseIcon$1 = {
   make: make$11
 };
 
+var make$12 = GridViewIcon.GridViewIcon;
+
+var GridViewIcon$1 = {
+  make: make$12
+};
+
+var make$13 = ListViewIcon.ListViewIcon;
+
+var ListViewIcon$1 = {
+  make: make$13
+};
+
 export {
   MusicalNotesIcon ,
   FontIcon$1 as FontIcon,
@@ -98,6 +112,8 @@ export {
   FullScreenIcon$1 as FullScreenIcon,
   CollapseIcon$1 as CollapseIcon,
   PauseIcon$1 as PauseIcon,
+  GridViewIcon$1 as GridViewIcon,
+  ListViewIcon$1 as ListViewIcon,
   
 }
 /* make Not a pure module */
