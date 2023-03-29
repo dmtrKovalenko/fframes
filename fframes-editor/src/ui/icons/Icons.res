@@ -34,29 +34,33 @@ module PlayIcon = {
 module PlayBackIcon = {
   @react.component @module("./PlayBackIcon")
   external make: (
+    ~text: string,
+    ~backward: bool=?,
     ~color: string=?,
     ~className: string=?,
     ~style: ReactDOM.Style.t=?,
   ) => React.element = "PlayBackIcon"
 }
-module PlayForwardIcon = {
-  @react.component @module("./PlayForwardIcon")
-  external make: (
-    ~color: string=?,
-    ~className: string=?,
-    ~style: ReactDOM.Style.t=?,
-  ) => React.element = "PlayForwardIcon"
-}
 module VolumeIcon = {
   @react.component @module("./VolumeIcon")
   external make: (
+    ~high: bool=?,
+    ~mute: bool=?,
     ~color: string=?,
     ~className: string=?,
     ~style: ReactDOM.Style.t=?,
   ) => React.element = "VolumeIcon"
 }
+module VolumeLowIcon = {
+  @react.component @module("./VolumeIcon")
+  external make: (
+    ~color: string=?,
+    ~className: string=?,
+    ~style: ReactDOM.Style.t=?,
+  ) => React.element = "VolumeLowIcon"
+}
 module VolumeMuteIcon = {
-  @react.component @module("./VolumeMuteIcon")
+  @react.component @module("./VolumeIcon")
   external make: (
     ~color: string=?,
     ~className: string=?,
@@ -111,3 +115,6 @@ module ListViewIcon = {
     ~style: ReactDOM.Style.t=?,
   ) => React.element = "ListViewIcon"
 }
+
+@module("./magnet.svg") @val
+external magnetRawIcon: string = "default"

@@ -1,0 +1,13 @@
+@font-face {
+  font-family: ff_internal_Inter;
+  src: url(./Inter-VariableFont_slnt\,wght.ttf);
+}
+
+@font-face {
+  font-family: ff_internal_Virgil;
+  src: url(./Virgil.woff2);
+}
+
+#fframes-editor {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, ff_internal_Inter, sans-serif;
+}

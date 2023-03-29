@@ -19,7 +19,7 @@ let make = (~sectionSize: UseEditorLayout.sectionSize) => {
       scale: scale,
       maxSceneWidth: maxSceneWidth,
       frameToPxRatio: frameToPxRatio,
-      pxToFrameRation: 1. /. frameToPxRatio
+      pxToFrameRation: 1. /. frameToPxRatio,
     }
   }, (
     sectionSize.height,
@@ -33,6 +33,7 @@ let make = (~sectionSize: UseEditorLayout.sectionSize) => {
     | CantPlay => React.null
     | _ => <SceneMapCanvas size />
     }}
+    <ControlsCanvas size />
     <SeekBarCanvas size />
   </div>
 }

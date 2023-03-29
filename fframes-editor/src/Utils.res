@@ -24,6 +24,9 @@ module Math = {
   @scope("Math") @val
   external maxI: (int, int) => int = "max"
 
+  @scope("Math") @val
+  external minI: (int, int) => int = "min"
+
   let divideWithReminder = (x, y) => {
     (Js.Math.floor(x /. y), Js.Float.mod(x, y))
   }
@@ -46,6 +49,7 @@ module Option = {
     | _ => None
     }
 
+  @inline
   let unwrapOr = (option, default) =>
     switch option {
     | Some(val) => val

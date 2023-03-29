@@ -8,7 +8,12 @@ esbuild
     splitting: true,
     format: "esm",
     target: ["es2020"],
-    external: ['*?url'],
+    external: ["*?url"],
     watch: process.argv.some((arg) => arg.includes("-w")),
+    loader: {
+      ".ttf": "file",
+      ".woff2": "file",
+      ".svg": "base64",
+    },
   })
   .catch(() => process.exit(1));

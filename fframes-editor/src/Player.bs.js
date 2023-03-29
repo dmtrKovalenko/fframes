@@ -22,10 +22,13 @@ function validateVolume(param) {
 
 function MakePlayer(Wasm) {
   var sceneIndex = Belt_Option.flatMap(Dom_storage.getItem("ffscene", localStorage), Js__Int.fromString);
+  var savedMagnet = Belt_Option.flatMap(Dom_storage.getItem("ffmagnet", localStorage), Js__Int.fromString);
   var match = Wasm.videoMeta.scenesTimeline;
-  var initialFrame = Utils.$$Option.unwrapOr(!(match == null) && sceneIndex !== undefined ? Belt_Option.map(match[sceneIndex], (function (scene) {
-                return scene.start;
-              })) : Belt_Option.flatMap(Dom_storage.getItem("fframe", localStorage), Js__Int.fromString), 0);
+  var initialFrame = Utils.$$Option.unwrapOr(savedMagnet !== undefined ? Utils.$$Option.some(Math.min(savedMagnet, Wasm.videoMeta.durationInFrames)) : (
+          !(match == null) && sceneIndex !== undefined ? Belt_Option.map(match[sceneIndex], (function (scene) {
+                    return scene.start;
+                  })) : Belt_Option.flatMap(Dom_storage.getItem("fframe", localStorage), Js__Int.fromString)
+        ), 0);
   var savedValue = Dom_storage.getItem("ffvolume", localStorage);
   var volume = savedValue !== undefined ? (
       Wasm.videoMeta.hasAudio ? Js__Int.fromString(savedValue) : undefined
@@ -40,7 +43,8 @@ function MakePlayer(Wasm) {
         fpsLimit: Wasm.videoMeta.fps,
         svg: Utils.$$Option.some(Curry._1(Wasm.controller.render_frame, BigInt(0))),
         volume: volume,
-        sceneIndex: sceneIndex
+        sceneIndex: sceneIndex,
+        magnet: savedMagnet
       }) : ({
         frame: initialFrame,
         startPlayingFrame: initialFrame,
@@ -48,10 +52,12 @@ function MakePlayer(Wasm) {
         fpsLimit: Wasm.videoMeta.fps,
         svg: undefined,
         volume: volume,
-        sceneIndex: sceneIndex
+        sceneIndex: sceneIndex,
+        magnet: savedMagnet
       });
   var PlayerState = {
     sceneIndex: sceneIndex,
+    savedMagnet: savedMagnet,
     initialFrame: initialFrame,
     volume: volume,
     initial: initial
@@ -83,18 +89,20 @@ function MakePlayer(Wasm) {
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
                     volume: state.volume,
-                    sceneIndex: state.sceneIndex
+                    sceneIndex: state.sceneIndex,
+                    magnet: state.magnet
                   };
         case /* Play */1 :
             if (state.frame <= 0 || state.frame >= Wasm.videoMeta.durationInFrames) {
               return {
-                      frame: 0,
+                      frame: Utils.$$Option.unwrapOr(state.magnet, 0),
                       startPlayingFrame: state.startPlayingFrame,
                       playState: /* Playing */0,
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
                       volume: state.volume,
-                      sceneIndex: state.sceneIndex
+                      sceneIndex: state.sceneIndex,
+                      magnet: state.magnet
                     };
             } else {
               return {
@@ -104,7 +112,8 @@ function MakePlayer(Wasm) {
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
                       volume: state.volume,
-                      sceneIndex: state.sceneIndex
+                      sceneIndex: state.sceneIndex,
+                      magnet: state.magnet
                     };
             }
         case /* Pause */2 :
@@ -115,8 +124,33 @@ function MakePlayer(Wasm) {
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
                     volume: state.volume,
-                    sceneIndex: state.sceneIndex
+                    sceneIndex: state.sceneIndex,
+                    magnet: state.magnet
                   };
+        case /* SetMagnet */3 :
+            if (state.magnet === state.frame) {
+              return {
+                      frame: state.frame,
+                      startPlayingFrame: state.startPlayingFrame,
+                      playState: state.playState,
+                      fpsLimit: state.fpsLimit,
+                      svg: state.svg,
+                      volume: state.volume,
+                      sceneIndex: state.sceneIndex,
+                      magnet: undefined
+                    };
+            } else {
+              return {
+                      frame: state.frame,
+                      startPlayingFrame: state.startPlayingFrame,
+                      playState: state.playState,
+                      fpsLimit: state.fpsLimit,
+                      svg: state.svg,
+                      volume: state.volume,
+                      sceneIndex: state.sceneIndex,
+                      magnet: state.frame
+                    };
+            }
         
       }
     } else {
@@ -132,7 +166,8 @@ function MakePlayer(Wasm) {
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
                     volume: action._0,
-                    sceneIndex: state.sceneIndex
+                    sceneIndex: state.sceneIndex,
+                    magnet: state.magnet
                   };
         
       }
@@ -142,12 +177,13 @@ function MakePlayer(Wasm) {
       var svg = Curry._1(Wasm.controller.render_frame, BigInt(0));
       return {
               frame: 0,
-              startPlayingFrame: 0,
+              startPlayingFrame: Utils.$$Option.unwrapOr(state.magnet, 0),
               playState: /* Paused */1,
               fpsLimit: state.fpsLimit,
               svg: svg,
               volume: state.volume,
-              sceneIndex: state.sceneIndex
+              sceneIndex: state.sceneIndex,
+              magnet: state.magnet
             };
     }
     var frame$1 = action._0;
@@ -161,7 +197,8 @@ function MakePlayer(Wasm) {
             fpsLimit: state.fpsLimit,
             svg: svg$1,
             volume: state.volume,
-            sceneIndex: state.sceneIndex
+            sceneIndex: state.sceneIndex,
+            magnet: state.magnet
           };
   };
   var onFrame = function (dispatch, secondsFromStart) {
@@ -194,6 +231,12 @@ function MakePlayer(Wasm) {
             }
         case /* Pause */2 :
             return AnimationRuntime.AudioRuntime.stop(undefined);
+        case /* SetMagnet */3 :
+            if (Curry._1(get, undefined).magnet !== Curry._1(get, undefined).frame) {
+              return Dom_storage.setItem("ffmagnet", Curry._1(get, undefined).frame.toString(), localStorage);
+            } else {
+              return ;
+            }
         
       }
     } else {

@@ -33,7 +33,7 @@ let make = () => {
     None
   })
 
-  <div className="w-screen h-screen bg-gray-900">
+  <div id="fframes-editor" className="w-screen h-screen bg-gray-900 overflow-hidden relative">
     <ReactHelmet>
       <title> {videoTitle} </title>
       <style type_="text/css">
@@ -55,8 +55,8 @@ let make = () => {
           <div
             style={size->UseEditorLayout.sizeToStyle}
             className="col-span-2 h-full overflow-auto flex flex-col p-6 border-r border-gray-800">
-            <div className="flex items-center justify-between mb-6 py-4">
-              <h1 className="text-3xl font-medium text-white"> {videoTitle} </h1>
+            <div className="flex items-center justify-between mb-6 pt-4">
+              <h1 className="text-3xl mt-px font-medium text-white"> {videoTitle} </h1>
               <div className="isolate flex rounded-md shadow-sm">
                 <button
                   type_="button"

@@ -9,7 +9,7 @@ import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as MediaLoader from "./services/mediaLoader.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
 
-var iconClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center";
+var iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center";
 
 function MediaList$LoadedMediaIcon(Props) {
   var media = Props.media;
@@ -23,11 +23,12 @@ function MediaList$LoadedMediaIcon(Props) {
         width: "7.4rem",
         borderRadius: "1.35rem"
       });
+  var iconClassName = variant ? "h-[60%]" : "h-[40%]";
   if (media.TAG === /* Image */2) {
     return React.createElement("div", {
                 className: Cx.cx([
                       "bg-cover bg-no-repeat bg-center",
-                      iconClassName
+                      iconContainerClassName
                     ]),
                 style: Object.assign({}, {
                       backgroundImage: "url(" + media._0.src + ")"
@@ -39,13 +40,13 @@ function MediaList$LoadedMediaIcon(Props) {
     case /* Font */0 :
         tmp = React.createElement(Icons.FontIcon.make, {
               color: "currentColor",
-              className: "h-[40%]"
+              className: iconClassName
             });
         break;
     case /* Subtitles */1 :
         tmp = React.createElement(Icons.CaptionsIcon.make, {
               color: "currentColor",
-              className: "h-[40%]"
+              className: iconClassName
             });
         break;
     case /* Image */2 :
@@ -54,19 +55,19 @@ function MediaList$LoadedMediaIcon(Props) {
     case /* Audio */3 :
         tmp = React.createElement(Icons.MusicalNotesIcon.make, {
               color: "currentColor",
-              className: "h-[40%]"
+              className: iconClassName
             });
         break;
     
   }
   return React.createElement("div", {
-              className: iconClassName,
+              className: iconContainerClassName,
               style: style
             }, tmp);
 }
 
 var LoadedMediaIcon = {
-  iconClassName: iconClassName,
+  iconContainerClassName: iconContainerClassName,
   make: MediaList$LoadedMediaIcon
 };
 
@@ -140,7 +141,7 @@ function MediaList$LoadedMedia(Props) {
     
   }
   return React.createElement("li", {
-              className: Cx.cx([variant ? "py-2 h-16 2xl:h-20 flex space-x-2 px-6" : "w-32 flex flex-col space-y-1"]),
+              className: Cx.cx([variant ? "py-2 h-16 2xl:h-20 flex space-x-2 px-6" : "w-32 flex flex-col space-y-2"]),
               title: name
             }, React.createElement(MediaList$LoadedMediaIcon, {
                   media: media,

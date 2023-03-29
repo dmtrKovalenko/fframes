@@ -14,7 +14,7 @@
   "keywords": [
     "rescript"
   ],
-  "author": "",
+  "author": "Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>",
   "license": "MIT",
   "dependencies": {
     "@radix-ui/react-slider": "^0.1.4",
@@ -32,10 +32,7 @@
     "rescript-classnames": "^6.0.0",
     "rescript-js": "^0.6.0",
     "tailwindcss": "^3.0.1",
-    "use-debounce": "^8.0.1",
-    "workbox-cacheable-response": "^6.4.2",
-    "workbox-routing": "^6.4.2",
-    "workbox-strategies": "^6.4.2"
+    "use-debounce": "^8.0.1"
   },
   "devDependencies": {
     "concurrently": "^7.3.0",

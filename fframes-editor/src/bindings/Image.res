@@ -1,6 +1,6 @@
 type t
 
-@new external make: (~width: float, ~height: float) => t = "Image"
+@new external make: (~width: int, ~height: int) => t = "Image"
 
 @set
 external onLoad: (t, unit => unit) => unit = "onload"

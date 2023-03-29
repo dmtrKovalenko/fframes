@@ -17,7 +17,8 @@ export type state = {
   readonly fpsLimit?: number; 
   readonly svg?: string; 
   readonly volume?: number; 
-  readonly sceneIndex?: number
+  readonly sceneIndex?: number; 
+  readonly magnet?: number
 };
 
 // tslint:disable-next-line:interface-over-type-literal
@@ -25,6 +26,7 @@ export type action =
     "AllowPlay"
   | "Play"
   | "Pause"
+  | "SetMagnet"
   | { tag: "Seek"; value: number }
   | { tag: "NewFrame"; value: number }
   | { tag: "SetVolume"; value: number };

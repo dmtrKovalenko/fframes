@@ -51,7 +51,8 @@ function Editor(Props) {
           
         }), []);
   return React.createElement("div", {
-              className: "w-screen h-screen bg-gray-900"
+              className: "w-screen h-screen bg-gray-900 overflow-hidden relative",
+              id: "fframes-editor"
             }, React.createElement(ReactHelmet.Helmet, {
                   children: null
                 }, React.createElement("title", undefined, videoTitle), React.createElement("style", {
@@ -63,9 +64,9 @@ function Editor(Props) {
                                         className: "col-span-2 h-full overflow-auto flex flex-col p-6 border-r border-gray-800",
                                         style: UseEditorLayout.sizeToStyle(size)
                                       }, React.createElement("div", {
-                                            className: "flex items-center justify-between mb-6 py-4"
+                                            className: "flex items-center justify-between mb-6 pt-4"
                                           }, React.createElement("h1", {
-                                                className: "text-3xl font-medium text-white"
+                                                className: "text-3xl mt-px font-medium text-white"
                                               }, videoTitle), React.createElement("div", {
                                                 className: "isolate flex rounded-md shadow-sm"
                                               }, React.createElement("button", {

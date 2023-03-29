@@ -4,7 +4,7 @@ open Cx
 type listVariant = Grid | List
 
 module LoadedMediaIcon = {
-  let iconClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center"
+  let iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center"
 
   @react.component
   let make = (~media: MediaLoader.processedMedia, ~variant) => {
@@ -13,21 +13,26 @@ module LoadedMediaIcon = {
     | List => ReactDOM.Style.make(~width="2.5rem", ~height="2.5rem", ~borderRadius="0.75rem", ())
     }
 
+    let iconClassName = switch variant {
+    | Grid => "h-[40%]"
+    | List => "h-[60%]"
+    }
+
     switch media {
     | Image({src}) =>
       <div
-        className={cx(["bg-cover bg-no-repeat bg-center", iconClassName])}
+        className={cx(["bg-cover bg-no-repeat bg-center", iconContainerClassName])}
         style={ReactDOMStyle.make(~backgroundImage=`url(${src})`, ())->ReactDOM.Style.combine(
           style,
         )}
       />
 
     | nonImageMedia =>
-      <div className=iconClassName style>
+      <div className=iconContainerClassName style>
         {switch nonImageMedia {
-        | Audio(_) => <Icons.MusicalNotesIcon color="currentColor" className="h-[40%]" />
-        | Font(_) => <Icons.FontIcon color="currentColor" className="h-[40%]" />
-        | Subtitles(_) => <Icons.CaptionsIcon color="currentColor" className="h-[40%]" />
+        | Audio(_) => <Icons.MusicalNotesIcon color="currentColor" className=iconClassName />
+        | Font(_) => <Icons.FontIcon color="currentColor" className=iconClassName />
+        | Subtitles(_) => <Icons.CaptionsIcon color="currentColor" className=iconClassName />
         | _ => React.null
         }}
       </div>
@@ -57,7 +62,7 @@ module LoadedMedia = {
       title={name}
       className={Cx.cx([
         switch variant {
-        | Grid => "w-32 flex flex-col space-y-1"
+        | Grid => "w-32 flex flex-col space-y-2"
         | List => "py-2 h-16 2xl:h-20 flex space-x-2 px-6"
         },
       ])}>

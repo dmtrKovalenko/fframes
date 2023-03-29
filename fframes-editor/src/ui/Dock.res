@@ -20,6 +20,8 @@ module DockSpace = {
   })
 }
 
+@send external focus: Dom.Element.t => unit = "focus"
+
 module DockButton = {
   @react.component
   let make = React.memo((~children, ~label, ~onClick: 'a => unit, ~highlight=false) => {
@@ -27,12 +29,13 @@ module DockButton = {
       onClick={_ => onClick()}
       className={cx([
         DockSpace.baseClass,
-        "hover:scale-110",
+        "group hover:scale-110",
         highlight
           ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80"
           : "bg-slate-700 hover:bg-slate-500",
       ])}>
-      <span className="sr-only"> {React.string(label)} </span> {children}
+      <span className="sr-only"> {React.string(label)} </span>
+      <span className="group-active:scale-90 transition-transform"> {children} </span>
     </button>
   })
 }
@@ -54,6 +57,7 @@ let getFpsMarker = (fps, desiredFps) => {
 let make = (~fullScreenToggler: Hooks.toggle) => {
   let context = EditorContext.useEditorContext()
   let (player, dispatch) = context.usePlayer()
+  let (isCollapsed, collapsedToggle) = Hooks.useToggle(false)
 
   let (debouncedFps, _) = UseDebounce.useThrottle(
     AnimationRuntime.AudioRuntime.runtimeFps.contents,
@@ -93,39 +97,46 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
     dispatch(Seek(player.frame + 2 * context.videoMeta.fps))
   })
 
-  let toggleDock = () => {
-    ()
-  }
-
-  let toggleMute = () => {
+  let toggleMute = Hooks.useEvent(() => {
     dispatch(SetVolume(0))
-  }
+  })
 
-  let setMagnet = () => {
-    ()
-  }
+  let setMagnet = Hooks.useEvent(() => {
+    dispatch(SetMagnet)
+  })
+
+  let seekToStart = Hooks.useEvent(() => {
+    dispatch(Seek(player.magnet->Utils.Option.unwrapOr(0)))
+  })
+
+  let toggleDock = Hooks.useEvent(() => {
+    collapsedToggle.toggle()
+    Js.Console.log("Press t to show/hide dock controls")
+  })
 
   React.useEffect1(() => {
     let handleKeydown = e => {
+      open! Dom
+
       if (
         e
-        ->Dom.KeyboardEvent.target
-        ->Dom.EventTarget.unsafeAsElement
+        ->KeyboardEvent.target
+        ->EventTarget.unsafeAsElement
         ->Web.Element.isFocusable
         ->Utils.Bool.invert
       ) {
-        switch e->Dom.KeyboardEvent.key {
+        switch e->KeyboardEvent.key {
         | " " => handlePlayOrPause()
-        | "0" => dispatch(Seek(0))
-        | "ArrowLeft" | "h" | "H" if e->Dom.KeyboardEvent.altKey => dispatch(Seek(0))
-        | "ArrowLeft" | "h" | "H" => handleSeekLeft()
-        | "ArrowRight" | "l" | "L" => handleSeekRight()
-        | "ArrowUp" | "k" | "K" => increaseVolume()
-        | "ArrowDown" | "j" | "J" => decreaseVolume()
-        | "m" | "M" if e->Dom.KeyboardEvent.metaKey => setMagnet()
-        | "m" => toggleMute()
-        | "t" | "T" => toggleDock()
-        | "f" | "F" => fullScreenToggler.toggle()
+        | "0" | "H" => seekToStart()
+        | "ArrowLeft" if e->KeyboardEvent.shiftKey => seekToStart()
+        | "ArrowDown" | "h" if e->KeyboardEvent.ctrlKey => toggleMute()
+        | "ArrowLeft" | "j" => handleSeekLeft()
+        | "ArrowRight" | "k" => handleSeekRight()
+        | "ArrowUp" | "l" => increaseVolume()
+        | "ArrowDown" | "h" => decreaseVolume()
+        | "m" | "M" => setMagnet()
+        | "t" | "T" => collapsedToggle.toggle()
+        | "f" | "F" => toggleDock()
         | _ => ()
         }
       }
@@ -144,7 +155,10 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
   }, [])
 
   <div
-    className="absolute bottom-0 w-auto left-1/2 px-4 pt-1 space-x-2 bg-[#2a3441]/75 border-t border-x border-gray-100/5 shadow-xl rounded-t-lg backdrop-blur flex transform -translate-x-1/2">
+    className={Cx.cx([
+      "absolute bottom-0 w-auto transition-transform transform-gpu left-1/2 px-4 pt-1 space-x-2 bg-slate-900/50 border-t border-x border-gray-100/20 shadow-xl rounded-t-lg backdrop-blur flex -translate-x-1/2",
+      isCollapsed ? "translate-y-16 duration-300" : "",
+    ])}>
     <DockSpace className="tabular-nums space-x-1">
       <span> {player.frame->Utils.Duration.formatFrame(context.videoMeta.fps)->React.string} </span>
       <span className="normal-nums relative bottom-px"> {React.string(" / ")} </span>
@@ -178,7 +192,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
     </DockSpace>
     <DockDivider />
     <DockButton onClick=handleSeekLeft label="Play forward 5 seconds">
-      <PlayBackIcon className="h-6 w-6" />
+      <PlayBackIcon text="2" backward=true className="h-6 w-6" />
     </DockButton>
     <DockButton onClick=handlePlayOrPause highlight=true label="Play">
       {switch player.playState {
@@ -190,12 +204,11 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
       }}
     </DockButton>
     <DockButton onClick=handleSeekRight label="Play back 5 seconds">
-      <PlayBackIcon className="h-6 w-6 rotate-180" />
+      <PlayBackIcon text="2" className="h-6 w-6" />
     </DockButton>
     <DockSpace>
       {switch player.volume {
-      | Some(volume) if volume > 0 => <VolumeIcon className="h-6 w-6" />
-      | Some(_) => <VolumeMuteIcon className="h-6 w-6" />
+      | Some(volume) => <VolumeIcon high={volume > 50} mute={volume === 0} className="h-6 w-6" />
       | _ => <VolumeMuteIcon className="h-6 w-6 text-gray-500" />
       }}
       <Slider
@@ -208,14 +221,16 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
       />
     </DockSpace>
     <DockDivider />
-    <DockButton onClick=Js.Console.log label="Magnet to this position">
+    <DockButton onClick=setMagnet label="Magnet to this position">
       <MagnetIcon className="h-6 w-6" />
     </DockButton>
-    <DockButton onClick=fullScreenToggler.toggle label="Full screen">
+    <DockButton onClick=fullScreenToggler.toggle label="Turn on/off full-screen mode">
       <FullScreenIcon className="h-6 w-6" />
     </DockButton>
-    <DockButton onClick=Js.Console.log label="Collapse control bar">
-      <CollapseIcon className="h-6 w-6" />
+    <DockButton onClick=toggleDock label="Show/Hide dock controls">
+      <CollapseIcon
+        className={Cx.cx(["h-6 w-6 transition-transform", isCollapsed ? "rotate-180" : ""])}
+      />
     </DockButton>
   </div>
 }

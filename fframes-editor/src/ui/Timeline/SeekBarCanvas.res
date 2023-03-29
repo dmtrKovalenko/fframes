@@ -5,9 +5,7 @@ module Canvas = Webapi.Canvas
 module Canvas2d = Webapi.Canvas.Canvas2d
 
 let renderSeekBar = (ctx, size, playState: Player.state) => {
-  let x =
-    (Float.fromInt(timeline_margin_x / 2) +. playState.frame->Float.fromInt *. size.frameToPxRatio)
-      ->Js.Math.floor
+  let x = frameToX(playState.frame, size)
 
   ctx->Canvas2d.beginPath
   ctx->Canvas2d.moveTo(~x, ~y=0.)
@@ -47,16 +45,13 @@ let make = (~size) => {
   let editorContext = EditorContext.useEditorContext()
   let (player, dispatch) = editorContext.usePlayer()
 
+  useCanvasScale(seekCanvasRef, size)
   React.useEffect3(() => {
     seekCanvasRef.current
     ->Js.Nullable.toOption
     ->Belt.Option.map(canvasElement => {
       let ctx = Webapi.Canvas.CanvasElement.getContext2d(canvasElement)
-
-      canvasElement->Canvas.CanvasElement.setHeight(size.scaledHeight->Js.Math.floor->Float.toInt)
-      canvasElement->Canvas.CanvasElement.setWidth(size.scaledWidth->Js.Math.floor->Float.toInt)
-
-      ctx->Canvas2d.scale(~x=size.scale, ~y=size.scale)
+      ctx->Canvas2d.clearRect(~x=0., ~y=0., ~w=size.scaledWidth, ~h=size.scaledHeight)
 
       switch player.playState {
       | CantPlay => ()
@@ -68,41 +63,37 @@ let make = (~size) => {
     None
   }, (size, player.frame, player.playState))
 
-  let hanldeMouseMove = e => {
-
+  let hanldeMouseMove = Hooks.useEvent(e => {
     if player.playState !== Playing && Webapi.Dom.document->Web.Document.hasFocus {
       dispatch(NewFrame(calculateFrameFromEvent(e, ~size)))
     }
-  }
+  })
 
-  let handleClick = e => {
+  let handleClick = Hooks.useEvent(e => {
     let frame = calculateFrameFromEvent(e, ~size)
 
     dispatch(Seek(frame))
     dispatch(Play)
-  }
+  })
 
-  <div
+  <canvas
+    onClick=handleClick
+    onMouseMove=hanldeMouseMove
     className={Cx.cx([
-      "relative",
+      "absolute inset-0",
       switch player.playState {
       | Paused | WaitingForAction => "cursor-col-resize"
       | Playing => "cursor-pointer"
       | CantPlay => "cursor-wait"
       },
-    ])}>
-    <canvas
-      onClick=handleClick
-      onMouseMove=hanldeMouseMove
-      className="absolute inset-0"
-      style={ReactDOMStyle.make(
-        ~height=`${size.height->Float.toString}px`,
-        ~width=`${size.width->Float.toString}px`,
-        (),
-      )}
-      width={`${size.width->Js.Math.floor->Float.toString}px`}
-      height={`${size.height->Js.Math.floor->Float.toString}px`}
-      ref={ReactDOM.Ref.domRef(seekCanvasRef)}
-    />
-  </div>
+    ])}
+    style={ReactDOMStyle.make(
+      ~height=`${size.height->Float.toString}px`,
+      ~width=`${size.width->Float.toString}px`,
+      (),
+    )}
+    width={`${size.width->Js.Math.floor->Float.toString}px`}
+    height={`${size.height->Js.Math.floor->Float.toString}px`}
+    ref={ReactDOM.Ref.domRef(seekCanvasRef)}
+  />
 }

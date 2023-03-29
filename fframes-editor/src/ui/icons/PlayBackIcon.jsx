@@ -1,28 +1,31 @@
 import * as React from "react";
 
-export const PlayBackIcon = (props) => (
+export const PlayBackIcon = ({ backward, text, ...props }) => (
   <svg
+    fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className="ionicon"
-    viewBox="0 0 512 512"
+    viewBox="0 0 57 57"
     {...props}
   >
-    <title>{"Play Skip Back"}</title>
     <path
-      d="M400 111v290c0 17.44-17 28.52-31 20.16L121.09 272.79c-12.12-7.25-12.12-26.33 0-33.58L369 90.84c14-8.36 31 2.72 31 20.16z"
-      fill="none"
+      d="M49.875 30.875A21.375 21.375 0 1 1 28.5 9.5h17.813m0 0-4.75-4.75m4.75 4.75-4.75 4.75"
       stroke="currentColor"
-      strokeMiterlimit={10}
-      strokeWidth={32}
-    />
-    <path
-      fill="none"
-      stroke="currentColor"
+      transform-origin="50% 50%"
+      style={backward ? { transform: "rotateY(180deg)" } : undefined}
+      strokeWidth={3.563}
       strokeLinecap="round"
-      strokeMiterlimit={10}
-      strokeWidth={32}
-      d="M112 80v352"
+      strokeLinejoin="round"
     />
+
+    <text
+      x={29}
+      textAnchor="middle"
+      y={37}
+      fontFamily="ff_internal_Virgil"
+      fill="currentColor"
+      fontSize={24}
+    >
+      {text}
+    </text>
   </svg>
 );
-

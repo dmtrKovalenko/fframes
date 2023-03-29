@@ -12,6 +12,7 @@ type state = {
   svg: option<string>,
   volume: option<int>,
   sceneIndex: option<int>,
+  magnet: option<int>,
 }
 
 @genType
@@ -22,6 +23,7 @@ type action =
   | Play
   | Pause
   | SetVolume(int)
+  | SetMagnet
 
 let currentFps: ref<option<int>> = ref(None)
 
@@ -31,6 +33,8 @@ let volume_key = "ffvolume"
 let frame_key = "fframe"
 @inline
 let scene_key = "ffscene"
+@inline
+let magnet_key = "ffmagnet"
 
 let min_volume = 0
 let max_volume = 100
@@ -44,8 +48,18 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     let sceneIndex =
       Dom.Storage.getItem(scene_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
 
-    let initialFrame = switch (Wasm.videoMeta.scenesTimeline->Js.Nullable.toOption, sceneIndex) {
-    | (Some(scenes), Some(index)) => scenes->Js.Array.get(index)->Option.map(scene => scene.start)
+    let savedMagnet =
+      Dom.Storage.getItem(magnet_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
+
+    let initialFrame = switch (
+      savedMagnet,
+      Wasm.videoMeta.scenesTimeline->Js.Nullable.toOption,
+      sceneIndex,
+    ) {
+    | (Some(magnet), _, _) =>
+      magnet->Utils.Math.minI(Wasm.videoMeta.durationInFrames)->Utils.Option.some
+    | (_, Some(scenes), Some(index)) =>
+      scenes->Js.Array.get(index)->Option.map(scene => scene.start)
     | _ =>
       Dom.Storage.getItem(frame_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
     }->Utils.Option.unwrapOr(0)
@@ -65,6 +79,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         volume: volume,
         svg: Wasm.controller.render_frame(0->Js.BigInt.fromInt)->Utils.Option.some,
         sceneIndex: sceneIndex,
+        magnet: savedMagnet,
       }
     | _ => {
         frame: initialFrame,
@@ -74,6 +89,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         volume: volume,
         fpsLimit: Some(Wasm.videoMeta.fps),
         sceneIndex: sceneIndex,
+        magnet: savedMagnet,
       }
     }
   }
@@ -97,7 +113,13 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         let frame = 0
         let svg = Wasm.controller.render_frame(frame->Js.BigInt.fromInt)
 
-        {...state, frame: frame, svg: Some(svg), playState: Paused, startPlayingFrame: 0}
+        {
+          ...state,
+          frame: frame,
+          svg: Some(svg),
+          playState: Paused,
+          startPlayingFrame: state.magnet->Utils.Option.unwrapOr(0),
+        }
       }
     | Seek(frame) | NewFrame(frame) => {
         let svg = Wasm.controller.render_frame(frame->Js.BigInt.fromInt)
@@ -115,7 +137,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     | AllowPlay => {...state, playState: WaitingForAction}
     | Play if state.frame <= 0 || state.frame >= Wasm.videoMeta.durationInFrames => {
         ...state,
-        frame: 0,
+        frame: state.magnet->Utils.Option.unwrapOr(0),
         playState: Playing,
       }
     | Play => {...state, playState: Playing, startPlayingFrame: state.frame}
@@ -123,6 +145,14 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     | SetVolume(volume) => {
         ...state,
         volume: Some(volume),
+      }
+    | SetMagnet if state.magnet === Some(state.frame) => {
+        ...state,
+        magnet: None,
+      }
+    | SetMagnet => {
+        ...state,
+        magnet: Some(state.frame),
       }
     }
   }
@@ -163,6 +193,8 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         AnimationRuntime.AudioRuntime.setVolume(volume)
         Dom.Storage.localStorage |> Dom.Storage.setItem(volume_key, volume->Js.Int.toString)
       }
+    | SetMagnet if get().magnet !== Some(get().frame) =>
+      Dom.Storage.localStorage |> Dom.Storage.setItem(magnet_key, get().frame->Js.Int.toString)
     | _ => ()
     }
   }

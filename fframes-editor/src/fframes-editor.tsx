@@ -4,6 +4,8 @@ import { Editor } from "./ui/Editor.gen";
 import { EditorContext } from "./EditorContext.gen";
 import type { WasmController } from "./WasmController.gen";
 import { processImports } from "./services/mediaLoader.gen";
+import "../fonts/fonts.css";
+import "../tw.css";
 
 type Imports = Parameters<typeof processImports>[0]["imports"];
 let lastImports: Imports | null = null;
@@ -24,6 +26,23 @@ export function renderEditor(imports: Imports, wasmController: WasmController) {
       }),
     ]);
   });
+
+  document.addEventListener(
+    "focus",
+    (event) => {
+      if (event.target instanceof HTMLElement) {
+        const target = event.target;
+        // if in 2 seconds focus still on the target element blur it to prevent stealing keystrokes from
+        // the editor
+        setTimeout(() => {
+          if (document.activeElement === target) {
+            target.blur();
+          }
+        }, 2000);
+      }
+    },
+    true
+  );
 }
 
 export async function load_audio_wasm_callback(name: string) {

@@ -2,17 +2,18 @@ import * as React from "react";
 
 export const PlayIcon = (props) => (
   <svg
+    strokeWidth={1.5}
+    viewBox="0 0 24 24"
+    fill="none"
     xmlns="http://www.w3.org/2000/svg"
-
-    viewBox="0 0 512 512"
+    color="currentColor"
     {...props}
   >
     <path
-      d="M112 111v290c0 17.44 17 28.52 31 20.16l247.9-148.37c12.12-7.25 12.12-26.33 0-33.58L143 90.84c-14-8.36-31 2.72-31 20.16z"
-      fill="none"
+      d="M6.906 4.537A.6.6 0 0 0 6 5.053v13.894a.6.6 0 0 0 .906.516l11.723-6.947a.6.6 0 0 0 0-1.032L6.906 4.537z"
       stroke="currentColor"
-      strokeMiterlimit={10}
-      strokeWidth={32}
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );

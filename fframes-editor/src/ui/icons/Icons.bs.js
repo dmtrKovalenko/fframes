@@ -5,15 +5,14 @@ import * as PlayIcon from "./PlayIcon";
 import * as PauseIcon from "./PauseIcon";
 import * as MagnetIcon from "./MagnetIcon";
 import * as VolumeIcon from "./VolumeIcon";
+import MagnetSvg from "./magnet.svg";
 import * as CaptionsIcon from "./CaptionsIcon";
 import * as CollapseIcon from "./CollapseIcon";
 import * as GridViewIcon from "./GridViewIcon";
 import * as ListViewIcon from "./ListViewIcon";
 import * as PlayBackIcon from "./PlayBackIcon";
 import * as FullScreenIcon from "./FullScreenIcon";
-import * as VolumeMuteIcon from "./VolumeMuteIcon";
 import * as MusicalNoteIcon from "./MusicalNoteIcon";
-import * as PlayForwardIcon from "./PlayForwardIcon";
 
 var make = MusicalNoteIcon.MusicalNoteIcon;
 
@@ -45,21 +44,21 @@ var PlayBackIcon$1 = {
   make: make$4
 };
 
-var make$5 = PlayForwardIcon.PlayForwardIcon;
+var make$5 = VolumeIcon.VolumeIcon;
 
-var PlayForwardIcon$1 = {
+var VolumeIcon$1 = {
   make: make$5
 };
 
-var make$6 = VolumeIcon.VolumeIcon;
+var make$6 = VolumeIcon.VolumeLowIcon;
 
-var VolumeIcon$1 = {
+var VolumeLowIcon = {
   make: make$6
 };
 
-var make$7 = VolumeMuteIcon.VolumeMuteIcon;
+var make$7 = VolumeIcon.VolumeMuteIcon;
 
-var VolumeMuteIcon$1 = {
+var VolumeMuteIcon = {
   make: make$7
 };
 
@@ -99,21 +98,24 @@ var ListViewIcon$1 = {
   make: make$13
 };
 
+var magnetRawIcon = MagnetSvg;
+
 export {
   MusicalNotesIcon ,
   FontIcon$1 as FontIcon,
   CaptionsIcon$1 as CaptionsIcon,
   PlayIcon$1 as PlayIcon,
   PlayBackIcon$1 as PlayBackIcon,
-  PlayForwardIcon$1 as PlayForwardIcon,
   VolumeIcon$1 as VolumeIcon,
-  VolumeMuteIcon$1 as VolumeMuteIcon,
+  VolumeLowIcon ,
+  VolumeMuteIcon ,
   MagnetIcon$1 as MagnetIcon,
   FullScreenIcon$1 as FullScreenIcon,
   CollapseIcon$1 as CollapseIcon,
   PauseIcon$1 as PauseIcon,
   GridViewIcon$1 as GridViewIcon,
   ListViewIcon$1 as ListViewIcon,
+  magnetRawIcon ,
   
 }
 /* make Not a pure module */

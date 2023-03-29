@@ -30,7 +30,7 @@ let clipOverTimeLineElement = (ctx, ~y, ~width, ~fill) => {
   let x = Float.fromInt(timeline_margin_x / 2)
   let height = Float.fromInt(scene_height_size)
 
-  ctx->renderRoundedRect(~x, ~y, ~width, ~height, ~radius=16.0, ())
+  ctx->renderRoundedRect(~x, ~y, ~width, ~height, ~radius=12.0, ())
   ctx->Canvas2d.clip
   ctx->Canvas2d.setFillStyle(String, fill)
   ctx->Canvas2d.fillRect(~x, ~y, ~w=width, ~h=height)
@@ -47,9 +47,6 @@ let sceneColors = [
   "#f472b6",
   "#fb7185",
 ]
-
-let frameToX = (frame, size: canvasSize) =>
-  Float.fromInt(frame) *. size.frameToPxRatio +. (timeline_margin_x / 2)->Float.fromInt
 
 let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorContext) => {
   editorContext.videoMeta.scenesTimeline
@@ -131,7 +128,7 @@ let renderMainScene = (ctx, size, editorContext: EditorContext.editorContext) =>
       (i * framesBreak)->Js.BigInt.fromInt,
     )
 
-    let image = Image.make(~width=Float.fromInt(width), ~height=scene_height_size->Float.fromInt)
+    let image = Image.make(~width, ~height=scene_height_size)
 
     image->Image.setSrc(svg->Image.btoa |> Js.String.concat("data:image/svg+xml;base64,"))
     image->Image.onLoad(() => {
@@ -313,16 +310,13 @@ let make = (~size: canvasSize) => {
   let canvasRef = React.useRef(Js.Nullable.null)
   let editorContext = EditorContext.useEditorContext()
 
+  useCanvasScale(canvasRef, size)
+
   React.useEffect1(() => {
     canvasRef.current
     ->Js.Nullable.toOption
     ->Belt.Option.map(element => {
       let ctx = Webapi.Canvas.CanvasElement.getContext2d(element)
-
-      element->Canvas.CanvasElement.setHeight(size.scaledHeight->Js.Math.floor->Float.toInt)
-      element->Canvas.CanvasElement.setWidth(size.scaledWidth->Js.Math.floor->Float.toInt)
-
-      ctx->Canvas2d.scale(~x=size.scale, ~y=size.scale)
 
       ctx->renderTimeSlots(size, editorContext)
       ctx->renderScenes(size, editorContext)

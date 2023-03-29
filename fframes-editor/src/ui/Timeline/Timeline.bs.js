@@ -4,6 +4,7 @@ import * as Curry from "rescript/lib/es6/curry.js";
 import * as React from "react";
 import * as EditorContext from "../../EditorContext.bs.js";
 import * as SeekBarCanvas from "./SeekBarCanvas.bs.js";
+import * as ControlsCanvas from "./ControlsCanvas.bs.js";
 import * as SceneMapCanvas from "./SceneMapCanvas.bs.js";
 
 function Timeline(Props) {
@@ -35,7 +36,9 @@ function Timeline(Props) {
               className: "relative"
             }, match$1 >= 3 ? null : React.createElement(SceneMapCanvas.make, {
                     size: size
-                  }), React.createElement(SeekBarCanvas.make, {
+                  }), React.createElement(ControlsCanvas.make, {
+                  size: size
+                }), React.createElement(SeekBarCanvas.make, {
                   size: size
                 }));
 }

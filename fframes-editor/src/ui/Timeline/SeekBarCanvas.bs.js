@@ -3,14 +3,16 @@
 import * as Cx from "rescript-classnames/src/Cx.bs.js";
 import * as Web from "../../bindings/Web.bs.js";
 import * as Curry from "rescript/lib/es6/curry.js";
+import * as Hooks from "../../hooks/Hooks.bs.js";
 import * as React from "react";
+import * as CanvasSize from "./canvasSize.bs.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as EditorContext from "../../EditorContext.bs.js";
 import * as Webapi__Canvas__Canvas2d from "bs-webapi/src/Webapi/Canvas/Webapi__Canvas__Canvas2d.bs.js";
 
 function renderSeekBar(ctx, size, playState) {
-  var x = Math.floor(32 + playState.frame * size.frameToPxRatio);
+  var x = CanvasSize.frameToX(playState.frame, size);
   ctx.beginPath();
   ctx.moveTo(x, 0);
   ctx.lineTo(x, size.height);
@@ -41,12 +43,11 @@ function SeekBarCanvas(Props) {
   var match = Curry._1(editorContext.usePlayer, undefined);
   var dispatch = match[1];
   var player = match[0];
+  CanvasSize.useCanvasScale(seekCanvasRef, size);
   React.useEffect((function () {
           Belt_Option.map(Caml_option.nullable_to_opt(seekCanvasRef.current), (function (canvasElement) {
                   var ctx = canvasElement.getContext("2d");
-                  canvasElement.height = Math.floor(size.scaledHeight) | 0;
-                  canvasElement.width = Math.floor(size.scaledWidth) | 0;
-                  ctx.scale(size.scale, size.scale);
+                  ctx.clearRect(0, 0, size.scaledWidth, size.scaledHeight);
                   var match = player.playState;
                   if (match >= 3) {
                     
@@ -61,43 +62,41 @@ function SeekBarCanvas(Props) {
         player.frame,
         player.playState
       ]);
-  var hanldeMouseMove = function (e) {
-    if (player.playState !== /* Playing */0 && document.hasFocus()) {
-      return Curry._1(dispatch, {
-                  TAG: /* NewFrame */1,
-                  _0: calculateFrameFromEvent(e, size)
-                });
-    }
-    
-  };
-  var handleClick = function (e) {
-    var frame = calculateFrameFromEvent(e, size);
-    Curry._1(dispatch, {
-          TAG: /* Seek */0,
-          _0: frame
-        });
-    return Curry._1(dispatch, /* Play */1);
-  };
+  var hanldeMouseMove = Hooks.useEvent(function (e) {
+        if (player.playState !== /* Playing */0 && document.hasFocus()) {
+          return Curry._1(dispatch, {
+                      TAG: /* NewFrame */1,
+                      _0: calculateFrameFromEvent(e, size)
+                    });
+        }
+        
+      });
+  var handleClick = Hooks.useEvent(function (e) {
+        var frame = calculateFrameFromEvent(e, size);
+        Curry._1(dispatch, {
+              TAG: /* Seek */0,
+              _0: frame
+            });
+        return Curry._1(dispatch, /* Play */1);
+      });
   var match$1 = player.playState;
-  return React.createElement("div", {
+  return React.createElement("canvas", {
+              ref: seekCanvasRef,
               className: Cx.cx([
-                    "relative",
+                    "absolute inset-0",
                     match$1 !== 0 ? (
                         match$1 >= 3 ? "cursor-wait" : "cursor-col-resize"
                       ) : "cursor-pointer"
-                  ])
-            }, React.createElement("canvas", {
-                  ref: seekCanvasRef,
-                  className: "absolute inset-0",
-                  style: {
-                    height: String(size.height) + "px",
-                    width: String(size.width) + "px"
-                  },
-                  height: String(Math.floor(size.height)) + "px",
-                  width: String(Math.floor(size.width)) + "px",
-                  onClick: handleClick,
-                  onMouseMove: hanldeMouseMove
-                }));
+                  ]),
+              style: {
+                height: String(size.height) + "px",
+                width: String(size.width) + "px"
+              },
+              height: String(Math.floor(size.height)) + "px",
+              width: String(Math.floor(size.width)) + "px",
+              onClick: handleClick,
+              onMouseMove: hanldeMouseMove
+            });
 }
 
 var Canvas;
@@ -114,4 +113,4 @@ export {
   make ,
   
 }
-/* react Not a pure module */
+/* Hooks Not a pure module */

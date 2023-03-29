@@ -27,7 +27,7 @@ function renderRoundedRect(ctx, x, y, width, height, radius, param) {
 }
 
 function clipOverTimeLineElement(ctx, y, width, fill) {
-  renderRoundedRect(ctx, 32, y, width, 120, 16.0, undefined);
+  renderRoundedRect(ctx, 32, y, width, 120, 12.0, undefined);
   ctx.clip();
   Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, fill);
   ctx.fillRect(32, y, width, 120);
@@ -46,19 +46,15 @@ var sceneColors = [
   "#fb7185"
 ];
 
-function frameToX(frame, size) {
-  return frame * size.frameToPxRatio + 32;
-}
-
 function renderScenes(ctx, size, editorContext) {
   Belt_Option.forEach(Caml_option.nullable_to_opt(editorContext.videoMeta.scenesTimeline), (function (array) {
           array.forEach(function (scene, i) {
                 var sceneColor = Belt_Array.get(sceneColors, Caml_int32.mod_(i, sceneColors.length));
                 Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, Utils.$$Option.unwrapOr(sceneColor, "#fbbf24"));
-                var x1 = frameToX(scene.start, size);
-                var x2 = frameToX(scene.end, size);
+                var x1 = CanvasSize.frameToX(scene.start, size);
+                var x2 = CanvasSize.frameToX(scene.end, size);
                 var overflowSafeX = Utils.$$Option.unwrapOr(Belt_Option.map(array[i - 1 | 0], (function (prev) {
-                            return frameToX(Math.max(prev.end, scene.start), size);
+                            return CanvasSize.frameToX(Math.max(prev.end, scene.start), size);
                           })), x1);
                 var width = x2 - x1;
                 ctx.globalAlpha = 1;
@@ -158,7 +154,7 @@ function renderAudioMap(ctx, size, editorContext) {
   var xStack = [];
   return Belt_Option.forEach(Caml_option.nullable_to_opt(editorContext.videoMeta.audioMap), (function (audioMap) {
                 audioMap.reduce((function (startY, track) {
-                        var x = frameToX(track.start, size);
+                        var x = CanvasSize.frameToX(track.start, size);
                         var startY$1 = Utils.$$Option.unwrapOr(Belt_Option.map(Belt_Array.getIndexBy(xStack, (function (param) {
                                         return x > param[0];
                                       })), (function (index) {
@@ -219,12 +215,10 @@ function SceneMapCanvas(Props) {
   var size = Props.size;
   var canvasRef = React.useRef(null);
   var editorContext = EditorContext.useEditorContext(undefined);
+  CanvasSize.useCanvasScale(canvasRef, size);
   React.useEffect((function () {
           Belt_Option.map(Caml_option.nullable_to_opt(canvasRef.current), (function (element) {
                   var ctx = element.getContext("2d");
-                  element.height = Math.floor(size.scaledHeight) | 0;
-                  element.width = Math.floor(size.scaledWidth) | 0;
-                  ctx.scale(size.scale, size.scale);
                   renderTimeSlots(ctx, size, editorContext);
                   renderScenes(ctx, size, editorContext);
                   ctx.save();
@@ -259,7 +253,6 @@ export {
   renderRoundedRect ,
   clipOverTimeLineElement ,
   sceneColors ,
-  frameToX ,
   renderScenes ,
   renderMainScene ,
   renderAudioWaveForm ,
