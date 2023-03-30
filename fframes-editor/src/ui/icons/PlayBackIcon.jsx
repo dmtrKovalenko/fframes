@@ -23,7 +23,7 @@ export const PlayBackIcon = ({ backward, text, ...props }) => (
       y={37}
       fontFamily="ff_internal_Virgil"
       fill="currentColor"
-      fontSize={24}
+      fontSize={text.length === 1 ? 24 : 20}
     >
       {text}
     </text>

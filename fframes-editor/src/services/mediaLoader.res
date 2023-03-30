@@ -6,7 +6,7 @@ type audioInfo = {
   sampleRate: int,
   arrayBuffer: Js.ArrayBuffer.t,
   audioData: WebAudio.AudioBuffer.t,
-  monoPcmData: Js.Int16Array.t
+  monoPcmData: Js.Int16Array.t,
 }
 
 type imageInfo = {
@@ -15,7 +15,7 @@ type imageInfo = {
   height: int,
 }
 
-type fontInfo = { 
+type fontInfo = {
   name: string,
   style: string,
   weight: int,
@@ -81,10 +81,18 @@ type forceTsReturnResolveMedia = MediaResolved
 @genType.as("MediaResolver")
 type mediaResolveFn = (string, string, WasmController.t) => Js.Promise.t<forceTsReturnResolveMedia>
 
+@genType.as("MediaResolverWithOptions")
+type mediaResolveFnWithOptions = (
+  WasmController.options,
+  string,
+  string,
+  WasmController.t,
+) => Js.Promise.t<forceTsReturnResolveMedia>
+
 @module("./MediaResolvers") external resolveAudio: mediaResolveFn = "resolveAudio"
 @module("./MediaResolvers") external resolveSubtitles: mediaResolveFn = "resolveSubtitles"
 @module("./MediaResolvers") external resolveFont: mediaResolveFn = "resolveFont"
-@module("./MediaResolvers") external resolveImage: mediaResolveFn = "resolveImage"
+@module("./MediaResolvers") external resolveImage: mediaResolveFnWithOptions = "resolveImage"
 
 // This is pretty dumb of how genType works for typescript.
 // It only maps public types to the internal types when using public API, so we can't do this on Promise.then step
@@ -96,25 +104,37 @@ let resolveMedia = (name, media) => {
 }
 
 @genType
-let processImports = (~imports: Js.Dict.t<mediaImport>, ~wasmController: WasmController.t) => {
+let processImports = (
+  ~imports: Js.Dict.t<mediaImport>,
+  ~wasmController: WasmController.t,
+  ~options: WasmController.options,
+) => {
   MediaLoaderObserver.dispatch(InitMediaProcessing(imports))
   imports
   ->Js.Dict.toArray
   ->Array.keepMap(((moduleRelativePath, moduleVal)) => {
     let name = moduleRelativePath->Utils.Path.getFilename
 
-    switch name {
-    | name if name->Js.String.endsWith(".mp3") => Some(resolveAudio)
-    | name if name->Js.String.endsWith(".vtt") => Some(resolveSubtitles)
-    | name if name->Js.String.endsWith(".ttf") || name->Js.String.endsWith(".otf") =>
-      Some(resolveFont)
-    | name
-      if name->Js.String.endsWith(".png") ||
-      name->Js.String.endsWith(".jpg") ||
-      name->Js.String.endsWith(".jpeg") =>
-      Some(resolveImage)
-    | _ => None
-    }->Option.map(resolveFn => resolveFn(name, moduleVal, wasmController))
+    if (
+      options.ignoreMediaRegex
+      ->Belt.Option.map(regex => Js.RegExp.test(regex, moduleRelativePath))
+      ->Utils.Option.unwrapOr(false)
+    ) {
+      None
+    } else {
+      switch name {
+      | name if name->Js.String.endsWith(".mp3") => Some(resolveAudio)
+      | name if name->Js.String.endsWith(".vtt") => Some(resolveSubtitles)
+      | name if name->Js.String.endsWith(".ttf") || name->Js.String.endsWith(".otf") =>
+        Some(resolveFont)
+      | name
+        if name->Js.String.endsWith(".png") ||
+        name->Js.String.endsWith(".jpg") ||
+        name->Js.String.endsWith(".jpeg") =>
+        Some(resolveImage(options))
+      | _ => None
+      }->Option.map(resolveFn => resolveFn(name, moduleVal, wasmController))
+    }
   })
   ->Promise.all
   ->Promise.thenResolve(_ => MediaLoaderObserver.dispatch(MediaProcessingFinished))

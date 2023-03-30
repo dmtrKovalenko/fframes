@@ -1,25 +1,46 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { Editor } from "./ui/Editor.gen";
-import { EditorContext } from "./EditorContext.gen";
-import type { WasmController } from "./WasmController.gen";
-import { processImports } from "./services/mediaLoader.gen";
-import "../fonts/fonts.css";
-import "../tw.css";
+import { Editor } from "fframes-editor/src/ui/Editor.gen";
+import { EditorContext } from "fframes-editor/src/EditorContext.gen";
+import type {
+  EditorOptions,
+  WasmController,
+} from "fframes-editor/src/WasmController.gen";
+import { processImports } from "fframes-editor/src/services/mediaLoader.gen";
+import "fframes-editor/fonts/fonts.css";
+import "fframes-editor/tw.css";
 
 type Imports = Parameters<typeof processImports>[0]["imports"];
 let lastImports: Imports | null = null;
 
-export function renderEditor(imports: Imports, wasmController: WasmController) {
+export function renderEditor(
+  imports: Imports,
+  wasmController: WasmController,
+  partialOptions: Partial<EditorOptions> = {}
+) {
   lastImports = imports;
   const root = createRoot(document.getElementById("root")!);
 
+  const options: EditorOptions = {
+    hideDock: false,
+    mediaListLayout: "fromAspectRatio",
+    loop: false,
+    rewindStepInSeconds: 2,
+    imageLengthLimit: 2073600, // full-hd
+    volumeStepFrom0To100: 20,
+    ...partialOptions,
+  };
+
   wasmController.default().then(() => {
     Promise.all([
-      processImports({ imports, wasmController }),
-      wasmController.prepare().then((videoMeta) => {
+      processImports({ imports, wasmController, options }),
+      wasmController.prepare(options.lockFps).then((videoMeta) => {
         root.render(
-          <EditorContext wasmController={wasmController} videoMeta={videoMeta}>
+          <EditorContext
+            options={options}
+            wasmController={wasmController}
+            videoMeta={videoMeta}
+          >
             <Editor />
           </EditorContext>
         );

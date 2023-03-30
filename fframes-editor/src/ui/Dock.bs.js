@@ -10,7 +10,10 @@ import * as React from "react";
 import * as Player from "../Player.bs.js";
 import * as Slider from "./components/Slider.bs.js";
 import * as Spinner from "./components/Spinner.bs.js";
+import * as Tooltip from "./components/Tooltip.bs.js";
+import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
+import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as UseDebounce from "../bindings/UseDebounce.bs.js";
 import * as EditorContext from "../EditorContext.bs.js";
 import * as AnimationRuntime from "../services/AnimationRuntime.bs.js";
@@ -94,7 +97,7 @@ function Dock(Props) {
   var match = Curry._1(context.usePlayer, undefined);
   var dispatch = match[1];
   var player = match[0];
-  var match$1 = Hooks.useToggle(false);
+  var match$1 = Hooks.useToggle(context.options.hideDock);
   var collapsedToggle = match$1[1];
   var isCollapsed = match$1[0];
   var match$2 = UseDebounce.useThrottle(AnimationRuntime.AudioRuntime.runtimeFps.contents, 100);
@@ -114,7 +117,7 @@ function Dock(Props) {
         return Belt_Option.forEach(player.volume, (function (volume) {
                       return Curry._1(dispatch, {
                                   TAG: /* SetVolume */2,
-                                  _0: Player.validateVolume(volume + 20 | 0)
+                                  _0: Player.validateVolume(volume + context.options.volumeStepFrom0To100 | 0)
                                 });
                     }));
       });
@@ -122,7 +125,7 @@ function Dock(Props) {
         return Belt_Option.forEach(player.volume, (function (volume) {
                       return Curry._1(dispatch, {
                                   TAG: /* SetVolume */2,
-                                  _0: Player.validateVolume(volume - 20 | 0)
+                                  _0: Player.validateVolume(volume - context.options.volumeStepFrom0To100 | 0)
                                 });
                     }));
       });
@@ -153,6 +156,21 @@ function Dock(Props) {
                     _0: Utils.$$Option.unwrapOr(player.magnet, 0)
                   });
       });
+  var switchScene = Hooks.useEvent(function (dir) {
+        return Belt_Option.forEach(Belt_Option.flatMap(Caml_option.nullable_to_opt(context.videoMeta.scenesTimeline), (function (timeline) {
+                          var nextSceneIndex = dir ? timeline.findIndex(function (scene) {
+                                  return scene.start > player.frame;
+                                }) : timeline.findIndex(function (scene) {
+                                  return scene.end >= player.frame;
+                                });
+                          return Belt_Array.get(timeline, nextSceneIndex);
+                        })), (function (scene) {
+                      return Curry._1(dispatch, {
+                                  TAG: /* Seek */0,
+                                  _0: scene.start
+                                });
+                    }));
+      });
   var toggleDock = Hooks.useEvent(function (param) {
         Curry._1(collapsedToggle.toggle, undefined);
         console.log("Press t to show/hide dock controls");
@@ -176,9 +194,12 @@ function Dock(Props) {
               case "0" :
               case "H" :
                   return Curry._1(seekToStart, undefined);
+              case "S" :
+              case "b" :
+                  return Curry._1(switchScene, /* Back */0);
               case "F" :
               case "f" :
-                  return Curry._1(toggleDock, undefined);
+                  return Curry._1(fullScreenToggler.toggle, undefined);
               case "ArrowDown" :
               case "h" :
                   break;
@@ -196,6 +217,9 @@ function Dock(Props) {
               case "T" :
               case "t" :
                   return Curry._1(collapsedToggle.toggle, undefined);
+              case "s" :
+              case "w" :
+                  return Curry._1(switchScene, /* Forth */1);
               default:
                 return ;
             }
@@ -228,6 +252,7 @@ function Dock(Props) {
         break;
     
   }
+  var originalFps = context.videoMeta.originalFps;
   var match$4 = player.playState;
   var volume = player.volume;
   return React.createElement("div", {
@@ -246,12 +271,18 @@ function Dock(Props) {
                       className: "mr-2 ml-2"
                     }, "FPS"), React.createElement("span", {
                       className: Cx.cx([
-                            "tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
+                            "inline-flex tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
                             tmp
                           ])
-                    }, debouncedFps !== undefined ? Math.min(debouncedFps, context.videoMeta.fps).toFixed(0) : context.videoMeta.fps.toString())), React.createElement(make, {}), React.createElement(make$2, {
+                    }, debouncedFps !== undefined ? Math.min(debouncedFps, context.videoMeta.fps).toFixed(0) : context.videoMeta.fps.toString(), originalFps !== undefined ? React.createElement(Tooltip.make, {
+                            children: React.createElement(Icons.LockIcon.make, {
+                                  className: "ml-px mr-0.5 h-3.5 w-3.5 mt-px"
+                                }),
+                            content: React.createElement(React.Fragment, undefined, "FPS was locked on " + String(context.videoMeta.fps) + " for editor performance.", React.createElement("br", undefined), "Final video will be rendered at " + String(originalFps) + " FPS."),
+                            asChild: false
+                          }) : null)), React.createElement(make, {}), React.createElement(make$2, {
                   children: React.createElement(Icons.PlayBackIcon.make, {
-                        text: "2",
+                        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
                         backward: true,
                         className: "h-6 w-6"
                       }),
@@ -272,7 +303,7 @@ function Dock(Props) {
                   highlight: true
                 }), React.createElement(make$2, {
                   children: React.createElement(Icons.PlayBackIcon.make, {
-                        text: "2",
+                        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
                         className: "h-6 w-6"
                       }),
                   label: "Play back 5 seconds",

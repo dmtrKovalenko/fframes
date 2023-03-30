@@ -14,6 +14,7 @@ extern "C" {
 }
 
 async fn resolve_used_audio_durations<'a, TVideo: Video>(
+    tb: &'a TimeBase,
     duration: &'a Duration<'a>,
     scene_audios: &'a ScenesWithAudio<'a>,
     global_audio_map: &'a fframes::AudioMap<'a>,
@@ -47,7 +48,7 @@ async fn resolve_used_audio_durations<'a, TVideo: Video>(
         Ok(val) => val
             .as_f64()
             .map(|val| {
-                let frames = val * TVideo::FPS as f64;
+                let frames = val * tb.fps as f64;
                 (file, frames as usize)
             })
             .ok_or_else(|| FFramesCoreError::CanNotProcessAudioDuration(file.to_string())),
@@ -73,7 +74,7 @@ pub async fn prepare_video_with_audio<TVideo: Video>(
     let scene_audios = ScenesWithAudio::from(&scenes);
 
     let audio_durations =
-        resolve_used_audio_durations::<TVideo>(&video_duration, &scene_audios, &audio_map)
+        resolve_used_audio_durations::<TVideo>(tb, &video_duration, &scene_audios, &audio_map)
             .await
             .unwrap();
 

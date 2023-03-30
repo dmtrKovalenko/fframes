@@ -11,7 +11,6 @@ type state = {
   fpsLimit: option<int>,
   svg: option<string>,
   volume: option<int>,
-  sceneIndex: option<int>,
   magnet: option<int>,
 }
 
@@ -78,7 +77,6 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         fpsLimit: Some(Wasm.videoMeta.fps),
         volume: volume,
         svg: Wasm.controller.render_frame(0->Js.BigInt.fromInt)->Utils.Option.some,
-        sceneIndex: sceneIndex,
         magnet: savedMagnet,
       }
     | _ => {
@@ -88,7 +86,6 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         svg: None,
         volume: volume,
         fpsLimit: Some(Wasm.videoMeta.fps),
-        sceneIndex: sceneIndex,
         magnet: savedMagnet,
       }
     }
@@ -110,15 +107,15 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
     let state = get()
     switch action {
     | Seek(frame) | NewFrame(frame) if frame > Wasm.videoMeta.durationInFrames || frame < 0 => {
-        let frame = 0
+        let frame = state.magnet->Utils.Option.unwrapOr(0)
         let svg = Wasm.controller.render_frame(frame->Js.BigInt.fromInt)
 
         {
           ...state,
           frame: frame,
           svg: Some(svg),
-          playState: Paused,
-          startPlayingFrame: state.magnet->Utils.Option.unwrapOr(0),
+          playState: Wasm.options.loop ? Playing : Paused,
+          startPlayingFrame: frame,
         }
       }
     | Seek(frame) | NewFrame(frame) => {

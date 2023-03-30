@@ -4,6 +4,18 @@ type namedRange = {
   end: int,
 }
 
+@gentype.as("EditorOptions")
+type options = {
+  ignoreMediaRegex: option<Js.RegExp.t>,
+  hideDock: bool,
+  loop: bool,
+  lockFps: option<int>,
+  mediaListLayout: [#grid | #list | #fromAspectRatio],
+  rewindStepInSeconds: int,
+  imageLengthLimit: int,
+  volumeStepFrom0To100: int,
+}
+
 @genType.as("VideoMeta")
 type videoMeta = {
   name: string,
@@ -12,6 +24,7 @@ type videoMeta = {
   fps: int,
   durationInFrames: int,
   hasAudio: bool,
+  originalFps: option<int>,
   audioMap: Js.Nullable.t<array<namedRange>>,
   scenesTimeline: Js.Nullable.t<array<namedRange>>,
 }
@@ -22,15 +35,15 @@ type fontInfo = {
   style: string,
 }
 
-type initOut = {prepare: unit => int}
+type initOut = {prepare: (int, int) => int}
 
 @genType.as("WasmController")
 type t = {
   add_audio_source: (string, ReScriptJs.Js.Int16Array.t) => unit,
-  add_image_source: (string, string, Js.Nullable.t<string>) => unit,
+  add_image_source: (string, string, Js.Undefined.t<string>) => unit,
   add_subtitles_source: (string, string) => int,
   default: unit => Js.Promise.t<initOut>,
-  prepare: unit => Js.Promise.t<videoMeta>,
+  prepare: Js.Undefined.t<int> => Js.Promise.t<videoMeta>,
   render_frame: Js.BigInt.t => string,
   render_preview_frame: Js.BigInt.t => string,
   ingest_font: Js.Uint8Array.t => fontInfo,
@@ -39,6 +52,7 @@ type t = {
 module type WasmBridge = {
   let videoMeta: videoMeta
   let controller: t
+  let options: options
 }
 
 external getFrame: (t, Js.BigInt.t) => string = "getFrame"

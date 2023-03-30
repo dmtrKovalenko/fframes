@@ -24,20 +24,22 @@ module DockSpace = {
 
 module DockButton = {
   @react.component
-  let make = React.memo((~children, ~label, ~onClick: 'a => unit, ~highlight=false) => {
-    <button
-      onClick={_ => onClick()}
-      className={cx([
-        DockSpace.baseClass,
-        "group hover:scale-110",
-        highlight
-          ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80"
-          : "bg-slate-700 hover:bg-slate-500",
-      ])}>
-      <span className="sr-only"> {React.string(label)} </span>
-      <span className="group-active:scale-90 transition-transform"> {children} </span>
-    </button>
-  })
+  let make = React.memo(
+    React.forwardRef((~children, ~label, ~onClick: 'a => unit, ~highlight=false) => {
+      <button
+        onClick={_ => onClick()}
+        className={cx([
+          DockSpace.baseClass,
+          "group hover:scale-110",
+          highlight
+            ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80"
+            : "bg-slate-700 hover:bg-slate-500",
+        ])}>
+        <span className="sr-only"> {React.string(label)} </span>
+        <span className="group-active:scale-90 transition-transform"> {children} </span>
+      </button>
+    }),
+  )
 }
 
 type fpsMarker = Green | Yellow | Red | White
@@ -53,11 +55,13 @@ let getFpsMarker = (fps, desiredFps) => {
   }
 }
 
+type dir = Back | Forth
+
 @react.component
 let make = (~fullScreenToggler: Hooks.toggle) => {
   let context = EditorContext.useEditorContext()
   let (player, dispatch) = context.usePlayer()
-  let (isCollapsed, collapsedToggle) = Hooks.useToggle(false)
+  let (isCollapsed, collapsedToggle) = Hooks.useToggle(context.options.hideDock)
 
   let (debouncedFps, _) = UseDebounce.useThrottle(
     AnimationRuntime.AudioRuntime.runtimeFps.contents,
@@ -79,13 +83,13 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
 
   let increaseVolume = Hooks.useEvent(() => {
     player.volume->Option.forEach(volume =>
-      (volume + 20)->Player.validateVolume->SetVolume->dispatch
+      (volume + context.options.volumeStepFrom0To100)->Player.validateVolume->SetVolume->dispatch
     )
   })
 
   let decreaseVolume = Hooks.useEvent(() => {
     player.volume->Option.forEach(volume =>
-      (volume - 20)->Player.validateVolume->SetVolume->dispatch
+      (volume - context.options.volumeStepFrom0To100)->Player.validateVolume->SetVolume->dispatch
     )
   })
 
@@ -107,6 +111,20 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
 
   let seekToStart = Hooks.useEvent(() => {
     dispatch(Seek(player.magnet->Utils.Option.unwrapOr(0)))
+  })
+
+  let switchScene = Hooks.useEvent(dir => {
+    context.videoMeta.scenesTimeline
+    ->Js.Nullable.toOption
+    ->Option.flatMap(timeline => {
+      let nextSceneIndex = switch dir {
+      | Back => timeline->Js.Array.findIndex(scene => scene.end >= player.frame)
+      | Forth => timeline->Js.Array.findIndex(scene => scene.start > player.frame)
+      }
+
+      timeline[nextSceneIndex]
+    })
+    ->Option.forEach(scene => dispatch(Seek(scene.start)))
   })
 
   let toggleDock = Hooks.useEvent(() => {
@@ -136,7 +154,9 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
         | "ArrowDown" | "h" => decreaseVolume()
         | "m" | "M" => setMagnet()
         | "t" | "T" => collapsedToggle.toggle()
-        | "f" | "F" => toggleDock()
+        | "f" | "F" => fullScreenToggler.toggle()
+        | "s" | "w" => switchScene(Forth)
+        | "S" | "b" => switchScene(Back)
         | _ => ()
         }
       }
@@ -172,7 +192,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
       <span className="mr-2 ml-2"> {React.string("FPS")} </span>
       <span
         className={cx([
-          "tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
+          "inline-flex tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
           switch getFpsMarker(debouncedFps, context.videoMeta.fps) {
           | Green => "text-green-500"
           | Yellow => "text-yellow-500"
@@ -188,11 +208,32 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
           ->React.string
         | None => context.videoMeta.fps->Js.Int.toString->React.string
         }}
+        {switch context.videoMeta.originalFps {
+        | Some(originalFps) =>
+          <Tooltip
+            asChild=false
+            content={<>
+              {React.string(
+                `FPS was locked on ${context.videoMeta.fps->Int.toString} for editor performance.`,
+              )}
+              <br />
+              {React.string(`Final video will be rendered at ${originalFps->Int.toString} FPS.`)}
+            </>}>
+            <LockIcon className="ml-px mr-0.5 h-3.5 w-3.5 mt-px" />
+          </Tooltip>
+        | None => React.null
+        }}
       </span>
     </DockSpace>
     <DockDivider />
     <DockButton onClick=handleSeekLeft label="Play forward 5 seconds">
-      <PlayBackIcon text="2" backward=true className="h-6 w-6" />
+      <PlayBackIcon
+        text={context.options.rewindStepInSeconds
+        ->Js.Int.toString
+        ->Js.String.substr(~start=0, ~length=2)}
+        backward=true
+        className="h-6 w-6"
+      />
     </DockButton>
     <DockButton onClick=handlePlayOrPause highlight=true label="Play">
       {switch player.playState {
@@ -204,7 +245,12 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
       }}
     </DockButton>
     <DockButton onClick=handleSeekRight label="Play back 5 seconds">
-      <PlayBackIcon text="2" className="h-6 w-6" />
+      <PlayBackIcon
+        text={context.options.rewindStepInSeconds
+        ->Js.Int.toString
+        ->Js.String.substr(~start=0, ~length=2)}
+        className="h-6 w-6"
+      />
     </DockButton>
     <DockSpace>
       {switch player.volume {

@@ -1,4 +1,8 @@
-import { MediaResolver, resolveMedia } from "./mediaLoader.gen";
+import {
+  MediaResolver,
+  MediaResolverWithOptions,
+  resolveMedia,
+} from "fframes-editor/src/services/mediaLoader.gen";
 import { createDecoder } from "minimp3-wasm/dist/minimp3-wasm";
 // @ts-expect-error no  types
 import minimp3decoderWasm from "minimp3-wasm/dist/decoder.opt.wasm?url";
@@ -87,6 +91,9 @@ export const resolveFont: MediaResolver = async (name, url, wasmController) => {
   });
 };
 
+// We load image through this very unfamiliar way because
+// 1. It is fast enough and caches image in browser memory
+// 2. We need to get image natural width and height which can be done only through encoding.
 const loadImage = (url: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
@@ -106,14 +113,15 @@ const imageToBase64 = (image: HTMLImageElement) => {
   return canvas.toDataURL("image/png");
 };
 
-export const resolveImage: MediaResolver = async (
+export const resolveImage: MediaResolverWithOptions = async (
+  options,
   name,
   url,
   wasmController
 ) => {
   const image = await loadImage(url);
   const base64 =
-    image.naturalHeight * image.naturalWidth > 2073600 // full-hd
+    image.naturalHeight * image.naturalWidth > options.imageLengthLimit
       ? null
       : imageToBase64(image);
 

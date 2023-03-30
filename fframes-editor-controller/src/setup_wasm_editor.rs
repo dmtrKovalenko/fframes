@@ -24,12 +24,11 @@ macro_rules! setup_wasm_editor {
         }
 
         #[wasm_bindgen]
-        pub async fn prepare() -> Result<video_metadata::VideoMetadata, JsValue> {
+        pub async fn prepare(fps: Option<i32>) -> Result<video_metadata::VideoMetadata, JsValue> {
             console_error_panic_hook::set_once();
 
-            // TODO configurable fps
             let tb = fframes::TimeBase {
-                fps: $x::FPS,
+                fps: fps.map(std::convert::TryInto::try_into).and_then(Result::ok).unwrap_or($x::FPS),
                 sample_rate: 44100,
             };
 
@@ -42,6 +41,7 @@ macro_rules! setup_wasm_editor {
 
             let video_metadata = video_metadata::VideoMetadata::new::<$x>(
                 duration as i32,
+                tb.fps,
                 audio_map,
                 scenes.as_ref()
             );
@@ -98,10 +98,11 @@ macro_rules! setup_wasm_editor {
         #[wasm_bindgen]
         pub fn render_frame(frame: i64) -> String {
             use std::ops::Deref;
+            let time_base = TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering.");
 
             VIDEO.render_frame(
                 frame::Frame {
-                    fps: $x::FPS,
+                    fps: time_base.fps,
                     index: frame as usize,
                     global_index: frame as usize,
                     breaks_lru_cache: Some(BREAK_LINES_CACHE.clone()),
@@ -109,7 +110,7 @@ macro_rules! setup_wasm_editor {
                 &fframes_context::FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: fframes_context::FFramesMode::Editor,
-                    time_base: TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering."),
+                    time_base,
                     font_source: Some(FONTS.lock().unwrap().deref()),
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
@@ -120,10 +121,11 @@ macro_rules! setup_wasm_editor {
         #[wasm_bindgen]
         pub fn render_preview_frame(frame: i64) -> String {
             use std::ops::Deref;
+            let time_base = TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering.");
 
             VIDEO.render_frame(
                 frame::Frame {
-                    fps: $x::FPS,
+                    fps: time_base.fps,
                     index: frame as usize,
                     global_index: frame as usize,
                     breaks_lru_cache: None.into(),
@@ -131,7 +133,7 @@ macro_rules! setup_wasm_editor {
                 &fframes_context::FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: fframes_context::FFramesMode::EditorTimelinePreview,
-                    time_base: TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering."),
+                    time_base,
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
                     font_source: Some(FONTS.lock().unwrap().deref()),
@@ -146,7 +148,7 @@ macro_rules! setup_wasm_editor {
             let mut fonts = FONTS.lock().unwrap();
             let face_info = fonts.insert_font(slice.to_vec());
 
-            JsValue::from_serde(&face_info).unwrap()
+            serde_wasm_bindgen::to_value(&face_info).unwrap()
         }
     };
 }

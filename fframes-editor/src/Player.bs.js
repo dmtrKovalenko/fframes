@@ -43,7 +43,6 @@ function MakePlayer(Wasm) {
         fpsLimit: Wasm.videoMeta.fps,
         svg: Utils.$$Option.some(Curry._1(Wasm.controller.render_frame, BigInt(0))),
         volume: volume,
-        sceneIndex: sceneIndex,
         magnet: savedMagnet
       }) : ({
         frame: initialFrame,
@@ -52,7 +51,6 @@ function MakePlayer(Wasm) {
         fpsLimit: Wasm.videoMeta.fps,
         svg: undefined,
         volume: volume,
-        sceneIndex: sceneIndex,
         magnet: savedMagnet
       });
   var PlayerState = {
@@ -89,7 +87,6 @@ function MakePlayer(Wasm) {
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
                     volume: state.volume,
-                    sceneIndex: state.sceneIndex,
                     magnet: state.magnet
                   };
         case /* Play */1 :
@@ -101,7 +98,6 @@ function MakePlayer(Wasm) {
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
                       volume: state.volume,
-                      sceneIndex: state.sceneIndex,
                       magnet: state.magnet
                     };
             } else {
@@ -112,7 +108,6 @@ function MakePlayer(Wasm) {
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
                       volume: state.volume,
-                      sceneIndex: state.sceneIndex,
                       magnet: state.magnet
                     };
             }
@@ -124,7 +119,6 @@ function MakePlayer(Wasm) {
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
                     volume: state.volume,
-                    sceneIndex: state.sceneIndex,
                     magnet: state.magnet
                   };
         case /* SetMagnet */3 :
@@ -136,7 +130,6 @@ function MakePlayer(Wasm) {
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
                       volume: state.volume,
-                      sceneIndex: state.sceneIndex,
                       magnet: undefined
                     };
             } else {
@@ -147,7 +140,6 @@ function MakePlayer(Wasm) {
                       fpsLimit: state.fpsLimit,
                       svg: state.svg,
                       volume: state.volume,
-                      sceneIndex: state.sceneIndex,
                       magnet: state.frame
                     };
             }
@@ -166,7 +158,6 @@ function MakePlayer(Wasm) {
                     fpsLimit: state.fpsLimit,
                     svg: state.svg,
                     volume: action._0,
-                    sceneIndex: state.sceneIndex,
                     magnet: state.magnet
                   };
         
@@ -174,30 +165,29 @@ function MakePlayer(Wasm) {
     }
     var frame = action._0;
     if (frame > Wasm.videoMeta.durationInFrames || frame < 0) {
-      var svg = Curry._1(Wasm.controller.render_frame, BigInt(0));
+      var frame$1 = Utils.$$Option.unwrapOr(state.magnet, 0);
+      var svg = Curry._1(Wasm.controller.render_frame, BigInt(frame$1));
       return {
-              frame: 0,
-              startPlayingFrame: Utils.$$Option.unwrapOr(state.magnet, 0),
-              playState: /* Paused */1,
+              frame: frame$1,
+              startPlayingFrame: frame$1,
+              playState: Wasm.options.loop ? /* Playing */0 : /* Paused */1,
               fpsLimit: state.fpsLimit,
               svg: svg,
               volume: state.volume,
-              sceneIndex: state.sceneIndex,
               magnet: state.magnet
             };
     }
-    var frame$1 = action._0;
-    var svg$1 = Curry._1(Wasm.controller.render_frame, BigInt(frame$1));
+    var frame$2 = action._0;
+    var svg$1 = Curry._1(Wasm.controller.render_frame, BigInt(frame$2));
     var tmp;
     tmp = typeof action === "number" || action.TAG !== /* Seek */0 ? state.startPlayingFrame : action._0;
     return {
-            frame: frame$1,
+            frame: frame$2,
             startPlayingFrame: tmp,
             playState: state.playState,
             fpsLimit: state.fpsLimit,
             svg: svg$1,
             volume: state.volume,
-            sceneIndex: state.sceneIndex,
             magnet: state.magnet
           };
   };

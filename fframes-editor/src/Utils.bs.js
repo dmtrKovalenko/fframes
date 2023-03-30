@@ -85,11 +85,22 @@ function some(val) {
   return Caml_option.some(val);
 }
 
+function zip(a, b) {
+  if (a !== undefined && b !== undefined) {
+    return [
+            Caml_option.valFromOption(a),
+            Caml_option.valFromOption(b)
+          ];
+  }
+  
+}
+
 var $$Option = {
   unwrap: unwrap,
   flatten: flatten,
   unwrapOr: unwrapOr,
-  some: some
+  some: some,
+  zip: zip
 };
 
 function andReturn(a) {
@@ -113,8 +124,16 @@ function invert(a) {
   return !a;
 }
 
+function $$then(a) {
+  if (a) {
+    return Caml_option.some(undefined);
+  }
+  
+}
+
 var Bool = {
-  invert: invert
+  invert: invert,
+  $$then: $$then
 };
 
 function leftPad(n) {

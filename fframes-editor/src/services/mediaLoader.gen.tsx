@@ -20,6 +20,8 @@ import type {Js_Int16Array_t as ReScriptJs_Js_Int16Array_t} from './shims/Js.shi
 
 import type {Js_Promise_t as ReScriptJs_Js_Promise_t} from './shims/Js.shim';
 
+import type {options as WasmController_options} from '../../src/WasmController.gen';
+
 import type {t as WasmController_t} from '../../src/WasmController.gen';
 
 // tslint:disable-next-line:interface-over-type-literal
@@ -63,6 +65,10 @@ export type forceTsReturnResolveMedia = "MediaResolved";
 export type mediaResolveFn = (_1:string, _2:string, _3:WasmController_t) => ReScriptJs_Js_Promise_t<forceTsReturnResolveMedia>;
 export type MediaResolver = mediaResolveFn;
 
+// tslint:disable-next-line:interface-over-type-literal
+export type mediaResolveFnWithOptions = (_1:WasmController_options, _2:string, _3:string, _4:WasmController_t) => ReScriptJs_Js_Promise_t<forceTsReturnResolveMedia>;
+export type MediaResolverWithOptions = mediaResolveFnWithOptions;
+
 export const resolveMedia: (name:string, media:processedMedia) => forceTsReturnResolveMedia = function (Arg1: any, Arg2: any) {
   const result = Curry._2(mediaLoaderBS.resolveMedia, Arg1, Arg2.tag==="Font"
     ? {TAG: 0, _0:Arg2.value} as any
@@ -74,7 +80,11 @@ export const resolveMedia: (name:string, media:processedMedia) => forceTsReturnR
   return "MediaResolved"
 };
 
-export const processImports: (_1:{ readonly imports: ReScriptJs_Js_Dict_t<mediaImport>; readonly wasmController: WasmController_t }) => ReScriptJs_Js_Promise_t<void> = function (Arg1: any) {
-  const result = Curry._2(mediaLoaderBS.processImports, Arg1.imports, Arg1.wasmController);
+export const processImports: (_1:{
+  readonly imports: ReScriptJs_Js_Dict_t<mediaImport>; 
+  readonly wasmController: WasmController_t; 
+  readonly options: WasmController_options
+}) => ReScriptJs_Js_Promise_t<void> = function (Arg1: any) {
+  const result = Curry._3(mediaLoaderBS.processImports, Arg1.imports, Arg1.wasmController, Arg1.options);
   return result
 };

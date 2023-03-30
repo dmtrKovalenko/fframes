@@ -27,7 +27,8 @@ function Editor(Props) {
   var layout = Hooks.useEditorLayout(match$1[0]);
   var previewRef = React.useRef(null);
   var match$2 = React.useState(function () {
-        if (layout.preview.width / layout.preview.height > 1.3) {
+        var match = context.options.mediaListLayout;
+        if (match === "list" || match === "fromAspectRatio" && layout.preview.width / layout.preview.height > 1.3) {
           return /* List */1;
         } else {
           return /* Grid */0;

@@ -115,6 +115,14 @@ module ListViewIcon = {
     ~style: ReactDOM.Style.t=?,
   ) => React.element = "ListViewIcon"
 }
+module LockIcon = {
+  @react.component @module("./LockIcon")
+  external make: (
+    ~color: string=?,
+    ~className: string=?,
+    ~style: ReactDOM.Style.t=?,
+  ) => React.element = "LockIcon"
+}
 
 @module("./magnet.svg") @val
 external magnetRawIcon: string = "default"

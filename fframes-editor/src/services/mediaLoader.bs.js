@@ -70,23 +70,30 @@ function resolveMedia(name, media) {
   return /* MediaResolved */0;
 }
 
-function processImports(imports, wasmController) {
+function processImports(imports, wasmController, options) {
   Curry._1(MediaLoaderObserver.dispatch, {
         TAG: /* InitMediaProcessing */0,
         _0: imports
       });
   return Promise.all(Belt_Array.keepMap(Object.entries(imports), (function (param) {
                       var moduleVal = param[1];
-                      var name = Utils.Path.getFilename(param[0]);
-                      return Belt_Option.map(name.endsWith(".mp3") ? resolveAudio : (
-                                    name.endsWith(".vtt") ? resolveSubtitles : (
-                                        name.endsWith(".ttf") || name.endsWith(".otf") ? resolveFont : (
-                                            name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") ? resolveImage : undefined
-                                          )
-                                      )
-                                  ), (function (resolveFn) {
-                                    return Curry._3(resolveFn, name, moduleVal, wasmController);
-                                  }));
+                      var moduleRelativePath = param[0];
+                      var name = Utils.Path.getFilename(moduleRelativePath);
+                      if (Utils.$$Option.unwrapOr(Belt_Option.map(options.ignoreMediaRegex, (function (regex) {
+                                    return regex.test(moduleRelativePath);
+                                  })), false)) {
+                        return ;
+                      } else {
+                        return Belt_Option.map(name.endsWith(".mp3") ? resolveAudio : (
+                                      name.endsWith(".vtt") ? resolveSubtitles : (
+                                          name.endsWith(".ttf") || name.endsWith(".otf") ? resolveFont : (
+                                              name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") ? Curry._1(resolveImage, options) : undefined
+                                            )
+                                        )
+                                    ), (function (resolveFn) {
+                                      return Curry._3(resolveFn, name, moduleVal, wasmController);
+                                    }));
+                      }
                     }))).then(function (param) {
               return Curry._1(MediaLoaderObserver.dispatch, /* MediaProcessingFinished */0);
             });

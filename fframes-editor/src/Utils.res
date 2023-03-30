@@ -57,6 +57,13 @@ module Option = {
     }
 
   let some = val => Some(val)
+
+  let zip = (a, b) => {
+    switch (a, b) {
+    | (Some(a), Some(b)) => Some((a, b))
+    | _ => None
+    }
+  }
 }
 
 module Log = {
@@ -74,6 +81,7 @@ module Path = {
 
 module Bool = {
   let invert = a => !a
+  let then = a => a ? Some() : None
 }
 
 module Duration = {

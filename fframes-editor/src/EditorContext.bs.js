@@ -50,6 +50,7 @@ function MakeEditorContext(Wasm) {
                 value: {
                   wasmController: Wasm.controller,
                   videoMeta: Wasm.videoMeta,
+                  options: Wasm.options,
                   usePlayer: usePlayer
                 },
                 children: children
@@ -61,10 +62,11 @@ function MakeEditorContext(Wasm) {
         };
 }
 
-function makeEditorContextComponent(wasmController, videoMeta) {
+function makeEditorContextComponent(wasmController, videoMeta, options) {
   var Wasm = {
     videoMeta: videoMeta,
-    controller: wasmController
+    controller: wasmController,
+    options: options
   };
   var PlayerObserver = Player.MakePlayer(Wasm);
   var EditorContext$MakeEditorContext = function (Props) {
@@ -92,6 +94,7 @@ function makeEditorContextComponent(wasmController, videoMeta) {
                 value: {
                   wasmController: wasmController,
                   videoMeta: videoMeta,
+                  options: options,
                   usePlayer: usePlayer
                 },
                 children: children

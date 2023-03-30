@@ -17,7 +17,6 @@ export type state = {
   readonly fpsLimit?: number; 
   readonly svg?: string; 
   readonly volume?: number; 
-  readonly sceneIndex?: number; 
   readonly magnet?: number
 };
 

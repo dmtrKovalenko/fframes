@@ -6,6 +6,7 @@ module DocumentEvent = Dom.EventTarget.Impl(Dom.Window)
 type editorContext = {
   wasmController: WasmController.t,
   videoMeta: WasmController.videoMeta,
+  options: WasmController.options,
   usePlayer: unit => (Player.state, Player.action => unit),
 }
 
@@ -50,6 +51,7 @@ module MakeEditorContext = (Wasm: WasmController.WasmBridge) => {
           wasmController: Wasm.controller,
           videoMeta: Wasm.videoMeta,
           usePlayer: usePlayer,
+          options: Wasm.options,
         }),
         "children": children,
       },
@@ -61,10 +63,12 @@ module MakeEditorContext = (Wasm: WasmController.WasmBridge) => {
 let makeEditorContextComponent = (
   ~wasmController: WasmController.t,
   ~videoMeta: WasmController.videoMeta,
+  ~options: WasmController.options,
 ) => {
   module Bridge = {
     let controller = wasmController
     let videoMeta = videoMeta
+    let options = options
   }
 
   module Context = MakeEditorContext(Bridge)

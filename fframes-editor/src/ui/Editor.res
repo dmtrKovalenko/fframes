@@ -11,10 +11,15 @@ let make = () => {
   let layout = useEditorLayout(~isFullScreen)
   let previewRef = React.useRef(Js.Nullable.null)
   let (listVariant, setListVariant) = React.useState(_ =>
-    if layout.preview.width /. layout.preview.height > 1.3 {
-      MediaList.List
-    } else {
-      MediaList.Grid
+    switch context.options.mediaListLayout {
+    | #grid => MediaList.Grid
+    | #list => MediaList.List
+    | #fromAspectRatio =>
+      if layout.preview.width /. layout.preview.height > 1.3 {
+        MediaList.List
+      } else {
+        MediaList.Grid
+      }
     }
   )
 

@@ -15,6 +15,7 @@ pub mod prelude {
     pub use fframes::{fframes_context, frame, subtitles::Subtitles, video::Video, AudioTimestamp};
     pub use js_sys;
     pub use lazy_static::lazy_static;
+    pub use serde_wasm_bindgen;
     pub use std::{collections::HashMap, sync::Mutex};
     pub use wasm_bindgen;
     pub use wasm_bindgen::prelude::*;
