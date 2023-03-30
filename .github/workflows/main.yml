@@ -20,6 +20,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - run: apt-get update
       - run: apt install -y build-essential lsb-release wget software-properties-common gnupg
       - run: apt-get install -y curl pkg-config
       - run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
