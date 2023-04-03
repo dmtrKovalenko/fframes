@@ -147,13 +147,24 @@ function Dock(Props) {
                     _0: 0
                   });
       });
+  var loggedMagnetRef = React.useRef(false);
   var setMagnet = Hooks.useEvent(function (param) {
+        if (!loggedMagnetRef.current) {
+          console.log("Press 0 or Shift+h to seek to magnet point.");
+          loggedMagnetRef.current = true;
+        }
         return Curry._1(dispatch, /* SetMagnet */3);
       });
   var seekToStart = Hooks.useEvent(function (param) {
         return Curry._1(dispatch, {
                     TAG: /* Seek */0,
                     _0: Utils.$$Option.unwrapOr(player.magnet, 0)
+                  });
+      });
+  var seekToEnd = Hooks.useEvent(function (param) {
+        return Curry._1(dispatch, {
+                    TAG: /* Seek */0,
+                    _0: context.videoMeta.durationInFrames
                   });
       });
   var switchScene = Hooks.useEvent(function (dir) {
@@ -191,8 +202,18 @@ function Dock(Props) {
                   } else {
                     return Curry._1(handleSeekLeft, undefined);
                   }
+              case "ArrowRight" :
+                  if (e.shiftKey) {
+                    return Curry._1(seekToEnd, undefined);
+                  } else {
+                    return Curry._1(handleSeekRight, undefined);
+                  }
+              case "End" :
+              case "G" :
+                  return Curry._1(seekToEnd, undefined);
               case "0" :
               case "H" :
+              case "Home" :
                   return Curry._1(seekToStart, undefined);
               case "S" :
               case "b" :
@@ -205,7 +226,6 @@ function Dock(Props) {
                   break;
               case "j" :
                   return Curry._1(handleSeekLeft, undefined);
-              case "ArrowRight" :
               case "k" :
                   return Curry._1(handleSeekRight, undefined);
               case "ArrowUp" :
@@ -314,7 +334,8 @@ function Dock(Props) {
                         high: volume > 50,
                         mute: volume === 0,
                         className: "h-6 w-6"
-                      }) : React.createElement(Icons.VolumeMuteIcon.make, {
+                      }) : React.createElement(Icons.VolumeIcon.make, {
+                        mute: true,
                         className: "h-6 w-6 text-gray-500"
                       }), React.createElement(Slider.make, {
                       onValueChange: handleSetVolume,

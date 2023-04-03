@@ -32,8 +32,7 @@ let volume_key = "ffvolume"
 let frame_key = "fframe"
 @inline
 let scene_key = "ffscene"
-@inline
-let magnet_key = "ffmagnet"
+let get_magent_key = (video: WasmController.videoMeta) => video.name ++ "_ffmagnet"
 
 let min_volume = 0
 let max_volume = 100
@@ -48,7 +47,9 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       Dom.Storage.getItem(scene_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
 
     let savedMagnet =
-      Dom.Storage.getItem(magnet_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
+      Dom.Storage.getItem(get_magent_key(Wasm.videoMeta), Dom.Storage.localStorage)->Option.flatMap(
+        Js.Int.fromString,
+      )
 
     let initialFrame = switch (
       savedMagnet,
@@ -106,7 +107,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
   let reducer = action => {
     let state = get()
     switch action {
-    | Seek(frame) | NewFrame(frame) if frame > Wasm.videoMeta.durationInFrames || frame < 0 => {
+    | Seek(frame) | NewFrame(frame) if frame >= Wasm.videoMeta.durationInFrames || frame < 0 => {
         let frame = state.magnet->Utils.Option.unwrapOr(0)
         let svg = Wasm.controller.render_frame(frame->Js.BigInt.fromInt)
 
@@ -191,7 +192,12 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
         Dom.Storage.localStorage |> Dom.Storage.setItem(volume_key, volume->Js.Int.toString)
       }
     | SetMagnet if get().magnet !== Some(get().frame) =>
-      Dom.Storage.localStorage |> Dom.Storage.setItem(magnet_key, get().frame->Js.Int.toString)
+      Dom.Storage.localStorage |> Dom.Storage.setItem(
+        get_magent_key(Wasm.videoMeta),
+        get().frame->Js.Int.toString,
+      )
+    | SetMagnet if get().magnet === Some(get().frame) =>
+      Dom.Storage.localStorage |> Dom.Storage.removeItem(get_magent_key(Wasm.videoMeta))
     | _ => ()
     }
   }

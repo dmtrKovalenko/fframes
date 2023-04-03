@@ -14,6 +14,10 @@ var currentFps = {
   contents: undefined
 };
 
+function get_magent_key(video) {
+  return video.name + "_ffmagnet";
+}
+
 var func = Utils.$$Math.minMax;
 
 function validateVolume(param) {
@@ -22,7 +26,7 @@ function validateVolume(param) {
 
 function MakePlayer(Wasm) {
   var sceneIndex = Belt_Option.flatMap(Dom_storage.getItem("ffscene", localStorage), Js__Int.fromString);
-  var savedMagnet = Belt_Option.flatMap(Dom_storage.getItem("ffmagnet", localStorage), Js__Int.fromString);
+  var savedMagnet = Belt_Option.flatMap(Dom_storage.getItem(Wasm.videoMeta.name + "_ffmagnet", localStorage), Js__Int.fromString);
   var match = Wasm.videoMeta.scenesTimeline;
   var initialFrame = Utils.$$Option.unwrapOr(savedMagnet !== undefined ? Utils.$$Option.some(Math.min(savedMagnet, Wasm.videoMeta.durationInFrames)) : (
           !(match == null) && sceneIndex !== undefined ? Belt_Option.map(match[sceneIndex], (function (scene) {
@@ -164,7 +168,7 @@ function MakePlayer(Wasm) {
       }
     }
     var frame = action._0;
-    if (frame > Wasm.videoMeta.durationInFrames || frame < 0) {
+    if (frame >= Wasm.videoMeta.durationInFrames || frame < 0) {
       var frame$1 = Utils.$$Option.unwrapOr(state.magnet, 0);
       var svg = Curry._1(Wasm.controller.render_frame, BigInt(frame$1));
       return {
@@ -223,7 +227,9 @@ function MakePlayer(Wasm) {
             return AnimationRuntime.AudioRuntime.stop(undefined);
         case /* SetMagnet */3 :
             if (Curry._1(get, undefined).magnet !== Curry._1(get, undefined).frame) {
-              return Dom_storage.setItem("ffmagnet", Curry._1(get, undefined).frame.toString(), localStorage);
+              return Dom_storage.setItem(Wasm.videoMeta.name + "_ffmagnet", Curry._1(get, undefined).frame.toString(), localStorage);
+            } else if (Curry._1(get, undefined).magnet === Curry._1(get, undefined).frame) {
+              return Dom_storage.removeItem(Wasm.videoMeta.name + "_ffmagnet", localStorage);
             } else {
               return ;
             }
@@ -278,6 +284,7 @@ var max_volume = 100;
 
 export {
   currentFps ,
+  get_magent_key ,
   min_volume ,
   max_volume ,
   validateVolume ,

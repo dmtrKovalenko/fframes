@@ -450,6 +450,7 @@ dependencies = [
  "futures",
  "js-sys",
  "lazy_static",
+ "serde-wasm-bindgen",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]
@@ -528,14 +529,14 @@ dependencies = [
 
 [[package]]
 name = "fontdb"
-version = "0.10.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8131752b3f3b876a20f42b3d08233ad177d6e7ec6d18aaa6954489a201071be5"
+checksum = "ff20bef7942a72af07104346154a70a70b089c572e454b41bef6eb6cb10e9c06"
 dependencies = [
  "fontconfig-parser",
  "log",
  "memmap2",
- "ttf-parser 0.17.1",
+ "ttf-parser 0.18.1",
 ]
 
 [[package]]
@@ -908,6 +909,15 @@ name = "kurbo"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a53776d271cfb873b17c618af0298445c88afc52837f3e948fa3fafd131f449"
+dependencies = [
+ "arrayvec 0.7.2",
+]
+
+[[package]]
+name = "kurbo"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5174361704392c4a640258d5020e14ec820a8c1820d5ba67b2311962f411b52b"
 dependencies = [
  "arrayvec 0.7.2",
 ]
@@ -1636,6 +1646,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-wasm-bindgen"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1774,9 +1795,9 @@ dependencies = [
 
 [[package]]
 name = "svgr"
-version = "0.28.3"
+version = "0.28.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ced3e09fce9273f6f1945fa04ad208a89aa51c5e5c27eeda879978d271530ae4"
+checksum = "4be89e1a453423255ef1d2a106404447b6e27c8f3b285d109f829c4ab7214903"
 dependencies = [
  "gif",
  "jpeg-decoder",
@@ -1808,11 +1829,11 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.28.3"
+version = "0.28.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48b4163a226e766a9a8d5554ee265e22349938b6ea1bca590915bd7357f8df32"
+checksum = "8501f968b96d37ced53d2b3ec6c5d4dffeeb38cdf190d975fe850d776cf61ce7"
 dependencies = [
- "kurbo",
+ "kurbo 0.8.3",
  "proc-macro2",
  "quote",
  "siphasher",
@@ -2000,15 +2021,15 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 
 [[package]]
 name = "usvgr"
-version = "0.28.3"
+version = "0.28.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35af68798bfa6adb87259b1f7ff851a42de5aca1a9d4b363249298145f4c5a32"
+checksum = "e50084f256514163428acb3cefbd989f3e18a7ca2aed3366d35f2353a4ad5d07"
 dependencies = [
  "base64",
  "data-url",
  "flate2",
  "imagesize",
- "kurbo",
+ "kurbo 0.8.3",
  "log",
  "proc-macro2",
  "quote",
@@ -2022,12 +2043,12 @@ dependencies = [
 
 [[package]]
 name = "usvgr-text-layout"
-version = "0.28.3"
+version = "0.28.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d439c3e7eea73564cec920cf9c3d5fe79d36388273d891f86162909f2597cb1d"
+checksum = "a7c8e4c40caa960dd9086fd0052e6ba1cfba125d76c14e5af80560d9b371d85d"
 dependencies = [
  "fontdb",
- "kurbo",
+ "kurbo 0.9.2",
  "log",
  "lru",
  "rustybuzz",

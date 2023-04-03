@@ -1,5 +1,5 @@
 [package]
-name = "hello-world-editorfframes = { path = "../../../../fframes", default-features = false }
+name = "hello-world-editor"
 version = "0.1.0"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2021"

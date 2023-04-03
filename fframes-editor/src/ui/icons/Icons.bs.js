@@ -57,52 +57,46 @@ var VolumeLowIcon = {
   make: make$6
 };
 
-var make$7 = VolumeIcon.VolumeMuteIcon;
+var make$7 = MagnetIcon.MagnetIcon;
 
-var VolumeMuteIcon = {
+var MagnetIcon$1 = {
   make: make$7
 };
 
-var make$8 = MagnetIcon.MagnetIcon;
+var make$8 = FullScreenIcon.FullScreenIcon;
 
-var MagnetIcon$1 = {
+var FullScreenIcon$1 = {
   make: make$8
 };
 
-var make$9 = FullScreenIcon.FullScreenIcon;
+var make$9 = CollapseIcon.CollapseIcon;
 
-var FullScreenIcon$1 = {
+var CollapseIcon$1 = {
   make: make$9
 };
 
-var make$10 = CollapseIcon.CollapseIcon;
+var make$10 = PauseIcon.PauseIcon;
 
-var CollapseIcon$1 = {
+var PauseIcon$1 = {
   make: make$10
 };
 
-var make$11 = PauseIcon.PauseIcon;
+var make$11 = GridViewIcon.GridViewIcon;
 
-var PauseIcon$1 = {
+var GridViewIcon$1 = {
   make: make$11
 };
 
-var make$12 = GridViewIcon.GridViewIcon;
+var make$12 = ListViewIcon.ListViewIcon;
 
-var GridViewIcon$1 = {
+var ListViewIcon$1 = {
   make: make$12
 };
 
-var make$13 = ListViewIcon.ListViewIcon;
-
-var ListViewIcon$1 = {
-  make: make$13
-};
-
-var make$14 = LockIcon.LockIcon;
+var make$13 = LockIcon.LockIcon;
 
 var LockIcon$1 = {
-  make: make$14
+  make: make$13
 };
 
 var magnetRawIcon = MagnetSvg;
@@ -115,7 +109,6 @@ export {
   PlayBackIcon$1 as PlayBackIcon,
   VolumeIcon$1 as VolumeIcon,
   VolumeLowIcon ,
-  VolumeMuteIcon ,
   MagnetIcon$1 as MagnetIcon,
   FullScreenIcon$1 as FullScreenIcon,
   CollapseIcon$1 as CollapseIcon,

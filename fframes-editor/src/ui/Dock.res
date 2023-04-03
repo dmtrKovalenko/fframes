@@ -105,12 +105,23 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
     dispatch(SetVolume(0))
   })
 
+  let loggedMagnetRef = React.useRef(false)
+
   let setMagnet = Hooks.useEvent(() => {
+    if !loggedMagnetRef.current {
+      Js.Console.log("Press 0 or Shift+h to seek to magnet point.")
+      loggedMagnetRef.current = true
+    }
+
     dispatch(SetMagnet)
   })
 
   let seekToStart = Hooks.useEvent(() => {
     dispatch(Seek(player.magnet->Utils.Option.unwrapOr(0)))
+  })
+
+  let seekToEnd = Hooks.useEvent(() => {
+    dispatch(Seek(context.videoMeta.durationInFrames))
   })
 
   let switchScene = Hooks.useEvent(dir => {
@@ -145,8 +156,10 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
       ) {
         switch e->KeyboardEvent.key {
         | " " => handlePlayOrPause()
-        | "0" | "H" => seekToStart()
+        | "0" | "H" | "Home" => seekToStart()
         | "ArrowLeft" if e->KeyboardEvent.shiftKey => seekToStart()
+        | "G" | "End" => seekToEnd()
+        | "ArrowRight" if e->KeyboardEvent.shiftKey => seekToEnd()
         | "ArrowDown" | "h" if e->KeyboardEvent.ctrlKey => toggleMute()
         | "ArrowLeft" | "j" => handleSeekLeft()
         | "ArrowRight" | "k" => handleSeekRight()
@@ -255,7 +268,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
     <DockSpace>
       {switch player.volume {
       | Some(volume) => <VolumeIcon high={volume > 50} mute={volume === 0} className="h-6 w-6" />
-      | _ => <VolumeMuteIcon className="h-6 w-6 text-gray-500" />
+      | _ => <VolumeIcon mute=true className="h-6 w-6 text-gray-500" />
       }}
       <Slider
         disabled={player.volume->Option.isNone}
