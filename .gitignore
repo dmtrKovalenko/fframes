@@ -2,8 +2,9 @@ target/
 node_modules/
 bin/out
 .DS_Store
-**/some/*.mp4
 out*.mp4
+out*.webm
+out*.mov
 .bsb.lock
 test_render/
 .merlin
@@ -14,3 +15,4 @@ dist/
 e2e/frames/results/*
 e2e/frames/diff/*
 **/_svgr_snapshots/**/*-diff.txt
+fframes-renderer/c_render_bin

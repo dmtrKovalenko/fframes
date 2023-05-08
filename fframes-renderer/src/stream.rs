@@ -1,7 +1,10 @@
+use crate::encoder;
+use crate::encoder::validate_sample_rate_fits_codec;
 use crate::ffmpeg_action;
 use crate::ffmpeg_loggable_action;
 use crate::renderer_error::AVError;
 use crate::renderer_error::AVResult;
+use crate::EncoderOptions;
 use ffmpeg_next::sys::*;
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -28,38 +31,49 @@ impl Stream {
         (*self.st).nb_frames
     }
 
-    pub(crate) unsafe fn make(
-        preferred_codec_name: &str,
-        codec_id: AVCodecID,
+    pub(crate) unsafe fn prepare_stream_codec(
+        preferred_codec_name: Option<&str>,
+        default_codec_id: AVCodecID,
         oc: *mut AVFormatContext,
-    ) -> Result<
-        (
-            *const AVCodec,
-            AVCodecID,
-            *mut AVStream,
-            *mut AVCodecContext,
-        ),
-        Result<Stream, AVError>,
-    > {
-        let codec_name = CString::new(preferred_codec_name).unwrap();
-        let mut codec = avcodec_find_encoder_by_name(codec_name.as_ptr());
-        if codec.is_null() {
-            codec = avcodec_find_encoder(codec_id);
+    ) -> AVResult<(
+        *const AVCodec,
+        AVCodecID,
+        *mut AVStream,
+        *mut AVCodecContext,
+    )> {
+        let mut codec = if let Some(preferred_codec_name) = preferred_codec_name {
+            let codec_name = CString::new(preferred_codec_name).unwrap();
+            avcodec_find_encoder_by_name(codec_name.as_ptr())
+        } else {
+            std::ptr::null_mut()
+        };
 
-            let found_codec_name = CStr::from_ptr((*codec).name);
-            eprintln!(
-                "Warning: Can not find codec {preferred_codec_name}, continue with {codec_name}",
-                codec_name = found_codec_name.to_str().unwrap()
-            );
+        if codec.is_null() {
+            codec = avcodec_find_encoder(default_codec_id);
+
+            if let Some(preferred_codec_name) = preferred_codec_name {
+                let found_codec_name = CStr::from_ptr((*codec).name);
+
+                eprintln!(
+                    "Warning: Can not find codec {preferred_codec_name}, continue with {codec_name}",
+                    codec_name = found_codec_name.to_str().unwrap()
+                );
+            }
         }
+
+        if codec.is_null() {
+            return Err(AVError::CannotLocateCodec);
+        }
+
         let codec_id = (*codec).id;
 
         let st = avformat_new_stream(oc, std::ptr::null_mut());
         (*st).id = ((*oc).nb_streams - 1) as i32;
         let c = avcodec_alloc_context3(codec);
         if c.is_null() {
-            return Err(Err(AVError::CantAllocateCtx));
+            return Err(AVError::CantAllocateCtx);
         }
+
         Ok((codec, codec_id, st, c))
     }
 
@@ -68,13 +82,13 @@ impl Stream {
         height: i32,
         fps: i32,
         oc: *mut AVFormatContext,
-        preferred_codec_name: &str,
-        codec_id: AVCodecID,
+        encoder_options: &EncoderOptions,
     ) -> AVResult<Self> {
-        let (codec, codec_id, st, c) = match Self::make(preferred_codec_name, codec_id, oc) {
-            Ok(value) => value,
-            Err(value) => return value,
-        };
+        let (codec, codec_id, st, c) = Self::prepare_stream_codec(
+            encoder_options.preferred_video_codec,
+            (*(*oc).oformat).video_codec,
+            oc,
+        )?;
 
         (*c).codec_id = codec_id;
         (*c).width = width;
@@ -82,13 +96,13 @@ impl Stream {
         (*st).time_base = AVRational { num: 1, den: fps };
         (*c).time_base = (*st).time_base;
 
-        (*c).gop_size = 12;
-        (*c).pix_fmt = AVPixelFormat::AV_PIX_FMT_YUV420P;
-        (*c).qmin = 10;
-        (*c).qmax = 51;
-        (*c).qcompress = 0.6;
-        (*c).max_qdiff = 4;
-        (*c).bit_rate_tolerance = 0;
+        (*c).gop_size = encoder_options.gop_size;
+        (*c).pix_fmt = encoder_options.pixel_format;
+        (*c).qmin = encoder_options.qmin;
+        (*c).qmax = encoder_options.qmax;
+        (*c).qcompress = encoder_options.qcompress;
+        (*c).max_qdiff = encoder_options.max_qdiff;
+        (*c).bit_rate_tolerance = encoder_options.bitrate_tolerance;
 
         if (*(*oc).oformat).flags & AVFMT_GLOBALHEADER != 0 {
             (*c).flags |= AV_CODEC_FLAG_GLOBAL_HEADER as i32;
@@ -96,13 +110,14 @@ impl Stream {
 
         let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
 
-        let crf = CString::new("crf").unwrap();
-        let crfval = CString::new("18").unwrap();
-        av_dict_set(opts, crf.as_ptr(), crfval.as_ptr(), 0);
+        if let Some(codec_params) = encoder_options.codec_params {
+            for (param, value) in codec_params {
+                let c_param = CString::new(*param).unwrap();
+                let c_value = CString::new(*value).unwrap();
 
-        let crf = CString::new("tune").unwrap();
-        let crfval = CString::new("animation").unwrap();
-        av_dict_set(opts, crf.as_ptr(), crfval.as_ptr(), 0);
+                av_dict_set(opts, c_param.as_ptr(), c_value.as_ptr(), 0);
+            }
+        }
 
         ffmpeg_loggable_action!(avcodec_open2(c, codec, opts));
         ffmpeg_loggable_action!(avcodec_parameters_from_context((*st).codecpar, c));
@@ -117,23 +132,29 @@ impl Stream {
     pub(crate) unsafe fn make_audio(
         sample_rate: i32,
         oc: *mut AVFormatContext,
-        preferred_codec_name: &str,
-        codec_id: AVCodecID,
+        encoder_options: &EncoderOptions,
     ) -> AVResult<Self> {
-        let (codec, _codec_id, st, c) = match Self::make(preferred_codec_name, codec_id, oc) {
-            Ok(value) => value,
-            Err(value) => return value,
-        };
+        let (codec, _codec_id, st, c) = Self::prepare_stream_codec(
+            encoder_options.preferred_audio_codec,
+            (*(*oc).oformat).audio_codec,
+            oc,
+        )?;
 
-        (*c).sample_fmt = AVSampleFormat::AV_SAMPLE_FMT_FLTP;
-        (*c).sample_rate = sample_rate;
-        (*c).bit_rate = 320000;
+        let validated_sample_rate = validate_sample_rate_fits_codec(codec, sample_rate);
+        if validated_sample_rate != sample_rate {
+            eprintln!(
+                "Warning: sample_rate ({sample_rate}) provided in encoder_options are not available for the codec, using {validated_sample_rate} instead",
+            );
+        }
+
+        (*c).sample_fmt = encoder_options.sample_format;
+        (*c).sample_rate = validated_sample_rate;
+        (*c).bit_rate = encoder_options.audio_bitrate.unwrap_or(192000);
         (*st).time_base = AVRational {
             num: 1,
             den: sample_rate,
         };
 
-        // TODO verify that codec supports 44100 sample_rate
         crate::encoder::make_stereo_layout_channel(c);
 
         // TODO pass user options

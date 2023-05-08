@@ -15,7 +15,7 @@ fn main() {
                 cache_capacity: 0,
                 ..Default::default()
             },
-            preferred_codec: "libx264",
+           
             ..Default::default()
         },
     )

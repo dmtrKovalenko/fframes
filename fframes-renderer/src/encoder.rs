@@ -1,5 +1,6 @@
 use ffmpeg_next::sys::*;
-use std::{ffi::CString, os::raw::c_char, sync::Arc};
+pub use ffmpeg_next::sys::{AVPixelFormat, AVSampleFormat};
+use std::{collections::HashMap, ffi::CString, os::raw::c_char, path::PathBuf, sync::Arc};
 
 use crate::{
     ffmpeg_action,
@@ -18,17 +19,69 @@ extern "C" {
     pub fn av_error_to_string(err: i32) -> *mut c_char;
     pub fn make_stereo_layout_channel(c: *mut AVCodecContext) -> i32;
     pub fn log_packet(fmt_ctx: *mut AVStream, packet: *mut AVPacket);
+    pub fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32;
 }
 
 #[derive(Debug, Clone)]
 pub struct EncoderOptions<'a> {
-    pub preferred_codec: &'a str,
+    /// If several codecs available for specified format output here you can specify the ffmpeg compatible name of the video codec that should be used to encode.
+    pub preferred_video_codec: Option<&'a str>,
+    /// If several codecs available for specified format output here you can specify the ffmpeg compatible name of the audio codec that should be used to encode.
+    pub preferred_audio_codec: Option<&'a str>,
+    /// Pixel format used to store encoded frame. By default equals to AVPixelFormat::AV_PIX_FMT_YUV420P
+    pub pixel_format: AVPixelFormat,
+    /// Sample format used to store encoded audio frame. By default equals to AvSampleFormat::AV_SAMPLE_FMT_FLTP
+    pub sample_format: AVSampleFormat,
+    /// Audio bitrate in bytes, if not provided 192k used.
+    pub audio_bitrate: Option<i64>,
+    /// Video bitrate, sometimes may not be needed and inferred from other codec params, like crf for libx264 and libx265
+    pub video_bitrate: Option<i64>,
+    /// Number of bits the bitstream is allowed to diverge from the reference. the reference can be CBR (for CBR pass1) or VBR (for pass2)
+    pub bitrate_tolerance: i32,
+    /// Minimum quantizer
+    pub qmin: i32,
+    /// Maximum quantizer
+    pub qmax: i32,
+    ///  amount of qscale change between easy & hard scenes (0.0-1.0)
+    pub qcompress: f32,
+    /// maximum quantizer difference between frames
+    pub max_qdiff: i32,
+    /// Size of group of picture
+    pub gop_size: i32,
+    /// Output sample rate of the final video file
+    pub sample_rate: Option<i32>,
+    /// Directory used to store temporary files and artifacts generated for rendering and encoding.
+    pub tmp_files_directory: Option<&'a PathBuf>,
+    /// Dynamic set of options specific to encoder. Every encoder accepts its own purely dynamic set of options, e.g.
+    /// the most popular example for h264 & h265 codecs are options like `-crf 18 -tune animation -preset ultrafast`.
+    ///
+    /// You can pass this set of options like:
+    /// ```rust
+    /// codec_params: &HashMap::from([("crf", "18"), ("tune", "animation"), ("preset", "ultrafast")])
+    /// ```
+    ///
+    /// ! but please make sure that libav can throw segmentation fault if some options are invalid or the value is not correct.
+    pub codec_params: Option<&'a [(&'a str, &'a str)]>,
 }
 
-impl Default for EncoderOptions<'_> {
+impl<'a> Default for EncoderOptions<'a> {
     fn default() -> Self {
         Self {
-            preferred_codec: "libx264",
+            audio_bitrate: None,
+            preferred_video_codec: None,
+            preferred_audio_codec: None,
+            sample_rate: None,
+            tmp_files_directory: None,
+            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P,
+            video_bitrate: None,
+            bitrate_tolerance: 0,
+            qmin: 10,
+            qmax: 51,
+            qcompress: 0.6,
+            max_qdiff: 4,
+            gop_size: 12,
+            sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
+            codec_params: None,
         }
     }
 }
@@ -47,10 +100,9 @@ impl Encoder {
         height: i32,
         fps: i32,
         filename: &str,
-        preferred_codec: &str,
+        encoder_options: &EncoderOptions,
         logger: &Arc<dyn FFramesLogger>,
-        with_audio: bool,
-        function: &mut F,
+        inner_fn: &mut F,
     ) -> AVResult<T> {
         av_log_set_level(logger.get_libav_log_level());
 
@@ -67,30 +119,13 @@ impl Encoder {
             AVError::UnknownExtension(filename.to_owned())
         );
 
-        let fmt = (*oc).oformat;
-        let video_stream = stream::Stream::make_video(
-            width,
-            height,
-            fps,
-            oc,
-            preferred_codec,
-            (*fmt).video_codec,
-        )?;
+        let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
 
         let mut encoder = Encoder {
             b_frames_count: 0,
             video_stream,
             oc,
-            audio_stream: if with_audio {
-                Some(stream::Stream::make_audio(
-                    44100,
-                    oc,
-                    "aac",
-                    (*oc).audio_codec_id,
-                )?)
-            } else {
-                None
-            },
+            audio_stream: None,
         };
 
         if logger.should_dump_format_info() {
@@ -104,7 +139,7 @@ impl Encoder {
 
         avformat_write_header(oc, std::ptr::null_mut());
 
-        let res = function(&mut encoder);
+        let res = inner_fn(&mut encoder);
 
         avcodec_send_frame(video_stream.enc, std::ptr::null_mut());
         if let Some(audio_stream) = encoder.audio_stream {

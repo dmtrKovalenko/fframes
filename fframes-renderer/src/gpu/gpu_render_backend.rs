@@ -27,7 +27,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         video: TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
-        render_options: EncoderOptions<'a>,
+        encoder_options: &EncoderOptions<'a>,
         _fontdb: &usvgr_text_layout::fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: fframes::FFramesContext,
@@ -98,9 +98,8 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 TVideo::HEIGHT as i32,
                 TVideo::FPS as i32,
                 output,
-                render_options.preferred_codec,
+                &encoder_options,
                 &logger,
-                true,
                 &mut |video_encoder| -> FFramesResult<()> {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream);
 

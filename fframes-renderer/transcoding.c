@@ -612,6 +612,7 @@ int main(int argc, char **argv)
     if (!oc)
         return 1;
 
+
     fmt = oc->oformat;
 
     /* Add the audio and video streams using the default format codecs

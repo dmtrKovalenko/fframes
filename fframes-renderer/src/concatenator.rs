@@ -8,6 +8,7 @@ use crate::{
     renderer_error::{AVError, AVResult},
     stream::Stream,
     stream::StreamVariant,
+    EncoderOptions,
 };
 
 unsafe fn open_file_stream(
@@ -54,7 +55,11 @@ unsafe fn open_file_stream(
     }
 }
 
-unsafe fn create_encoder_copy_from_file(file: &str, output: &str) -> Result<Encoder, AVError> {
+unsafe fn create_encoder_copy_from_file(
+    file: &str,
+    output: &str,
+    encoder_options: &EncoderOptions,
+) -> Result<Encoder, AVError> {
     let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
     let mut output_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
 
@@ -70,12 +75,10 @@ unsafe fn create_encoder_copy_from_file(file: &str, output: &str) -> Result<Enco
     );
 
     let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
-
     let audio_stream = Stream::make_audio(
-        44100,
+        encoder_options.sample_rate.unwrap_or(44100),
         output_format_ctx,
-        "aac",
-        (*output_format_ctx).audio_codec_id,
+        encoder_options,
     )?;
 
     let mut encoder = Encoder {
@@ -196,9 +199,10 @@ pub unsafe fn concat_video_files_with_audio(
     files: &[String],
     output: &str,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
+    encoder_options: &EncoderOptions,
     ctx: &FFramesContext,
 ) -> Result<(), AVError> {
-    let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output)?;
+    let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
 
     fill_video_stream_from_files(&mut encoder, files)?;
     fill_audio_stream(&mut encoder, audio_map, ctx)?;

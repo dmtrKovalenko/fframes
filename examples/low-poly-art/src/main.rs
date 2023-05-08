@@ -14,7 +14,7 @@ fn main() {
                 concurrency: 1,
                 ..Default::default()
             },
-            preferred_codec: "libx264",
+           
             ..Default::default()
         },
     )

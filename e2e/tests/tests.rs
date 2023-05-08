@@ -20,7 +20,7 @@ fn e2e_rendering() {
                 concurrency: 1,
                 ..Default::default()
             },
-            preferred_codec: "libx264",
+           
             media_dir: std::env::current_dir()
                 .unwrap()
                 .join("media")

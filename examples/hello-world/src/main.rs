@@ -1,5 +1,6 @@
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
+pub use fframes_renderer::{fframes_logger, render, render_backend, EncoderOptions, RenderOptions};
 use hello_world_example::HelloWorldVideo;
+use std::path::PathBuf;
 
 fn main() {
     render(
@@ -10,11 +11,15 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {
-                cache_capacity: 1,
+            encoder_options: EncoderOptions {
+                tmp_files_directory: Some(&PathBuf::from("test_render")),
+                codec_params: Some(&[("crf", "18"), ("tune", "animation")]),
                 ..Default::default()
             },
-            preferred_codec: "libx264",
+            render_backend: render_backend::CpuRenderingBackend {
+                cache_capacity: 5,
+                ..Default::default()
+            },
             ..Default::default()
         },
     )

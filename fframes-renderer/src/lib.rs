@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use encoder::EncoderOptions;
 use fframes::media_provider::MediaProvider;
 use fframes::video::Video;
 use fframes::{
@@ -20,6 +19,8 @@ pub use fframes_logger::*;
 use renderer_error::FFramesResult;
 use usvgr::PreloadedImageData;
 
+pub use encoder::EncoderOptions;
+
 use crate::renderer_font_source::RendererFontSource;
 
 mod gpu;
@@ -35,9 +36,6 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub encoder_options: EncoderOptions<'a>,
     pub render_backend: TBackend,
     pub default_font: &'a str,
-    /// Preferred codec ot use. If not allowed to use will use default codec for the container which may not be the most efficient.
-    /// Because libav by default ignores non-system codecs like hevc or x264.
-    pub preferred_codec: &'a str,
 }
 
 type RenderPreparation = (
@@ -130,7 +128,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
             font_family: options.default_font.to_string(),
             ..Default::default()
         },
-        options.encoder_options,
+        &options.encoder_options,
         &font_db,
         &timeline,
         ctx,

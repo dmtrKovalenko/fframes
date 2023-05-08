@@ -5,13 +5,22 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "(lldb) Debug raw C libav code",
       "type": "lldb",
       "request": "launch",
-      "name": "Debug",
-      "program": "${workspaceFolder}/target/debug/rumotion",
-      "args": ["1", "2"],
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "cargo:build"
+      "program": "${workspaceFolder}/fframes-renderer/c_render_bin",
+      "preLaunchTask": "cexample:build",
+      "args": ["out.webm"],
+      "cwd": "${workspaceFolder}"
     },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Hello World",
+      "program": "${workspaceFolder}/target/debug/hello_world_example_bin",
+      "args": ["1", "2"],
+      "cwd": "${workspaceFolder}/examples/hello-world",
+      "preLaunchTask": "cargo:build"
+    }
   ]
 }

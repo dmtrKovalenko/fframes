@@ -5,6 +5,12 @@
       "label": "cargo:build",
       "type": "shell",
       "command": "cargo build"
+    },
+    {
+      "label": "cexample:build",
+      "type": "shell",
+      "command": "cd fframes-renderer && pkg-config --libs libavutil libavcodec libavformat libswscale libswresample | xargs clang -o c_render_bin -g transcoding.c",
+      "problemMatcher": []
     }
   ]
 }

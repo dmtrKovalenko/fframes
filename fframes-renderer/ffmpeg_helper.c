@@ -22,3 +22,17 @@ void log_packet(AVStream *stream, AVPacket *pkt)
          av_ts2str(pkt->duration), av_ts2timestr(pkt->duration, &stream->time_base),
          pkt->stream_index);
 }
+
+int validate_sample_rate_fits_codec(const AVCodec *codec, int sample_rate)
+{
+  if (codec->supported_samplerates)
+  {
+    for (int i = 0; codec->supported_samplerates[i]; i++)
+    {
+      if (codec->supported_samplerates[i] == sample_rate)
+        return sample_rate;
+    }
+  }
+
+  return codec->supported_samplerates[0];
+}

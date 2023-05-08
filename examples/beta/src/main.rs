@@ -15,7 +15,7 @@ fn main() {
                 cache_capacity: 30,
                 ..Default::default()
             },
-            preferred_codec: "libx264",
+           
             default_font: "Inter",
             ..Default::default()
         },

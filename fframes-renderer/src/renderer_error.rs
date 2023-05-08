@@ -9,6 +9,7 @@ pub enum AVError {
     UnknownExtension(String),
     FFmpegError(i32, String),
     Internal(String),
+    CannotLocateCodec,
 }
 
 impl fmt::Display for AVError {
@@ -30,6 +31,7 @@ impl fmt::Display for AVError {
                     file.cyan().bold()
                 ),
                 Self::Internal(message) => message.to_owned(),
+                Self::CannotLocateCodec => "Couldn't locate audio or video codec neither from render_options nor from the output file extension. Make sure that extension is a valid video file and you have installed appropriate codecs for this specific container. E.g. in order to output the .webm extension you should have vp9 and opus codecs installed".to_owned(),
             }
         )
     }
@@ -48,6 +50,7 @@ pub enum FFramesError {
     ParserError(fframes::usvgr::Error),
     ConcurrencyError,
     CustomError(String),
+    InvalidOutput,
 }
 
 impl fmt::Debug for FFramesError {
@@ -74,6 +77,7 @@ impl fmt::Debug for FFramesError {
                 Self::ConcurrencyError => "Something not correct happened while trying concurrently access one of the resources".to_owned(),
                 Self::ParserError(err) => format!("SVG parsing error: {err:?}"),
                 Self::CustomError(err) => err.to_owned(),
+                Self::InvalidOutput => "Invalid output file. Path does not exist or does not the valid file".to_owned(),
             }
         )
     }
