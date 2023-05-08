@@ -7,7 +7,7 @@
     "build": "rescript",
     "rescript:build": "rescript build -with-deps",
     "rescript:clean": "rescript clean -with-deps",
-    "postinstall": "npx symlink-dir ./src/shims ./src/services/shims",
+    "postinstall": "ln -s ./src/shims ./src/services/shims",
     "bundle:dev": "node esbuild.mjs && tailwindcss -o tw.css",
     "dev": "concurrently --raw 'rescript build -w' 'tailwindcss -o tw.css --watch' 'node esbuild.mjs --watch'"
   },
