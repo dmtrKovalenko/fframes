@@ -1,6 +1,6 @@
 use ffmpeg_next::sys::*;
 pub use ffmpeg_next::sys::{AVPixelFormat, AVSampleFormat};
-use std::{collections::HashMap, ffi::CString, os::raw::c_char, path::PathBuf, sync::Arc};
+use std::{ffi::CString, os::raw::c_char, path::PathBuf, sync::Arc};
 
 use crate::{
     ffmpeg_action,
@@ -60,7 +60,13 @@ pub struct EncoderOptions<'a> {
     /// codec_params: &HashMap::from([("crf", "18"), ("tune", "animation"), ("preset", "ultrafast")])
     /// ```
     ///
-    /// ! but please make sure that libav can throw segmentation fault if some options are invalid or the value is not correct.
+    /// Find available set of options for your codec using
+    /// ```sh
+    /// ffmpeg -h encoder={your_codec_name} -v quiet
+    /// ```
+    ///
+    /// ## Safety
+    /// **Libav can throw segmentation fault if some options are invalid or the value is not correct.**
     pub codec_params: Option<&'a [(&'a str, &'a str)]>,
 }
 

@@ -1,4 +1,3 @@
-use crate::encoder;
 use crate::encoder::validate_sample_rate_fits_codec;
 use crate::ffmpeg_action;
 use crate::ffmpeg_loggable_action;
@@ -56,7 +55,7 @@ impl Stream {
 
                 eprintln!(
                     "Warning: Can not find codec {preferred_codec_name}, continue with {codec_name}",
-                    codec_name = found_codec_name.to_str().unwrap()
+                    codec_name = found_codec_name.to_str().unwrap_or("unknown codec name")
                 );
             }
         }
