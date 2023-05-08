@@ -6,7 +6,7 @@ clippy-fix:
 
 build:
   cargo build
-  yarn
+  yarn install ---frozen-lockfile
   cd fframes-editor && yarn rescript:build
 
 init-repo:
