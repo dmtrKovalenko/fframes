@@ -98,7 +98,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 TVideo::HEIGHT as i32,
                 TVideo::FPS as i32,
                 output,
-                &encoder_options,
+                encoder_options,
                 &logger,
                 &mut |video_encoder| -> FFramesResult<()> {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream);

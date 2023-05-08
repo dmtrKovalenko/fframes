@@ -329,10 +329,10 @@ impl EncoderFrame {
                     let x = x / 2;
                     let y = y / 2;
 
-                    cb_pixels[(y * (*av_frame).linesize[1] as usize + x)] =
-                        (128 + ((-38 * r - 74 * g + 112 * b) >> 8)) as u8;
-                    cr_pixels[(y * (*av_frame).linesize[2] as usize + x)] =
-                        (128 + ((112 * r - 94 * g - 18 * b) >> 8)) as u8;
+                    cb_pixels[y * (*av_frame).linesize[1] as usize + x] =
+                        (128 + (-38 * r - 74 * g + 112 * b >> 8)) as u8;
+                    cr_pixels[y * (*av_frame).linesize[2] as usize + x] =
+                        (128 + (112 * r - 94 * g - 18 * b >> 8)) as u8;
                 }
             }
         }
