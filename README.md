@@ -21,7 +21,7 @@ Or clone and compile ffmpeg from source, [here is the complete guide](https://tr
   cd ffmpeg
   git remote update
   git fetch --tags
-  git checkout n5.5.1
+  git checkout n5.1.1
 
   # this is a minimum set of options to build ffmpeg for fframes, you will likely need more options
   ./configure --enable-shared --enable-libx264 --enable-libx265 --enable-gpl
