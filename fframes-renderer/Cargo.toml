@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-svgr ={ workspace = true}
+svgr = { workspace = true }
 usvgr-text-layout = { workspace = true }
 rayon = "1.5.1"
 colored = "2"
@@ -16,15 +16,14 @@ wgpu = "0.12.0"
 bytemuck = "1.9.1"
 futures = "0.3.1"
 image = "0.24.3"
-ffmpeg-next = "5.1.1"
+ffmpeg-next = "6.0.0"
 
 syn = { version = "1", features = ["full", "parsing", "extra-traits"] }
 uuid = { version = "0.8", features = ["v4"] }
 
-svgr-macro = { path="../svgr-macro" }
-fframes = { path="../fframes" }
-media-loader = {path="../media-loader"}
+svgr-macro = { path = "../svgr-macro" }
+fframes = { path = "../fframes" }
+media-loader = { path = "../media-loader" }
 
 [build-dependencies]
 cc = "1.0"
-
