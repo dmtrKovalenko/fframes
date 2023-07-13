@@ -7,7 +7,6 @@ use crate::EncoderOptions;
 use ffmpeg_next::sys::*;
 use std::ffi::CStr;
 use std::ffi::CString;
-use std::intrinsics::size_of;
 
 #[derive(Clone, Copy)]
 pub enum StreamVariant {
@@ -20,6 +19,25 @@ pub struct Stream {
     pub(crate) st: *mut AVStream,
     pub(crate) enc: *mut AVCodecContext,
     pub(crate) variant: StreamVariant,
+}
+
+unsafe fn is_pixel_format_supported(
+    pixel_format: AVPixelFormat,
+    supported_formats: *const AVPixelFormat,
+) -> bool {
+    let mut index = 0;
+    loop {
+        let format = *supported_formats.offset(index);
+        if format == AVPixelFormat::AV_PIX_FMT_NONE {
+            return false;
+        }
+
+        if format == pixel_format {
+            return true;
+        }
+
+        index += 1;
+    }
 }
 
 impl Stream {
@@ -96,11 +114,8 @@ impl Stream {
         (*st).time_base = AVRational { num: 1, den: fps };
         (*c).time_base = (*st).time_base;
 
-        for pos in 0..nb_bytes / size_of::<AVPixelFormat>() {
-            let sample = (*codec).pix_fmts[pos];
-            let sample = sample.to_le_bytes();
-            let sample = i16::from_le_bytes(sample);
-            samples[pos] = sample;
+        if !is_pixel_format_supported(encoder_options.pixel_format, (*codec).pix_fmts) {
+            return Err(AVError::InvalidPixFmt(encoder_options.pixel_format));
         }
 
         (*c).pix_fmt = encoder_options.pixel_format;

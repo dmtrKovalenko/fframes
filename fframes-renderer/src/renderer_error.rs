@@ -1,4 +1,5 @@
 use colored::Colorize;
+use ffmpeg_next::ffi::AVPixelFormat;
 use std::{fmt, sync::PoisonError};
 
 pub enum AVError {
@@ -8,6 +9,7 @@ pub enum AVError {
     CantWriteFrame(String),
     UnknownExtension(String),
     FFmpegError(i32, String),
+    InvalidPixFmt(AVPixelFormat),
     Internal(String),
     CannotLocateCodec,
     InvalidArgument(String),
@@ -33,7 +35,8 @@ impl fmt::Display for AVError {
                 ),
                 Self::Internal(message) => message.to_owned(),
                 Self::CannotLocateCodec => "Couldn't locate audio or video codec neither from render_options nor from the output file extension. Make sure that extension is a valid video file and you have installed appropriate codecs for this specific container. E.g. in order to output the .webm extension you should have vp9 and opus codecs installed".to_owned(),
-                Self::InvalidArgument(argument) => format!("Argument {argument} that was provided is not valid or not supported for the current codec.")
+                Self::InvalidArgument(argument) => format!("Argument {argument} that was provided is not valid or not supported for the current codec."),
+                Self::InvalidPixFmt(pix_fmt) => format!("Pixel format `{pix_fmt:?}` is not supported for current codec"),
             }
         )
     }

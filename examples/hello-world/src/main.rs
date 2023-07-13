@@ -9,13 +9,14 @@ fn main() {
         HelloWorldVideo {
             slug: "Hello Renderer!",
         },
-        "out.mp4",
+        "out.webm",
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
+                // preferred_video_codec: Some("m"),
                 tmp_files_directory: Some(&PathBuf::from("test_render")),
-                codec_params: Some(&[("crf", "18"), ("tune", "animation")]),
+                // codec_params: Some(&[("crf", "18"), ("tune", "animation")]),
                 pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
                 ..Default::default()
             },
