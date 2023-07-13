@@ -19,7 +19,7 @@ pub use fframes_logger::*;
 use renderer_error::FFramesResult;
 use usvgr::PreloadedImageData;
 
-pub use encoder::EncoderOptions;
+pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 
 use crate::renderer_font_source::RendererFontSource;
 
