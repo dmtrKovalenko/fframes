@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use fframes::media_provider::MediaProvider;
 use fframes::video::Video;
 use fframes::{
@@ -9,20 +6,20 @@ use fframes::{
 };
 use fframes_logger::FFramesLoggerVariant;
 use render_backend::FFramesRenderBackend;
-
-mod concatenator;
-mod encoder;
-mod ffmpeg_helper;
+use std::collections::HashMap;
+use std::sync::Arc;
 pub mod fframes_logger;
 mod renderer_font_source;
+use crate::renderer_font_source::RendererFontSource;
+pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 pub use fframes_logger::*;
 use renderer_error::FFramesResult;
 use usvgr::PreloadedImageData;
 
-pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
-
-use crate::renderer_font_source::RendererFontSource;
-
+mod concatenator;
+mod encoder;
+mod encoder_frame;
+mod ffmpeg_helper;
 mod gpu;
 mod media_processor;
 pub mod render_backend;

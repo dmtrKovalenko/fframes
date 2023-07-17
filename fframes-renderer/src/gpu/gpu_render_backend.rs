@@ -1,8 +1,7 @@
-use std::{num::NonZeroU32, sync::Arc};
-
 use crate::{
     concatenator::fill_audio_stream,
-    encoder::{Encoder, EncoderFrame, EncoderOptions},
+    encoder::{Encoder, EncoderOptions},
+    encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     render_backend::FFramesRenderBackend,
     renderer_error::FFramesResult,
@@ -11,6 +10,7 @@ use fframes::{
     usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
 };
 use futures::executor::block_on;
+use std::{num::NonZeroU32, sync::Arc};
 use wgpu::{include_wgsl, util::DeviceExt};
 
 use super::tesselator::{tesselate_svg, GpuGlobals, GpuPrimitive, GpuTransform, GpuVertex};
@@ -101,7 +101,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 encoder_options,
                 &logger,
                 &mut |video_encoder| -> FFramesResult<()> {
-                    let mut frame = EncoderFrame::make(&video_encoder.video_stream);
+                    let mut frame = EncoderFrame::make(&video_encoder.video_stream)?;
 
                     for fr in 0..ctx.duration_in_frames {
                         let rtree = video
@@ -383,7 +383,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         frame.fill_from_rgba_pixmap(fr as i64, &data);
 
                         let stream = video_encoder.video_stream;
-                        video_encoder.send_frame(&stream, frame)?;
+                        video_encoder.send_frame(&stream, &frame)?;
 
                         logger.log_frame(fr, 0)
                     }

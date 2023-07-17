@@ -9,7 +9,8 @@ use uuid::Uuid;
 
 use crate::{
     concatenator,
-    encoder::{Encoder, EncoderFrame, EncoderOptions},
+    encoder::{Encoder, EncoderOptions},
+    encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     renderer_error::{FFramesError, FFramesResult},
 };
@@ -163,7 +164,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         encoder_options,
                         &logger,
                         &mut |encoder| {
-                            let mut frame = EncoderFrame::make(&encoder.video_stream);
+                            let mut frame = EncoderFrame::make(&encoder.video_stream)?;
 
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
@@ -212,7 +213,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
 
                                     let video_stream = encoder.video_stream;
-                                    encoder.send_frame(&video_stream, frame)
+                                    encoder.send_frame(&video_stream, &frame)
                                 })?;
 
                             let frames_to_generate = chunk_range.end - chunk_range.start;
@@ -224,11 +225,10 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                                 for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
                                     let video_stream = encoder.video_stream;
-                                    encoder.send_frame(&video_stream, frame)?;
+                                    encoder.send_frame(&video_stream, &frame)?;
                                 }
                             }
 
-                            frame.free();
                             Ok(())
                         },
                     )

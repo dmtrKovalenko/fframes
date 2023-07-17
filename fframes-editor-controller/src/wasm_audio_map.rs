@@ -13,7 +13,7 @@ extern "C" {
     async fn load_audio_wasm_callback(path: &str) -> Result<JsValue, JsValue>;
 }
 
-async fn resolve_used_audio_durations<'a, TVideo: Video>(
+async fn resolve_used_audio_durations<'a>(
     tb: &'a TimeBase,
     duration: &'a Duration<'a>,
     scene_audios: &'a ScenesWithAudio<'a>,
@@ -74,7 +74,7 @@ pub async fn prepare_video_with_audio<TVideo: Video>(
     let scene_audios = ScenesWithAudio::from(&scenes);
 
     let audio_durations =
-        resolve_used_audio_durations::<TVideo>(tb, &video_duration, &scene_audios, &audio_map)
+        resolve_used_audio_durations(tb, &video_duration, &scene_audios, &audio_map)
             .await
             .unwrap();
 

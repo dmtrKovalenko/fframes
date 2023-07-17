@@ -14,15 +14,14 @@ fn main() {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
-                // preferred_video_codec: Some("m"),
                 tmp_files_directory: Some(&PathBuf::from("test_render")),
                 // codec_params: Some(&[("crf", "18"), ("tune", "animation")]),
-                pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
+                pixel_format: AVPixelFormat::AV_PIX_FMT_YUV422P10LE,
                 ..Default::default()
             },
             render_backend: render_backend::CpuRenderingBackend {
                 cache_capacity: 5,
-                concurrency: 1,
+                // concurrency: 1,
                 ..Default::default()
             },
             ..Default::default()

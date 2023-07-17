@@ -3,7 +3,8 @@ use fframes::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedA
 use std::ffi::CString;
 
 use crate::{
-    encoder::{Encoder, EncoderFrame},
+    encoder::Encoder,
+    encoder_frame::EncoderFrame,
     ffmpeg_action,
     renderer_error::{AVError, AVResult},
     stream::Stream,
@@ -85,6 +86,7 @@ unsafe fn create_encoder_copy_from_file(
         video_stream: Stream {
             st: output_video_stream,
             enc: std::ptr::null_mut(),
+            require_format_conversion: false,
             variant: StreamVariant::Video,
         },
         audio_stream: Some(audio_stream),
@@ -170,7 +172,7 @@ pub unsafe fn fill_audio_stream(
             &encoder
                 .audio_stream
                 .ok_or_else(|| AVError::Internal("Missing audio_stream".to_owned()))?,
-        );
+        )?;
 
         let mut audio_frame_pts = 0usize;
         let frame_size = (*audio_stream.enc).frame_size as usize;
@@ -183,7 +185,7 @@ pub unsafe fn fill_audio_stream(
             );
 
             audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
-            encoder.send_frame(&audio_stream, audio_frame)?;
+            encoder.send_frame(&audio_stream, &audio_frame)?;
 
             audio_frame_pts += frame_size;
         }

@@ -5,7 +5,7 @@ use std::{fmt, sync::PoisonError};
 pub enum AVError {
     MissingVideoStreamInFile(String),
     CantOpenFile(String),
-    CantAllocateCtx,
+    CantAllocate(String),
     CantWriteFrame(String),
     UnknownExtension(String),
     FFmpegError(i32, String),
@@ -24,7 +24,7 @@ impl fmt::Display for AVError {
                 Self::MissingVideoStreamInFile(file) =>
                     format!("Missing video stream in file {file}"),
                 Self::CantOpenFile(file) => format!("Missing video stream in file {}", file.cyan()),
-                Self::CantAllocateCtx => "Can not allocate encoding context".to_owned(),
+                Self::CantAllocate(what) => format!("Can not allocate {what}"),
                 Self::FFmpegError(code, description) =>
                     format!("libav error {code}: {description}"),
                 Self::CantWriteFrame(file) =>
