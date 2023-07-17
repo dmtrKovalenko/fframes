@@ -16,7 +16,6 @@ pub enum StreamVariant {
 
 #[derive(Clone, Copy)]
 pub struct Stream {
-    pub require_format_conversion: bool,
     pub(crate) st: *mut AVStream,
     pub(crate) enc: *mut AVCodecContext,
     pub(crate) variant: StreamVariant,
@@ -119,29 +118,6 @@ impl Stream {
             return Err(AVError::InvalidPixFmt(encoder_options.pixel_format));
         }
 
-        let sws_ctx = if encoder_options.pixel_format != AVPixelFormat::AV_PIX_FMT_YUV420P {
-            let ctx = sws_getContext(
-                width,
-                height,
-                AVPixelFormat::AV_PIX_FMT_YUV420P,
-                width,
-                height,
-                encoder_options.pixel_format,
-                SWS_BICUBIC,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-            );
-
-            if ctx.is_null() {
-                return Err(AVError::Internal("Can not allocate sws".to_owned()));
-            }
-
-            Some(ctx)
-        } else {
-            None
-        };
-
         (*c).pix_fmt = encoder_options.pixel_format;
         (*c).gop_size = encoder_options.gop_size;
         (*c).qmin = encoder_options.qmin;
@@ -171,7 +147,6 @@ impl Stream {
         Ok(Stream {
             st,
             enc: c,
-            require_format_conversion: sws_ctx.is_some(),
             variant: StreamVariant::Video,
         })
     }
@@ -232,7 +207,6 @@ impl Stream {
         Ok(Stream {
             st,
             enc: c,
-            require_format_conversion: true,
             variant: StreamVariant::Audio(swr_ctx),
         })
     }

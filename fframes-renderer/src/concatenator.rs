@@ -86,7 +86,6 @@ unsafe fn create_encoder_copy_from_file(
         video_stream: Stream {
             st: output_video_stream,
             enc: std::ptr::null_mut(),
-            require_format_conversion: false,
             variant: StreamVariant::Video,
         },
         audio_stream: Some(audio_stream),
