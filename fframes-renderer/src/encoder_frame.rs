@@ -76,7 +76,7 @@ pub struct EncoderFrame {
 
 impl EncoderFrame {
     pub unsafe fn make(stream: &stream::Stream) -> AVResult<Self> {
-        let mut frame = av_frame_alloc();
+        let frame = av_frame_alloc();
         let mut format_convertor = None;
 
         match stream.variant {

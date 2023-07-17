@@ -30,26 +30,34 @@ pub struct EncoderOptions<'a> {
     /// If several codecs available for specified format output here you can specify the ffmpeg compatible name of the audio codec that should be used to encode.
     pub preferred_audio_codec: Option<&'a str>,
     /// Pixel format used to store encoded frame. By default equals to AVPixelFormat::AV_PIX_FMT_YUV420P
+    /// @default AV_PIX_FMT_YUV420P
     pub pixel_format: AVPixelFormat,
     /// Sample format used to store encoded audio frame. By default equals to AvSampleFormat::AV_SAMPLE_FMT_FLTP
+    /// @default AV_SAMPLE_FMT_FLTP
     pub sample_format: AVSampleFormat,
     /// Audio bitrate in bytes, if not provided 192k used.
     pub audio_bitrate: Option<i64>,
     /// Video bitrate, sometimes may not be needed and inferred from other codec params, like crf for libx264 and libx265
     pub video_bitrate: Option<i64>,
-    /// Number of bits the bitstream is allowed to diverge from the reference. the reference can be CBR (for CBR pass1) or VBR (for pass2)
+    /// Number of bits the bitstream is allowed to diverge from the reference.
+    /// @default 0
     pub bitrate_tolerance: i32,
     /// Minimum quantizer
+    /// @default 10
     pub qmin: i32,
     /// Maximum quantizer
+    /// @default 51
     pub qmax: i32,
     ///  amount of qscale change between easy & hard scenes (0.0-1.0)
     pub qcompress: f32,
     /// maximum quantizer difference between frames
+    /// @default 4
     pub max_qdiff: i32,
     /// Size of group of picture
+    /// @default 12
     pub gop_size: i32,
     /// Output sample rate of the final video file
+    /// @default 44100
     pub sample_rate: Option<i32>,
     /// Directory used to store temporary files and artifacts generated for rendering and encoding.
     pub tmp_files_directory: Option<&'a PathBuf>,
@@ -58,7 +66,10 @@ pub struct EncoderOptions<'a> {
     ///
     /// You can pass this set of options like:
     /// ```rust
-    /// codec_params: &HashMap::from([("crf", "18"), ("tune", "animation"), ("preset", "ultrafast")])
+    /// let encoder_options = fframes_renderer::EncoderOptions {
+    ///     codec_params: Some(&[("crf", "18"), ("tune", "animation"), ("preset", "ultrafast")]),
+    ///     ..Default::default()
+    /// };
     /// ```
     ///
     /// Find available set of options for your codec using
@@ -67,7 +78,8 @@ pub struct EncoderOptions<'a> {
     /// ```
     ///
     /// ## Safety
-    /// **Libav can throw segmentation fault if some options are invalid or the value is not correct.**
+    /// ### Libav can have segmentation fault if some options are invalid or the value is not correct.
+    /// ### So it is very important to validate the function parameters before usage, cause they won't be cached by fframes
     pub codec_params: Option<&'a [(&'a str, &'a str)]>,
 }
 
@@ -75,20 +87,20 @@ impl<'a> Default for EncoderOptions<'a> {
     fn default() -> Self {
         Self {
             audio_bitrate: None,
-            preferred_video_codec: None,
+            bitrate_tolerance: 0,
+            codec_params: None,
+            gop_size: 12,
+            max_qdiff: 4,
+            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P,
             preferred_audio_codec: None,
+            preferred_video_codec: None,
+            qcompress: 0.6,
+            qmax: 51,
+            qmin: 10,
+            sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
             sample_rate: None,
             tmp_files_directory: None,
-            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P,
             video_bitrate: None,
-            bitrate_tolerance: 0,
-            qmin: 10,
-            qmax: 51,
-            qcompress: 0.6,
-            max_qdiff: 4,
-            gop_size: 12,
-            sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
-            codec_params: None,
         }
     }
 }

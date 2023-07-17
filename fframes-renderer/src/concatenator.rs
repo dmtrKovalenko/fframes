@@ -82,7 +82,7 @@ unsafe fn create_encoder_copy_from_file(
         encoder_options,
     )?;
 
-    let mut encoder = Encoder {
+    let encoder = Encoder {
         video_stream: Stream {
             st: output_video_stream,
             enc: std::ptr::null_mut(),
@@ -118,7 +118,7 @@ unsafe fn fill_video_stream_from_files(
     files: &[String],
 ) -> Result<(), AVError> {
     let mut start_time = 0;
-    let mut packet = av_packet_alloc();
+    let packet = av_packet_alloc();
 
     for file in files.iter() {
         let mut input_format_ctx = std::ptr::null_mut();
