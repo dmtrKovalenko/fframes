@@ -4,14 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fframes = {path="../../fframes"}
+fframes = { path = "../../fframes" }
+clap = { version = "4.3.4", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer ={path="../../fframes-renderer"}
+fframes_renderer = { path = "../../fframes-renderer" }
 
 [features]
-default=["renderer"]
-renderer=["fframes/compile-time-svgtree"]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree"]
 
 [lib]
 name = "hello_world_example"
