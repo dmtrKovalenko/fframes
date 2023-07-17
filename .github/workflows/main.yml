@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:6.0.0-ubuntu2004
+    container: jrottenberg/ffmpeg:6.0-ubuntu2004
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -59,7 +59,7 @@ jobs:
       - name: Clippy
         run: just clippy
 
-      # We have to use the Release mode, otherwise it would take forever.
+      # We have to use the Release mode, otherwise it will take forever.
       - name: Test
         run: just test-release
 
