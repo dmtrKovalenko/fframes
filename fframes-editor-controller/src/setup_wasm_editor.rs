@@ -107,9 +107,9 @@ macro_rules! setup_wasm_editor {
                     global_index: frame as usize,
                     breaks_lru_cache: Some(BREAK_LINES_CACHE.clone()),
                 },
-                &fframes_context::FFramesContext {
+                &FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
-                    mode: fframes_context::FFramesMode::Editor,
+                    mode: FFramesMode::Editor,
                     time_base,
                     font_source: Some(FONTS.lock().unwrap().deref()),
                     scenes:  SCENES.lock().unwrap().as_ref(),
@@ -130,9 +130,9 @@ macro_rules! setup_wasm_editor {
                     global_index: frame as usize,
                     breaks_lru_cache: None.into(),
                 },
-                &fframes_context::FFramesContext {
+                &FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
-                    mode: fframes_context::FFramesMode::EditorTimelinePreview,
+                    mode: FFramesMode::EditorTimelinePreview,
                     time_base,
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),

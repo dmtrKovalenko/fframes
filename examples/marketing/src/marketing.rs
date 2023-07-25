@@ -3,7 +3,7 @@ pub use fframes::{
     audio_data, audio_window_functions, fframes_context,
     frame::Frame,
     subtitles,
-    video::Video,
+    Video,
     AnimateRuntimeInput, AudioMap, Svgr,
 };
 
@@ -226,7 +226,7 @@ impl Video for MarketingVideo {
         ])
     }
 
-    fn render_frame(&self, frame: fframes::Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: fframes::Frame, ctx: &FFramesContext) -> Svgr {
         let subtitles = ctx.get_subtitles("subtitles.vtt");
         let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
             audio: ctx.get_audio_data(self.audio_track),

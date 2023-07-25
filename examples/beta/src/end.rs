@@ -4,7 +4,7 @@ use fframes::{svgr, Scene};
 pub struct EndScene {}
 
 impl Scene for EndScene {
-    fn duration(&self) -> fframes::video::Duration {
+    fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(2.)
     }
 

@@ -4,7 +4,7 @@ use fframes::{animation, svgr, Scene};
 pub struct RenderingScene {}
 
 impl Scene for RenderingScene {
-    fn duration(&self) -> fframes::video::Duration {
+    fn duration(&self) -> fframes::Duration {
         fframes::Duration::Frames(140)
     }
 

@@ -1,20 +1,23 @@
-pub mod animation;
-pub mod audio_data;
-pub mod audio_map;
-pub mod audio_window_functions;
-pub mod color;
-pub mod error;
-pub mod fframes_context;
+mod animation;
+mod audio_data;
+mod audio_map;
+mod audio_window_functions;
+mod color;
+mod duration;
+mod fframes_context;
 mod font_data;
-pub mod frame;
+mod frame;
 mod log;
-pub mod media_provider;
+mod media_provider;
 mod named_range;
 mod scenes;
-pub mod subtitles;
+mod subtitles;
 mod svgr;
 mod text_wrap;
-pub mod video;
+mod video;
+
+// Methods that we are not pub use ::* should be declared here:
+pub mod error;
 
 #[cfg(test)]
 mod tests;
@@ -24,6 +27,7 @@ pub use audio_data::*;
 pub use audio_map::*;
 pub use audio_window_functions::*;
 pub use color::*;
+pub use duration::*;
 pub use fframes_context::*;
 pub use font_data::*;
 pub use frame::*;

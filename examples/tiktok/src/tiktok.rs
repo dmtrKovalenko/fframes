@@ -3,7 +3,7 @@ use fframes::{
     animation, prettify_spectrum, svgr, AnimationRuntime, AudioMap, AudioTimestamp, Svgr,
 };
 pub use fframes::{
-    audio_data, audio_window_functions, fframes_context, frame::Frame, subtitles, video::Video,
+    audio_data, audio_window_functions, fframes_context, frame::Frame, subtitles, Video,
 };
 
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
@@ -35,7 +35,7 @@ impl Video for GooseVideo {
         AudioMap::from([("thought.mp3", (Frame(0)..Eof))])
     }
 
-    fn render_frame(&self, mut frame: Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
+    fn render_frame(&self, mut frame: Frame, ctx: &FFramesContext) -> Svgr {
         let subtitles = ctx.get_subtitles("thought.vtt");
         let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
             audio: ctx.get_audio_data(self.audio_track),

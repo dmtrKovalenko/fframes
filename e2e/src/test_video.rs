@@ -1,4 +1,4 @@
-pub use fframes::{audio_data, fframes_context, frame, video::Video};
+pub use fframes::{audio_data, fframes_context, frame, Video};
 use fframes::{AudioMap, Color};
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl Video for TestVideo {
     fn render_frame(
         &self,
         frame: frame::Frame,
-        _ctx: &fframes_context::FFramesContext,
+        _ctx: &FFramesContext,
     ) -> fframes::Svgr {
         const BACKGROUND_EASING: fframes::Easing = fframes::Easing::Linear(5.);
 

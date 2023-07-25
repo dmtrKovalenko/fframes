@@ -164,7 +164,10 @@ impl<'a> Parser<'a> {
 
                         punctuated.push(PathSegment {
                             ident: Ident::new(
-                                &format!("ANIMATION_{}", uuid::Uuid::new_v4().to_simple()),
+                                &format!(
+                                    "ANIMATION_{}",
+                                    uuid::Uuid::new_v4().to_simple().to_string().to_uppercase()
+                                ),
                                 Span::call_site(),
                             ),
                             arguments: PathArguments::None,

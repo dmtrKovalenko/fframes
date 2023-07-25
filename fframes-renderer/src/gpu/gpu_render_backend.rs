@@ -7,7 +7,7 @@ use crate::{
     renderer_error::FFramesResult,
 };
 use fframes::{
-    usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
+    usvgr, Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
 };
 use futures::executor::block_on;
 use std::{num::NonZeroU32, sync::Arc};

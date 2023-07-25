@@ -41,7 +41,7 @@ pub struct SceneInfo {
 
 #[allow(unused_variables)]
 pub trait Scene: Debug + Sync + Send {
-    fn duration(&self) -> crate::video::Duration;
+    fn duration(&self) -> crate::Duration;
     fn render_frame(&self, frame: crate::frame::Frame, ctx: &crate::FFramesContext) -> Svgr;
 
     fn overlap(&self) -> Overlap {

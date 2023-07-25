@@ -1,5 +1,5 @@
 use fframes::{
-    frame, usvgr, video::Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
+    frame, usvgr, Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
 };
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};

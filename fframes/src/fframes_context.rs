@@ -1,7 +1,7 @@
 use std::iter::FromIterator;
 
 use crate::{
-    audio_data, media_provider, subtitles, video::ResolvedScenesTimeline, AudioTimelineSamples,
+    audio_data, media_provider, subtitles, ResolvedScenesTimeline, AudioTimelineSamples,
     AudioTimelineUnit, FontSource, Frame, ResolvedAudioMap, Svgr,
 };
 

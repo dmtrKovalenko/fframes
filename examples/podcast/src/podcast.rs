@@ -1,5 +1,5 @@
 use fframes::{
-    audio_data, fframes_context, frame, svgr, video::Video, AudioMap, AudioTimestamp, Svgr,
+    audio_data, fframes_context, frame, svgr, Video, AudioMap, AudioTimestamp, Svgr,
 };
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl Video for PodcastVideo {
         )])
     }
 
-    fn render_frame(&self, frame: frame::Frame, ctx: &fframes_context::FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: frame::Frame, ctx: &FFramesContext) -> Svgr {
         let goose_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
             smooth_level: 2,
             audio: ctx.get_audio_data(self.goose_audio),

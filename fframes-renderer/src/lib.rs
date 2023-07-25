@@ -1,5 +1,5 @@
 use fframes::media_provider::MediaProvider;
-use fframes::video::Video;
+use fframes::Video;
 use fframes::{
     fframes_context, usvgr, AudioData, AudioTimelineSamples, ResolvedRenderingTimeline,
     ScenesWithAudio, TimeBase,
@@ -61,7 +61,7 @@ pub fn prepare_rendering_context<
         sample_rate: 44100,
     };
 
-    let timeline = fframes::video::resolve_timeline(
+    let timeline = fframes::resolve_timeline(
         &video.duration(),
         &ScenesWithAudio::from(&video.define_scenes()),
         &time_base,
@@ -104,7 +104,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
     logger.init_frames_rendering(timeline.duration_in_frames);
 
     let font_source = RendererFontSource { fontdb: &font_db };
-    let ctx = fframes_context::FFramesContext {
+    let ctx = FFramesContext {
         time_base: TimeBase {
             sample_rate: 44100,
             fps: TVideo::FPS,
@@ -147,7 +147,7 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
         prepare_rendering_context(&options, &video)?;
 
     let font_source = RendererFontSource { fontdb: &font_db };
-    let ctx = fframes_context::FFramesContext {
+    let ctx = FFramesContext {
         time_base: TimeBase {
             sample_rate: 44100,
             fps: TVideo::FPS,

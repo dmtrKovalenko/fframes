@@ -17,8 +17,8 @@ impl Scene for FakeScene {
         ])
     }
 
-    fn duration(&self) -> crate::video::Duration {
-        crate::video::Duration::Seconds(30.)
+    fn duration(&self) -> crate::Duration {
+        crate::Duration::Seconds(30.)
     }
 
     fn render_frame(&self, _: crate::frame::Frame, _: &crate::FFramesContext) -> crate::Svgr {

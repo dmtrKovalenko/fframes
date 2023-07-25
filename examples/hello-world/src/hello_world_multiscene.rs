@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-pub use fframes::{audio_data, fframes_context, frame, video::Video, Color};
+pub use fframes::{audio_data, fframes_context, frame, Video, Color};
 use fframes::{AudioMap, FFramesContext, Frame, Scene, Svgr};
 
 pub struct HelloWorldMultiSceneVideo {}
@@ -13,7 +13,7 @@ impl Scene for SceneOne {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, _frame: frame::Frame, _ctx: &fframes_context::FFramesContext) -> Svgr {
+    fn render_frame(&self, _frame: frame::Frame, _ctx: &FFramesContext) -> Svgr {
         fframes::svgr!(
             <text font-family="Dm Sans" x="100" y="300" font-size="150"> "hello scene 1" </text>
             <g id="g1" transform="scale(1)">
@@ -34,7 +34,7 @@ impl Scene for SceneTwo {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, frame: frame::Frame, _ctx: &fframes_context::FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: frame::Frame, _ctx: &FFramesContext) -> Svgr {
         fframes::svgr!(
           <text
             x="100"

@@ -8,7 +8,7 @@ impl Scene for GithubScene {
         fframes::Overlap::Previous(0.3)
     }
 
-    fn duration(&self) -> fframes::video::Duration {
+    fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(5.)
     }
 

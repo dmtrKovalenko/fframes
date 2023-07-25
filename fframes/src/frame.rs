@@ -14,7 +14,7 @@ pub struct Frame {
     /// The frame index of the current frame. If rendering within a scene will show the frame index within a whole video.
     /// If rendering without scene always equal to self.index.
     pub global_index: usize,
-    /// FPS of the video. Always equals to the Video::FPS constant.
+    /// FPS of the video. Always equals to the FPS constant.
     pub fps: usize,
     pub breaks_lru_cache: Option<BreaksLruCache>,
 }
