@@ -1,4 +1,4 @@
-use fframes::{animation, audio_data, svgr, Scene, Svgr};
+use fframes::{animation, svgr, SampleSize, Scene, Svgr, VisualizeFrameInput};
 
 #[derive(Debug)]
 pub struct IphoneScene {
@@ -27,11 +27,7 @@ impl Scene for IphoneScene {
         fframes::Duration::Seconds(8.)
     }
 
-    fn render_frame(
-        &self,
-        frame: fframes::frame::Frame,
-        ctx: &fframes::FFramesContext,
-    ) -> fframes::Svgr {
+    fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> fframes::Svgr {
         const SEND_MESSAGE_TS: f32 = 4.8;
         const EXPAND_ISLAND_TS: f32 = 6.2;
 
@@ -44,10 +40,10 @@ impl Scene for IphoneScene {
            on EXPAND_ISLAND_TS, val 40. => 80., &animation::Easing::Spring2(1.6 , 300., 26.)
         ));
 
-        let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
+        let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
             smooth_level: 3,
             audio: ctx.get_audio_data("beta.mp3"),
-            sample_size: audio_data::SampleSize::S16,
+            sample_size: SampleSize::S16,
             window: None,
         });
 

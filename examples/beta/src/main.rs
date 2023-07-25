@@ -1,5 +1,5 @@
 use beta_example::BetaVideo;
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
+pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 
 fn main() {
     render(
@@ -11,11 +11,11 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {
+            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 cache_capacity: 30,
                 ..Default::default()
             },
-           
+
             default_font: "Inter",
             ..Default::default()
         },

@@ -1,6 +1,6 @@
 use crate::MarketingVideo;
 use fframes::TimeBase;
-use fframes_renderer::render_backend::CpuRenderingBackend;
+use fframes_renderer::fframes_renderer::cpu::CpuRenderingBackend;
 
 #[test]
 fn compile_time_svg() {

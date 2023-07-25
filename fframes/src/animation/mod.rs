@@ -1,4 +1,5 @@
-pub mod animation;
+#[allow(clippy::module_inception)]
+mod animation;
 pub use animation::*;
 
 mod spring;

@@ -1,7 +1,5 @@
+use fframes::{animation, AudioMap, AudioTimestamp, FFramesContext, Frame, Scene, Svgr, Video};
 use std::sync::Arc;
-
-use fframes::{animation, AudioMap, AudioTimestamp, Scene, Svgr};
-pub use fframes::{audio_data, fframes_context, frame, Video};
 use svgr_macro::{self, svgr};
 
 pub struct BetaVideo {
@@ -17,7 +15,7 @@ impl Scene for HeadingScene {
         fframes::Duration::Seconds(3.)
     }
 
-    fn render_frame(&self, frame: frame::Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr {
         svgr!(
           <text
             font-family="DM Sans"
@@ -104,7 +102,7 @@ impl Video for BetaVideo {
         fframes::Scenes::from(vec)
     }
 
-    fn render_frame(&self, frame: frame::Frame, ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
         svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"

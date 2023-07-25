@@ -1,7 +1,5 @@
 use fframes::{
-    audio_data,
-    media_provider::{ImageData, MediaProvider},
-    usvgr, Subtitles,
+    usvgr, AudioData, PreloadedAudioData, Subtitles, {ImageData, MediaProvider},
 };
 use rayon::prelude::*;
 use std::{
@@ -72,7 +70,7 @@ pub(crate) fn load_media_from_folder(
 
                         audio_hash.lock()?.insert(
                             filename.to_owned(),
-                            audio_data::AudioData::Preloaded(audio_data::PreloadedAudioData {
+                            AudioData::Preloaded(PreloadedAudioData {
                                 sample_rate,
                                 samples,
                             }),
@@ -128,7 +126,6 @@ pub(crate) fn load_media_from_folder(
         })?;
 
     fontdb.lock().unwrap().load_system_fonts();
-
     Ok((
         MediaProvider {
             audio: audio_hash.into_inner()?,

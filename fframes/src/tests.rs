@@ -21,7 +21,7 @@ impl Scene for FakeScene {
         crate::Duration::Seconds(30.)
     }
 
-    fn render_frame(&self, _: crate::frame::Frame, _: &crate::FFramesContext) -> crate::Svgr {
+    fn render_frame(&self, _: crate::Frame, _: &crate::FFramesContext) -> crate::Svgr {
         unimplemented!()
     }
 }

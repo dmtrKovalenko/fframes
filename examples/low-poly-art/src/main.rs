@@ -1,4 +1,4 @@
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
+pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 use low_poly_art_example::LowPolyVideo;
 
 fn main() {
@@ -8,13 +8,13 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {
+            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 // Not that big cache capacity because the whole sub-svg will be cached
                 cache_capacity: 5,
                 concurrency: 1,
                 ..Default::default()
             },
-           
+
             ..Default::default()
         },
     )

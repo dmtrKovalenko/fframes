@@ -1,5 +1,4 @@
-pub use fframes::{audio_data, fframes_context, frame, Video};
-use fframes::{AudioMap, Color};
+use fframes::{AudioMap, Color, FFramesContext, Frame, Video};
 
 #[derive(Debug)]
 pub struct HelloWorldVideo<'a> {
@@ -19,12 +18,9 @@ impl Video for HelloWorldVideo<'_> {
         AudioMap::none()
     }
 
-    fn render_frame(
-        &self,
-        frame: frame::Frame,
-        _ctx: &FFramesContext,
-    ) -> fframes::Svgr {
-        const BACKGROUND_EASING: fframes::Easing = fframes::Easing::Linear(5.);
+    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
+        const BACKGROUND_EASING: fframes::animation::Easing =
+            fframes::animation::Easing::Linear(5.);
 
         fframes::svgr!(
            <svg

@@ -1,5 +1,6 @@
-use crate::Animatable;
 use std::fmt;
+
+use crate::animation;
 
 /// The basic rgb color type. It is limited to the range of 0-255 because the most of video
 /// codecs only support 8-bit color depth.  
@@ -105,7 +106,7 @@ impl From<Color> for ColorF32 {
     }
 }
 
-impl Animatable for Color {
+impl animation::Animatable for Color {
     fn apply_progress(&self, to: &Self, progress: f32) -> Self {
         let from = ColorF32::from(*self);
         let to = ColorF32::from(*to);

@@ -1,5 +1,4 @@
-use fframes_renderer::render_backend::CpuRenderingBackend;
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
+pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 use podcast_example::PodcastVideo;
 
 fn main() {
@@ -13,7 +12,7 @@ fn main() {
         RenderOptions {
             media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: CpuRenderingBackend {
+            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 cache_capacity: 20,
                 ..Default::default()
             },

@@ -1,5 +1,5 @@
 use clap::Parser;
-use fframes_renderer::{fframes_logger, render, render_backend, EncoderOptions, RenderOptions};
+use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
 use hello_world_example::HelloWorldVideo;
 use std::path::PathBuf;
 
@@ -37,13 +37,13 @@ fn main() {
                 ..Default::default()
             },
             render_backend: if let Some(concurrency) = args.concurrency {
-                render_backend::CpuRenderingBackend {
+                fframes_renderer::cpu::CpuRenderingBackend {
                     concurrency,
                     cache_capacity: 5,
                     ..Default::default()
                 }
             } else {
-                render_backend::CpuRenderingBackend {
+                fframes_renderer::cpu::CpuRenderingBackend {
                     cache_capacity: 5,
                     ..Default::default()
                 }

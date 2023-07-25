@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::DerefMut};
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
-    Animatable, AnimationRuntime, BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
+    BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
 };
 
 /// The Frame {} struct contains temporal information about the current frame.
@@ -19,7 +19,7 @@ pub struct Frame {
     pub breaks_lru_cache: Option<BreaksLruCache>,
 }
 
-pub struct AnimateRuntimeInput<'a, TValue: Animatable> {
+pub struct AnimateRuntimeInput<'a, TValue: animation::Animatable> {
     /// The second when animation should start.
     /// If you want to animate based on frames then use `frame.animate_runtime(AnimateRuntimeInput { on_second: frame.frame_to_second(10), .. })`
     ///
@@ -30,7 +30,7 @@ pub struct AnimateRuntimeInput<'a, TValue: Animatable> {
     /// The value to animate to.
     pub to: TValue,
     /// The easing function to use.
-    pub animation_runtime: &'a AnimationRuntime,
+    pub animation_runtime: &'a animation::AnimationRuntime,
 }
 
 impl Frame {
@@ -74,7 +74,7 @@ impl Frame {
     ///
     /// let value = frame.animate_runtime(AnimateRuntimeInput {  on: 3.2, from: 1000., to: 2000., animation_runtime: &runtime }); assert_eq!(value, 1000.);
     /// ```
-    pub fn animate_runtime<TValue: Animatable>(
+    pub fn animate_runtime<TValue: animation::Animatable>(
         &self,
         AnimateRuntimeInput {
             on_second,
@@ -122,7 +122,7 @@ impl Frame {
     ///   />
     /// );
     /// ```
-    pub fn animate<T: crate::Animatable + Copy + Default>(
+    pub fn animate<T: crate::animation::Animatable + Copy + Default>(
         &self,
         animation: &animation::KeyFramesAnimation<T>,
     ) -> T {

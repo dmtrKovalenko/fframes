@@ -1,4 +1,4 @@
-use crate::frame::Frame;
+use crate::Frame;
 use std::{fs, path::Path};
 use webvtt_parser::{self, parse_vtt, Vtt, VttCue, VttError};
 

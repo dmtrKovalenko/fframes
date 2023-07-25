@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-pub use fframes::{audio_data, fframes_context, frame, Video};
 use fframes::{AudioMap, AudioTimestamp, Scene, Svgr};
+pub use fframes::{FFramesContext, Frame, Video};
 
 pub struct LowPolyVideo {}
 
@@ -32,7 +32,7 @@ impl Video for LowPolyVideo {
         fframes::Scenes::from(vec)
     }
 
-    fn render_frame(&self, frame: frame::Frame, ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"

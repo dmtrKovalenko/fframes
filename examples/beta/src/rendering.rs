@@ -8,11 +8,7 @@ impl Scene for RenderingScene {
         fframes::Duration::Frames(140)
     }
 
-    fn render_frame(
-        &self,
-        frame: fframes::frame::Frame,
-        _ctx: &fframes::FFramesContext,
-    ) -> fframes::Svgr {
+    fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> fframes::Svgr {
         const GPU_SECOND: f32 = 1.1;
 
         let gpu = frame.get_current_second() > GPU_SECOND;

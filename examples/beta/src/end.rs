@@ -1,4 +1,4 @@
-use fframes::{svgr, Scene};
+use fframes::{animation, svgr, Scene};
 
 #[derive(Debug)]
 pub struct EndScene {}
@@ -8,11 +8,7 @@ impl Scene for EndScene {
         fframes::Duration::Seconds(2.)
     }
 
-    fn render_frame(
-        &self,
-        frame: fframes::frame::Frame,
-        _ctx: &fframes::FFramesContext,
-    ) -> fframes::Svgr {
+    fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> fframes::Svgr {
         svgr!(
           <linearGradient id="text">
             <stop stop-color="#4338ca"/>
@@ -26,7 +22,7 @@ impl Scene for EndScene {
             y="50%"
             text-anchor="middle"
             opacity={frame.animate(&fframes::timeline!(
-              on 0.1, val 0. => 1., fframes::Easing::Linear(0.1)
+              on 0.1, val 0. => 1., animation::Easing::Linear(0.1)
             ))}
             fill="black"
           >
@@ -40,14 +36,14 @@ impl Scene for EndScene {
             opacity={
               frame.animate(
                 fframes::timeline!(
-                  on 0.6, val 0. => 1., fframes::Easing::Linear(0.2)
+                  on 0.6, val 0. => 1., animation::Easing::Linear(0.2)
                 )
               )
             }
             transform={format!("rotate({} 1300 590)",
               frame.animate(
                 &fframes::timeline!(
-                  on 0.6, val -60. => -25., fframes::Easing::Linear(0.2)
+                  on 0.6, val -60. => -25., animation::Easing::Linear(0.2)
                 )
               )
             )}

@@ -1,16 +1,10 @@
-pub use fframes::{
-    animation::{self, AnimationRuntime},
-    audio_data, audio_window_functions, fframes_context,
-    frame::Frame,
-    subtitles,
-    Video,
-    AnimateRuntimeInput, AudioMap, Svgr,
-};
+pub use fframes::{animation, AnimateRuntimeInput, AudioMap, Frame, Svgr, Video};
+use fframes::{FFramesContext, VisualizeFrameInput};
 
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
 
 fframes::lazy_static::lazy_static! {
-    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from(&SPRING);
+    static ref SPRING_RUNTIME: animation::AnimationRuntime = animation::AnimationRuntime::from(&SPRING);
 }
 
 struct SpectrumValue<'a> {
@@ -228,7 +222,7 @@ impl Video for MarketingVideo {
 
     fn render_frame(&self, frame: fframes::Frame, ctx: &FFramesContext) -> Svgr {
         let subtitles = ctx.get_subtitles("subtitles.vtt");
-        let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
+        let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
             audio: ctx.get_audio_data(self.audio_track),
             sample_size: fframes::SampleSize::S16,
             smooth_level: 3,

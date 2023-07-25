@@ -1,9 +1,7 @@
 use fframes::lazy_static::lazy_static;
 use fframes::{
-    animation, prettify_spectrum, svgr, AnimationRuntime, AudioMap, AudioTimestamp, Svgr,
-};
-pub use fframes::{
-    audio_data, audio_window_functions, fframes_context, frame::Frame, subtitles, Video,
+    animation, prettify_spectrum, svgr, AudioMap, AudioTimestamp, FFramesContext, Frame,
+    SampleSize, Svgr, Video, VisualizeFrameInput,
 };
 
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
@@ -12,7 +10,8 @@ const BAR_PADDING: usize = 20;
 const SPECTRUM_WIDTH: usize = 16 * (BAR_SIZE + BAR_PADDING) - BAR_PADDING;
 
 lazy_static! {
-    static ref SPRING_RUNTIME: AnimationRuntime = AnimationRuntime::from(&SPRING);
+    static ref SPRING_RUNTIME: animation::AnimationRuntime =
+        animation::AnimationRuntime::from(&SPRING);
 }
 
 #[derive(Debug)]
@@ -37,9 +36,9 @@ impl Video for GooseVideo {
 
     fn render_frame(&self, mut frame: Frame, ctx: &FFramesContext) -> Svgr {
         let subtitles = ctx.get_subtitles("thought.vtt");
-        let audio_visualization = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
+        let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
             audio: ctx.get_audio_data(self.audio_track),
-            sample_size: audio_data::SampleSize::S32,
+            sample_size: SampleSize::S32,
             smooth_level: 4,
             window: None,
         });

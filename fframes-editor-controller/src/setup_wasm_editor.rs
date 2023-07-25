@@ -15,8 +15,8 @@ macro_rules! setup_wasm_editor {
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
             static ref TIME_BASE: Mutex<Option<fframes::TimeBase>> = Mutex::new(None);
-            static ref MEDIA_PROVIDER: Mutex<fframes::media_provider::MediaProvider> =
-                Mutex::new(fframes::media_provider::MediaProvider {
+            static ref MEDIA_PROVIDER: Mutex<fframes::MediaProvider> =
+                Mutex::new(fframes::MediaProvider {
                     audio: HashMap::new(),
                     images: HashMap::new(),
                     subtitles: HashMap::new(),
@@ -55,8 +55,8 @@ macro_rules! setup_wasm_editor {
 
         #[wasm_bindgen]
         pub fn add_audio_source(file: String, input: &[i16]) {
-            let audio_data = fframes::audio_data::AudioData::Preloaded(
-                fframes::audio_data::PreloadedAudioData {
+            let audio_data = fframes::AudioData::Preloaded(
+                fframes::PreloadedAudioData {
                     sample_rate: 44100,
                     samples: input.to_vec(),
                 },
@@ -88,7 +88,7 @@ macro_rules! setup_wasm_editor {
 
             media_provider.images.insert(
                 file,
-                fframes::media_provider::ImageData {
+                fframes::ImageData {
                     link: url,
                     base64: base64_data
                 }
@@ -101,7 +101,7 @@ macro_rules! setup_wasm_editor {
             let time_base = TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering.");
 
             VIDEO.render_frame(
-                frame::Frame {
+                Frame {
                     fps: time_base.fps,
                     index: frame as usize,
                     global_index: frame as usize,
@@ -124,7 +124,7 @@ macro_rules! setup_wasm_editor {
             let time_base = TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering.");
 
             VIDEO.render_frame(
-                frame::Frame {
+                Frame {
                     fps: time_base.fps,
                     index: frame as usize,
                     global_index: frame as usize,

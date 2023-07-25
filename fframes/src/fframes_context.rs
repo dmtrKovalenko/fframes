@@ -1,9 +1,8 @@
-use std::iter::FromIterator;
-
 use crate::{
-    audio_data, media_provider, subtitles, ResolvedScenesTimeline, AudioTimelineSamples,
-    AudioTimelineUnit, FontSource, Frame, ResolvedAudioMap, Svgr,
+    subtitles, AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame,
+    MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
+use std::iter::FromIterator;
 
 #[derive(Clone, Debug)]
 pub enum FFramesMode {
@@ -22,14 +21,14 @@ pub struct TimeBase {
 pub struct FFramesContext<'a> {
     pub time_base: TimeBase,
     pub mode: FFramesMode,
-    pub media_provider: &'a media_provider::MediaProvider,
+    pub media_provider: &'a MediaProvider,
     pub duration_in_frames: usize,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
     pub scenes: Option<&'a ResolvedScenesTimeline>,
 }
 
 impl<'a: 'b, 'b> FFramesContext<'a> {
-    pub fn get_audio_data(&self, filename: &str) -> &audio_data::AudioData {
+    pub fn get_audio_data(&self, filename: &str) -> &AudioData {
         match self.media_provider.audio.get(filename) {
             Some(data) => data,
             None => panic!("Audio data not found for {file}, please make sure that media folder contains {file}", file=filename)

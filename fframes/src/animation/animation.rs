@@ -21,11 +21,12 @@ impl From<&Easing> for AnimationRuntime {
             }
             Easing::Linear(duration) => AnimationRuntime::Linear(*duration),
             Easing::Spring2(mass, stiffness, damping) => {
-                let spring_runtime = spring::SpringRuntime::from_options(&crate::SpringOptions {
-                    mass: *mass,
-                    stiffness: *stiffness,
-                    damping: *damping,
-                });
+                let spring_runtime =
+                    spring::SpringRuntime::from_options(&crate::animation::SpringOptions {
+                        mass: *mass,
+                        stiffness: *stiffness,
+                        damping: *damping,
+                    });
 
                 let duration = spring_runtime.get_duration();
                 AnimationRuntime::SpringRuntime(spring_runtime, duration)

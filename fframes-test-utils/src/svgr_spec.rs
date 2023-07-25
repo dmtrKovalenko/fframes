@@ -1,5 +1,5 @@
 use crate::assert_compile_time_svgr_eq_runtime;
-use fframes::svgr;
+use fframes::{animation, svgr};
 
 #[test]
 pub fn inlined_tree_1() {
@@ -369,9 +369,9 @@ pub fn macro_animations() {
 
             <rect
                 x={frame.animate(fframes::timeline!(
-                  on 0., val 10.0 => 12.2, fframes::Easing::Linear(0.2),
-                  on 10., val 10.0 => 12.2, fframes::Easing::Linear(0.2),
-                  on 12., val 10.0 => 12.2, fframes::Easing::Linear(0.2)
+                  on 0., val 10.0 => 12.2, animation::Easing::Linear(0.2),
+                  on 10., val 10.0 => 12.2, animation::Easing::Linear(0.2),
+                  on 12., val 10.0 => 12.2, animation::Easing::Linear(0.2)
                 ))}
             />
           </svg>

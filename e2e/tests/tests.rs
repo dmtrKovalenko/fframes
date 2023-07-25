@@ -1,5 +1,5 @@
 use e2e_test_video::test_video::TestVideo;
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
+pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 use rayon::prelude::*;
 use std::env::consts::{ARCH, OS};
 use std::{fs, process::Command};
@@ -15,12 +15,11 @@ fn e2e_rendering() {
         "out.mp4",
         RenderOptions {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {
+            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 cache_capacity: 5,
                 concurrency: 1,
                 ..Default::default()
             },
-           
             media_dir: std::env::current_dir()
                 .unwrap()
                 .join("media")

@@ -1,4 +1,4 @@
-use fframes::{svgr, Scene, Video};
+use fframes::{animation, svgr, Scene, Video};
 use hello_world_example::HelloWorldVideo;
 use marketing_example::MarketingVideo;
 use podcast_example::PodcastVideo;
@@ -17,11 +17,7 @@ impl Scene for ExamplesScene<'_> {
         fframes::Duration::Frames(500)
     }
 
-    fn render_frame(
-        &self,
-        frame: fframes::frame::Frame,
-        ctx: &fframes::FFramesContext,
-    ) -> fframes::Svgr {
+    fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> fframes::Svgr {
         const VIDEO_SCALE: f32 = 0.62;
         const VIDEO_OFFSET_Y: i32 = 320;
         const VIDEO_OFFSET_X: f32 = (1920. - (1920. * VIDEO_SCALE)) / 2.;
@@ -60,7 +56,7 @@ impl Scene for ExamplesScene<'_> {
             font-weight="700"
             text-anchor="middle"
             x={frame.animate(fframes::timeline!(
-              on 0., val 200. => 960., &fframes::Easing::Spring2(1.0 , 100., 16.)
+              on 0., val 200. => 960., &animation::Easing::Spring2(1.0 , 100., 16.)
             ))}
             y="8%"
             font-size="60"
@@ -79,16 +75,16 @@ impl Scene for ExamplesScene<'_> {
             transform={format!("translate(0, {})",
               frame.animate(
                 &fframes::timeline!(
-                  on MARKETING_TS, val 0. => -180., &fframes::Easing::Spring2(1.0 , 140., 16.),
-                  on PODCAST_TS, val -200. => -380., &fframes::Easing::Spring2(1.0 , 140., 16.),
-                  on TIKTOK_TS, val -400. => -580., &fframes::Easing::Spring2(1.0 , 140., 16.)
+                  on MARKETING_TS, val 0. => -180., &animation::Easing::Spring2(1.0 , 140., 16.),
+                  on PODCAST_TS, val -200. => -380., &animation::Easing::Spring2(1.0 , 140., 16.),
+                  on TIKTOK_TS, val -400. => -580., &animation::Easing::Spring2(1.0 , 140., 16.)
                 )
               )
             )}
           >
             <text
               x={frame.animate(fframes::timeline!(
-                on 0., val 1700. => 960., &fframes::Easing::Spring2(1.0 , 100., 16.)
+                on 0., val 1700. => 960., &animation::Easing::Spring2(1.0 , 100., 16.)
               ))}
               y="220"
             >

@@ -1,4 +1,4 @@
-pub use fframes_renderer::{fframes_logger, render, render_backend, RenderOptions};
+pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 use marketing_example::MarketingVideo;
 
 fn main() {
@@ -10,12 +10,12 @@ fn main() {
         RenderOptions {
             media_dir: "/Users/dmtrkovalenko/dev/fframes/examples/marketing/media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: render_backend::CpuRenderingBackend {
+            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 // TODO figure out caching issue with path animation
                 cache_capacity: 0,
                 ..Default::default()
             },
-           
+
             ..Default::default()
         },
     )

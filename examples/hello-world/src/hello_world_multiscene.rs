@@ -1,7 +1,6 @@
+use fframes::{animation, AudioMap, FFramesContext, Frame, Scene, Svgr};
+pub use fframes::{Color, Video};
 use std::sync::Arc;
-
-pub use fframes::{audio_data, fframes_context, frame, Video, Color};
-use fframes::{AudioMap, FFramesContext, Frame, Scene, Svgr};
 
 pub struct HelloWorldMultiSceneVideo {}
 
@@ -13,7 +12,7 @@ impl Scene for SceneOne {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, _frame: frame::Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, _frame: Frame, _ctx: &FFramesContext) -> Svgr {
         fframes::svgr!(
             <text font-family="Dm Sans" x="100" y="300" font-size="150"> "hello scene 1" </text>
             <g id="g1" transform="scale(1)">
@@ -34,13 +33,13 @@ impl Scene for SceneTwo {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, frame: frame::Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr {
         fframes::svgr!(
           <text
             x="100"
             font-size="150"
             font-family="DM Sans"
-            y={frame.animate(fframes::timeline!(on 0., val 300. => 320., fframes::Easing::Linear(0.2)))}
+            y={frame.animate(fframes::timeline!(on 0., val 300. => 320., animation::Easing::Linear(0.2)))}
           >
             "Hello Scene 2"
           </text>
@@ -68,7 +67,7 @@ impl Video for HelloWorldMultiSceneVideo {
     }
 
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
-        const BACKGROUND_EASING: fframes::Easing = fframes::Easing::Linear(5.);
+        const BACKGROUND_EASING: animation::Easing = animation::Easing::Linear(5.);
 
         fframes::svgr!(
            <svg

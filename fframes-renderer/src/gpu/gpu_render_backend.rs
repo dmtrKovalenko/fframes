@@ -6,9 +6,7 @@ use crate::{
     render_backend::FFramesRenderBackend,
     renderer_error::FFramesResult,
 };
-use fframes::{
-    usvgr, Video, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline,
-};
+use fframes::{usvgr, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline, Video};
 use futures::executor::block_on;
 use std::{num::NonZeroU32, sync::Arc};
 use wgpu::{include_wgsl, util::DeviceExt};

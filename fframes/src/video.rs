@@ -1,6 +1,6 @@
 use crate::audio_map::AudioMap;
 use crate::{
-    frame, scenes::*, AudioTimelineUnit, Duration, FFramesContext, ResolvedAudioMap, SceneInfo,
+    scenes::*, AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo,
     TimeBase,
 };
 use std::sync::Arc;
@@ -17,7 +17,7 @@ pub trait Video: Sync + Sized {
         Scenes(None)
     }
 
-    fn render_frame(&self, frame: frame::Frame, ctx: &FFramesContext) -> crate::Svgr;
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> crate::Svgr;
 }
 
 #[derive(Debug)]

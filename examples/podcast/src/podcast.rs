@@ -1,5 +1,6 @@
 use fframes::{
-    audio_data, fframes_context, frame, svgr, Video, AudioMap, AudioTimestamp, Svgr,
+    svgr, AudioMap, AudioTimestamp, FFramesContext, Frame, SampleSize, Svgr, Video,
+    VisualizeFrameInput,
 };
 
 #[derive(Debug)]
@@ -25,25 +26,25 @@ impl Video for PodcastVideo {
         )])
     }
 
-    fn render_frame(&self, frame: frame::Frame, ctx: &FFramesContext) -> Svgr {
-        let goose_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
+        let goose_vis = frame.visualize_audio_frame(VisualizeFrameInput {
             smooth_level: 2,
             audio: ctx.get_audio_data(self.goose_audio),
-            sample_size: audio_data::SampleSize::S32,
+            sample_size: SampleSize::S32,
             window: None,
         });
 
-        let duck_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
+        let duck_vis = frame.visualize_audio_frame(VisualizeFrameInput {
             smooth_level: 2,
             audio: ctx.get_audio_data(self.duck_audio),
-            sample_size: audio_data::SampleSize::S32,
+            sample_size: SampleSize::S32,
             window: None,
         });
 
-        let guest_vis = frame.visualize_audio_frame(audio_data::VisualizeFrameInput {
+        let guest_vis = frame.visualize_audio_frame(VisualizeFrameInput {
             smooth_level: 2,
             audio: ctx.get_audio_data(self.guest_audio),
-            sample_size: audio_data::SampleSize::S32,
+            sample_size: SampleSize::S32,
             window: None,
         });
 
