@@ -5,6 +5,8 @@ use crate::{
 };
 use std::sync::Arc;
 
+pub type SvgResult = std::result::Result<crate::Svgr, crate::error::FFramesError>;
+
 pub trait Video: Sync + Sized {
     const FPS: usize;
     const WIDTH: usize;
@@ -17,7 +19,7 @@ pub trait Video: Sync + Sized {
         Scenes(None)
     }
 
-    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> crate::Svgr;
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> SvgResult;
 }
 
 #[derive(Debug)]

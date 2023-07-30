@@ -303,7 +303,7 @@ impl<'a> AudioMap<'a> {
             self.resolve(TUnit::from_usize(0), tb, &resolve_audio_duration_in_frames)?;
 
         let scenes_resolved_map = scenes
-            .map(|scenes| {
+            .map(|scenes| -> crate::error::Result<_> {
                 Ok(scenes
                     .0
                     .iter()

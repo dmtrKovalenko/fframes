@@ -1,11 +1,14 @@
-use crate::encoder_frame::EncoderFrame;
+use crate::{
+    encoder_frame::EncoderFrame,
+    renderer_error::{FFramesRendererError, FFramesRendererResult, RenderEncodingResult},
+};
 use ffmpeg_next::sys::*;
 pub use ffmpeg_next::sys::{AVPixelFormat, AVSampleFormat};
 use std::{ffi::CString, os::raw::c_char, path::PathBuf, sync::Arc};
 
 use crate::{
     ffmpeg_action,
-    renderer_error::{self, AVError, AVResult},
+    renderer_error::{self, RenderEncodingError},
     stream, FFramesLogger,
 };
 
@@ -114,7 +117,7 @@ pub struct Encoder {
 
 impl Encoder {
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn with_output<T, F: FnMut(&mut Encoder) -> T>(
+    pub unsafe fn with_output<T, F: FnMut(&mut Encoder) -> RenderEncodingResult<T>>(
         width: i32,
         height: i32,
         fps: i32,
@@ -122,7 +125,7 @@ impl Encoder {
         encoder_options: &EncoderOptions,
         logger: &Arc<dyn FFramesLogger>,
         inner_fn: &mut F,
-    ) -> AVResult<T> {
+    ) -> RenderEncodingResult<T> {
         av_log_set_level(logger.get_libav_log_level());
 
         let c_filename = CString::new(filename).unwrap();
@@ -135,7 +138,7 @@ impl Encoder {
                 std::ptr::null_mut(),
                 c_filename.as_ptr(),
             ),
-            AVError::UnknownExtension(filename.to_owned())
+            RenderEncodingError::UnknownExtension(filename.to_owned()).into()
         );
 
         let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
@@ -153,7 +156,7 @@ impl Encoder {
 
         ffmpeg_action!(
             avio_open(&mut (*oc).pb, c_filename.as_ptr(), 2),
-            AVError::CantOpenFile(filename.to_owned())
+            RenderEncodingError::CantOpenFile(filename.to_owned()).into()
         );
 
         avformat_write_header(oc, std::ptr::null_mut());
@@ -176,7 +179,7 @@ impl Encoder {
         avio_closep(&mut (*oc).pb);
         avformat_free_context(oc);
 
-        Ok(res)
+        res
     }
 
     pub unsafe fn send_customizeable_frame_packet<F: Fn(*mut AVPacket) -> i32>(
@@ -184,14 +187,14 @@ impl Encoder {
         stream: &stream::Stream,
         EncoderFrame { frame, .. }: &EncoderFrame,
         customize_frame: F,
-    ) -> AVResult<()> {
+    ) -> RenderEncodingResult<()> {
         let avcodec_send_frame = avcodec_send_frame(stream.enc, *frame);
         let mut status = avcodec_send_frame;
 
         if status < 0 {
             let error_description = av_error_to_string(status);
 
-            return Err(renderer_error::AVError::CantWriteFrame(
+            return Err(renderer_error::RenderEncodingError::CantWriteFrame(
                 CString::from_raw(error_description)
                     .to_str()
                     .unwrap_or("Unknown libav error.")
@@ -220,7 +223,7 @@ impl Encoder {
         &mut self,
         stream: &stream::Stream,
         frame: &EncoderFrame,
-    ) -> AVResult<()> {
+    ) -> RenderEncodingResult<()> {
         let oc = self.oc;
 
         self.send_customizeable_frame_packet(stream, frame, |packet| {

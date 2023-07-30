@@ -14,6 +14,8 @@ pub enum FFramesError {
     /// Something is overflowing bounds. Contain info about what is overflowed and how much.
     /// e.g. The duration of scene is overflowed by 1000 frames.
     Overflow(String, usize),
+    /// Svg parser error
+    ParserError(usvgr::Error),
 }
 
 impl fmt::Debug for FFramesError {
@@ -26,21 +28,28 @@ impl fmt::Debug for FFramesError {
                 FFramesError::MissingDurationOrScenes => "The Video trait implementation does not have  neither `duration` nor `define_scenes`, nor `audio` method implemented. One of them is required to to calculate the output duration of the video.".to_owned(),
                 FFramesError::Overflow(what, overflow_by) => format!("The {what} is overflowed by {overflow_by}"),
                 FFramesError::UserError(err) => format!("Custom error:\n{}", err),
+                FFramesError::ParserError(err) => format!("SVG parsing error: {err:?}"),
             }
         )
     }
 }
 
-impl<T: Error> From<T> for FFramesError {
-    fn from(err: T) -> Self {
-        FFramesError::UserError(err.to_string())
-    }
-}
+// impl<T: Error> From<T> for FFramesError {
+//     fn from(err: T) -> Self {
+//         FFramesError::UserError(err.to_string())
+//     }
+// }
 
 // impl<T: Into<String>> From<T> for FFramesError {
 //     fn from(err: T) -> Self {
 //         FFramesError::UserError(err.into())
 //     }
 // }
+
+impl From<usvgr::Error> for FFramesError {
+    fn from(err: usvgr::Error) -> Self {
+        FFramesError::ParserError(err)
+    }
+}
 
 pub type Result<T> = std::result::Result<T, FFramesError>;

@@ -1,3 +1,4 @@
+use crate::error::{FFramesError, Result};
 use std::{fmt, iter::FromIterator};
 
 #[derive(Default, Clone)]
@@ -14,13 +15,13 @@ impl Svgr {
     // }
 
     #[cfg(feature = "compile-time-svgtree")]
-    pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree, usvgr::Error> {
-        usvgr::Tree::from_nested_svgtree(self.svg_tree, opt)
+    pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
+        usvgr::Tree::from_nested_svgtree(self.svg_tree, opt).map_err(FFramesError::from)
     }
 
     #[cfg(not(feature = "compile-time-svgtree"))]
-    pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree, usvgr::Error> {
-        usvgr::Tree::from_str(self.value.as_str(), opt)
+    pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
+        usvgr::Tree::from_str(self.value.as_str(), opt).map_err(FFramesError::from)
     }
 
     #[cfg(feature = "compile-time-svgtree")]
@@ -29,7 +30,7 @@ impl Svgr {
     }
 
     #[cfg(not(feature = "compile-time-svgtree"))]
-    pub fn as_subtree(self, _opt: &usvgr::Options) -> Result<usvgr::Tree, usvgr::Error> {
+    pub fn as_subtree(self, _opt: &usvgr::Options) -> Result<usvgr::Tree> {
         unimplemented!("Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly.")
     }
 }

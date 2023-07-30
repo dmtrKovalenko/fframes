@@ -4,7 +4,9 @@ use crate::{
     encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     render_backend::FFramesRenderBackend,
-    renderer_error::FFramesRendererResult,
+    renderer_error::{
+        FFramesRendererError, FFramesRendererResult, RenderEncodingError, RenderEncodingResult,
+    },
 };
 use fframes::{usvgr, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline, Video};
 use futures::executor::block_on;
@@ -98,7 +100,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 output,
                 encoder_options,
                 &logger,
-                &mut |video_encoder| -> FFramesRendererResult<()> {
+                &mut |video_encoder| -> RenderEncodingResult<()> {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream)?;
 
                     for fr in 0..ctx.duration_in_frames {
@@ -111,7 +113,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                                     breaks_lru_cache: text_cache.clone(),
                                 },
                                 &ctx,
-                            )
+                            )?
                             .into_svg_tree(usvg_options)
                             .unwrap();
 
@@ -390,7 +392,8 @@ impl FFramesRenderBackend for GpuRenderingBackend {
 
                     Ok(())
                 },
-            )?
+            )
+            .map_err(|e| FFramesRendererError::RenderChunkError(0, e))
         }?;
 
         logger.success(output, None);

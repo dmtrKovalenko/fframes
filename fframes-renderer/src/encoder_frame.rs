@@ -1,6 +1,5 @@
 use crate::ffmpeg_action;
-use crate::renderer_error::AVError;
-use crate::renderer_error::AVResult;
+use crate::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use crate::stream;
 use ffmpeg_next::sys::AVPixelFormat;
 use ffmpeg_next::sys::*;
@@ -12,7 +11,7 @@ pub(crate) struct FrameFormatConvertor {
 }
 
 impl FrameFormatConvertor {
-    pub(crate) unsafe fn new(video_stream: &stream::Stream) -> AVResult<Self> {
+    pub(crate) unsafe fn new(video_stream: &stream::Stream) -> RenderEncodingResult<Self> {
         let sws_ctx = sws_getContext(
             (*video_stream.enc).width,
             (*video_stream.enc).height,
@@ -27,7 +26,9 @@ impl FrameFormatConvertor {
         );
 
         if sws_ctx.is_null() {
-            return Err(AVError::Internal("Can not allocate sws".to_owned()));
+            return Err(RenderEncodingError::Internal(
+                "Can not allocate sws".to_owned(),
+            ));
         }
 
         let tmp_frame = av_frame_alloc();
@@ -37,7 +38,7 @@ impl FrameFormatConvertor {
 
         ffmpeg_action!(
             av_frame_get_buffer(tmp_frame, 0),
-            AVError::CantAllocate("converter frame buffer".to_owned())
+            RenderEncodingError::CantAllocate("converter frame buffer".to_owned())
         );
 
         Ok(Self { tmp_frame, sws_ctx })
@@ -75,7 +76,7 @@ pub struct EncoderFrame {
 }
 
 impl EncoderFrame {
-    pub unsafe fn make(stream: &stream::Stream) -> AVResult<Self> {
+    pub unsafe fn make(stream: &stream::Stream) -> RenderEncodingResult<Self> {
         let frame = av_frame_alloc();
         let mut format_convertor = None;
 
@@ -108,7 +109,7 @@ impl EncoderFrame {
 
         ffmpeg_action!(
             av_frame_get_buffer(frame, 0),
-            AVError::CantAllocate("frame buffer".to_owned())
+            RenderEncodingError::CantAllocate("frame buffer".to_owned())
         );
 
         Ok(EncoderFrame {

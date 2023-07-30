@@ -2,7 +2,7 @@ use crate::Frame;
 use std::{fs, path::Path};
 use webvtt_parser::{self, parse_vtt, Vtt, VttCue, VttError};
 
-pub type SubtitlesError = VttError;
+pub type SubtitlesError = FileVttParsingError;
 
 #[derive(Debug, Clone)]
 /// Represents any of supported specific to the format cue attributes
@@ -56,11 +56,16 @@ fn validate_cue_fitting_frame(frame_milliseconds: u64, cue: &VttCue) -> bool {
         && frame_milliseconds <= cue.end.as_milliseconds()
 }
 
+pub enum FileVttParsingError {
+    IO(std::io::Error),
+    Vtt(VttError),
+}
+
 impl Subtitles {
     /// Parses subtitles from vtt file path.
-    pub fn from_file<P: AsRef<Path>>(path: P, fps: usize) -> Result<Self, VttError> {
-        let file = fs::read_to_string(path).unwrap();
-        Self::parse(file.as_str(), fps)
+    pub fn from_file<P: AsRef<Path>>(path: P, fps: usize) -> Result<Self, FileVttParsingError> {
+        let file = fs::read_to_string(path).map_err(FileVttParsingError::IO)?;
+        Self::parse(file.as_str(), fps).map_err(FileVttParsingError::Vtt)
     }
 
     /// Returns the latest cue which timestamp range fits current frame.

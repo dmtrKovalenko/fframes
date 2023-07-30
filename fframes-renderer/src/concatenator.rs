@@ -6,7 +6,7 @@ use crate::{
     encoder::Encoder,
     encoder_frame::EncoderFrame,
     ffmpeg_action,
-    renderer_error::{AVError, AVResult},
+    renderer_error::{RenderEncodingError, RenderEncodingResult},
     stream::Stream,
     stream::StreamVariant,
     EncoderOptions,
@@ -16,7 +16,7 @@ unsafe fn open_file_stream(
     filename: &str,
     input_format_ctx: &mut *mut AVFormatContext,
     codec_type: AVMediaType,
-) -> AVResult<*mut AVStream> {
+) -> RenderEncodingResult<*mut AVStream> {
     let input_file = CString::new(filename).unwrap();
 
     ffmpeg_action!(
@@ -26,12 +26,12 @@ unsafe fn open_file_stream(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
         ),
-        AVError::CantOpenFile(filename.to_owned())
+        RenderEncodingError::CantOpenFile(filename.to_owned())
     );
 
     ffmpeg_action!(
         avformat_find_stream_info(*input_format_ctx, std::ptr::null_mut()),
-        AVError::CantOpenFile(filename.to_owned())
+        RenderEncodingError::CantOpenFile(filename.to_owned())
     );
 
     let streams = std::slice::from_raw_parts_mut(
@@ -50,7 +50,9 @@ unsafe fn open_file_stream(
     }
 
     if input_stream.is_null() {
-        Err(AVError::MissingVideoStreamInFile(filename.to_owned()))
+        Err(RenderEncodingError::MissingVideoStreamInFile(
+            filename.to_owned(),
+        ))
     } else {
         Ok(input_stream)
     }
@@ -60,7 +62,7 @@ unsafe fn create_encoder_copy_from_file(
     file: &str,
     output: &str,
     encoder_options: &EncoderOptions,
-) -> Result<Encoder, AVError> {
+) -> Result<Encoder, RenderEncodingError> {
     let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
     let mut output_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
 
@@ -115,7 +117,7 @@ unsafe fn create_encoder_copy_from_file(
 unsafe fn fill_video_stream_from_files(
     encoder: &mut Encoder,
     files: &[String],
-) -> Result<(), AVError> {
+) -> Result<(), RenderEncodingError> {
     let mut start_time = 0;
     let packet = av_packet_alloc();
 
@@ -162,16 +164,15 @@ pub unsafe fn fill_audio_stream(
     encoder: &mut Encoder,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     ctx: &FFramesContext,
-) -> Result<(), AVError> {
+) -> Result<(), RenderEncodingError> {
     if let (Some(audio_map), Some(audio_stream)) = (audio_map, encoder.audio_stream) {
         let stream_duration_in_samples =
             AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
 
-        let mut audio_frame = EncoderFrame::make(
-            &encoder
-                .audio_stream
-                .ok_or_else(|| AVError::Internal("Missing audio_stream".to_owned()))?,
-        )?;
+        let mut audio_frame =
+            EncoderFrame::make(&encoder.audio_stream.ok_or_else(|| {
+                RenderEncodingError::Internal("Missing audio_stream".to_owned())
+            })?)?;
 
         let mut audio_frame_pts = 0usize;
         let frame_size = (*audio_stream.enc).frame_size as usize;
@@ -202,7 +203,7 @@ pub unsafe fn concat_video_files_with_audio(
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     encoder_options: &EncoderOptions,
     ctx: &FFramesContext,
-) -> Result<(), AVError> {
+) -> Result<(), RenderEncodingError> {
     let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
 
     fill_video_stream_from_files(&mut encoder, files)?;

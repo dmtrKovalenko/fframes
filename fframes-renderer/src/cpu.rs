@@ -142,9 +142,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                             breaks_lru_cache: break_lines_cache.clone(),
                                         },
                                         &ctx,
-                                    );
+                                    )?;
 
-                                    let mut rtree = svg.into_svg_tree(usvg_options).unwrap();
+                                    let mut rtree = svg.into_svg_tree(usvg_options)?;
                                     rtree.convert_text_with_cache(
                                         font_db,
                                         &mut text_layout_cache,
@@ -159,7 +159,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         pixmap.as_mut(),
                                         &mut svgr_cache,
                                     )
-                                    .unwrap();
+                                    .unwrap(); // todo fix me.
                                     logger.log_frame(index, thread_number);
 
                                     frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
@@ -185,7 +185,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         },
                     )
                 }
-                .and_then(std::convert::identity)
                 .map_err(|av_err| FFramesRendererError::RenderChunkError(thread_number, av_err))?;
 
                 Ok(file)
@@ -199,7 +198,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                 timeline.audio_map.as_ref(),
                 encoder_options,
                 &ctx,
-            )?;
+            )
+            .map_err(FFramesRendererError::ConcatChunkError)?;
         }
 
         logger.success(output, directory.to_str());
@@ -219,7 +219,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             .ok_or_else(|| FFramesRendererError::CustomError("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
 
         let mut rtree = video
-            .render_frame(frame, &ctx)
+            .render_frame(frame, &ctx)?
             .into_svg_tree(usvg_options)?;
         rtree.convert_text(font_db, true);
 
