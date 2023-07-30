@@ -1,6 +1,6 @@
 use colored::Colorize;
 use ffmpeg_next::ffi::AVPixelFormat;
-use std::{fmt, sync::PoisonError};
+use std::{error::Error, fmt, sync::PoisonError};
 
 /// Thread or Chunk level error which can happen during parallelized rendering
 pub enum RenderEncodingError {
@@ -63,7 +63,16 @@ pub enum FFramesRendererError {
     InvalidOutput,
     CoreError(fframes::error::FFramesError),
 
+    /// Any custom rendering backend implementation-specific error
     Custom(String),
+}
+
+impl Error for FFramesRendererError {}
+
+impl fmt::Display for FFramesRendererError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
 }
 
 impl fmt::Debug for FFramesRendererError {

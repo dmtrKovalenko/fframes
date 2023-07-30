@@ -107,7 +107,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
     let (media_provider, font_db, timeline, image_data, logger) =
         prepare_rendering_context(&options, &video)?;
 
-    logger.init_frames_rendering(timeline.duration_in_frames);
+    logger.init_frames_rendering(timeline.duration_in_frames)?;
 
     let font_source = RendererFontSource { fontdb: &font_db };
     let ctx = FFramesContext {
@@ -143,6 +143,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
 /// Renders a single frame into the output image file.
 /// Prints all the rendering warns and errors for the frame along with the svg file itself.
 /// Compiles only for debug target.
+#[cfg(debug_assertions)]
 pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
     frame_index: usize,
     video: TVideo,

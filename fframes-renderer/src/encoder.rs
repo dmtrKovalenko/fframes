@@ -1,7 +1,4 @@
-use crate::{
-    encoder_frame::EncoderFrame,
-    renderer_error::{FFramesRendererError, FFramesRendererResult, RenderEncodingResult},
-};
+use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use ffmpeg_next::sys::*;
 pub use ffmpeg_next::sys::{AVPixelFormat, AVSampleFormat};
 use std::{ffi::CString, os::raw::c_char, path::PathBuf, sync::Arc};
@@ -138,7 +135,7 @@ impl Encoder {
                 std::ptr::null_mut(),
                 c_filename.as_ptr(),
             ),
-            RenderEncodingError::UnknownExtension(filename.to_owned()).into()
+            RenderEncodingError::UnknownExtension(filename.to_owned())
         );
 
         let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
@@ -156,7 +153,7 @@ impl Encoder {
 
         ffmpeg_action!(
             avio_open(&mut (*oc).pb, c_filename.as_ptr(), 2),
-            RenderEncodingError::CantOpenFile(filename.to_owned()).into()
+            RenderEncodingError::CantOpenFile(filename.to_owned())
         );
 
         avformat_write_header(oc, std::ptr::null_mut());

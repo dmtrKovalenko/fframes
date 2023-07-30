@@ -1,6 +1,6 @@
 mod mp3;
 use fframes::{
-    usvgr, AudioData, PreloadedAudioData, Subtitles, {ImageData, MediaProvider},
+    usvgr, AudioData, Subtitles, {ImageData, MediaProvider},
 };
 use rayon::prelude::*;
 use std::{
@@ -53,7 +53,7 @@ pub(crate) fn load_media_from_folder(
         })
         .collect::<Vec<_>>();
 
-    logger.init_media_processing(media_files.len());
+    logger.init_media_processing(media_files.len())?;
 
     media_files
         .into_par_iter()

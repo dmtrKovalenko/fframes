@@ -1,7 +1,4 @@
-use crate::{
-    render_backend::FFramesRenderBackend,
-    renderer_error::{RenderEncodingError, RenderEncodingResult},
-};
+use crate::{render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError};
 use fframes::{
     usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
 };
@@ -166,7 +163,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         pixmap.as_mut(),
                                         &mut svgr_cache,
                                     )
-                                    .ok_or_else(|| RenderEncodingError::RenderError)?;
+                                    .ok_or(RenderEncodingError::RenderError)?;
 
                                     logger.log_frame(index, thread_number);
 
