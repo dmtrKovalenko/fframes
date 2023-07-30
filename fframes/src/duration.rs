@@ -82,13 +82,13 @@ impl<'a> Duration<'a> {
                         },
                         resolve_audio_duration,
                     )?
-                    .ok_or(crate::error::FFramesCoreError::MissingDurationOrScenes)?;
+                    .ok_or(crate::error::FFramesError::MissingDurationOrScenes)?;
 
                 let max_frame = resolved_audio_map
                     .into_iter()
                     .map(|(_, range)| range.end.as_usize())
                     .max()
-                    .ok_or(crate::error::FFramesCoreError::MissingDurationOrScenes)?;
+                    .ok_or(crate::error::FFramesError::MissingDurationOrScenes)?;
 
                 Ok(max_frame)
             }

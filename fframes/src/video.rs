@@ -91,7 +91,7 @@ pub fn resolve_timeline<
             )?,
             None,
         )),
-        _ => Err(crate::error::FFramesCoreError::MissingDurationOrScenes),
+        _ => Err(crate::error::FFramesError::MissingDurationOrScenes),
     }?;
 
     let mut resolved_audio_map = top_level_audio_map.resolve_with_scenes::<TAudioUnit>(

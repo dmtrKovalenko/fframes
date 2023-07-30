@@ -12,14 +12,14 @@ use std::{
 
 use crate::{
     fframes_logger::FFramesLogger,
-    renderer_error::{FFramesError, FFramesResult},
+    renderer_error::{FFramesRendererError, FFramesRendererResult},
 };
 
 pub(crate) fn load_media_from_folder(
     logger: &Arc<dyn FFramesLogger>,
     folder_path: &str,
     fps: usize,
-) -> FFramesResult<(
+) -> FFramesRendererResult<(
     MediaProvider,
     usvgr_text_layout::fontdb::Database,
     HashMap<String, Arc<usvgr::PreloadedImageData>>,
@@ -56,7 +56,7 @@ pub(crate) fn load_media_from_folder(
 
     media_files
         .into_par_iter()
-        .try_for_each(|path| -> FFramesResult<()> {
+        .try_for_each(|path| -> FFramesRendererResult<()> {
             if let Some((extension, filename)) = path
                 .extension()
                 .and_then(OsStr::to_str)
@@ -90,7 +90,7 @@ pub(crate) fn load_media_from_folder(
                     "jpg" | "jpeg" | "png" => {
                         let data = fs::read(&path)?;
                         let buffer = image::load_from_memory(data.as_slice())
-                            .map_err(|e| FFramesError::ImageError((filename.to_owned(), e)))?;
+                            .map_err(|e| FFramesRendererError::ImageError((filename.to_owned(), e)))?;
 
                         usvgr_image_data.lock()?.insert(
                             filename.to_owned(),

@@ -1,5 +1,5 @@
 use crate::{
-    encoder::EncoderOptions, fframes_logger::FFramesLogger, renderer_error::FFramesResult,
+    encoder::EncoderOptions, fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult,
 };
 use fframes::{usvgr, AudioTimelineSamples, ResolvedRenderingTimeline, Video};
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub trait FFramesRenderBackend {
         usvg_options: &usvgr::Options,
         font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
-    ) -> FFramesResult<()>;
+    ) -> FFramesRendererResult<()>;
 
     fn render<'a, TVideo: Video + Sync + Sized>(
         &self,
@@ -28,7 +28,7 @@ pub trait FFramesRenderBackend {
         font_db: &usvgr_text_layout::fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: fframes::FFramesContext,
-    ) -> FFramesResult<()>
+    ) -> FFramesRendererResult<()>
     where
         Self: Sized;
 }

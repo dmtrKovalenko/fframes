@@ -4,7 +4,7 @@ use crate::{
     encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     render_backend::FFramesRenderBackend,
-    renderer_error::FFramesResult,
+    renderer_error::FFramesRendererResult,
 };
 use fframes::{usvgr, AudioTimelineSamples, BreaksLruCache, ResolvedRenderingTimeline, Video};
 use futures::executor::block_on;
@@ -29,7 +29,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         _fontdb: &usvgr_text_layout::fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: fframes::FFramesContext,
-    ) -> FFramesResult<()> {
+    ) -> FFramesRendererResult<()> {
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
 
         // create an adapter
@@ -98,7 +98,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                 output,
                 encoder_options,
                 &logger,
-                &mut |video_encoder| -> FFramesResult<()> {
+                &mut |video_encoder| -> FFramesRendererResult<()> {
                     let mut frame = EncoderFrame::make(&video_encoder.video_stream)?;
 
                     for fr in 0..ctx.duration_in_frames {
@@ -405,7 +405,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         _usvg_options: &usvgr::Options,
         _fontdb: &usvgr_text_layout::fontdb::Database,
         _ctx: fframes::FFramesContext,
-    ) -> FFramesResult<()> {
+    ) -> FFramesRendererResult<()> {
         todo!()
     }
 }

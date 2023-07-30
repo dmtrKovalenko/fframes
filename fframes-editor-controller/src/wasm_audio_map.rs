@@ -1,4 +1,4 @@
-use fframes::error::FFramesCoreError;
+use fframes::error::FFramesError;
 use fframes::{
     AudioTimelineFrames, Duration, ResolvedAudioMap, ResolvedRenderingTimeline,
     ResolvedScenesTimeline, ScenesWithAudio, TimeBase, Video,
@@ -51,8 +51,8 @@ async fn resolve_used_audio_durations<'a>(
                 let frames = val * tb.fps as f64;
                 (file, frames as usize)
             })
-            .ok_or_else(|| FFramesCoreError::CanNotProcessAudioDuration(file.to_string())),
-        Err(_) => Err(FFramesCoreError::CanNotProcessAudioDuration(
+            .ok_or_else(|| FFramesError::CanNotProcessAudioDuration(file.to_string())),
+        Err(_) => Err(FFramesError::CanNotProcessAudioDuration(
             file.to_string(),
         )),
     })
@@ -82,7 +82,7 @@ pub async fn prepare_video_with_audio<TVideo: Video>(
         audio_durations
             .get(val)
             .copied()
-            .ok_or_else(|| FFramesCoreError::CanNotProcessAudioDuration(val.to_string()))
+            .ok_or_else(|| FFramesError::CanNotProcessAudioDuration(val.to_string()))
     };
 
     let ResolvedRenderingTimeline {

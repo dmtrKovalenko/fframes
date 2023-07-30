@@ -13,7 +13,7 @@ use crate::{
     encoder::{Encoder, EncoderOptions},
     encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
-    renderer_error::{FFramesError, FFramesResult},
+    renderer_error::{FFramesRendererError, FFramesRendererResult},
 };
 
 pub struct CpuRenderingBackend {
@@ -81,11 +81,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         font_db: &usvgr_text_layout::fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: fframes::FFramesContext,
-    ) -> FFramesResult<()> {
+    ) -> FFramesRendererResult<()> {
         let extension = output
             .split('.')
             .last()
-            .ok_or(FFramesError::InvalidOutput)?;
+            .ok_or(FFramesRendererError::InvalidOutput)?;
 
         let session = Uuid::new_v4();
         let tmp_path = std::env::temp_dir().join(format!("fframes-{session}"));
@@ -186,11 +186,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                     )
                 }
                 .and_then(std::convert::identity)
-                .map_err(|av_err| FFramesError::RenderChunkError(thread_number, av_err))?;
+                .map_err(|av_err| FFramesRendererError::RenderChunkError(thread_number, av_err))?;
 
                 Ok(file)
             })
-            .collect::<FFramesResult<Vec<_>>>()?;
+            .collect::<FFramesRendererResult<Vec<_>>>()?;
 
         unsafe {
             concatenator::concat_video_files_with_audio(
@@ -214,9 +214,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         usvg_options: &usvgr::Options,
         font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
-    ) -> FFramesResult<()> {
+    ) -> FFramesRendererResult<()> {
         let mut pixmap = svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32)
-            .ok_or_else(|| FFramesError::CustomError("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
+            .ok_or_else(|| FFramesRendererError::CustomError("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
 
         let mut rtree = video
             .render_frame(frame, &ctx)
@@ -230,7 +230,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             pixmap.as_mut(),
             &mut SvgrCache::none(),
         )
-        .ok_or_else(|| FFramesError::CustomError("Failed to render frame".to_owned()))?;
+        .ok_or_else(|| FFramesRendererError::CustomError("Failed to render frame".to_owned()))?;
 
         let buffer = pixmap.encode_png().unwrap();
         std::fs::write(out, buffer)?;

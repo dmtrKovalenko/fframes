@@ -44,13 +44,13 @@ impl fmt::Display for AVError {
 
 pub type AVResult<T> = Result<T, AVError>;
 
-pub enum FFramesError {
-    FFmpegError(AVError),
+pub enum FFramesRendererError {
+    BaseAvError(AVError),
     RenderChunkError(usize, AVError),
     MediaError(std::io::Error),
     SubtitlesParsingError(fframes::SubtitlesError),
     MissingRequiredMedia(String),
-    CoreError(fframes::error::FFramesCoreError),
+    CoreError(fframes::error::FFramesError),
     ImageError((String, image::ImageError)),
     ParserError(fframes::usvgr::Error),
     ConcurrencyError,
@@ -58,7 +58,7 @@ pub enum FFramesError {
     InvalidOutput,
 }
 
-impl fmt::Debug for FFramesError {
+impl fmt::Debug for FFramesRendererError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -69,7 +69,7 @@ impl fmt::Debug for FFramesError {
                     "Rendering chunk {chunk} failed.\nReason: {error}",
                     chunk = chunk.to_string().cyan().bold()
                 ),
-                Self::FFmpegError(err) => format!("{err}"),
+                Self::BaseAvError(err) => format!("{err}"),
                 Self::MediaError(err) => format!("{}\n{err}", "Can't load or process media".bold()),
                 Self::MissingRequiredMedia(required_media) => format!(
                     "Missing required media {}. Verify that you provided correct media_dir.",
@@ -88,39 +88,39 @@ impl fmt::Debug for FFramesError {
     }
 }
 
-pub type FFramesResult<T> = Result<T, FFramesError>;
+pub type FFramesRendererResult<T> = Result<T, FFramesRendererError>;
 
-impl From<AVError> for FFramesError {
+impl From<AVError> for FFramesRendererError {
     fn from(ffmpeg_error: AVError) -> Self {
-        Self::FFmpegError(ffmpeg_error)
+        Self::BaseAvError(ffmpeg_error)
     }
 }
 
-impl From<std::io::Error> for FFramesError {
+impl From<std::io::Error> for FFramesRendererError {
     fn from(io_error: std::io::Error) -> Self {
         Self::MediaError(io_error)
     }
 }
 
-impl From<fframes::SubtitlesError> for FFramesError {
+impl From<fframes::SubtitlesError> for FFramesRendererError {
     fn from(err: fframes::SubtitlesError) -> Self {
         Self::SubtitlesParsingError(err)
     }
 }
 
-impl From<fframes::error::FFramesCoreError> for FFramesError {
-    fn from(err: fframes::error::FFramesCoreError) -> Self {
+impl From<fframes::error::FFramesError> for FFramesRendererError {
+    fn from(err: fframes::error::FFramesError) -> Self {
         Self::CoreError(err)
     }
 }
 
-impl<T> From<PoisonError<T>> for FFramesError {
+impl<T> From<PoisonError<T>> for FFramesRendererError {
     fn from(_: PoisonError<T>) -> Self {
         Self::ConcurrencyError
     }
 }
 
-impl From<fframes::usvgr::Error> for FFramesError {
+impl From<fframes::usvgr::Error> for FFramesRendererError {
     fn from(err: fframes::usvgr::Error) -> Self {
         Self::ParserError(err)
     }

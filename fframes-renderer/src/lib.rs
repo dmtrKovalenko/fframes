@@ -8,7 +8,7 @@ use fframes::{
 };
 use fframes_logger::FFramesLoggerVariant;
 use render_backend::FFramesRenderBackend;
-use renderer_error::FFramesResult;
+use renderer_error::FFramesRendererResult;
 use std::collections::HashMap;
 use std::sync::Arc;
 use usvgr::PreloadedImageData;
@@ -55,7 +55,7 @@ pub fn prepare_rendering_context<
 >(
     options: &'a RenderOptions<'a, TBackend>,
     video: &'a TVideo,
-) -> FFramesResult<RenderPreparation> {
+) -> FFramesRendererResult<RenderPreparation> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let (media_provider, font_db, image_data) =
         media_processor::load_media_from_folder(&logger, options.media_dir, TVideo::FPS).unwrap();
@@ -84,7 +84,7 @@ pub fn prepare_rendering_context<
                     _ => 0,
                 })
                 .ok_or_else(|| {
-                    fframes::error::FFramesCoreError::CanNotProcessAudioDuration(name.to_owned())
+                    fframes::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
                 })
         },
     )?;
@@ -102,7 +102,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
     video: TVideo,
     output: &'a str,
     options: RenderOptions<'a, TBackend>,
-) -> FFramesResult<()> {
+) -> FFramesRendererResult<()> {
     let (media_provider, font_db, timeline, image_data, logger) =
         prepare_rendering_context(&options, &video)?;
 
@@ -147,7 +147,7 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
     video: TVideo,
     output_png: &'a str,
     options: RenderOptions<'a, TBackend>,
-) -> FFramesResult<()> {
+) -> FFramesRendererResult<()> {
     let (media_provider, font_db, timeline, image_data, _) =
         prepare_rendering_context(&options, &video)?;
 
