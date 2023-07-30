@@ -1,3 +1,4 @@
+mod mp3;
 use fframes::{
     usvgr, AudioData, PreloadedAudioData, Subtitles, {ImageData, MediaProvider},
 };
@@ -66,14 +67,9 @@ pub(crate) fn load_media_from_folder(
 
                 match extension {
                     "mp3" => {
-                        let (sample_rate, samples) = media_loader::decode_mp3(&path);
-
                         audio_hash.lock()?.insert(
                             filename.to_owned(),
-                            AudioData::Preloaded(PreloadedAudioData {
-                                sample_rate,
-                                samples,
-                            }),
+                            AudioData::Preloaded(mp3::decode_mp3(&path)?),
                         );
                     }
                     "vtt" => {
@@ -89,8 +85,9 @@ pub(crate) fn load_media_from_folder(
                     }
                     "jpg" | "jpeg" | "png" => {
                         let data = fs::read(&path)?;
-                        let buffer = image::load_from_memory(data.as_slice())
-                            .map_err(|e| FFramesRendererError::ImageError((filename.to_owned(), e)))?;
+                        let buffer = image::load_from_memory(data.as_slice()).map_err(|e| {
+                            FFramesRendererError::ImageError((filename.to_owned(), e))
+                        })?;
 
                         usvgr_image_data.lock()?.insert(
                             filename.to_owned(),
@@ -125,7 +122,7 @@ pub(crate) fn load_media_from_folder(
             Ok(())
         })?;
 
-    fontdb.lock().unwrap().load_system_fonts();
+    fontdb.lock()?.load_system_fonts();
     Ok((
         MediaProvider {
             audio: audio_hash.into_inner()?,

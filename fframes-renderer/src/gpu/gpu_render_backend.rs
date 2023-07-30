@@ -40,7 +40,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
             compatible_surface: None,
             force_fallback_adapter: false,
         }))
-        .unwrap();
+        .ok_or_else(|| FFramesRendererError::Custom("No suitable GPU adapter found".to_owned()))?;
 
         let (device, queue) = block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
@@ -51,7 +51,9 @@ impl FFramesRenderBackend for GpuRenderingBackend {
             // trace_path can be used for API call tracing
             None,
         ))
-        .unwrap();
+        .map_err(|e| {
+            FFramesRendererError::Custom(format!("Failed to request GPU adapter: {e:?}"))
+        })?;
 
         let vs_module = device.create_shader_module(&include_wgsl!("../shaders/geometry.vs.wgsl"));
         let fs_module = device.create_shader_module(&include_wgsl!("../shaders/geometry.fs.wgsl"));
@@ -113,9 +115,8 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                                     breaks_lru_cache: text_cache.clone(),
                                 },
                                 &ctx,
-                            )?
-                            .into_svg_tree(usvg_options)
-                            .unwrap();
+                            )
+                            .into_svg_tree(usvg_options)?;
 
                         let (mesh, transforms, primitives) = tesselate_svg(rtree);
 
@@ -377,7 +378,9 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                         // the future. Otherwise the application will freeze.
                         let mapping = buffer_slice.map_async(wgpu::MapMode::Read);
                         device.poll(wgpu::Maintain::Wait);
-                        block_on(mapping).unwrap();
+                        block_on(mapping).map_err(|_| {
+                            RenderEncodingError::Internal("Failed to map buffer".to_owned())
+                        })?;
 
                         let data = buffer_slice.get_mapped_range();
                         frame.fill_from_rgba_pixmap(fr as i64, &data);

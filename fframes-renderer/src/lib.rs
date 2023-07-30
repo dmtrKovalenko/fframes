@@ -1,3 +1,4 @@
+use crate::renderer_error::FFramesRendererError;
 use crate::renderer_font_source::RendererFontSource;
 pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 use fframes::MediaProvider;
@@ -58,7 +59,7 @@ pub fn prepare_rendering_context<
 ) -> FFramesRendererResult<RenderPreparation> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let (media_provider, font_db, image_data) =
-        media_processor::load_media_from_folder(&logger, options.media_dir, TVideo::FPS).unwrap();
+        media_processor::load_media_from_folder(&logger, options.media_dir, TVideo::FPS)?;
 
     let media_provider = Arc::new(media_provider);
     let time_base = TimeBase {
@@ -90,7 +91,7 @@ pub fn prepare_rendering_context<
     )?;
 
     Ok((
-        Arc::try_unwrap(media_provider).unwrap(),
+        Arc::try_unwrap(media_provider).map_err(|_| FFramesRendererError::ConcurrencyError)?,
         font_db,
         timeline,
         image_data,

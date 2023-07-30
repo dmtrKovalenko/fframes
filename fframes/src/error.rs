@@ -1,5 +1,6 @@
 use std::{error::Error, fmt};
 
+#[derive(Debug)]
 pub enum FFramesError {
     /// Your custom error will go here if you return the Err(YourError) from your Video's render_frame.
     UserError(String),
@@ -18,7 +19,9 @@ pub enum FFramesError {
     ParserError(usvgr::Error),
 }
 
-impl fmt::Debug for FFramesError {
+impl Error for FFramesError {}
+
+impl fmt::Display for FFramesError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -39,17 +42,5 @@ impl fmt::Debug for FFramesError {
 //         FFramesError::UserError(err.to_string())
 //     }
 // }
-
-// impl<T: Into<String>> From<T> for FFramesError {
-//     fn from(err: T) -> Self {
-//         FFramesError::UserError(err.into())
-//     }
-// }
-
-impl From<usvgr::Error> for FFramesError {
-    fn from(err: usvgr::Error) -> Self {
-        FFramesError::ParserError(err)
-    }
-}
 
 pub type Result<T> = std::result::Result<T, FFramesError>;

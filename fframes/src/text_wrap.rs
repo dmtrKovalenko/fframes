@@ -103,7 +103,8 @@ impl BreaksLruCache {
     pub fn new(size: usize) -> Option<Self> {
         if size > 0 {
             Some(Self(Arc::new(Mutex::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(size).unwrap(),
+                std::num::NonZeroUsize::new(size)
+                    .unwrap_or(std::num::NonZeroUsize::new(1).unwrap()),
             )))))
         } else {
             None
@@ -209,7 +210,7 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
     let mut structure = vec![(vec![], 0usize)];
     for word in value.split_whitespace() {
         let word_width = resolve_word_width(word)?;
-        let (last_line, last_line_width) = structure.last_mut().unwrap();
+        let (last_line, last_line_width) = structure.last_mut()?;
 
         if *last_line_width + space_width + word_width > width {
             structure.push((vec![word.to_owned()], word_width));

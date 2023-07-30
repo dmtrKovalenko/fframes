@@ -104,7 +104,11 @@ pub struct KeyFramesAnimation<T: Animatable + Copy> {
 impl<T: Animatable + Copy> KeyFramesAnimation<T> {
     pub fn new(tweens: Vec<KeyFrame<T>>) -> Self {
         let mut sorted_tweens = tweens;
-        sorted_tweens.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap());
+        sorted_tweens.sort_by(|a, b| {
+            a.start
+                .partial_cmp(&b.start)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut keyframes = sorted_tweens
             .iter()

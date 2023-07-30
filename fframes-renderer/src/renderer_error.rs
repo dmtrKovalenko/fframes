@@ -1,6 +1,5 @@
 use colored::Colorize;
 use ffmpeg_next::ffi::AVPixelFormat;
-use fframes::FileVttParsingError;
 use std::{fmt, sync::PoisonError};
 
 /// Thread or Chunk level error which can happen during parallelized rendering
@@ -16,6 +15,8 @@ pub enum RenderEncodingError {
     CannotLocateCodec,
     InvalidArgument(String),
     CoreError(fframes::error::FFramesError),
+    RenderError,
+    CStringError(std::ffi::NulError),
 }
 
 impl fmt::Display for RenderEncodingError {
@@ -41,6 +42,8 @@ impl fmt::Display for RenderEncodingError {
                 Self::InvalidArgument(argument) => format!("Argument {argument} that was provided is not valid or not supported for the current codec."),
                 Self::InvalidPixFmt(pix_fmt) => format!("Pixel format `{pix_fmt:?}` is not supported for current codec"),
                 Self::CoreError(err) => format!("{err:?}"),
+                Self::CStringError(err) => format!("Failed to convert string to c string: {err:?}"),
+                Self::RenderError => "Rendering pipeline failed.".to_owned()
             }
         )
     }
@@ -56,9 +59,11 @@ pub enum FFramesRendererError {
     MissingRequiredMedia(String),
     ImageError((String, image::ImageError)),
     ConcurrencyError,
-    CustomError(String),
+    Internal(String),
     InvalidOutput,
     CoreError(fframes::error::FFramesError),
+
+    Custom(String),
 }
 
 impl fmt::Debug for FFramesRendererError {
@@ -80,15 +85,12 @@ impl fmt::Debug for FFramesRendererError {
                     "Missing required media {}. Verify that you provided correct media_dir.",
                     required_media.magenta().bold()
                 ),
-                Self::SubtitlesParsingError(err) => match err {
-                    FileVttParsingError::IO(err)=> format!("Can not read subtitles file. Error: {err}"),
-                    FileVttParsingError::Vtt(err)=> format!("Can not parse subtitles file. Error: {err}"),
-                },
+                Self::SubtitlesParsingError(err) => format!("Failed to process subtitle file: {err:?}"),
                 Self::CoreError(err) => format!("{err:?}"),
                 Self::ImageError((file, err)) =>
                     format!("Can not decode image {file}. Error {err:?}"),
                 Self::ConcurrencyError => "Something not correct happened while trying concurrently access one of the resources".to_owned(),
-                Self::CustomError(err) => err.to_owned(),
+                Self::Internal(err) | Self::Custom(err) => err.to_owned(),
                 Self::InvalidOutput => "Invalid output file. Path does not exist or does not the valid file".to_owned(),
             }
         )

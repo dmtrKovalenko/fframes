@@ -1,6 +1,6 @@
 use crate::{
     subtitles, AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame,
-    MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
+    MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, SvgResult, Svgr,
 };
 use std::iter::FromIterator;
 

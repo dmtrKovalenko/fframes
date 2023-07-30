@@ -128,7 +128,7 @@ impl Encoder {
     ) -> RenderEncodingResult<T> {
         av_log_set_level(logger.get_libav_log_level());
 
-        let c_filename = CString::new(filename).unwrap();
+        let c_filename = CString::new(filename).map_err(RenderEncodingError::CStringError)?;
         let mut oc: *mut AVFormatContext = std::ptr::null_mut();
 
         ffmpeg_action!(

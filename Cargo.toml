@@ -1,9 +1,8 @@
 [workspace]
-resolver="2"
+resolver = "2"
 members = [
     "e2e",
     "svgr-macro",
-    "media-loader",
     "webvtt-parser",
     "fframes-renderer",
     "fframes-editor-controller",
@@ -17,7 +16,7 @@ members = [
 ]
 
 
-[workspace.dependencies]  
+[workspace.dependencies]
 # svgr = { path = "../resvg"}
 # usvgr = { path = "../resvg/usvgr"}
 # usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}

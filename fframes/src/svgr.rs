@@ -1,5 +1,7 @@
 use crate::error::{FFramesError, Result};
+
 use std::{fmt, iter::FromIterator};
+pub type SvgResult = std::result::Result<crate::Svgr, crate::error::FFramesError>;
 
 #[derive(Default, Clone)]
 pub struct Svgr {
@@ -10,18 +12,14 @@ pub struct Svgr {
 }
 
 impl Svgr {
-    // pub fn into_string(self) -> String {
-    //     self.value
-    // }
-
     #[cfg(feature = "compile-time-svgtree")]
     pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
-        usvgr::Tree::from_nested_svgtree(self.svg_tree, opt).map_err(FFramesError::from)
+        usvgr::Tree::from_nested_svgtree(self.svg_tree, opt).map_err(FFramesError::ParserError)
     }
 
     #[cfg(not(feature = "compile-time-svgtree"))]
     pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
-        usvgr::Tree::from_str(self.value.as_str(), opt).map_err(FFramesError::from)
+        usvgr::Tree::from_str(self.value.as_str(), opt).map_err(FFramesError::ParserError)
     }
 
     #[cfg(feature = "compile-time-svgtree")]

@@ -5,14 +5,20 @@ use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
 use std::{ffi::c_int, path::Path, sync::Arc};
 
+use crate::renderer_error::{FFramesRendererError, FFramesRendererResult};
+
 #[allow(unused_variables)]
 pub trait FFramesLogger: Sync + Send {
-    fn init_media_processing(&self, media_count: usize) {}
+    fn init_media_processing(&self, media_count: usize) -> FFramesRendererResult<()> {
+        Ok(())
+    }
     fn log_processed_media(&self, path: &Path) {}
     fn log_unprocessed_media_file(&self, filename: &str) {}
     fn log_media_processing_start(&self, filename: &str, path: &Path) {}
 
-    fn init_frames_rendering(&self, duration_in_frames: usize) {}
+    fn init_frames_rendering(&self, duration_in_frames: usize) -> FFramesRendererResult<()> {
+        Ok(())
+    }
     fn log_frame(&self, index: usize, thread_number: usize) {}
 
     fn get_libav_log_level(&self) -> c_int {
@@ -32,12 +38,13 @@ pub struct CompactFFramesLogger {
 }
 
 impl FFramesLogger for CompactFFramesLogger {
-    fn init_frames_rendering(&self, frames_count: usize) {
+    fn init_frames_rendering(&self, frames_count: usize) -> FFramesRendererResult<()> {
         self.frames_progress_bar
             .set(ProgressBar::new(frames_count as u64))
-            .unwrap();
+            .map_err(|_| FFramesRendererError::ConcurrencyError)?;
 
         println!("\nRendering {} frames", frames_count.to_string().cyan());
+        Ok(())
     }
 
     fn success(&self, output_path: &str, temp_files_dir: Option<&str>) {
@@ -52,21 +59,27 @@ impl FFramesLogger for CompactFFramesLogger {
     }
 
     fn log_frame(&self, _index: usize, _thread_number: usize) {
-        self.frames_progress_bar.get().unwrap().inc(1);
+        if let Some(pb) = self.frames_progress_bar.get() {
+            pb.inc(1)
+        }
     }
 
     fn log_unprocessed_media_file(&self, filename: &str) {
         println!("Can not process media file {filename}.")
     }
 
-    fn init_media_processing(&self, medias_count: usize) {
+    fn init_media_processing(&self, medias_count: usize) -> FFramesRendererResult<()> {
         println!(
             "Processing {medias_count} media files",
             medias_count = medias_count.to_string().cyan()
         );
 
         let progress_bar = ProgressBar::new(medias_count as u64);
-        self.media_progress_bar.set(progress_bar).unwrap();
+        self.media_progress_bar
+            .set(progress_bar)
+            .map_err(|_| FFramesRendererError::ConcurrencyError)?;
+
+        Ok(())
     }
 
     fn log_processed_media(&self, _path: &Path) {

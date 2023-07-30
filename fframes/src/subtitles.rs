@@ -1,5 +1,5 @@
 use crate::Frame;
-use std::{fs, path::Path};
+use std::{error::Error, fs, path::Path};
 use webvtt_parser::{self, parse_vtt, Vtt, VttCue, VttError};
 
 pub type SubtitlesError = FileVttParsingError;
@@ -56,10 +56,22 @@ fn validate_cue_fitting_frame(frame_milliseconds: u64, cue: &VttCue) -> bool {
         && frame_milliseconds <= cue.end.as_milliseconds()
 }
 
+#[derive(Debug)]
 pub enum FileVttParsingError {
     IO(std::io::Error),
     Vtt(VttError),
 }
+
+impl std::fmt::Display for FileVttParsingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FileVttParsingError::IO(err) => write!(f, "Failed to read vtt file: {}", err),
+            FileVttParsingError::Vtt(error) => write!(f, "Failed to parse vtt file: {}", error),
+        }
+    }
+}
+
+impl Error for FileVttParsingError {}
 
 impl Subtitles {
     /// Parses subtitles from vtt file path.

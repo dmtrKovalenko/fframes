@@ -8,6 +8,7 @@ pub use crate::gpu::GpuRenderingBackend;
 
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
+    #[cfg(debug_assertions)]
     fn debug_frame<TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,

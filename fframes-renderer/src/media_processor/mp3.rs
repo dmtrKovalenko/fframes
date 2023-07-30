@@ -1,8 +1,11 @@
+use fframes::PreloadedAudioData;
 use minimp3::{Decoder as Mp3Decoder, Error as Mp3Error, Frame as Mp3Frame};
 use std::{fs::File, path::Path};
 
-pub fn decode_mp3<P: AsRef<Path>>(audio_path: P) -> (i32, Vec<i16>) {
-    let mut decoder = Mp3Decoder::new(File::open(audio_path).unwrap());
+use crate::renderer_error::FFramesRendererResult;
+
+pub fn decode_mp3<P: AsRef<Path>>(audio_path: P) -> FFramesRendererResult<PreloadedAudioData> {
+    let mut decoder = Mp3Decoder::new(File::open(audio_path)?);
 
     let mut sample_rate = 0;
     let mut mono_samples = Vec::new();
@@ -38,5 +41,8 @@ pub fn decode_mp3<P: AsRef<Path>>(audio_path: P) -> (i32, Vec<i16>) {
         }
     }
 
-    (sample_rate, mono_samples)
+    Ok(PreloadedAudioData {
+        samples: mono_samples,
+        sample_rate,
+    })
 }

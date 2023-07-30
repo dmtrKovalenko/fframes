@@ -1,4 +1,7 @@
-use crate::render_backend::FFramesRenderBackend;
+use crate::{
+    render_backend::FFramesRenderBackend,
+    renderer_error::{RenderEncodingError, RenderEncodingResult},
+};
 use fframes::{
     usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
 };
@@ -105,7 +108,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                     .join(format!("{thread_number}.{extension}"))
                     .into_os_string()
                     .into_string()
-                    .unwrap();
+                    .map_err(|_| {
+                        FFramesRendererError::Internal("Can not convert path to string".to_owned())
+                    })?;
 
                 unsafe {
                     Encoder::with_output(
@@ -128,7 +133,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                 TVideo::WIDTH as u32,
                                 TVideo::HEIGHT as u32,
                             )
-                            .unwrap();
+                            .ok_or_else(|| {
+                                RenderEncodingError::CantAllocate("pixmap".to_owned())
+                            })?;
 
                             chunk_range
                                 .to_owned()
@@ -142,7 +149,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                             breaks_lru_cache: break_lines_cache.clone(),
                                         },
                                         &ctx,
-                                    )?;
+                                    );
 
                                     let mut rtree = svg.into_svg_tree(usvg_options)?;
                                     rtree.convert_text_with_cache(
@@ -159,7 +166,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         pixmap.as_mut(),
                                         &mut svgr_cache,
                                     )
-                                    .unwrap(); // todo fix me.
+                                    .ok_or_else(|| RenderEncodingError::RenderError)?;
+
                                     logger.log_frame(index, thread_number);
 
                                     frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
@@ -206,6 +214,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         Ok(())
     }
 
+    #[cfg(debug_assertions)]
     fn debug_frame<'a, TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,
@@ -216,10 +225,10 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         ctx: fframes::FFramesContext,
     ) -> FFramesRendererResult<()> {
         let mut pixmap = svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32)
-            .ok_or_else(|| FFramesRendererError::CustomError("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
+            .ok_or_else(|| FFramesRendererError::Internal("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
 
         let mut rtree = video
-            .render_frame(frame, &ctx)?
+            .render_frame(frame, &ctx)
             .into_svg_tree(usvg_options)?;
         rtree.convert_text(font_db, true);
 
@@ -230,7 +239,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             pixmap.as_mut(),
             &mut SvgrCache::none(),
         )
-        .ok_or_else(|| FFramesRendererError::CustomError("Failed to render frame".to_owned()))?;
+        .ok_or_else(|| FFramesRendererError::Internal("Failed to render frame".to_owned()))?;
 
         let buffer = pixmap.encode_png().unwrap();
         std::fs::write(out, buffer)?;

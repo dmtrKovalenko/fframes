@@ -17,13 +17,12 @@ bytemuck = "1.9.1"
 futures = "0.3.1"
 image = "0.24.3"
 ffmpeg-next = "6.0.0"
+minimp3 = "0.5.1"
 
 syn = { version = "1", features = ["full", "parsing", "extra-traits"] }
 uuid = { version = "0.8", features = ["v4"] }
-
 svgr-macro = { path = "../svgr-macro" }
 fframes = { path = "../fframes" }
-media-loader = { path = "../media-loader" }
 
 [build-dependencies]
 cc = "1.0"

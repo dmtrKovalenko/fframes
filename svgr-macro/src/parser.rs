@@ -101,7 +101,10 @@ impl<'a> Parser<'a> {
     }
 
     fn block_transform(&self, input: ParseStream) -> Result<Expr> {
-        let transform_block = self.config.transform_block.as_ref().unwrap();
+        let transform_block =
+            self.config.transform_block.as_ref().ok_or_else(|| {
+                Error::new(Span::call_site(), "transform_block is not configured")
+            })?;
 
         input.step(|cursor| {
             if let Some((tree, next)) = cursor.token_tree() {

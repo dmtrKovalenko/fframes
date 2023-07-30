@@ -17,7 +17,7 @@ unsafe fn open_file_stream(
     input_format_ctx: &mut *mut AVFormatContext,
     codec_type: AVMediaType,
 ) -> RenderEncodingResult<*mut AVStream> {
-    let input_file = CString::new(filename).unwrap();
+    let input_file = CString::new(filename).map_err(RenderEncodingError::CStringError)?;
 
     ffmpeg_action!(
         avformat_open_input(
@@ -69,7 +69,7 @@ unsafe fn create_encoder_copy_from_file(
     let input_video_stream =
         open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
-    let output_file = CString::new(output).unwrap();
+    let output_file = CString::new(output).map_err(RenderEncodingError::CStringError)?;
     avformat_alloc_output_context2(
         &mut output_format_ctx,
         std::ptr::null_mut(),

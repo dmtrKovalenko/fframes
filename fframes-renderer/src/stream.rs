@@ -58,7 +58,9 @@ impl Stream {
         *mut AVCodecContext,
     )> {
         let mut codec = if let Some(preferred_codec_name) = preferred_codec_name {
-            let codec_name = CString::new(preferred_codec_name).unwrap();
+            let codec_name =
+                CString::new(preferred_codec_name).map_err(RenderEncodingError::CStringError)?;
+
             avcodec_find_encoder_by_name(codec_name.as_ptr())
         } else {
             std::ptr::null_mut()
@@ -136,8 +138,8 @@ impl Stream {
 
         if let Some(codec_params) = encoder_options.codec_params {
             for (param, value) in codec_params {
-                let c_param = CString::new(*param).unwrap();
-                let c_value = CString::new(*value).unwrap();
+                let c_param = CString::new(*param).map_err(RenderEncodingError::CStringError)?;
+                let c_value = CString::new(*value).map_err(RenderEncodingError::CStringError)?;
 
                 av_dict_set(opts, c_param.as_ptr(), c_value.as_ptr(), 0);
             }
@@ -216,13 +218,14 @@ impl Stream {
     }
 
     pub(crate) unsafe fn set_swr_option(swr_ctx: *mut SwrContext, name: &str, val: i32) {
-        let name = CString::new(name).unwrap();
-        av_opt_set_int(
-            swr_ctx as *mut std::ffi::c_void,
-            name.as_ptr(),
-            val.into(),
-            0,
-        );
+        if let Ok(name) = CString::new(name).map_err(RenderEncodingError::CStringError) {
+            av_opt_set_int(
+                swr_ctx as *mut std::ffi::c_void,
+                name.as_ptr(),
+                val.into(),
+                0,
+            );
+        }
     }
 
     pub(crate) unsafe fn set_swr_chlayout(
@@ -230,17 +233,19 @@ impl Stream {
         name: &str,
         val: &AVChannelLayout,
     ) {
-        let name = CString::new(name).unwrap();
-        av_opt_set_chlayout(
-            swr_ctx as *mut std::ffi::c_void,
-            name.as_ptr(),
-            val as *const AVChannelLayout,
-            0,
-        );
+        if let Ok(name) = CString::new(name).map_err(RenderEncodingError::CStringError) {
+            av_opt_set_chlayout(
+                swr_ctx as *mut std::ffi::c_void,
+                name.as_ptr(),
+                val as *const AVChannelLayout,
+                0,
+            );
+        }
     }
 
     pub(crate) unsafe fn set_swr_fmt(swr_ctx: *mut SwrContext, name: &str, val: AVSampleFormat) {
-        let name = CString::new(name).unwrap();
-        av_opt_set_sample_fmt(swr_ctx as *mut std::ffi::c_void, name.as_ptr(), val, 0);
+        if let Ok(name) = CString::new(name).map_err(RenderEncodingError::CStringError) {
+            av_opt_set_sample_fmt(swr_ctx as *mut std::ffi::c_void, name.as_ptr(), val, 0);
+        }
     }
 }

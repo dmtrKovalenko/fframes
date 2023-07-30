@@ -33,7 +33,7 @@ impl Scene for SceneTwo {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
         fframes::svgr!(
           <text
             x="100"

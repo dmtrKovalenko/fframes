@@ -1,6 +1,7 @@
+use core::fmt;
+
 use nom::error::{ContextError, Error, ErrorKind, ParseError};
 use nom_locate::LocatedSpan;
-use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct VttError {
@@ -14,7 +15,7 @@ pub struct VttError {
     pub message: Option<String>,
 }
 
-impl fmt::Display for VttError {
+impl std::fmt::Display for VttError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self {
             looking_for,
