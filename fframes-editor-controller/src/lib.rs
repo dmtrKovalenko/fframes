@@ -12,7 +12,7 @@ pub mod prelude {
     pub use fframes::lru;
     pub use fframes::serde;
     pub use fframes::ttf_parser;
-    pub use fframes::{AudioTimestamp, FFramesContext, Frame, Subtitles, Video};
+    pub use fframes::{AudioTimestamp, FFramesContext, FFramesMode, Frame, Video};
     pub use js_sys;
     pub use lazy_static::lazy_static;
     pub use serde_wasm_bindgen;
