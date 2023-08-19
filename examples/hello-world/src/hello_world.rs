@@ -1,8 +1,11 @@
-use fframes::{AudioMap, Color, FFramesContext, Frame, Video};
+use fframes::{include_media_dir, AudioMap, Color, FFramesContext, Frame, Video};
+
+include_media_dir!(pub struct HelloWorldMedia, "examples/hello-world/media");
 
 #[derive(Debug)]
 pub struct HelloWorldVideo<'a> {
     pub slug: &'a str,
+    pub media: &'a HelloWorldMedia,
 }
 
 impl Video for HelloWorldVideo<'_> {
@@ -21,6 +24,8 @@ impl Video for HelloWorldVideo<'_> {
     fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
         const BACKGROUND_EASING: fframes::animation::Easing =
             fframes::animation::Easing::Linear(5.);
+        let font = &self.media.jetbrainsmono_regular_ttf;
+        let phrase = frame.get_subtitle_phrase(&self.media.subtitles_vtt);
 
         fframes::svgr!(
            <svg

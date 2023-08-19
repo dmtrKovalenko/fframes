@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::Span;
 use nom::branch::alt;
 use nom::character::complete::{digit1, newline, space0};
@@ -13,7 +15,7 @@ use nom::{
 use crate::cue_settings_parser::parse_cue_settings;
 use crate::{Time, Vtt, VttCue, START_MARKER};
 
-fn parse_note(input: Span) -> IResult<Span, Option<String>> {
+fn parse_note<'a>(input: Span<'a>) -> IResult<Span, Option<&'a str>> {
     let (rest, line) = take_until("\n")(input)?;
 
     if !line.contains("NOTE ") {
@@ -25,7 +27,7 @@ fn parse_note(input: Span) -> IResult<Span, Option<String>> {
     let (note_body, _) = tag("NOTE ")(line)?;
     let (rest, _) = newline(rest)?;
 
-    Ok((rest, Some(note_body.to_string())))
+    Ok((rest, Some(&note_body)))
 }
 
 pub(crate) fn parse_number<TNumber: std::str::FromStr>(input: Span) -> IResult<Span, TNumber> {
@@ -67,7 +69,7 @@ fn parse_time_with_hours(input: Span) -> IResult<Span, Time> {
     ))
 }
 
-fn parse_cue_identifier(input: Span) -> IResult<Span, Option<String>> {
+fn parse_cue_identifier(input: Span) -> IResult<Span, Option<&str>> {
     let (rest, line) = take_until("\n")(input)?;
 
     if line.contains("-->") {
@@ -75,7 +77,7 @@ fn parse_cue_identifier(input: Span) -> IResult<Span, Option<String>> {
         Ok((input, None))
     } else {
         let (rest, _) = newline(rest)?;
-        Ok((rest, Some(line.to_string())))
+        Ok((rest, Some(&line)))
     }
 }
 
@@ -108,8 +110,8 @@ fn parse_cue(input: Span) -> IResult<Span, VttCue> {
                 Some(settings) if settings.is_empty() => None,
                 other => other,
             },
-            note: note.map(String::from),
-            text: text.to_string(),
+            note,
+            text: text.deref(),
         },
     ))
 }
@@ -138,7 +140,7 @@ pub fn parse(text: Span) -> IResult<Span, Vtt> {
             style: None,
             slugs: slugs
                 .into_iter()
-                .map(|(key, val)| (key.to_string(), val.to_string()))
+                .map(|(key, val)| (*key.deref(), *val.deref()))
                 .collect::<std::collections::HashMap<_, _>>(),
         },
     ))

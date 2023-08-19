@@ -1,6 +1,6 @@
 use crate::{
-    subtitles, AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame,
-    MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
+    media, AudioData, AudioTimelineSamples, AudioTimelineUnit, DynamicMediaProvider, FontSource,
+    Frame, MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
 use std::iter::FromIterator;
 
@@ -21,7 +21,8 @@ pub struct TimeBase {
 pub struct FFramesContext<'a> {
     pub time_base: TimeBase,
     pub mode: FFramesMode,
-    pub media_provider: &'a MediaProvider,
+    pub static_media_provider: &'a (dyn MediaProvider + 'a),
+    pub media_provider: &'a DynamicMediaProvider<'a>,
     pub duration_in_frames: usize,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
     pub scenes: Option<&'a ResolvedScenesTimeline>,
@@ -29,13 +30,10 @@ pub struct FFramesContext<'a> {
 
 impl<'a: 'b, 'b> FFramesContext<'a> {
     pub fn get_audio_data(&self, filename: &str) -> &AudioData {
-        match self.media_provider.audio.get(filename) {
-            Some(data) => data,
-            None => panic!("Audio data not found for {file}, please make sure that media folder contains {file}", file=filename)
-        }
+        todo!()
     }
 
-    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> &'b subtitles::Subtitles {
+    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> &'b media::Subtitles {
         let filename = filename.as_ref();
         match self.media_provider.subtitles.get(filename) {
             Some(data) => data,
@@ -47,17 +45,7 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
     }
 
     pub fn get_image_link(&self, filename: &str) -> String {
-        match (&self.mode, self.media_provider.images.get(filename)) {
-            (FFramesMode::EditorTimelinePreview, Some(data)) if data.base64.is_some() => {
-                // safe to unwrap because of leading if
-                data.base64.to_owned().unwrap()
-            }
-            (_, Some(data)) => data.link.to_owned(),
-            _ => panic!(
-                "Image {file} not found! Please make sure that media folder contains {file}",
-                file = filename
-            ),
-        }
+        "todo remove me".to_owned()
     }
 
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr {

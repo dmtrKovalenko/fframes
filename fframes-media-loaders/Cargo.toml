@@ -1,0 +1,24 @@
+[package]
+name = "fframes-media-loaders"
+version = "0.0.1"
+description = "Media loaders used by different fframes packages. This crate is not meant to be used directly."
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+
+[dependencies]
+quote = { version = "1.0.9", optional = true }
+webvtt-parser.workspace = true
+bytemuck = { version = "1.13.1", features = ["derive"] }
+ttf-parser = "0.19.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+minimp3 = "0.5.1"
+image = { version = "0.24.6", default-features = false, features = [
+  "png",
+  "jpeg",
+] }
+usvgr.workspace = true

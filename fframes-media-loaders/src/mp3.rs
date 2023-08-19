@@ -1,11 +1,17 @@
-use fframes::media::PreloadedAudioData;
-use minimp3::{Decoder as Mp3Decoder, Error as Mp3Error, Frame as Mp3Frame};
-use std::{fs::File, path::Path};
+use crate::error::Result;
+use std::io::Read;
 
-use crate::renderer_error::FFramesRendererResult;
+#[derive(Debug, Clone)]
+pub struct PreloadedAudioData {
+    pub samples: Vec<i16>,
+    pub sample_rate: i32,
+}
 
-pub fn decode_mp3<P: AsRef<Path>>(audio_path: P) -> FFramesRendererResult<PreloadedAudioData> {
-    let mut decoder = Mp3Decoder::new(File::open(audio_path)?);
+#[cfg(not(target_arch = "wasm32"))]
+pub fn decode_mp3(buf: impl Read) -> Result<PreloadedAudioData> {
+    use minimp3::{Decoder as Mp3Decoder, Error as Mp3Error, Frame as Mp3Frame};
+
+    let mut decoder = Mp3Decoder::new(buf);
 
     let mut sample_rate = 0;
     let mut mono_samples = Vec::new();
@@ -37,7 +43,7 @@ pub fn decode_mp3<P: AsRef<Path>>(audio_path: P) -> FFramesRendererResult<Preloa
                 }
             }
             Err(Mp3Error::Eof) => break,
-            Err(e) => panic!("{:?}", e),
+            Err(e) => return Err(e.into()),
         }
     }
 

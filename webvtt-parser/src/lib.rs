@@ -4,6 +4,7 @@ mod vtt_parser;
 extern crate nom;
 pub use error::VttError;
 use nom_locate::LocatedSpan;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -168,22 +169,22 @@ impl Display for VttCueSettings {
 
 /// A subtitle and associated metadata
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VttCue {
+pub struct VttCue<'a> {
     pub start: Time,
     pub end: Time,
     /// The identifier is a name that identifies the cue. It can be used to reference the cue from a script. It must not contain a newline and cannot contain the string "-->". It must end with a single newline.
     ///
     /// Ref: https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API#cue_identifier
-    pub name: Option<String>,
-    pub text: String,
-    pub note: Option<String>,
+    pub name: Option<&'a str>,
+    pub text: &'a str,
+    pub note: Option<&'a str>,
     /// Optional cue settings that belongs to this particular group. If value is Some(CueSettings) it means that at least one settings passed.
     ///
     /// Ref: https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API#cue_settings
     pub cue_settings: Option<VttCueSettings>,
 }
 
-impl Display for VttCue {
+impl Display for VttCue<'_> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(
             formatter,
@@ -207,15 +208,48 @@ impl Display for VttCue {
     }
 }
 
-/// The subtitle file and metadata
+/// (web)VTT — Web Video Text Tracks
+/// This struct represents a parsed VTT file. It contains a list of cues and optional metadata.
+///
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Vtt {
-    pub slugs: HashMap<String, String>,
-    pub style: Option<String>,
-    pub cues: Vec<VttCue>,
+pub struct Vtt<'a> {
+    pub slugs: HashMap<&'a str, &'a str>,
+    pub style: Option<&'a str>,
+    pub cues: Vec<VttCue<'a>>,
 }
 
-impl Display for Vtt {
+impl<'a> Vtt<'a> {
+    /// Parse [webvtt subtitles](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API) from provided string.
+    /// Make sure that it does not allocate any string data and only references parts of the original string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use webvtt_parser::{Vtt, VttCue, VttCueSettings, Align, Time};
+    ///
+    /// let vtt = Vtt::parse("WEBVTT
+    ///
+    /// 00:00.000 --> 00:05.000
+    /// Hey subtitle one
+    ///
+    /// 00:05.000 --> 00:08.000 align:end
+    /// Hey subtitle two
+    ///").unwrap();
+    ///
+    /// assert_eq!(vtt.cues.len(), 2);
+    /// assert_eq!(vtt.cues[0], VttCue { start: Time::from_milliseconds(0), end: Time::from_milliseconds(5000), text: "Hey subtitle one", name: None, note: None, cue_settings: None });
+    /// assert_eq!(vtt.cues[1].cue_settings, Some(VttCueSettings { align: Some(Align::End), position: None, vertical: None, size: None, line: None }));
+    /// ```
+    pub fn parse(content: &'a str) -> Result<Self, VttError> {
+        let content = Span::from(content);
+
+        let (_, vtt) = vtt_parser::parse(content)?;
+
+        Ok(vtt)
+    }
+}
+
+impl Display for Vtt<'_> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(
             formatter,
@@ -229,34 +263,7 @@ impl Display for Vtt {
     }
 }
 
-/// Parse [webvtt subtitles](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API) from provided string.
-/// # Example
-///
-/// ```rust
-/// use webvtt_parser::{parse_vtt, VttCue, VttCueSettings, Align, Time};
-///
-/// let vtt = parse_vtt("WEBVTT
-///
-/// 00:00.000 --> 00:05.000
-/// Hey subtitle one
-///
-/// 00:05.000 --> 00:08.000 align:end
-/// Hey subtitle two
-///").unwrap();
-///
-/// assert_eq!(vtt.cues.len(), 2);
-/// assert_eq!(vtt.cues[0], VttCue { start: Time::from_milliseconds(0), end: Time::from_milliseconds(5000), text: "Hey subtitle one".to_owned(), name: None, note: None, cue_settings: None });
-/// assert_eq!(vtt.cues[1].cue_settings, Some(VttCueSettings { align: Some(Align::End), position: None, vertical: None, size: None, line: None }));
-/// ```
 pub type Span<'a> = LocatedSpan<&'a str>;
-
-pub fn parse_vtt(content: &str) -> Result<Vtt, VttError> {
-    let content = Span::from(content);
-
-    let (_, vtt) = vtt_parser::parse(content)?;
-
-    Ok(vtt)
-}
 
 #[cfg(test)]
 mod tests {
@@ -269,19 +276,19 @@ mod tests {
 
         let expected_vtt = Vtt {
         slugs: [
-            ("Kind".into(), "captions".into()),
-            ("Language".into(), "en".into()),
+            ("Kind", "captions"),
+            ("Language", "en"),
         ]
         .iter()
         .cloned()
-        .collect::<HashMap<String, String>>(),
+        .collect::<HashMap<&str, &str>>(),
         style: None,
         cues: vec![
             VttCue {
                 start: Time(9000),
                 end: Time(11000),
                 name: None,
-                text: String::from("<v Roger Bingham>We are in New York City"),
+                text: "<v Roger Bingham>We are in New York City",
                 note: None,
                 cue_settings: Some(VttCueSettings {
                     vertical: Some(Vertical::RightToLeft),
@@ -295,7 +302,7 @@ mod tests {
                 start: Time(11000),
                 end: Time(13000),
                 name: None,
-                text: String::from("<v Roger Bingham>We are in New York City"),
+                text: "<v Roger Bingham>We are in New York City",
                 note: None,
                 cue_settings: Some(VttCueSettings {
                     vertical: None,
@@ -309,7 +316,7 @@ mod tests {
                 start: Time(13000),
                 end: Time(16000),
                 name: None,
-                text: String::from("<v Roger Bingham>We're actually at the Lucern Hotel, just down the street"),
+                text: "<v Roger Bingham>We're actually at the Lucern Hotel, just down the street",
                 note: None,
                 cue_settings: Some(VttCueSettings {
                     vertical: None,
@@ -323,7 +330,7 @@ mod tests {
                 start: Time(16000),
                 end: Time(18000),
                 name: None,
-                text: String::from("<v Roger Bingham>from the American Museum of Natural History"),
+                text: "<v Roger Bingham>from the American Museum of Natural History",
                 note: None,
                 cue_settings: None,
             },
@@ -331,7 +338,7 @@ mod tests {
                 start: Time(18000),
                 end: Time(20000),
                 name: None,
-                text: String::from("— It will perforate your stomach."),
+                text: "— It will perforate your stomach.",
                 note: None,
                 cue_settings: None,
             },
@@ -339,7 +346,7 @@ mod tests {
                 start: Time(20000),
                 end: Time(22000),
                 name: None,
-                text: String::from("<v Roger Bingham>Astrophysicist, Director of the Hayden Planetarium"),
+                text: "<v Roger Bingham>Astrophysicist, Director of the Hayden Planetarium",
                 note: None,
                 cue_settings: None,
             },
@@ -347,7 +354,7 @@ mod tests {
                 start: Time(22000),
                 end: Time(24000),
                 name: None,
-                text: String::from("<v Roger Bingham>at the AMNH."),
+                text: "<v Roger Bingham>at the AMNH.",
                 note: None,
                 cue_settings: None,
             },
@@ -355,15 +362,15 @@ mod tests {
                 start: Time(24000),
                 end: Time(26000),
                 name: None,
-                text: String::from("<v Roger Bingham>Thank you for walking down here."),
-                note: Some("this is comment".to_owned()),
+                text: "<v Roger Bingham>Thank you for walking down here.",
+                note: Some("this is comment"),
                 cue_settings: None,
             },
             VttCue {
                 start: Time(27000),
                 end: Time(30000),
-                name: Some("this is title".to_owned()),
-                text: String::from("<v Roger Bingham>And I want to do a follow-up on the last conversation we did."),
+                name: Some("this is title"),
+                text: "<v Roger Bingham>And I want to do a follow-up on the last conversation we did.",
                 note: None,
                 cue_settings: None,
             },
@@ -371,7 +378,7 @@ mod tests {
                 start: Time(30000),
                 end: Time(31500),
                 name: None,
-                text: String::from("<v Roger Bingham>When we e-mailed—"),
+                text: "<v Roger Bingham>When we e-mailed—",
                 note: None,
                 cue_settings: None,
             },
@@ -379,7 +386,7 @@ mod tests {
                 start: Time(30500),
                 end: Time(32500),
                 name: None,
-                text: String::from("<v Neil deGrasse Tyson>Didn't we talk about enough in that conversation?"),
+                text: "<v Neil deGrasse Tyson>Didn't we talk about enough in that conversation?",
                 note: None,
                 cue_settings: Some(VttCueSettings {
                     vertical: None,
@@ -393,7 +400,7 @@ mod tests {
                 start: Time(32000),
                 end: Time(35500),
                 name: None,
-                text: String::from("<v Roger Bingham>No! No no no no; 'cos 'cos obviously 'cos"),
+                text: "<v Roger Bingham>No! No no no no; 'cos 'cos obviously 'cos",
                 note: None,
                 cue_settings: Some(VttCueSettings {
                     vertical: None,
@@ -407,7 +414,7 @@ mod tests {
                 start: Time(32500),
                 end: Time(33500),
                 name: None,
-                text: String::from("<v Neil deGrasse Tyson><i>Laughs</i>"),
+                text: "<v Neil deGrasse Tyson><i>Laughs</i>",
                 note: None,
                 cue_settings: Some(VttCueSettings {
                     vertical: None,
@@ -421,32 +428,32 @@ mod tests {
                 start: Time(35500),
                 end: Time(38000),
                 name: None,
-                text: String::from("<v Roger Bingham>You know I'm so excited my glasses are falling off here."),
+                text: "<v Roger Bingham>You know I'm so excited my glasses are falling off here.",
                 note: None,
                 cue_settings: None,
             },
         ],
     };
 
-        assert_eq!(parse_vtt(&content).unwrap(), expected_vtt);
+        assert_eq!(Vtt::parse(&content).unwrap(), expected_vtt);
     }
 
     #[test]
     fn incomplete_file() {
         let content = fs::read_to_string("tests/incomplete.vtt").unwrap();
 
-        match parse_vtt(&content) {
+        match Vtt::parse(&content) {
             Ok(_) => panic!("The data is incomplete, should fail."),
             Err(error) => {
-                assert_eq!(error.looking_for, "Digit".to_owned());
-                assert_eq!(error.fragment, Span::from("").fragment().to_owned());
+                assert_eq!(error.looking_for, "Digit");
+                assert_eq!(&error.fragment, Span::from("").fragment());
             }
         }
     }
 
     #[test]
     fn invalid_file() {
-        match parse_vtt(include_str!("../tests/invalid.vtt")) {
+        match Vtt::parse(include_str!("../tests/invalid.vtt")) {
             Ok(_) => panic!("The data is invalid, should fail."),
             Err(VttError {
                 looking_for,
@@ -468,13 +475,13 @@ mod tests {
     fn simple_output() {
         let content = include_str!("../tests/simple.vtt");
 
-        let vtt = parse_vtt(content).unwrap();
+        let vtt = Vtt::parse(content).unwrap();
         assert_eq!(format!("{}", vtt), content)
     }
 
     #[test]
     fn no_newline() {
-        match parse_vtt(include_str!("../tests/no_newline.vtt")) {
+        match Vtt::parse(include_str!("../tests/no_newline.vtt")) {
             Ok(_) => (),
             Err(VttError { .. }) => panic!("The data is valid, shouldn't fail."),
         }
@@ -485,7 +492,7 @@ mod tests {
         let content = include_str!("../tests/hours.vtt");
 
         assert_eq!(
-            parse_vtt(content).unwrap(),
+            Vtt::parse(content).unwrap(),
             Vtt {
                 slugs: HashMap::new(),
                 style: None,
@@ -494,7 +501,7 @@ mod tests {
                         start: Time(0),
                         end: Time(2560),
                         name: None,
-                        text: " Some people literally cannot go to the doctor.".to_string(),
+                        text: " Some people literally cannot go to the doctor.",
                         note: None,
                         cue_settings: None,
                     },
@@ -502,7 +509,7 @@ mod tests {
                         start: Time(2560),
                         end: Time(5040),
                         name: None,
-                        text: " If they get sick, they just hope that they get better".to_string(),
+                        text: " If they get sick, they just hope that they get better",
                         note: None,
                         cue_settings: None,
                     },

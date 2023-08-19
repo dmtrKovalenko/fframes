@@ -1,39 +1,39 @@
 use crate::{audio_window_functions, FFramesContext};
 use std::{convert::TryInto, ops::Range};
 
-#[derive(Debug, Clone)]
-pub struct PreloadedAudioData {
-    pub samples: Vec<i16>,
+#[derive(Clone, Debug)]
+pub enum AudioData<'a> {
+    Preloaded(PreloadedAudioData<'a>),
+    Lazy,
+}
+
+#[derive(Clone, Debug)]
+pub struct PreloadedAudioData<'a> {
+    pub samples: &'a [i16],
     pub sample_rate: i32,
 }
 
-impl PreloadedAudioData {
-    fn duration_in_seconds(&self) -> f32 {
+impl PreloadedAudioData<'_> {
+    pub fn duration_in_seconds(&self) -> f32 {
         self.samples.len() as f32 / self.sample_rate as f32
     }
 
-    fn duration_in_frames(&self, fps: usize) -> usize {
+    pub fn duration_in_frames(&self, fps: usize) -> usize {
         self.samples.len() * fps / self.sample_rate as usize
     }
 
-    fn get_range(&self, range: std::ops::Range<usize>) -> Option<&[i16]> {
+    pub fn get_range(&self, range: std::ops::Range<usize>) -> Option<&[i16]> {
         self.samples.get(range)
     }
 
-    fn get_frame_data(&self, length: usize, frame: usize, fps: i64) -> Option<&[i16]> {
+    pub fn get_frame_data(&self, length: usize, frame: usize, fps: i64) -> Option<&[i16]> {
         let start_index = frame * self.sample_rate as usize / fps as usize;
 
         self.samples.get(start_index..start_index + length)
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum AudioData {
-    Preloaded(PreloadedAudioData),
-    Lazy,
-}
-
-impl AudioData {
+impl AudioData<'_> {
     pub fn duration_in_seconds(&self) -> f32 {
         match self {
             AudioData::Lazy => 0.,
@@ -94,7 +94,7 @@ fn get_fft_size_number(variant: &SampleSize) -> usize {
 
 #[derive(Debug)]
 pub struct VisualizeFrameInput<'a> {
-    pub audio: &'a AudioData,
+    pub audio: &'a AudioData<'a>,
     pub sample_size: SampleSize,
     pub smooth_level: usize,
     pub window: Option<audio_window_functions::WindowFunction>,

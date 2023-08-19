@@ -74,7 +74,7 @@ impl Video for GooseVideo {
                  }
 
                 {frame.text_break_lines(
-                    ctx, subtitles.get_phrase_for_frame(&frame).unwrap_or_default(),
+                    ctx, frame.get_subtitle_phrase(&subtitles).unwrap_or(""),
                     &fframes::BreakLinesOpts {
                       width: 1000,
                       line_height: 1.2,

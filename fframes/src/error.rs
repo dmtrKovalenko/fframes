@@ -17,6 +17,7 @@ pub enum FFramesError {
     Overflow(String, usize),
     /// Svg parser error
     ParserError(usvgr::Error),
+    MediaError(crate::media::FFramesMediaError),
 }
 
 impl Error for FFramesError {}
@@ -32,15 +33,16 @@ impl fmt::Display for FFramesError {
                 FFramesError::Overflow(what, overflow_by) => format!("The {what} is overflowed by {overflow_by}"),
                 FFramesError::UserError(err) => format!("Custom error:\n{}", err),
                 FFramesError::ParserError(err) => format!("SVG parsing error: {err:?}"),
+                FFramesError::MediaError(err) => format!("Media parsing error: {err:?}"),
             }
         )
     }
 }
 
-// impl<T: Error> From<T> for FFramesError {
-//     fn from(err: T) -> Self {
-//         FFramesError::UserError(err.to_string())
-//     }
-// }
+impl From<crate::media::FFramesMediaError> for FFramesError {
+    fn from(err: crate::media::FFramesMediaError) -> Self {
+        FFramesError::MediaError(err)
+    }
+}
 
 pub type Result<T> = std::result::Result<T, FFramesError>;

@@ -80,3 +80,30 @@ pub trait FontSource<'a>: Sync + Send + std::fmt::Debug {
         font_stretch: FontStretch,
     ) -> Option<Box<dyn FontFace + 'a>>;
 }
+
+impl<'a> FontFace<'a> for crate::media::StaticFontFace<'a> {
+    fn is_monospaced(&self) -> Option<bool> {
+        Some(self.face.is_monospaced())
+    }
+
+    fn resolve_char_width(&self, font_size: usize, char: char) -> Option<usize> {
+        let glyph_id = self.face.glyph_index(char)?;
+
+        Some(
+            font_size * self.face.tables().hmtx?.advance(glyph_id)? as usize
+                / self.face.units_per_em() as usize,
+        )
+    }
+
+    fn font_variant(&self, font_size: usize) -> Option<FontVariant> {
+        let is_monospaced = self.is_monospaced()?;
+
+        if is_monospaced {
+            Some(FontVariant::Monospaced(
+                self.resolve_char_width(font_size, 'm')?,
+            ))
+        } else {
+            Some(FontVariant::Other)
+        }
+    }
+}

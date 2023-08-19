@@ -1,6 +1,6 @@
 use colored::Colorize;
 use ffmpeg_next::ffi::AVPixelFormat;
-use std::{error::Error, fmt, sync::PoisonError};
+use std::{error::Error, fmt, str::Utf8Error, sync::PoisonError};
 
 /// Thread or Chunk level error which can happen during parallelized rendering
 pub enum RenderEncodingError {
@@ -17,6 +17,7 @@ pub enum RenderEncodingError {
     CoreError(fframes::error::FFramesError),
     RenderError,
     CStringError(std::ffi::NulError),
+    Utf8Error(Utf8Error),
 }
 
 impl fmt::Display for RenderEncodingError {
@@ -43,7 +44,8 @@ impl fmt::Display for RenderEncodingError {
                 Self::InvalidPixFmt(pix_fmt) => format!("Pixel format `{pix_fmt:?}` is not supported for current codec"),
                 Self::CoreError(err) => format!("{err:?}"),
                 Self::CStringError(err) => format!("Failed to convert string to c string: {err:?}"),
-                Self::RenderError => "Rendering pipeline failed.".to_owned()
+                Self::RenderError => "Rendering pipeline failed.".to_owned(),
+                Self::Utf8Error(err) => format!("Failed to convert bytes to utf8 string: {err:?}"),
             }
         )
     }
@@ -54,13 +56,15 @@ pub type RenderEncodingResult<T> = Result<T, RenderEncodingError>;
 pub enum FFramesRendererError {
     RenderChunkError(usize, RenderEncodingError),
     ConcatChunkError(RenderEncodingError),
-    MediaError(std::io::Error),
-    SubtitlesParsingError(fframes::SubtitlesError),
+    IOError(std::io::Error),
     MissingRequiredMedia(String),
     ImageError((String, image::ImageError)),
     ConcurrencyError,
     Internal(String),
     InvalidOutput,
+    Utf8Error(Utf8Error),
+
+    MediaError(fframes::media::FFramesMediaError),
     CoreError(fframes::error::FFramesError),
 
     /// Any custom rendering backend implementation-specific error
@@ -89,18 +93,19 @@ impl fmt::Debug for FFramesRendererError {
                 Self::ConcatChunkError(error)=>  format!(
                     "Concatenation of rendered video chunks failed failed.\nReason: {error}",
                 ),
-                Self::MediaError(err) => format!("{}\n{err}", "Can't load or process media".bold()),
+                Self::IOError(err) => format!("{}\n{err}", "Can't load or process media".bold()),
                 Self::MissingRequiredMedia(required_media) => format!(
                     "Missing required media {}. Verify that you provided correct media_dir.",
                     required_media.magenta().bold()
                 ),
-                Self::SubtitlesParsingError(err) => format!("Failed to process subtitle file: {err:?}"),
                 Self::CoreError(err) => format!("{err:?}"),
                 Self::ImageError((file, err)) =>
                     format!("Can not decode image {file}. Error {err:?}"),
                 Self::ConcurrencyError => "Something not correct happened while trying concurrently access one of the resources".to_owned(),
                 Self::Internal(err) | Self::Custom(err) => err.to_owned(),
                 Self::InvalidOutput => "Invalid output file. Path does not exist or does not the valid file".to_owned(),
+                Self::Utf8Error(err) => format!("Failed to convert bytes to utf8 string: {err:?}"),
+                Self::MediaError(err) => format!("Media processing error: {err:?}"),
             }
         )
     }
@@ -110,13 +115,7 @@ pub type FFramesRendererResult<T> = Result<T, FFramesRendererError>;
 
 impl From<std::io::Error> for FFramesRendererError {
     fn from(io_error: std::io::Error) -> Self {
-        Self::MediaError(io_error)
-    }
-}
-
-impl From<fframes::SubtitlesError> for FFramesRendererError {
-    fn from(err: fframes::SubtitlesError) -> Self {
-        Self::SubtitlesParsingError(err)
+        Self::IOError(io_error)
     }
 }
 
@@ -136,5 +135,17 @@ impl From<fframes::error::FFramesError> for RenderEncodingError {
 impl From<fframes::error::FFramesError> for FFramesRendererError {
     fn from(err: fframes::error::FFramesError) -> Self {
         Self::CoreError(err)
+    }
+}
+
+impl From<Utf8Error> for FFramesRendererError {
+    fn from(err: Utf8Error) -> Self {
+        Self::Utf8Error(err)
+    }
+}
+
+impl From<fframes::media::FFramesMediaError> for FFramesRendererError {
+    fn from(err: fframes::media::FFramesMediaError) -> Self {
+        Self::MediaError(err)
     }
 }

@@ -1,7 +1,7 @@
 use crate::renderer_error::FFramesRendererError;
 use crate::renderer_font_source::RendererFontSource;
 pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
-use fframes::MediaProvider;
+use fframes::DynamicMediaProvider;
 use fframes::Video;
 use fframes::{
     usvgr, AudioData, AudioTimelineSamples, FFramesContext, ResolvedRenderingTimeline,
@@ -41,8 +41,8 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub default_font: &'a str,
 }
 
-type RenderPreparation = (
-    MediaProvider,
+type RenderPreparation<'a> = (
+    DynamicMediaProvider<'a>,
     usvgr_text_layout::fontdb::Database,
     ResolvedRenderingTimeline<AudioTimelineSamples>,
     HashMap<String, Arc<PreloadedImageData>>,
@@ -56,47 +56,50 @@ pub fn prepare_rendering_context<
 >(
     options: &'a RenderOptions<'a, TBackend>,
     video: &'a TVideo,
-) -> FFramesRendererResult<RenderPreparation> {
-    let logger = fframes_logger::make_logger(options.logger.clone());
-    let (media_provider, font_db, image_data) =
-        media_processor::load_media_from_folder(&logger, options.media_dir, TVideo::FPS)?;
-
-    let media_provider = Arc::new(media_provider);
-    let time_base = TimeBase {
-        fps: TVideo::FPS,
-        sample_rate: 44100,
-    };
-
-    let timeline = fframes::resolve_timeline(
-        &video.duration(),
-        &ScenesWithAudio::from(&video.define_scenes()),
-        &time_base,
-        &video.audio(),
-        |name| {
-            let provider = Arc::clone(&media_provider);
-
-            provider
-                .audio
-                .get(name)
-                .map(|main_audio| match main_audio {
-                    AudioData::Preloaded(data) => {
-                        data.samples.len() * TVideo::FPS / data.sample_rate as usize
-                    }
-                    _ => 0,
-                })
-                .ok_or_else(|| {
-                    fframes::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
-                })
-        },
-    )?;
-
-    Ok((
-        Arc::try_unwrap(media_provider).map_err(|_| FFramesRendererError::ConcurrencyError)?,
-        font_db,
-        timeline,
-        image_data,
-        logger,
-    ))
+) -> FFramesRendererResult<RenderPreparation<'a>> {
+    //
+    // let logger = fframes_logger::make_logger(options.logger.clone());
+    // let (media_provider, font_db, image_data) =
+    //     media_processor::load_media_from_folder(&logger, options.media_dir, TVideo::FPS)?;
+    //
+    // let media_provider = Arc::new(media_provider);
+    // let time_base = TimeBase {
+    //     fps: TVideo::FPS,
+    //     sample_rate: 44100,
+    // };
+    //
+    // let timeline = fframes::resolve_timeline(
+    //     &video.duration(),
+    //     &ScenesWithAudio::from(&video.define_scenes()),
+    //     &time_base,
+    //     &video.audio(),
+    //     |name| {
+    //         let provider = Arc::clone(&media_provider);
+    //
+    //         // provider
+    //         //     .audio
+    //         //     .get(name)
+    //         //     .map(|main_audio| match main_audio {
+    //         //         AudioData::Preloaded(data) => {
+    //         //             data.samples.len() * TVideo::FPS / data.sample_rate as usize
+    //         //         }
+    //         //         _ => 0,
+    //         //     })
+    //         //     .ok_or_else(|| {
+    //         //         fframes::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
+    //         //     })
+    //         todo!()
+    //     },
+    // )?;
+    //
+    // Ok((
+    //     Arc::try_unwrap(media_provider).map_err(|_| FFramesRendererError::ConcurrencyError)?,
+    //     font_db,
+    //     timeline,
+    //     image_data,
+    //     logger,
+    // ))
+    todo!()
 }
 
 pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
@@ -116,6 +119,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
             fps: TVideo::FPS,
         },
         mode: fframes::FFramesMode::Renderer,
+        static_media_provider: todo!(),
         media_provider: &media_provider,
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
@@ -159,6 +163,7 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
             sample_rate: 44100,
             fps: TVideo::FPS,
         },
+        static_media_provider: todo!(),
         mode: fframes::FFramesMode::Renderer,
         media_provider: &media_provider,
         duration_in_frames: 1,

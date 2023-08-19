@@ -352,7 +352,7 @@ impl Video for MarketingVideo {
               fill="white"
               font-family="Chalkboard SE"
             >
-              {subtitles.get_phrase_for_frame(&frame).unwrap_or("")}
+              {frame.get_subtitle_phrase(&subtitles).unwrap_or("")}
             </text>
 
             <image

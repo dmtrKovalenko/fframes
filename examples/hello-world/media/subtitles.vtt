@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00.000 --> 00:01.000
+Hey!
+
+00:01.200 --> 00:03.000
+I made this video entirely with Rust
+
+00:03.700 --> 00:05.000
+Wondering how?
+
+00:05.800 --> 00:07.600
+Nothing more than simple SVG!
+
+00:08.200 --> 00:09.600
+If you are interested *-*
+
+00:09.600 --> 00:12.000
+stay tuned for more updates about the brand new 
+
+00:12.000 --> 00:14.000 align:end
+And pretty fast!
+
+00:14.000 --> 00:16.000
+Video creation framework In Rust :3

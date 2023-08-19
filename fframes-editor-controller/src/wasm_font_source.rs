@@ -43,6 +43,12 @@ impl WasmFontSource {
     }
 }
 
+impl Default for WasmFontSource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct WasmFontFace<'a> {
     pub name: String,
@@ -61,12 +67,6 @@ impl<'a> fframes::FontFace<'a> for WasmFontFace<'a> {
             font_size * self.face.tables().hmtx?.advance(glyph_id)? as usize
                 / self.face.units_per_em() as usize,
         )
-    }
-}
-
-impl Default for WasmFontSource {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

@@ -1,5 +1,7 @@
 use std::{fmt::Debug, ops::DerefMut};
 
+use fframes_media_loaders::Cue;
+
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
@@ -249,5 +251,53 @@ impl Frame {
             text_wrap_impl(value, font_source, *opts)
                 .map(|lines| WrappedTextStructure::new(lines, hash))
         }
+    }
+
+    /// Retruns a phrase that must be rendered by time in this frame.
+    /// If there is no phrase to render returns None.
+    ///
+    /// # Examples
+    /// ```no_run
+    ///  let frame = fframes::Frame {
+    ///     ..Default::default()
+    ///  };
+    ///
+    ///  let phrase = frame.get_subtitle_phrase(&subtitles);
+    pub fn get_subtitle_phrase<'a>(
+        &self,
+        subtitles: &'a crate::media::Subtitles,
+    ) -> Option<&'a str> {
+        let milliseconds = (self.get_current_second() * 1000.0) as u64;
+
+        subtitles
+            .get_cue_by_time(milliseconds)
+            .map(|cue| cue.text())
+    }
+
+    /// Retruns a cue that must be rendered by the time of the current frame
+    /// Besides text cue contains additional metadata like start/end time stamp,
+    /// notes and cue settings which can be used to customise text.
+    ///
+    /// Read more about available data and cue setting at https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API
+    pub fn get_subtitle_cue<'a>(&self, subtitles: &'a crate::media::Subtitles) -> Option<Cue<'a>> {
+        let milliseconds = (self.get_current_second() * 1000.0) as u64;
+
+        subtitles.get_cue_by_time(milliseconds)
+    }
+
+    /// Returns all the cues in order which timestamp is before or equal current frame.
+    ///
+    /// ### Params
+    /// * `overlap` – value in milliseconds is used to control when the next cue will join the stack,
+    /// e.g if overlap is 1000ms, the next cue will join the stack when it's timestamp is 1000ms or less
+    /// then the time of the current frame.
+    pub fn get_cue_stack<'a>(
+        &self,
+        subtitles: &'a crate::media::Subtitles,
+        overlap: u64,
+    ) -> Vec<Cue<'a>> {
+        let milliseconds = (self.get_current_second() * 1000.0) as u64;
+
+        subtitles.get_cue_stack(milliseconds, overlap)
     }
 }

@@ -15,8 +15,8 @@ macro_rules! setup_wasm_editor {
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
             static ref TIME_BASE: Mutex<Option<fframes::TimeBase>> = Mutex::new(None);
-            static ref MEDIA_PROVIDER: Mutex<fframes::MediaProvider> =
-                Mutex::new(fframes::MediaProvider {
+            static ref MEDIA_PROVIDER: Mutex<fframes::DynamicMediaProvider<'static>> =
+                Mutex::new(fframes::DynamicMediaProvider {
                     audio: HashMap::new(),
                     images: HashMap::new(),
                     subtitles: HashMap::new(),
@@ -86,13 +86,13 @@ macro_rules! setup_wasm_editor {
         pub fn add_image_source(file: String, url: String, base64_data: Option<String>) {
             let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
 
-            media_provider.images.insert(
-                file,
-                fframes::ImageData {
-                    link: url,
-                    base64: base64_data
-                }
-            );
+            // media_provider.images.insert(
+            //     file,
+            //     fframes::ImageData {
+            //         link: url,
+            //         base64: base64_data
+            //     }
+            // );
         }
 
         #[wasm_bindgen]

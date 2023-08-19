@@ -7,19 +7,26 @@ members = [
     "fframes-renderer",
     "fframes-editor-controller",
     "fframes-test-utils",
+    "fframes-media-loaders",
     "examples/marketing",
     "examples/podcast",
     "examples/hello-world",
+    "examples/hello-world/editor/editor-bridge",
     "examples/tiktok",
     "examples/low-poly-art",
     "examples/beta",
 ]
 
-
 [workspace.dependencies]
-# svgr = { path = "../resvg"}
-# usvgr = { path = "../resvg/usvgr"}
-# usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
-svgr = "0.28.4"
-usvgr = "0.28.4"
-usvgr-text-layout = "0.28.4"
+svgr = { path = "../resvg"}
+usvgr = { path = "../resvg/usvgr"}
+usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
+fframes-editor-controller = { path = "fframes-editor-controller"}
+hello-world-example = { path = "examples/hello-world"}
+# svgr = "0.28.4"
+# usvgr = "0.28.4"
+# usvgr-text-layout = "0.28.4"
+
+# fframes internal deps
+webvtt-parser = { path = "webvtt-parser" }
+fframes-media-loaders = { path = "fframes-media-loaders" }

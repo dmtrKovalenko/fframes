@@ -36,8 +36,8 @@ impl std::fmt::Display for VttError {
     }
 }
 
-impl ParseError<LocatedSpan<&str>> for VttError {
-    fn from_error_kind(input: LocatedSpan<&str>, kind: ErrorKind) -> Self {
+impl<'a> ParseError<LocatedSpan<&'a str>> for VttError {
+    fn from_error_kind(input: LocatedSpan<&'a str>, kind: ErrorKind) -> Self {
         VttError {
             message: None,
             line: input.location_line(),
@@ -47,7 +47,7 @@ impl ParseError<LocatedSpan<&str>> for VttError {
         }
     }
 
-    fn append(input: LocatedSpan<&str>, kind: ErrorKind, _other: Self) -> Self {
+    fn append(input: LocatedSpan<&'a str>, kind: ErrorKind, _other: Self) -> Self {
         VttError {
             message: None,
             line: input.location_line(),
@@ -57,7 +57,7 @@ impl ParseError<LocatedSpan<&str>> for VttError {
         }
     }
 
-    fn from_char(input: LocatedSpan<&str>, c: char) -> Self {
+    fn from_char(input: LocatedSpan<&'a str>, c: char) -> Self {
         VttError {
             message: None,
             line: input.location_line(),
@@ -83,8 +83,8 @@ impl ParseError<LocatedSpan<&str>> for VttError {
     }
 }
 
-impl ContextError<LocatedSpan<&str>> for VttError {
-    fn add_context(input: LocatedSpan<&str>, ctx: &'static str, other: Self) -> Self {
+impl<'a> ContextError<LocatedSpan<&'a str>> for VttError {
+    fn add_context(input: LocatedSpan<&'a str>, ctx: &'static str, other: Self) -> Self {
         VttError {
             message: Some(ctx.to_string()),
             line: input.location_line(),
@@ -95,8 +95,8 @@ impl ContextError<LocatedSpan<&str>> for VttError {
     }
 }
 
-impl From<nom::Err<Error<LocatedSpan<&str>>>> for VttError {
-    fn from(error: nom::Err<Error<LocatedSpan<&str>>>) -> Self {
+impl<'a> From<nom::Err<Error<LocatedSpan<&'a str>>>> for VttError {
+    fn from(error: nom::Err<Error<LocatedSpan<&'a str>>>) -> Self {
         match error {
             nom::Err::Error(Error { input, code }) => VttError::from_error_kind(input, code),
             nom::Err::Failure(Error { input, code }) => VttError::from_error_kind(input, code),

@@ -1,0 +1,14 @@
+
+[package]
+name = "fframes-media"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.74"
+
+[features]

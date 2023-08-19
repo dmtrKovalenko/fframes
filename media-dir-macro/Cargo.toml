@@ -1,0 +1,32 @@
+[package]
+name = "media-dir-macro"
+version = "0.7.3"
+description = "The procedural macro used by include_dir"
+authors = ["Michael Bryan <michaelfbryan@gmail.com>"]
+repository = "https://github.com/Michael-F-Bryan/include_dir"
+license = "MIT"
+edition = "2021"
+rust-version = "1.56"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro-crate = "1.3.1"
+proc-macro2 = "1"
+quote = "1.0.23"
+syn = { version = "1", features = [
+  "full",
+  "parsing",
+  "extra-traits",
+  "proc-macro",
+] }
+fframes-media-loaders.workspace = true
+bytemuck = "1.13.1"
+base64 = "0.21.2"
+
+[features]
+nightly = []
+metadata = []

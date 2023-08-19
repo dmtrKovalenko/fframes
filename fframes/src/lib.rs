@@ -10,7 +10,6 @@ mod log;
 mod media_provider;
 mod named_range;
 mod scenes;
-mod subtitles;
 mod svgr;
 mod text_wrap;
 mod video;
@@ -34,15 +33,17 @@ pub use log::log::*;
 pub use media_provider::*;
 pub use named_range::*;
 pub use scenes::*;
-pub use subtitles::*;
 pub use svgr::*;
 pub use svgr_macro::*;
 pub use text_wrap::*;
 pub use video::*;
 
 // reexported deps
+pub use fframes_media_loaders as media;
 pub use lazy_static;
 pub use lru;
+pub use media::bytemuck;
+pub use media_dir_macro::*;
 pub use roxmltree;
 pub use serde;
 pub use ttf_parser;

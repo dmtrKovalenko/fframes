@@ -83,6 +83,7 @@ impl Video for BetaVideo {
             Arc::new(crate::examples::ExamplesScene {
                 hello_world_video: hello_world_example::HelloWorldVideo {
                     slug: "Hello World!",
+                    media: todo!(),
                 },
                 podcast_video: podcast_example::PodcastVideo {
                     goose_audio: "beta.mp3",
