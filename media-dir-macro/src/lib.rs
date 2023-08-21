@@ -1,6 +1,6 @@
 mod parser;
 use crate::parser::IncludeMediaDirInput;
-use fframes_media_loaders::{ImageData, PreloadedAudioData};
+use fframes_media_loaders::PreloadedAudioData;
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use quote::{quote, ToTokens};
@@ -130,8 +130,10 @@ impl MediaFile {
 
                 quote! {
                     #fframes_crate_ident::AudioData::Preloaded(
-                        #fframes_crate_ident::PreloadedAudioData {
-                            samples: #fframes_crate_ident::bytemuck::cast_slice::<u8, i16>(#literal),
+                        #fframes_crate_ident::media::PreloadedAudioData {
+                            samples: std::borrow::Cow::Borrowed(
+                                #fframes_crate_ident::bytemuck::cast_slice::<u8, i16>(#literal)
+                            ),
                             sample_rate: #sample_rate,
                         }
                     )
@@ -211,15 +213,23 @@ fn create_image_identifier_for_platform(
 
 fn create_image_identifier_for_platform_wasm(
     _fframes_crate_ident: &syn::Ident,
-    _file_name: &str,
+    file_name: &str,
     bytes: &[u8],
 ) -> impl ToTokens {
     use base64::Engine;
     let encoded: String = base64::engine::general_purpose::STANDARD_NO_PAD.encode(bytes);
-    let base64_web_png = format!("data:image/png;base64,{encoded}");
+    let extension = file_name.split('.').last();
 
+    let mime_type = match extension {
+        Some("png") => "image/png",
+        Some("jpg") => "image/jpeg",
+        Some("jpeg") => "image/jpeg",
+        _ => panic!("File {file_name} is not a valid image file"),
+    };
+
+    let base64_web_png = format!("data:{mime_type};base64,{encoded}");
     quote! {
-        base64_data: #base64_web_png
+        base64_data: std::borrow::Cow::Borrowed(#base64_web_png)
     }
 }
 

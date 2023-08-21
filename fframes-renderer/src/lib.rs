@@ -119,7 +119,6 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
             fps: TVideo::FPS,
         },
         mode: fframes::FFramesMode::Renderer,
-        static_media_provider: todo!(),
         media_provider: &media_provider,
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
@@ -128,7 +127,7 @@ pub fn render<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBackend>(
 
     options.render_backend.render(
         output,
-        video,
+        &video,
         logger,
         &fframes::usvgr::Options {
             image_data: Some(&image_data),
@@ -163,7 +162,6 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
             sample_rate: 44100,
             fps: TVideo::FPS,
         },
-        static_media_provider: todo!(),
         mode: fframes::FFramesMode::Renderer,
         media_provider: &media_provider,
         duration_in_frames: 1,
@@ -179,7 +177,7 @@ pub fn debug_frame<'a, TVideo: Video + Sync + Sized, TBackend: FFramesRenderBack
             breaks_lru_cache: None,
         },
         output_png,
-        video,
+        &video,
         &usvgr::Options {
             image_data: Some(&image_data),
             font_family: options.default_font.to_string(),

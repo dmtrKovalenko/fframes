@@ -1,46 +1,44 @@
 use crate::error::{FFramesError, Result};
-
 use std::{fmt, iter::FromIterator};
-pub type SvgResult = std::result::Result<crate::Svgr, crate::error::FFramesError>;
 
 #[derive(Default, Clone)]
 pub struct Svgr {
-    #[cfg(not(feature = "compile-time-svgtree"))]
+    #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
     pub value: String,
-    #[cfg(feature = "compile-time-svgtree")]
+    #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
     pub svg_tree: usvgr::svgtree::NestedSvgDocument<usvgr::svgtree::NestedNodeData>,
 }
 
 impl Svgr {
-    #[cfg(feature = "compile-time-svgtree")]
+    #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
     pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
         usvgr::Tree::from_nested_svgtree(self.svg_tree, opt).map_err(FFramesError::ParserError)
     }
 
-    #[cfg(not(feature = "compile-time-svgtree"))]
+    #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
     pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
         usvgr::Tree::from_str(self.value.as_str(), opt).map_err(FFramesError::ParserError)
     }
 
-    #[cfg(feature = "compile-time-svgtree")]
+    #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
     pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData>> {
         self.svg_tree.nodes
     }
 
-    #[cfg(not(feature = "compile-time-svgtree"))]
-    pub fn as_subtree(self, _opt: &usvgr::Options) -> Result<usvgr::Tree> {
+    #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
+    pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData>> {
         unimplemented!("Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly.")
     }
 }
 
-#[cfg(not(feature = "compile-time-svgtree"))]
+#[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
 impl From<String> for Svgr {
     fn from(value: String) -> Self {
         Svgr { value }
     }
 }
 
-#[cfg(feature = "compile-time-svgtree")]
+#[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
 impl From<String> for Svgr {
     fn from(val: String) -> Self {
         use usvgr::svgtree::{NestedNodeData, NestedSvgDocument};
@@ -57,7 +55,7 @@ impl From<String> for Svgr {
     }
 }
 
-#[cfg(not(feature = "compile-time-svgtree"))]
+#[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
 impl FromIterator<Svgr> for Svgr {
     fn from_iter<T: IntoIterator<Item = Svgr>>(iter: T) -> Self {
         Svgr {
@@ -68,7 +66,7 @@ impl FromIterator<Svgr> for Svgr {
     }
 }
 
-#[cfg(feature = "compile-time-svgtree")]
+#[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
 impl FromIterator<Svgr> for Svgr {
     fn from_iter<T: IntoIterator<Item = Svgr>>(iter: T) -> Self {
         let mut child_nodes = usvgr::svgtree::NestedSvgDocument { nodes: vec![] };
@@ -97,14 +95,14 @@ impl From<Vec<Svgr>> for Svgr {
     }
 }
 
-#[cfg(feature = "compile-time-svgtree")]
+#[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
 impl fmt::Display for Svgr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.svg_tree)
     }
 }
 
-#[cfg(not(feature = "compile-time-svgtree"))]
+#[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
 impl fmt::Display for Svgr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)

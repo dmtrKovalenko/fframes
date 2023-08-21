@@ -36,10 +36,15 @@ fn create_svgr_ident(
     nodes: Vec<Node>,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let svg_tree = crate::nodes_to_svgtree::nodes_to_svgtree(&nodes, fframes_crate_ident)?;
+    let (html_string, values) =
+        crate::nodes_to_format::prepare_svg_nodes_for_format_statement(nodes, &fframes_crate_ident);
 
     Ok(quote! {
         #fframes_crate_ident::Svgr {
-            svg_tree: #svg_tree
+            #[cfg(not(target_arch="wasm32"))]
+            svg_tree: #svg_tree,
+            #[cfg(target_arch="wasm32")]
+            value: format!(#html_string, #(#values),*),
         }
     })
 }

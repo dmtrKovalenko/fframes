@@ -52,15 +52,13 @@ async fn resolve_used_audio_durations<'a>(
                 (file, frames as usize)
             })
             .ok_or_else(|| FFramesError::CanNotProcessAudioDuration(file.to_string())),
-        Err(_) => Err(FFramesError::CanNotProcessAudioDuration(
-            file.to_string(),
-        )),
+        Err(_) => Err(FFramesError::CanNotProcessAudioDuration(file.to_string())),
     })
     .collect::<fframes::error::Result<HashMap<_, _>>>()
 }
 
-pub async fn prepare_video_with_audio<TVideo: Video>(
-    video: &TVideo,
+pub async fn prepare_video_with_audio<'a, TVideo: Video>(
+    video: &'a TVideo,
     tb: &TimeBase,
 ) -> (
     usize,

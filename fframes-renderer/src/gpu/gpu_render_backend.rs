@@ -24,7 +24,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
     fn render<'a, TVideo: Video + Sync + Sized>(
         &self,
         output: &'a str,
-        video: TVideo,
+        video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
         encoder_options: &EncoderOptions<'a>,
@@ -408,7 +408,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         &self,
         _frame: fframes::Frame,
         _out: &str,
-        _video: TVideo,
+        _video: &TVideo,
         _usvg_options: &usvgr::Options,
         _fontdb: &usvgr_text_layout::fontdb::Database,
         _ctx: fframes::FFramesContext,

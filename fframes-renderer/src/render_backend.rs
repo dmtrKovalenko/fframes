@@ -13,7 +13,7 @@ pub trait FFramesRenderBackend {
         &self,
         frame: fframes::Frame,
         out: &str,
-        video: TVideo,
+        video: &TVideo,
         usvg_options: &usvgr::Options,
         font_db: &usvgr_text_layout::fontdb::Database,
         ctx: fframes::FFramesContext,
@@ -22,7 +22,7 @@ pub trait FFramesRenderBackend {
     fn render<'a, TVideo: Video + Sync + Sized>(
         &self,
         output: &'a str,
-        video: TVideo,
+        video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
         encoder_options: &EncoderOptions<'a>,

@@ -21,7 +21,7 @@ pub trait MediaProvider: Send + Sync + Debug {
 
 #[derive(Clone, Default, Debug)]
 pub struct DynamicMediaProvider<'media> {
-    pub audio: HashMap<String, crate::media::PreloadedAudioData>,
+    pub audio: HashMap<String, crate::media::PreloadedAudioData<'static>>,
     pub images: HashMap<String, ImageData>,
     pub subtitles: HashMap<String, crate::media::Subtitles<'media>>,
 }

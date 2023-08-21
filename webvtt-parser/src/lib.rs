@@ -1,10 +1,8 @@
 mod cue_settings_parser;
 pub mod error;
 mod vtt_parser;
-extern crate nom;
 pub use error::VttError;
 use nom_locate::LocatedSpan;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -194,7 +192,7 @@ impl Display for VttCue<'_> {
                 .map(|comment| format!("NOTE {comment}\n"))
                 .unwrap_or_else(|| "".to_owned()),
             self.name
-                .as_ref()
+               .as_ref()
                 .map(|comment| format!("NOTE {comment}\n"))
                 .unwrap_or_else(|| "".to_owned()),
             self.start,

@@ -1,14 +1,34 @@
 use crate::error::Result;
-use std::io::Read;
+use std::{borrow::Cow, io::Read};
 
-#[derive(Debug, Clone)]
-pub struct PreloadedAudioData {
-    pub samples: Vec<i16>,
+#[derive(Clone, Debug)]
+pub struct PreloadedAudioData<'a> {
+    pub samples: Cow<'a, [i16]>,
     pub sample_rate: i32,
 }
 
+impl PreloadedAudioData<'_> {
+    pub fn duration_in_seconds(&self) -> f32 {
+        self.samples.len() as f32 / self.sample_rate as f32
+    }
+
+    pub fn duration_in_frames(&self, fps: usize) -> usize {
+        self.samples.len() * fps / self.sample_rate as usize
+    }
+
+    pub fn get_range(&self, range: std::ops::Range<usize>) -> Option<&[i16]> {
+        self.samples.get(range)
+    }
+
+    pub fn get_frame_data(&self, length: usize, frame: usize, fps: i64) -> Option<&[i16]> {
+        let start_index = frame * self.sample_rate as usize / fps as usize;
+
+        self.samples.get(start_index..start_index + length)
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
-pub fn decode_mp3(buf: impl Read) -> Result<PreloadedAudioData> {
+pub fn decode_mp3(buf: impl Read) -> Result<PreloadedAudioData<'static>> {
     use minimp3::{Decoder as Mp3Decoder, Error as Mp3Error, Frame as Mp3Frame};
 
     let mut decoder = Mp3Decoder::new(buf);
@@ -48,7 +68,7 @@ pub fn decode_mp3(buf: impl Read) -> Result<PreloadedAudioData> {
     }
 
     Ok(PreloadedAudioData {
-        samples: mono_samples,
+        samples: Cow::Owned(mono_samples),
         sample_rate,
     })
 }

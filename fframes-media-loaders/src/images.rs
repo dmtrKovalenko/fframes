@@ -9,7 +9,7 @@ pub struct ImageData {
     #[cfg(not(target_arch = "wasm32"))]
     pub image: Arc<usvgr::PreloadedImageData>,
     #[cfg(target_arch = "wasm32")]
-    pub base64_data: &'static str,
+    pub base64_data: std::borrow::Cow<'static, str>,
     pub filename: String,
 }
 

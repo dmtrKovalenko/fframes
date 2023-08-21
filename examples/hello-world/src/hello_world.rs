@@ -50,6 +50,12 @@ impl Video for HelloWorldVideo<'_> {
               }
             />
 
+            <image
+              x="0"
+              y="0"
+              href={self.media.code_png.href()}
+            />
+
             <text font-family="DM Sans" x="100" y="300" font-size="150">
               {self.slug}
             </text>

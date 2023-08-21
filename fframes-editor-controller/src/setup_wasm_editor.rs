@@ -7,9 +7,8 @@ macro_rules! setup_wasm_editor {
             async fn load_audio_wasm_callback(path: &str) -> Result<JsValue, JsValue>;
         }
 
-        static VIDEO: $x = $x $params;
-
         lazy_static! {
+            static ref VIDEO: $x<'static> = $x $params;
             static ref DURATION_IN_FRAMES: Mutex<usize> = Mutex::new(0);
             static ref BREAK_LINES_CACHE: fframes::BreaksLruCache = fframes::BreaksLruCache::new(10).unwrap();
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
@@ -33,8 +32,7 @@ macro_rules! setup_wasm_editor {
             };
 
             TIME_BASE.lock().unwrap().replace(tb);
-
-            let (duration, scenes, audio_map) = wasm_audio_map::prepare_video_with_audio(&VIDEO, &tb).await;
+            let (duration, scenes, audio_map) = wasm_audio_map::prepare_video_with_audio(&*VIDEO, &tb).await;
 
             let mut duration_mutex_ref = DURATION_IN_FRAMES.lock().unwrap();
             *duration_mutex_ref = duration;
@@ -55,22 +53,22 @@ macro_rules! setup_wasm_editor {
 
         #[wasm_bindgen]
         pub fn add_audio_source(file: String, input: &[i16]) {
-            let audio_data = fframes::AudioData::Preloaded(
-                fframes::PreloadedAudioData {
+            let audio_data =
+                fframes::media::PreloadedAudioData {
                     sample_rate: 44100,
-                    samples: input.to_vec(),
-                },
-            );
+                    // Can't guarantee the lifetime of the input slice
+                    samples: std::borrow::Cow::Owned(input.to_vec()),
+                };
 
             let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
             media_provider.audio.insert(file.clone(), audio_data);
         }
 
         #[wasm_bindgen]
-        pub fn add_subtitles_source(file: String, content: String) -> usize {
+        pub fn add_subtitles_source(file: String, content: &str) -> usize {
             use std::str::FromStr;
 
-            let parsed_subtitle = Subtitles::parse(content.as_str(), $x::FPS).unwrap();
+            let parsed_subtitle = Subtitles::parse(content).unwrap();
             let phrases_count = parsed_subtitle.cues_count();
 
             let mut media_provider = MEDIA_PROVIDER
@@ -86,13 +84,13 @@ macro_rules! setup_wasm_editor {
         pub fn add_image_source(file: String, url: String, base64_data: Option<String>) {
             let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
 
-            // media_provider.images.insert(
-            //     file,
-            //     fframes::ImageData {
-            //         link: url,
-            //         base64: base64_data
-            //     }
-            // );
+            media_provider.images.insert(
+                file,
+                fframes::media::ImageData {
+                    filename: url,
+                    base64_data: std::borrow::Cow::Owned(base64_data.unwrap_or_default()),
+                }
+            );
         }
 
         #[wasm_bindgen]
@@ -131,9 +129,9 @@ macro_rules! setup_wasm_editor {
                     breaks_lru_cache: None.into(),
                 },
                 &FFramesContext {
+                    time_base,
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: FFramesMode::EditorTimelinePreview,
-                    time_base,
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
                     font_source: Some(FONTS.lock().unwrap().deref()),
