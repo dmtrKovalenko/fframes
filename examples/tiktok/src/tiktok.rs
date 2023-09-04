@@ -1,7 +1,7 @@
 use fframes::lazy_static::lazy_static;
 use fframes::{
-    animation, prettify_spectrum, svgr, AudioMap, AudioTimestamp, FFramesContext, Frame,
-    SampleSize, Svgr, Video, VisualizeFrameInput,
+    animation, include_media_dir, prettify_spectrum, svgr, AudioMap, AudioTimestamp,
+    FFramesContext, Frame, SampleSize, Svgr, Video, VisualizeFrameInput,
 };
 
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
@@ -14,12 +14,14 @@ lazy_static! {
         animation::AnimationRuntime::from(&SPRING);
 }
 
+include_media_dir!(pub struct GooseMedia, "examples/tiktok/media");
+
 #[derive(Debug)]
-pub struct GooseVideo {
-    pub audio_track: &'static str,
+pub struct GooseVideo<'a> {
+    pub media: &'a GooseMedia,
 }
 
-impl Video for GooseVideo {
+impl Video for GooseVideo<'_> {
     const FPS: usize = 60;
     const WIDTH: usize = 1080;
     const HEIGHT: usize = 1920;
@@ -35,9 +37,8 @@ impl Video for GooseVideo {
     }
 
     fn render_frame(&self, mut frame: Frame, ctx: &FFramesContext) -> Svgr {
-        let subtitles = ctx.get_subtitles("thought.vtt");
         let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
-            audio: ctx.get_audio_data(self.audio_track),
+            audio: &self.media.thought_mp3,
             sample_size: SampleSize::S32,
             smooth_level: 4,
             window: None,
@@ -74,7 +75,7 @@ impl Video for GooseVideo {
                  }
 
                 {frame.text_break_lines(
-                    ctx, frame.get_subtitle_phrase(&subtitles).unwrap_or(""),
+                    ctx, frame.get_subtitle_phrase(&self.media.thought_vtt).unwrap_or(""),
                     &fframes::BreakLinesOpts {
                       width: 1000,
                       line_height: 1.2,
@@ -92,11 +93,10 @@ impl Video for GooseVideo {
                 <image
                   width="950"
                   height="950"
-                  href={ctx.get_image_link("goose2.png")}
+                  href={self.media.goose2_png.href()}
                   y={1920 - 950}
                   x={1080 / 2 - 400}
                 />
-
         </svg>
         )
     }

@@ -4,20 +4,24 @@ use fframes::{
 };
 
 #[derive(Debug)]
-pub struct PodcastVideo {
-    pub goose_audio: &'static str,
-    pub duck_audio: &'static str,
-    pub guest_audio: &'static str,
+/// This example shows how to load and use completely dynamic audio for the video file.
+/// File that are placed to the media folder will be used based on the parameters in the function.
+///
+/// If audio file or the images are not present in the media folder video will be rendered withut
+/// them
+///
+/// The only required audio file is `final.mp3` that will cause error if missing on startf
+/// render/editi.
+pub struct PodcastVideo<'a> {
+    pub goose_audio: &'a str,
+    pub duck_audio: &'a str,
+    pub guest_audio: &'a str,
 }
 
-impl Video for PodcastVideo {
+impl Video for PodcastVideo<'_> {
     const FPS: usize = 60;
-    const HEIGHT: usize = 1080;
     const WIDTH: usize = 1920;
-
-    fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Auto
-    }
+    const HEIGHT: usize = 1080;
 
     fn audio(&self) -> AudioMap {
         AudioMap::from([(
@@ -26,27 +30,46 @@ impl Video for PodcastVideo {
         )])
     }
 
+    fn duration(&self) -> fframes::Duration {
+        fframes::Duration::Auto
+    }
+
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
-        let goose_vis = frame.visualize_audio_frame(VisualizeFrameInput {
-            smooth_level: 2,
-            audio: ctx.get_audio_data(self.goose_audio),
-            sample_size: SampleSize::S32,
-            window: None,
-        });
+        let goose_vis = ctx
+            .get_audio(self.goose_audio)
+            .map(|audio| {
+                frame.visualize_audio_frame(VisualizeFrameInput {
+                    smooth_level: 2,
+                    audio,
+                    sample_size: SampleSize::S32,
+                    window: None,
+                })
+            })
+            .unwrap_or_default();
 
-        let duck_vis = frame.visualize_audio_frame(VisualizeFrameInput {
-            smooth_level: 2,
-            audio: ctx.get_audio_data(self.duck_audio),
-            sample_size: SampleSize::S32,
-            window: None,
-        });
+        let duck_vis = ctx
+            .get_audio(self.duck_audio)
+            .map(|audio| {
+                frame.visualize_audio_frame(VisualizeFrameInput {
+                    smooth_level: 2,
+                    audio,
+                    sample_size: SampleSize::S32,
+                    window: None,
+                })
+            })
+            .unwrap_or_default();
 
-        let guest_vis = frame.visualize_audio_frame(VisualizeFrameInput {
-            smooth_level: 2,
-            audio: ctx.get_audio_data(self.guest_audio),
-            sample_size: SampleSize::S32,
-            window: None,
-        });
+        let guest_vis = ctx
+            .get_audio(self.guest_audio)
+            .map(|audio| {
+                frame.visualize_audio_frame(VisualizeFrameInput {
+                    smooth_level: 2,
+                    audio,
+                    sample_size: SampleSize::S32,
+                    window: None,
+                })
+            })
+            .unwrap_or_default();
 
         svgr!(
         <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">
@@ -104,13 +127,13 @@ impl Video for PodcastVideo {
                  <path fill="#fff" transform="matrix(-1 0 0 1 1257.75 110.456)" d="M0 0h350.203v350.203H0z" />
                </clipPath>
                <pattern id="goose" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_link("goose.jpeg")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_href("goose.jpeg").unwrap_or("")}></image>
                </pattern>
                <pattern id="duck" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_link("duck.jpg")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_href("duck.jpg").unwrap_or("")}></image>
                </pattern>
                <pattern id="guest" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_link("guest.jpg")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_href("guest.jpg").unwrap_or("")}></image>
                </pattern>
              </defs>
 

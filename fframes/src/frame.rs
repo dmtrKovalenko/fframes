@@ -1,6 +1,5 @@
-use std::{fmt::Debug, ops::DerefMut};
-
-use fframes_media_loaders::Cue;
+use fframes_media_loaders::{FFramesSubtitles, FFramesSubtitlesCue};
+use std::ops::DerefMut;
 
 use crate::{
     animation, get_visualization,
@@ -9,7 +8,6 @@ use crate::{
 };
 
 /// The Frame {} struct contains temporal information about the current frame.
-#[derive(Debug, Clone, Default)]
 pub struct Frame {
     /// The frame index of the current scene. If rendering a Scene it is relative to the current frame.
     pub index: usize,
@@ -265,13 +263,12 @@ impl Frame {
     ///  let phrase = frame.get_subtitle_phrase(&subtitles);
     pub fn get_subtitle_phrase<'a>(
         &self,
-        subtitles: &'a crate::media::Subtitles,
+        subtitles: &'a impl FFramesSubtitles<'a>,
     ) -> Option<&'a str> {
         let milliseconds = (self.get_current_second() * 1000.0) as u64;
 
-        subtitles
-            .get_cue_by_time(milliseconds)
-            .map(|cue| cue.text())
+        let (_, cue) = subtitles.get_cue_by_time(milliseconds)?;
+        Some(cue.text())
     }
 
     /// Retruns a cue that must be rendered by the time of the current frame
@@ -279,10 +276,13 @@ impl Frame {
     /// notes and cue settings which can be used to customise text.
     ///
     /// Read more about available data and cue setting at https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API
-    pub fn get_subtitle_cue<'a>(&self, subtitles: &'a crate::media::Subtitles) -> Option<Cue<'a>> {
+    pub fn get_subtitle_cue<'a, TSubtitles: FFramesSubtitles<'a>>(
+        &self,
+        subtitles: &'a TSubtitles,
+    ) -> Option<&'a TSubtitles::Cue> {
         let milliseconds = (self.get_current_second() * 1000.0) as u64;
 
-        subtitles.get_cue_by_time(milliseconds)
+        subtitles.get_cue_by_time(milliseconds).map(|(_, cue)| cue)
     }
 
     /// Returns all the cues in order which timestamp is before or equal current frame.
@@ -291,11 +291,11 @@ impl Frame {
     /// * `overlap` – value in milliseconds is used to control when the next cue will join the stack,
     /// e.g if overlap is 1000ms, the next cue will join the stack when it's timestamp is 1000ms or less
     /// then the time of the current frame.
-    pub fn get_cue_stack<'a>(
+    pub fn get_cue_stack<'a, TSubtitles: FFramesSubtitles<'a>>(
         &self,
-        subtitles: &'a crate::media::Subtitles,
+        subtitles: &'a TSubtitles,
         overlap: u64,
-    ) -> Vec<Cue<'a>> {
+    ) -> Vec<&'a TSubtitles::Cue> {
         let milliseconds = (self.get_current_second() * 1000.0) as u64;
 
         subtitles.get_cue_stack(milliseconds, overlap)

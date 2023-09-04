@@ -4,6 +4,8 @@
 
 import type {Js_BigInt_t as ReScriptJs_Js_BigInt_t} from './shims/Js.shim';
 
+import type {Js_Dict_t as ReScriptJs_Js_Dict_t} from './shims/Js.shim';
+
 import type {Js_Int16Array_t as ReScriptJs_Js_Int16Array_t} from './shims/Js.shim';
 
 import type {Js_Nullable_t as ReScriptJs_Js_Nullable_t} from './shims/Js.shim';
@@ -24,7 +26,15 @@ export type namedRange = {
 };
 
 // tslint:disable-next-line:interface-over-type-literal
+export type mediaImport = string;
+
+// tslint:disable-next-line:interface-over-type-literal
+export type mediaFolder = ReScriptJs_Js_Dict_t<mediaImport>;
+
+// tslint:disable-next-line:interface-over-type-literal
 export type options = {
+  readonly staticMediaFolder?: mediaFolder; 
+  readonly dynamicMediaFolder?: mediaFolder; 
   readonly ignoreMediaRegex?: ReScriptJs_Js_RegExp_t; 
   readonly hideDock: boolean; 
   readonly loop: boolean; 
@@ -34,7 +44,7 @@ export type options = {
   | "fromAspectRatio"
   | "grid"; 
   readonly rewindStepInSeconds: number; 
-  readonly imageLengthLimit: number; 
+  readonly dynamicImageLengthLimit: number; 
   readonly volumeStepFrom0To100: number
 };
 export type EditorOptions = options;
@@ -64,6 +74,9 @@ export type fontInfo = {
 export type initOut = { readonly prepare: (_1:number, _2:number) => number };
 
 // tslint:disable-next-line:interface-over-type-literal
+export type staticFont = { readonly data: ReScriptJs_Js_Uint8Array_t; readonly fontInfo: fontInfo };
+
+// tslint:disable-next-line:interface-over-type-literal
 export type t = {
   readonly add_audio_source: (_1:string, _2:ReScriptJs_Js_Int16Array_t) => void; 
   readonly add_image_source: (_1:string, _2:string, _3:ReScriptJs_Js_Undefined_t<string>) => void; 
@@ -72,6 +85,7 @@ export type t = {
   readonly prepare: (_1:ReScriptJs_Js_Undefined_t<number>) => ReScriptJs_Js_Promise_t<videoMeta>; 
   readonly render_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 
   readonly render_preview_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 
-  readonly ingest_font: (_1:ReScriptJs_Js_Uint8Array_t) => fontInfo
+  readonly ingest_font: (_1:ReScriptJs_Js_Uint8Array_t) => fontInfo; 
+  readonly get_static_font_data_by_index: (_1:number) => ReScriptJs_Js_Nullable_t<staticFont>
 };
 export type WasmController = t;

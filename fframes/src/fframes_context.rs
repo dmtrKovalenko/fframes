@@ -1,3 +1,4 @@
+use media::ImageData;
 use crate::{
     media, AudioData, AudioTimelineSamples, AudioTimelineUnit, DynamicMediaProvider, FontSource,
     Frame, MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
@@ -20,31 +21,29 @@ pub struct TimeBase {
 #[derive(Debug)]
 pub struct FFramesContext<'a> {
     pub time_base: TimeBase,
+    pub duration_in_frames: usize,
     pub mode: FFramesMode,
     pub media_provider: &'a DynamicMediaProvider<'a>,
-    pub duration_in_frames: usize,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
     pub scenes: Option<&'a ResolvedScenesTimeline>,
 }
 
-impl<'a: 'b, 'b> FFramesContext<'a> {
-    pub fn get_audio_data(&self, filename: &str) -> &AudioData {
-        todo!()
+impl<'a, 'media: 'a> FFramesContext<'media> {
+    pub fn get_audio(&self, filename: impl AsRef<str>) -> Option<&'media AudioData<'media>> {
+        self.media_provider.resolve_audio(filename.as_ref())
     }
 
-    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> &'b media::Subtitles {
-        let filename = filename.as_ref();
-        match self.media_provider.subtitles.get(filename) {
-            Some(data) => data,
-            None => panic!(
-                "Subtitles {file} not found! Please make sure that media folder contains {file}",
-                file = filename
-            ),
-        }
+    pub fn get_subtitles(
+        &'a self,
+        filename: impl AsRef<str>,
+    ) -> Option<&'media media::Subtitles<'media>> {
+        self.media_provider.resolve_subtitles(filename.as_ref())
     }
 
-    pub fn get_image_link(&self, filename: &str) -> String {
-        "todo remove me".to_owned()
+    pub fn get_image_href(&self, filename: impl AsRef<str>) -> Option<&'media str> {
+        self.media_provider
+            .resolve_image(filename.as_ref())
+            .map(ImageData::href)
     }
 
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr {
@@ -96,12 +95,14 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
             if sample_range.contains(&start_sample) {
                 let start_of_this_frame_in_file =
                     start_sample.as_usize() - sample_range.start.as_usize();
-
-                self.get_audio_data(f)
-                    .get_range(
+                let range = self.media_provider.resolve_audio(f).map(|a| {
+                    a.get_range(
                         start_of_this_frame_in_file..start_of_this_frame_in_file + frame_size,
                     )
-                    .map(|data| {
+                });
+
+                if let Some(range) = range {
+                    range.map(|data| {
                         data.iter().enumerate().for_each(|(i, sample)| {
                             let fltp_sample = *sample as f32 / i16::MAX as f32;
                             let filled_sample = audio_data[i];
@@ -114,6 +115,7 @@ impl<'a: 'b, 'b> FFramesContext<'a> {
                             }
                         });
                     });
+                }
             }
         });
 

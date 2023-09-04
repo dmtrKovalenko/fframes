@@ -29,6 +29,9 @@ module RadixSlider = {
   }
 }
 
+/**
+ *  Reusable slider component used for the volume slider and timeline scaling selector
+ */
 @react.component
 let make = (~onValueChange, ~disabled, ~value, ~min, ~max, ~step) => {
   let handleChange = React.useCallback1(newValue => {

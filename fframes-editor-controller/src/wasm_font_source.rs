@@ -2,7 +2,11 @@ use fframes::{
     ttf_parser::{self},
     FontStretch, FontStyle,
 };
-use std::collections::HashMap;
+use std::{
+    borrow::{Borrow, Cow},
+    collections::HashMap,
+};
+use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, fframes::serde::Serialize)]
 #[serde(crate = "fframes::serde")] // https://github.com/serde-rs/serde/issues/1465
@@ -14,22 +18,45 @@ pub struct FaceInfo {
     style: fframes::FontStyle,
 }
 
+#[wasm_bindgen]
+#[derive(Debug, Clone)]
+pub struct StaticFontFace {
+    data: &'static [u8],
+    info: FaceInfo,
+}
+
+#[wasm_bindgen]
+impl StaticFontFace {
+    #[wasm_bindgen(getter)]
+    pub fn data(&self) -> js_sys::Uint8Array {
+        js_sys::Uint8Array::from(self.data)
+    }
+    #[wasm_bindgen(getter)]
+    pub fn info(&self) -> JsValue {
+        serde_wasm_bindgen::to_value(&self.info).unwrap()
+    }
+}
+
 #[derive(Debug)]
 /// The fontdb implementation for wasm, which is a hashmap of the font options used in css queries (name, stretch, weight and style) to the raw font data coming from array buffer.
 pub struct WasmFontSource {
-    data: HashMap<FaceInfo, Vec<u8>>,
+    pub static_fonts: Vec<StaticFontFace>,
+    pub data: HashMap<FaceInfo, Cow<'static, [u8]>>,
 }
 
 impl WasmFontSource {
     pub fn new() -> Self {
         Self {
+            static_fonts: vec![],
             data: HashMap::new(),
         }
     }
 
-    pub fn insert_font(&mut self, data: Vec<u8>) -> Option<FaceInfo> {
+    pub fn insert_font(&mut self, data: Cow<'static, [u8]>) -> Option<FaceInfo> {
         let face = ttf_parser::Face::parse(&data, 0).ok()?;
         let name_bytes = parse_family_name(face.raw_face())?;
+
+        fframes::log!("is borrowed {}", matches!(data, Cow::Borrowed(_)));
 
         let face_info = FaceInfo {
             name: name_bytes,
@@ -38,7 +65,15 @@ impl WasmFontSource {
             style: face.style().into(),
         };
 
+        match data {
+            Cow::Borrowed(borrowed_data) => self.static_fonts.push(StaticFontFace {
+                data: borrowed_data,
+                info: face_info.clone(),
+            }),
+            _ => (),
+        }
         self.data.insert(face_info.clone(), data);
+
         Some(face_info)
     }
 }

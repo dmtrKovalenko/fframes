@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! setup_wasm_editor {
-    ($x:tt, $params:tt) => {
+    ($x:tt, $params:tt, $static_media:expr) => {
         #[wasm_bindgen(module = "fframes-editor")]
         extern "C" {
             #[wasm_bindgen(catch)]
@@ -15,11 +15,11 @@ macro_rules! setup_wasm_editor {
             static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
             static ref TIME_BASE: Mutex<Option<fframes::TimeBase>> = Mutex::new(None);
             static ref MEDIA_PROVIDER: Mutex<fframes::DynamicMediaProvider<'static>> =
-                Mutex::new(fframes::DynamicMediaProvider {
-                    audio: HashMap::new(),
-                    images: HashMap::new(),
-                    subtitles: HashMap::new(),
-                });
+                Mutex::new(fframes::DynamicMediaProvider::new(
+                HashMap::new(),
+                HashMap::new(),
+                HashMap::new(),
+            ));
         }
 
         #[wasm_bindgen]
@@ -32,7 +32,7 @@ macro_rules! setup_wasm_editor {
             };
 
             TIME_BASE.lock().unwrap().replace(tb);
-            let (duration, scenes, audio_map) = wasm_audio_map::prepare_video_with_audio(&*VIDEO, &tb).await;
+            let (duration, scenes, audio_map) = wasm_audio::prepare_video_with_audio(&*VIDEO, &tb, &$static_media).await;
 
             let mut duration_mutex_ref = DURATION_IN_FRAMES.lock().unwrap();
             *duration_mutex_ref = duration;
@@ -48,6 +48,12 @@ macro_rules! setup_wasm_editor {
                 SCENES.lock().unwrap().replace(scenes);
             }
 
+            let mut font_wasm_db = FONTS.lock().unwrap();
+            let fonts= (&$static_media).get_all_font_data();
+            for font_data in (&$static_media).get_all_font_data() {
+                font_wasm_db.insert_font(font_data.into());
+            }
+
             Ok(video_metadata)
         }
 
@@ -61,15 +67,15 @@ macro_rules! setup_wasm_editor {
                 };
 
             let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
-            media_provider.audio.insert(file.clone(), audio_data);
+            media_provider.audio.insert(file.clone(), fframes::AudioData::Preloaded(audio_data));
         }
 
         #[wasm_bindgen]
-        pub fn add_subtitles_source(file: String, content: &str) -> usize {
-            use std::str::FromStr;
+        pub fn add_subtitles_source(file: String, content: String) -> usize {
+            use fframes::media::FFramesSubtitles;
 
-            let parsed_subtitle = Subtitles::parse(content).unwrap();
-            let phrases_count = parsed_subtitle.cues_count();
+            let parsed_subtitle = Subtitles::parse(&content).unwrap();
+            let phrases_count = (&parsed_subtitle).cues_count();
 
             let mut media_provider = MEDIA_PROVIDER
                 .lock()
@@ -143,10 +149,27 @@ macro_rules! setup_wasm_editor {
         pub fn ingest_font(slice: &[u8]) -> JsValue {
             use fframes::FontSource;
 
+            panic!("Regular ingest font");
+
             let mut fonts = FONTS.lock().unwrap();
-            let face_info = fonts.insert_font(slice.to_vec());
+            let face_info = fonts.insert_font(slice.to_vec().into());
 
             serde_wasm_bindgen::to_value(&face_info).unwrap()
+        }
+
+        #[wasm_bindgen]
+        pub fn get_static_font_data_by_index(index: usize) -> Option<wasm_font_source::StaticFontFace> {
+            let fonts = FONTS.lock().unwrap();
+            fframes::log!("fonts {}", fonts.static_fonts.len());
+            let res = fonts.static_fonts.get(index)?.clone();
+
+            Some(res)
+        }
+
+        #[wasm_bindgen]
+        pub fn get_static_audio_data_by_index(index: usize) -> Option<wasm_audio::AudioData> {
+            let audios = (&$static_media).get_all_audio_data();
+            audios.get(index).map(|static_audio|wasm_audio::AudioData::new(*static_audio))
         }
     };
 }

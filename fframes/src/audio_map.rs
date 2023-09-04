@@ -335,10 +335,13 @@ impl<'a> AudioMap<'a> {
 
     pub fn resolve_with_ctx<TUnit: AudioTimelineUnit + std::fmt::Debug>(
         &'a self,
-        tb: &FFramesContext,
+        ctx: &'a FFramesContext<'a>,
     ) -> error::Result<Option<ResolvedAudioMap<TUnit>>> {
-        self.resolve_with_scenes(tb.scenes, &tb.time_base, |filename| {
-            Ok(tb.get_audio_data(filename).duration_in_frames(tb))
+        self.resolve_with_scenes(ctx.scenes, &ctx.time_base, |filename| {
+            let audio_data = ctx.get_audio(filename).ok_or_else(|| {
+                crate::error::FFramesError::RequiredAudioNotFound(filename.to_string())
+            })?;
+            Ok(audio_data.duration_in_frames(&ctx.time_base))
         })
     }
 }

@@ -1,7 +1,9 @@
 pub use fframes::{animation, AnimateRuntimeInput, AudioMap, Frame, Svgr, Video};
-use fframes::{FFramesContext, VisualizeFrameInput};
+use fframes::{include_media_dir, FFramesContext, VisualizeFrameInput};
 
 const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
+
+include_media_dir!(pub struct MarketingMedia, "examples/marketing/media");
 
 fframes::lazy_static::lazy_static! {
     static ref SPRING_RUNTIME: animation::AnimationRuntime = animation::AnimationRuntime::from(&SPRING);
@@ -16,11 +18,12 @@ struct SpectrumValue<'a> {
 }
 
 #[derive(Debug)]
-pub struct MarketingVideo {
-    pub audio_track: &'static str,
+pub struct MarketingVideo<'a> {
+    pub audio_track: &'a str,
+    pub media: &'a MarketingMedia,
 }
 
-impl MarketingVideo {
+impl MarketingVideo<'_> {
     fn render_ferris(&self, frame: &Frame) -> Svgr {
         if !(2.3f32..5.0f32).contains(&frame.get_current_second()) {
             return Svgr::default();
@@ -201,7 +204,7 @@ const BAR_WIDTH_WITH_MARGIN: usize = BAR_SIZE + BAR_MARGIN;
 // viewbox width - space that all bars will take - right margin
 const SPECTRUM_LEN: usize = 1920 - BAR_WIDTH_WITH_MARGIN * PRETTY_SPECTRUM.len() - BAR_MARGIN;
 
-impl Video for MarketingVideo {
+impl Video for MarketingVideo<'_> {
     const FPS: usize = 60;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
@@ -220,10 +223,9 @@ impl Video for MarketingVideo {
         ])
     }
 
-    fn render_frame(&self, frame: fframes::Frame, ctx: &FFramesContext) -> Svgr {
-        let subtitles = ctx.get_subtitles("subtitles.vtt");
+    fn render_frame(&self, frame: fframes::Frame, _ctx: &FFramesContext) -> Svgr {
         let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
-            audio: ctx.get_audio_data(self.audio_track),
+            audio: &self.media.marketing_mp3,
             sample_size: fframes::SampleSize::S16,
             smooth_level: 3,
             window: Some(fframes::WindowFunction::Hamming),
@@ -352,13 +354,13 @@ impl Video for MarketingVideo {
               fill="white"
               font-family="Chalkboard SE"
             >
-              {frame.get_subtitle_phrase(&subtitles).unwrap_or("")}
+              {frame.get_subtitle_phrase(&self.media.subtitles_vtt).unwrap_or("")}
             </text>
 
             <image
               width="900"
               height="900"
-              href={ctx.get_image_link("code.png")}
+              href={self.media.code_png.href()}
               x={frame.animate(fframes::timeline!(
                   on 5.8, val -1000. => 40., &animation::Easing::Spring2(0.85, 80., 16.),
                   on 9.0, val 40. => -1200., &animation::Easing::Spring2(0.85, 80., 16.)

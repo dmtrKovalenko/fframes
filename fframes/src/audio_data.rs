@@ -1,4 +1,4 @@
-use crate::{audio_window_functions, media, FFramesContext};
+use crate::{audio_window_functions, media, TimeBase};
 use std::{convert::TryInto, ops::Range};
 
 #[derive(Clone, Debug)]
@@ -15,10 +15,17 @@ impl AudioData<'_> {
         }
     }
 
-    pub fn duration_in_frames(&self, ctx: &FFramesContext) -> usize {
+    pub fn duration_in_frames(&self, tb: &TimeBase) -> usize {
         match self {
             AudioData::Lazy => 0,
-            AudioData::Preloaded(data) => data.duration_in_frames(ctx.time_base.fps),
+            AudioData::Preloaded(data) => data.duration_in_frames(tb.fps),
+        }
+    }
+
+    pub fn sample_rate(&self) -> i32 {
+        match self {
+            AudioData::Lazy => 0,
+            AudioData::Preloaded(data) => data.sample_rate,
         }
     }
 

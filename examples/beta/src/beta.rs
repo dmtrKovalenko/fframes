@@ -115,7 +115,7 @@ impl Video for BetaVideo {
               height={Self::HEIGHT}
               x="0"
               y="0"
-              href={ctx.get_image_link("background.png")}
+              href={ctx.get_image_href("background.png")}
               fill="#fff"
             />
 

@@ -601,6 +601,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor-bridge"
+version = "0.1.0"
+dependencies = [
+ "fframes-editor-controller",
+ "marketing-example",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1895,6 +1904,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "podcast-editor-bridge"
+version = "0.1.0"
+dependencies = [
+ "fframes-editor-controller",
+ "podcast-example",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "podcast-example"
 version = "0.1.0"
 dependencies = [
@@ -2473,6 +2491,15 @@ dependencies = [
  "flate2",
  "jpeg-decoder",
  "weezl",
+]
+
+[[package]]
+name = "tiktok-editor-bridge"
+version = "0.1.0"
+dependencies = [
+ "fframes-editor-controller",
+ "tiktok-example",
+ "wasm-bindgen",
 ]
 
 [[package]]

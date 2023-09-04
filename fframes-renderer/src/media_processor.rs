@@ -1,14 +1,14 @@
-mod mp3;
 use crate::{fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult};
 use fframes::{
-    media::{decode_image, ImageData, Subtitles},
+    media::{decode_image, Subtitles},
     usvgr, DynamicMediaProvider,
 };
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    fs, io,
+    fs::{self, File},
+    io::{self},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -16,10 +16,12 @@ use std::{
 /// A struct representing owned media directory which can be used to process and fill
 /// the media provider. Basically represented as the vector of bytes where every media file is
 /// owned bytes vector.
-pub struct MediaDir(Vec<(PathBuf, Vec<u8>)>);
+pub struct MediaDirectory(Vec<(PathBuf, Vec<u8>)>);
 
-impl MediaDir {
-    pub(crate) fn read_folder(folder_path: impl AsRef<Path>) -> FFramesRendererResult<MediaDir> {
+impl MediaDirectory {
+    pub(crate) fn read_folder(
+        folder_path: impl AsRef<Path>,
+    ) -> FFramesRendererResult<MediaDirectory> {
         let mut folder_content = vec![];
 
         if !folder_path.as_ref().is_dir() {
@@ -38,7 +40,7 @@ impl MediaDir {
             }
         }
 
-        Ok(MediaDir(folder_content))
+        Ok(MediaDirectory(folder_content))
     }
 
     pub(crate) fn into_dynamic_media_provider(
@@ -69,12 +71,15 @@ impl MediaDir {
 
                     match extension {
                         "mp3" => {
-                            audio_hash
-                                .lock()?
-                                .insert(filename.to_owned(), mp3::decode_mp3(&path)?);
+                            let file = File::open(&path)?;
+                            audio_hash.lock()?.insert(
+                                filename.to_owned(),
+                                fframes::AudioData::Preloaded(fframes::media::decode_mp3(&file)?),
+                            );
                         }
                         "vtt" => {
                             let str_bytes = std::str::from_utf8(bytes.as_slice())?;
+
                             subtitles_hash.lock()?.insert(
                                 filename.to_owned(),
                                 Subtitles::parse(&str_bytes)
@@ -95,14 +100,6 @@ impl MediaDir {
                                 filename.to_owned(),
                                 Arc::new(decode_image(filename, &data)?),
                             );
-
-                            // image_hash.lock()?.insert(
-                            //     filename.to_owned(),
-                            //     ImageData {
-                            //         link: filename.to_owned(),
-                            //         base64: None,
-                            //     },
-                            // );
                         }
                         "DS_Store" => (),
                         _ => {
@@ -117,11 +114,11 @@ impl MediaDir {
 
         fontdb.lock()?.load_system_fonts();
         Ok((
-            DynamicMediaProvider {
-                audio: audio_hash.into_inner()?,
-                images: image_hash.into_inner()?,
-                subtitles: subtitles_hash.into_inner()?,
-            },
+            DynamicMediaProvider::new(
+                audio_hash.into_inner()?,
+                image_hash.into_inner()?,
+                subtitles_hash.into_inner()?,
+            ),
             fontdb.into_inner()?,
             usvgr_image_data.into_inner()?,
         ))

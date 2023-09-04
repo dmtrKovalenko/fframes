@@ -24,6 +24,9 @@ impl Video for HelloWorldVideo<'_> {
     fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
         const BACKGROUND_EASING: fframes::animation::Easing =
             fframes::animation::Easing::Linear(5.);
+        let font = &self.media.jetbrainsmono_regular_ttf;
+        let phrase = frame.get_subtitle_cue(&self.media.subtitles_vtt);
+        fframes::log!("{phrase:?}");
 
         fframes::svgr!(
            <svg
@@ -46,6 +49,12 @@ impl Video for HelloWorldVideo<'_> {
                   on 25., val Color::hex("#ecfdf5") => Color::hex("#faf5ff"), &BACKGROUND_EASING
                 ))
               }
+            />
+
+            <image
+              x="0"
+              y="0"
+              href={self.media.code_png.href()}
             />
 
             <text font-family="DM Sans" x="100" y="300" font-size="150">

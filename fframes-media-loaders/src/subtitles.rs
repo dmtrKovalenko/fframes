@@ -1,49 +1,123 @@
-use crate::error::{FFramesMediaError, Result};
-use std::error::Error;
+use std::{error::Error, fmt::Debug};
 pub use webvtt_parser::{self, Vtt, VttCue, VttError};
+use webvtt_parser::{OwnedVtt, OwnedVttCue};
 
 pub type SubtitlesError = FileVttParsingError;
 
-#[derive(Debug, Clone)]
-/// Represents any of supported specific to the format cue attributes
-pub enum CueVariant<'a> {
-    Vtt(&'a VttCue<'a>),
+pub trait FFramesSubtitlesCue<'a> {
+    fn text(&'a self) -> &'a str;
 }
 
-pub struct Cue<'a> {
-    pub index: usize,
-    pub variant: CueVariant<'a>,
+pub trait FFramesSubtitles<'a> {
+    type Cue: FFramesSubtitlesCue<'a> + Debug;
+
+    fn cues_count(&self) -> usize;
+    fn get_cue_by_time(&self, milliseconds: u64) -> Option<(usize, &Self::Cue)>;
+    fn get_cue_stack(&self, milliseconds: u64, overlap: u64) -> Vec<&Self::Cue>;
+    fn get_whole_text(&self) -> Vec<&str>;
+
+    fn validate_cue_fitting_frame(milliseconds: u64, cue: &Self::Cue) -> bool;
 }
 
-impl<'a> Cue<'a> {
-    pub fn text(&self) -> &'a str {
-        match self.variant {
-            CueVariant::Vtt(cue) => cue.text,
-        }
+impl FFramesSubtitlesCue<'_> for VttCue<'_> {
+    fn text(&self) -> &str {
+        self.text
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Subtitles<'a> {
-    subtitles: Vtt<'a>,
-}
+impl<'a> FFramesSubtitles<'a> for Vtt<'a> {
+    type Cue = VttCue<'a>;
 
-impl<'a> Subtitles<'a> {
-    pub fn cues_count(&self) -> usize {
-        self.subtitles.cues.len()
+    fn cues_count(&self) -> usize {
+        self.cues.len()
     }
 
-    pub fn parse(content: &'a str) -> Result<Subtitles<'a>> {
-        Vtt::parse(content)
-            .map(|subtitles| Subtitles { subtitles })
-            .map_err(FFramesMediaError::from)
+    fn get_cue_by_time(&self, milliseconds: u64) -> Option<(usize, &Self::Cue)> {
+        self.cues.iter().enumerate().rev().find_map(|(index, cue)| {
+            Self::validate_cue_fitting_frame(milliseconds, cue).then_some((index, cue))
+        })
+    }
+
+    fn get_cue_stack(&self, milliseconds: u64, overlap: u64) -> Vec<&Self::Cue> {
+        let (joining_milliseconds, is_overflowed) = milliseconds.overflowing_add(overlap);
+        let joining_milliseconds = if is_overflowed {
+            0
+        } else {
+            joining_milliseconds
+        };
+
+        self.cues
+            .iter()
+            .take_while(|cue| cue.start.as_milliseconds() < joining_milliseconds)
+            .collect()
+    }
+
+    fn get_whole_text(&self) -> Vec<&str> {
+        self.cues.iter().map(|cue| cue.text).collect::<Vec<&str>>()
+    }
+
+    fn validate_cue_fitting_frame(frame_milliseconds: u64, cue: &Self::Cue) -> bool {
+        frame_milliseconds >= cue.start.as_milliseconds()
+            && frame_milliseconds <= cue.end.as_milliseconds()
     }
 }
 
-fn validate_cue_fitting_frame(frame_milliseconds: u64, cue: &VttCue) -> bool {
-    frame_milliseconds >= cue.start.as_milliseconds()
-        && frame_milliseconds <= cue.end.as_milliseconds()
+impl FFramesSubtitlesCue<'_> for OwnedVttCue {
+    fn text(&self) -> &str {
+        self.text.as_str()
+    }
 }
+
+impl<'a> FFramesSubtitles<'a> for OwnedVtt {
+    type Cue = OwnedVttCue;
+
+    fn cues_count(&self) -> usize {
+        self.cues.len()
+    }
+
+    fn get_cue_by_time(&self, milliseconds: u64) -> Option<(usize, &Self::Cue)> {
+        self.cues.iter().enumerate().rev().find_map(|(index, cue)| {
+            Self::validate_cue_fitting_frame(milliseconds, cue).then_some((index, cue))
+        })
+    }
+
+    fn get_cue_stack(&self, milliseconds: u64, overlap: u64) -> Vec<&Self::Cue> {
+        let (joining_milliseconds, is_overflowed) = milliseconds.overflowing_add(overlap);
+        let joining_milliseconds = if is_overflowed {
+            0
+        } else {
+            joining_milliseconds
+        };
+
+        self.cues
+            .iter()
+            .take_while(|cue| cue.start.as_milliseconds() < joining_milliseconds)
+            .collect()
+    }
+
+    fn get_whole_text(&self) -> Vec<&str> {
+        self.cues
+            .iter()
+            .map(|cue| cue.text.as_str())
+            .collect::<Vec<&str>>()
+    }
+
+    fn validate_cue_fitting_frame(frame_milliseconds: u64, cue: &Self::Cue) -> bool {
+        frame_milliseconds >= cue.start.as_milliseconds()
+            && frame_milliseconds <= cue.end.as_milliseconds()
+    }
+}
+
+// A not for myself in the future:
+// This is a huge pain in the ass for WASM because we have no way to depend on some lifetime coming
+// from outside. So for now simply substitute the types so editor always using OwnedVtt version.
+// Likely need to replace with enum or Cow<'static, Vtt> like alternative.
+//
+#[cfg(not(target_arch = "wasm32"))]
+pub type Subtitles<'a> = Vtt<'a>;
+
+#[cfg(target_arch = "wasm32")]
+pub type Subtitles<'a> = OwnedVtt;
 
 #[derive(Debug)]
 pub enum FileVttParsingError {
@@ -61,50 +135,3 @@ impl std::fmt::Display for FileVttParsingError {
 }
 
 impl Error for FileVttParsingError {}
-
-impl<'a> Subtitles<'a> {
-    /// Returns the latest cue which timestamp range fits current frame.
-    /// Cue includes the text and additional metadata available in the vtt file.
-    pub fn get_cue_by_time(&'a self, milliseconds: u64) -> Option<Cue<'a>> {
-        self.subtitles
-            .cues
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(index, cue)| {
-                validate_cue_fitting_frame(milliseconds, cue).then_some(Cue {
-                    index,
-                    variant: CueVariant::Vtt(cue),
-                })
-            })
-    }
-
-    pub fn get_cue_stack(&'a self, milliseconds: u64, overlap: u64) -> Vec<Cue<'a>> {
-        let (joining_milliseconds, is_overflowed) = milliseconds.overflowing_add(overlap);
-        let joining_milliseconds = if is_overflowed {
-            0
-        } else {
-            joining_milliseconds
-        };
-
-        self.subtitles
-            .cues
-            .iter()
-            .take_while(|cue| cue.start.as_milliseconds() < joining_milliseconds)
-            .enumerate()
-            .map(|(index, cue)| Cue {
-                index,
-                variant: CueVariant::Vtt(cue),
-            })
-            .collect()
-    }
-
-    /// Returns the text of all the cues within subtitles file
-    pub fn get_whole_text(&self) -> Vec<&str> {
-        self.subtitles
-            .cues
-            .iter()
-            .map(|cue| cue.text)
-            .collect::<Vec<&str>>()
-    }
-}

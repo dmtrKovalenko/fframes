@@ -6,9 +6,7 @@ use crate::{
 use std::sync::Arc;
 
 /// The base fframes video trait. It represents how to render a video for a struct which becomes an
-/// input of the video. 
-///
-///
+/// input of the video.
 pub trait Video: Sync + Sized {
     const FPS: usize;
     const WIDTH: usize;

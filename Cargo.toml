@@ -10,9 +10,13 @@ members = [
     "fframes-media-loaders",
     "examples/marketing",
     "examples/podcast",
+    "examples/podcast/editor/editor-bridge",
     "examples/hello-world",
     "examples/hello-world/editor/editor-bridge",
+    "examples/marketing",
+    "examples/marketing/editor/editor-bridge",
     "examples/tiktok",
+    "examples/tiktok/editor/editor-bridge",
     "examples/low-poly-art",
     "examples/beta",
 ]

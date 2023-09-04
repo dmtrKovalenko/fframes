@@ -1,6 +1,7 @@
 mod cue_settings_parser;
 pub mod error;
 mod vtt_parser;
+
 pub use error::VttError;
 use nom_locate::LocatedSpan;
 use std::collections::HashMap;
@@ -10,7 +11,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 const START_MARKER: &str = "WEBVTT";
 
 /// A start/end time of
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Time(pub(crate) u64);
 
 impl Time {
@@ -25,10 +26,7 @@ impl Time {
     }
 }
 
-pub fn div_rem<T: std::ops::Div<Output = T> + std::ops::Rem<Output = T> + Copy>(
-    x: T,
-    y: T,
-) -> (T, T) {
+fn div_rem<T: std::ops::Div<Output = T> + std::ops::Rem<Output = T> + Copy>(x: T, y: T) -> (T, T) {
     let quot = x / y;
     let rem = x % y;
     (quot, rem)
@@ -166,7 +164,7 @@ impl Display for VttCueSettings {
 }
 
 /// A subtitle and associated metadata
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct VttCue<'a> {
     pub start: Time,
     pub end: Time,
@@ -182,6 +180,55 @@ pub struct VttCue<'a> {
     pub cue_settings: Option<VttCueSettings>,
 }
 
+impl<'a> Into<&'a str> for VttCue<'a> {
+    fn into(self) -> &'a str {
+        self.text
+    }
+}
+
+/// Totally same as VttCue but owns the data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwnedVttCue {
+    pub start: Time,
+    pub end: Time,
+    pub name: Option<String>,
+    pub text: String,
+    pub note: Option<String>,
+    pub cue_settings: Option<VttCueSettings>,
+}
+
+impl<'a> Into<&'a str> for &'a OwnedVttCue {
+    fn into(self) -> &'a str {
+        &self.text
+    }
+}
+
+impl OwnedVttCue {
+    pub fn as_ref<'a>(&'a self) -> VttCue<'a> {
+        VttCue {
+            start: self.start,
+            end: self.end,
+            name: self.name.as_deref(),
+            text: self.text.as_ref(),
+            note: self.note.as_deref(),
+            cue_settings: self.cue_settings,
+        }
+    }
+}
+
+impl VttCue<'_> {
+    pub fn to_owned(&self) -> OwnedVttCue {
+        OwnedVttCue {
+            start: self.start,
+            end: self.end,
+            name: self.name.map(|name| name.to_owned()),
+            text: self.text.to_owned(),
+            note: self.note.map(|note| note.to_owned()),
+            cue_settings: self.cue_settings,
+        }
+    }
+}
+
 impl Display for VttCue<'_> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(
@@ -192,7 +239,7 @@ impl Display for VttCue<'_> {
                 .map(|comment| format!("NOTE {comment}\n"))
                 .unwrap_or_else(|| "".to_owned()),
             self.name
-               .as_ref()
+                .as_ref()
                 .map(|comment| format!("NOTE {comment}\n"))
                 .unwrap_or_else(|| "".to_owned()),
             self.start,
@@ -209,10 +256,85 @@ impl Display for VttCue<'_> {
 /// (web)VTT — Web Video Text Tracks
 /// This struct represents a parsed VTT file. It contains a list of cues and optional metadata.
 ///
+/// Make sure that this version is used when you need to own the data. If its possible please use
+/// the `Vtt` struct instead.
+///
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct OwnedVtt {
+    /// Top level key-value metadata pairs that might be populated at the very top of the subtitles
+    /// file. For example:
+    ///
+    /// ```text
+    /// WEBVTT
+    /// Kind: captions
+    /// Language: en
+    /// ```
+    pub slugs: HashMap<String, String>,
+    /// Optional global css style can be populated at the very top of the file.
+    /// If it is present it might be applied globally to all cues.
+    ///
+    /// For example:
+    /// ```text
+    /// STYLE
+    /// ::cue {
+    ///    background-image: linear-gradient(to bottom, dimgray, lightgray);
+    ///    color: papayawhip;
+    ///    font-size: 50px;
+    ///    text-align: center;
+    ///    font-family: monospace;
+    ///  }
+    /// ```
+    pub style: Option<String>,
+    /// A list of cues that are present in the file.
+    /// Each cue contains a start and end time, text and optional cue settings.
+    ///
+    /// For example:
+    /// ```text
+    /// WEBVTT
+    /// 00:00.000 --> 00:05.000
+    /// Hey subtitle one
+    /// ```
+    pub cues: Vec<OwnedVttCue>,
+}
+
+/// (web)VTT — Web Video Text Tracks
+/// This struct represents a parsed VTT file. It contains a list of cues and optional metadata.
+///
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Vtt<'a> {
+    /// Top level key-value metadata pairs that might be populated at the very top of the subtitles
+    /// file. For example:
+    ///
+    /// ```text
+    /// WEBVTT
+    /// Kind: captions
+    /// Language: en
+    /// ```
     pub slugs: HashMap<&'a str, &'a str>,
+    /// Optional global css style can be populated at the very top of the file.
+    /// If it is present it might be applied globally to all cues.
+    ///
+    /// For example:
+    /// ```text
+    /// STYLE
+    /// ::cue {
+    ///    background-image: linear-gradient(to bottom, dimgray, lightgray);
+    ///    color: papayawhip;
+    ///    font-size: 50px;
+    ///    text-align: center;
+    ///    font-family: monospace;
+    ///  }
+    /// ```
     pub style: Option<&'a str>,
+    /// A list of cues that are present in the file.
+    /// Each cue contains a start and end time, text and optional cue settings.
+    ///
+    /// For example:
+    /// ```text
+    /// WEBVTT
+    /// 00:00.000 --> 00:05.000
+    /// Hey subtitle one
+    /// ```
     pub cues: Vec<VttCue<'a>>,
 }
 
@@ -242,10 +364,49 @@ impl<'a> Vtt<'a> {
         let content = Span::from(content);
 
         let (_, vtt) = vtt_parser::parse(content)?;
-
         Ok(vtt)
     }
+
+    /// Clones all the borrowes strings and returns the owned oversion of the vtt data.
+    pub fn to_owned(&self) -> OwnedVtt {
+        OwnedVtt {
+            slugs: self
+                .slugs
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect(),
+            style: self.style.map(|style| style.to_owned()),
+            cues: self.cues.iter().map(|cue| cue.to_owned()).collect(),
+        }
+    }
 }
+
+impl OwnedVtt {
+    pub fn parse(content: &str) -> Result<Self, VttError> {
+        let borrowed_vtt = Vtt::parse(content)?;
+
+        Ok(borrowed_vtt.to_owned())
+    }
+}
+
+impl<'a> Into<Vtt<'a>> for &'a OwnedVtt {
+    fn into(self) -> Vtt<'a> {
+        Vtt {
+            slugs: self
+                .slugs
+                .iter()
+                .map(|(key, value)| (key.as_str(), value.as_str()))
+                .collect(),
+            style: self.style.as_deref(),
+            cues: self.cues.iter().map(|cue| cue.as_ref()).collect(),
+        }
+    }
+}
+
+pub trait ASubtitle {}
+
+impl ASubtitle for OwnedVtt {}
+impl ASubtitle for Vtt<'_> {}
 
 impl Display for Vtt<'_> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {

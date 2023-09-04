@@ -4,6 +4,7 @@ import * as Curry from "rescript/lib/es6/curry.js";
 import * as Utils from "../Utils.bs.js";
 import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
+import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as UseObservable from "../hooks/useObservable.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
 import * as MediaResolvers from "./MediaResolvers";
@@ -57,6 +58,8 @@ var resolveAudio = MediaResolvers.resolveAudio;
 
 var resolveSubtitles = MediaResolvers.resolveSubtitles;
 
+var resolveStaticFonts = MediaResolvers.resolveStaticFonts;
+
 var resolveFont = MediaResolvers.resolveFont;
 
 var resolveImage = MediaResolvers.resolveImage;
@@ -70,31 +73,53 @@ function resolveMedia(name, media) {
   return /* MediaResolved */0;
 }
 
-function processImports(imports, wasmController, options) {
+function populateInlinedMedia(wasmController, options) {
+  var fonts_loader = Curry._1(resolveStaticFonts, {
+        wasmController: wasmController,
+        wasmControllerOptions: options
+      });
+  return Promise.all([fonts_loader]);
+}
+
+function processDynamicMedia(imports, wasmController, options) {
   Curry._1(MediaLoaderObserver.dispatch, {
         TAG: /* InitMediaProcessing */0,
         _0: imports
       });
   return Promise.all(Belt_Array.keepMap(Object.entries(imports), (function (param) {
-                      var moduleVal = param[1];
-                      var moduleRelativePath = param[0];
-                      var name = Utils.Path.getFilename(moduleRelativePath);
-                      if (Utils.$$Option.unwrapOr(Belt_Option.map(options.ignoreMediaRegex, (function (regex) {
-                                    return regex.test(moduleRelativePath);
-                                  })), false)) {
-                        return ;
-                      } else {
-                        return Belt_Option.map(name.endsWith(".mp3") ? resolveAudio : (
-                                      name.endsWith(".vtt") ? resolveSubtitles : (
-                                          name.endsWith(".ttf") || name.endsWith(".otf") ? resolveFont : (
-                                              name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") ? Curry._1(resolveImage, options) : undefined
-                                            )
-                                        )
-                                    ), (function (resolveFn) {
-                                      return Curry._3(resolveFn, name, moduleVal, wasmController);
-                                    }));
-                      }
-                    }))).then(function (param) {
+                    var moduleVal = param[1];
+                    var moduleRelativePath = param[0];
+                    var name = Utils.Path.getFilename(moduleRelativePath);
+                    if (Utils.$$Option.unwrapOr(Belt_Option.map(options.ignoreMediaRegex, (function (regex) {
+                                  return regex.test(moduleRelativePath);
+                                })), false)) {
+                      return ;
+                    } else {
+                      return Belt_Option.map(name.endsWith(".mp3") ? resolveAudio : (
+                                    name.endsWith(".vtt") ? resolveSubtitles : (
+                                        name.endsWith(".ttf") || name.endsWith(".otf") ? resolveFont : (
+                                            name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") ? resolveImage : undefined
+                                          )
+                                      )
+                                  ), (function (resolveFn) {
+                                    return Curry._1(resolveFn, {
+                                                name: name,
+                                                url: moduleVal,
+                                                wasmController: wasmController,
+                                                wasmControllerOptions: options
+                                              });
+                                  }));
+                    }
+                  })));
+}
+
+function processMedia(dynamicImports, wasmController, options) {
+  return Promise.all([
+                populateInlinedMedia(wasmController, options),
+                dynamicImports !== undefined ? processDynamicMedia(Caml_option.valFromOption(dynamicImports), wasmController, options).then(function (param) {
+                        
+                      }) : Promise.resolve(undefined)
+              ]).then(function (param) {
               return Curry._1(MediaLoaderObserver.dispatch, /* MediaProcessingFinished */0);
             });
 }
@@ -107,10 +132,13 @@ export {
   MediaLoaderObserver ,
   resolveAudio ,
   resolveSubtitles ,
+  resolveStaticFonts ,
   resolveFont ,
   resolveImage ,
   resolveMedia ,
-  processImports ,
+  populateInlinedMedia ,
+  processDynamicMedia ,
+  processMedia ,
   
 }
 /* MediaLoaderObserver Not a pure module */

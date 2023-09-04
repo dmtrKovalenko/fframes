@@ -17,6 +17,8 @@ pub enum FFramesError {
     Overflow(String, usize),
     /// Svg parser error
     ParserError(usvgr::Error),
+    /// This error means that audio that were required to calculate the duration was not found
+    RequiredAudioNotFound(String),
     MediaError(crate::media::FFramesMediaError),
 }
 
@@ -34,6 +36,7 @@ impl fmt::Display for FFramesError {
                 FFramesError::UserError(err) => format!("Custom error:\n{}", err),
                 FFramesError::ParserError(err) => format!("SVG parsing error: {err:?}"),
                 FFramesError::MediaError(err) => format!("Media parsing error: {err:?}"),
+                FFramesError::RequiredAudioNotFound(audio) => format!("The required audio for resolving video duration {audio} was not found."),
             }
         )
     }

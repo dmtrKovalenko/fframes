@@ -10,4 +10,5 @@ impl<'a> StaticFontFace<'a> {
 
         Ok(Self { face })
     }
+    
 }
