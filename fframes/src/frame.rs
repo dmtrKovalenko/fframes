@@ -195,9 +195,9 @@ impl Frame {
     /// });
     ///
     /// ```  
-    pub fn text_break_lines<'a: 'b, 'b>(
+    pub fn text_break_lines<'a: 'b, 'b, 'media: 'a>(
         &mut self,
-        ctx: &crate::FFramesContext<'a>,
+        ctx: &crate::FFramesContext<'a, 'media>,
         value: &'b str,
         opts: &BreakLinesOpts,
     ) -> Option<crate::Svgr> {
@@ -225,9 +225,9 @@ impl Frame {
     /// Same as `text_break_lines` but returns inner lines structure instead of ready-to-render svgr.
     /// It may be used to customize renderer of wrapped text lines. Every line contains `dx` and `dy` fields which must
     /// be passed to `dx={line.dx} dy={line.dy}` attribute of the every line <tspan> element.
-    pub fn text_break_lines_strcuture<'a: 'b, 'b>(
+    pub fn text_break_lines_strcuture<'a: 'b, 'b, 'media: 'a>(
         &mut self,
-        ctx: &crate::FFramesContext<'a>,
+        ctx: &crate::FFramesContext<'a, 'media>,
         value: &'b str,
         opts: &BreakLinesOpts,
     ) -> Option<WrappedTextStructure> {

@@ -7,8 +7,8 @@ use rayon::prelude::*;
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    fs::{self, File},
-    io::{self},
+    fs,
+    io::{self, Cursor},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -16,6 +16,8 @@ use std::{
 /// A struct representing owned media directory which can be used to process and fill
 /// the media provider. Basically represented as the vector of bytes where every media file is
 /// owned bytes vector.
+///
+/// Video trait implementation provides direct access to the bytes owned by this struct.
 pub struct MediaDirectory(Vec<(PathBuf, Vec<u8>)>);
 
 impl MediaDirectory {
@@ -68,17 +70,16 @@ impl MediaDirectory {
                     .zip(path.file_name().and_then(OsStr::to_str))
                 {
                     logger.log_media_processing_start(filename, &path);
-
                     match extension {
                         "mp3" => {
-                            let file = File::open(&path)?;
+                            let audio_data = fframes::media::decode_mp3(Cursor::new(bytes))?;
                             audio_hash.lock()?.insert(
                                 filename.to_owned(),
-                                fframes::AudioData::Preloaded(fframes::media::decode_mp3(&file)?),
+                                fframes::AudioData::Preloaded(audio_data),
                             );
                         }
                         "vtt" => {
-                            let str_bytes = std::str::from_utf8(bytes.as_slice())?;
+                            let str_bytes = std::str::from_utf8(&bytes)?;
 
                             subtitles_hash.lock()?.insert(
                                 filename.to_owned(),
@@ -87,11 +88,8 @@ impl MediaDirectory {
                             );
                         }
                         "ttf" | "ttc" | "otf" | "otc" => {
-                            if let Some(font_path) = path.to_str() {
-                                let data = std::fs::read(font_path)?;
-
-                                fontdb.lock()?.load_font_data(data);
-                            }
+                            let data = std::fs::read(path)?;
+                            fontdb.lock()?.load_font_file(path);
                         }
                         "jpg" | "jpeg" | "png" => {
                             let data = fs::read(&path)?;

@@ -1,13 +1,11 @@
-
-
 import * as videoWasmBinding from "./editor-bridge/pkg/editor-bridge";
-import { kek, renderEditor } from "fframes-editor";
+import { renderEditor } from "fframes-editor";
 import "fframes-editor/dist/fframes-editor.css";
 
 renderEditor(
+  videoWasmBinding,
   import.meta.glob("../media/*", {
     as: "url",
     eager: true,
-  }),
-  videoWasmBinding
+  })
 );

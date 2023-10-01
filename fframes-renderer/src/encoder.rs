@@ -25,9 +25,11 @@ extern "C" {
 
 #[derive(Debug, Clone)]
 pub struct EncoderOptions<'a> {
-    /// If several codecs available for specified format output here you can specify the ffmpeg compatible name of the video codec that should be used to encode.
+    /// If several codecs available for specified format output here you can specify the libav (ffmpeg) compatible name of the video codec that should be used to encode.
     pub preferred_video_codec: Option<&'a str>,
-    /// If several codecs available for specified format output here you can specify the ffmpeg compatible name of the audio codec that should be used to encode.
+    /// If several codecs available for specified format output here you can specify the libav (ffmpeg) compatible name of the audio codec that should be used to encode.
+    /// If not provided or the name is invalid or the codec is not compatible with the output
+    /// container format fallback to the first available codec for the specified output format.
     pub preferred_audio_codec: Option<&'a str>,
     /// Pixel format used to store encoded frame. By default equals to AVPixelFormat::AV_PIX_FMT_YUV420P
     /// @default AV_PIX_FMT_YUV420P
@@ -58,7 +60,7 @@ pub struct EncoderOptions<'a> {
     pub gop_size: i32,
     /// Output sample rate of the final video file
     /// @default 44100
-    pub sample_rate: Option<i32>,
+    pub sample_rate: usize,
     /// Directory used to store temporary files and artifacts generated for rendering and encoding.
     pub tmp_files_directory: Option<&'a PathBuf>,
     /// Dynamic set of options specific to encoder. Every encoder accepts its own purely dynamic set of options, e.g.
@@ -98,7 +100,7 @@ impl<'a> Default for EncoderOptions<'a> {
             qmax: 51,
             qmin: 10,
             sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
-            sample_rate: None,
+            sample_rate: 44100,
             tmp_files_directory: None,
             video_bitrate: None,
         }

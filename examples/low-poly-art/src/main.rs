@@ -3,10 +3,9 @@ use low_poly_art_example::LowPolyVideo;
 
 fn main() {
     render(
-        LowPolyVideo {},
+        &LowPolyVideo {},
         "out.mp4",
         RenderOptions {
-            media_dir: "./media",
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 // Not that big cache capacity because the whole sub-svg will be cached

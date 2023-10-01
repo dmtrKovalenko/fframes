@@ -2,10 +2,7 @@ use fframes::{
     ttf_parser::{self},
     FontStretch, FontStyle,
 };
-use std::{
-    borrow::{Borrow, Cow},
-    collections::HashMap,
-};
+use std::{borrow::Cow, collections::HashMap};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, fframes::serde::Serialize)]
@@ -22,6 +19,7 @@ pub struct FaceInfo {
 #[derive(Debug, Clone)]
 pub struct StaticFontFace {
     data: &'static [u8],
+    filename: &'static str,
     info: FaceInfo,
 }
 
@@ -31,9 +29,15 @@ impl StaticFontFace {
     pub fn data(&self) -> js_sys::Uint8Array {
         js_sys::Uint8Array::from(self.data)
     }
+
     #[wasm_bindgen(getter)]
     pub fn info(&self) -> JsValue {
         serde_wasm_bindgen::to_value(&self.info).unwrap()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn name(&self) -> String {
+        self.filename.to_string()
     }
 }
 
@@ -52,11 +56,14 @@ impl WasmFontSource {
         }
     }
 
-    pub fn insert_font(&mut self, data: Cow<'static, [u8]>) -> Option<FaceInfo> {
+    pub fn insert_font(
+        &mut self,
+        data: Cow<'static, [u8]>,
+        filename: Option<&'static str>,
+    ) -> Option<FaceInfo> {
+        fframes::log!("{}", matches!(data, Cow::Borrowed(_)));
         let face = ttf_parser::Face::parse(&data, 0).ok()?;
         let name_bytes = parse_family_name(face.raw_face())?;
-
-        fframes::log!("is borrowed {}", matches!(data, Cow::Borrowed(_)));
 
         let face_info = FaceInfo {
             name: name_bytes,
@@ -65,15 +72,19 @@ impl WasmFontSource {
             style: face.style().into(),
         };
 
-        match data {
-            Cow::Borrowed(borrowed_data) => self.static_fonts.push(StaticFontFace {
-                data: borrowed_data,
-                info: face_info.clone(),
-            }),
+        match (&data, filename) {
+            (Cow::Borrowed(borrowed_data), Some(filename)) => {
+                fframes::log!("{filename}");
+                self.static_fonts.push(StaticFontFace {
+                    filename,
+                    data: borrowed_data,
+                    info: face_info.clone(),
+                })
+            }
             _ => (),
         }
-        self.data.insert(face_info.clone(), data);
 
+        self.data.insert(face_info.clone(), data);
         Some(face_info)
     }
 }

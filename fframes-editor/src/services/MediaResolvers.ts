@@ -10,14 +10,10 @@ import { fontInfo } from "src/WasmController.gen";
 
 const audioContext = new AudioContext();
 
-async function prepareAudioData(arrayBuffer: ArrayBuffer, name: string) {
-
-}
-
 export const resolveAudio: MediaResolver = async ({
-  name,
   url,
   wasmController,
+  name,
 }) => {
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
@@ -41,13 +37,43 @@ export const resolveAudio: MediaResolver = async ({
   return resolveMedia(name, {
     tag: "Audio",
     value: {
-      arrayBuffer,
       audioData,
       monoPcmData: monoPcm,
       sampleRate: data.samplingRate,
       duration: monoPcm.length / data.samplingRate,
     },
   });
+};
+
+export const resolveStaticAudios: StaticMediaResolver = async ({
+  wasmController,
+}) => {
+  let i = 0;
+  while (true) {
+    let audio = wasmController.get_static_audio_data_by_index(i);
+    if (!audio) {
+      break;
+    }
+
+    const audioBuffer = audioContext.createBuffer(
+      1,
+      audio.fltp_data.length,
+      audio.sample_rate
+    );
+    audioBuffer.copyToChannel(audio.fltp_data, 0);
+
+    resolveMedia(audio.name, {
+      tag: "Audio",
+      value: {
+        audioData: audioBuffer,
+        sampleRate: audio.sample_rate,
+        duration: audio.mono_pcm_data.length / audio.sample_rate,
+        monoPcmData: audio.mono_pcm_data,
+      },
+    });
+
+    i++;
+  }
 };
 
 async function prepareFontMediaData(
@@ -57,6 +83,7 @@ async function prepareFontMediaData(
   url?: string
 ) {
   const decoder = new TextDecoder("utf-8");
+  console.log({ fontInfo });
   let fontName = fontInfo.name
     ? decoder.decode(new Uint8Array(fontInfo.name).buffer)
     : "unknown";
@@ -91,7 +118,6 @@ export const resolveStaticFonts: StaticMediaResolver = async ({
   let fonts = [];
   while (true) {
     let font = wasmController.get_static_font_data_by_index(i);
-
     if (!font) {
       break;
     }
@@ -100,10 +126,9 @@ export const resolveStaticFonts: StaticMediaResolver = async ({
     i++;
   }
 
-  return Promise.all(
-    fonts.map(({ data, fontInfo }) => {
-      console.log({ data, fontInfo });
-      return prepareFontMediaData(fontInfo, data.buffer, "", "");
+  await Promise.all(
+    fonts.map(({ data, info, name }) => {
+      return prepareFontMediaData(info, data.buffer, name);
     })
   );
 };
@@ -168,7 +193,7 @@ export const resolveImage: MediaResolver = async ({
   const image = await loadImage(url);
   const base64 =
     image.naturalHeight * image.naturalWidth >
-    wasmControllerOptions.dynamicImageLengthLimit
+      wasmControllerOptions.dynamicImageLengthLimit
       ? null
       : imageToBase64(image);
 

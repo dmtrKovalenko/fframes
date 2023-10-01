@@ -1,4 +1,6 @@
-use fframes::{include_media_dir, AudioMap, Color, FFramesContext, Frame, Video};
+use fframes::{
+    include_media_dir, AudioMap, Color, FFramesContext, Frame, Video, VideoMaybeWithStaticMedia,
+};
 
 include_media_dir!(pub struct HelloWorldMedia, "examples/hello-world/media");
 
@@ -8,13 +10,19 @@ pub struct HelloWorldVideo<'a> {
     pub media: &'a HelloWorldMedia,
 }
 
+// impl<'a> VideoMaybeWithStaticMedia<'a, HelloWorldMedia> for HelloWorldVideo<'a> {
+//     fn media(&'a self) -> std::option::Option<&HelloWorldMedia> {
+//         Some(self.media)
+//     }
+// }
+//
 impl Video for HelloWorldVideo<'_> {
     const FPS: usize = 30;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Seconds(20.)
+        fframes::Duration::Seconds(30.)
     }
 
     fn audio(&self) -> AudioMap {

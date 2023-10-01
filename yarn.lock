@@ -1289,7 +1289,7 @@ has@^1.0.3:
   resolved "file:examples/hello-world/editor"
   dependencies:
     fframes-editor "*"
-    wasm-pack "^0.10.3"
+    wasm-pack "^0.12.1"
 
 hosted-git-info@^2.1.4:
   version "2.8.9"

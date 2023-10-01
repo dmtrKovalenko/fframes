@@ -33,7 +33,7 @@ fn compile_time_svg() {
                 sample_rate: 44100,
             },
             mode: fframes::FFramesMode::Renderer,
-            media_provider: &media_provider,
+            media_source: &media_provider,
             duration_in_frames: timeline.duration_in_frames,
             font_source: None,
             scenes: None,

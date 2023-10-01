@@ -16,7 +16,9 @@ members = [
     "examples/marketing",
     "examples/marketing/editor/editor-bridge",
     "examples/tiktok",
+    "examples/tiktok/media",
     "examples/tiktok/editor/editor-bridge",
+    "examples/marketing/editor/editor-bridge",
     "examples/low-poly-art",
     "examples/beta",
 ]

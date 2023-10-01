@@ -4,7 +4,7 @@ module Promise = Js.Promise
 type audioInfo = {
   duration: float,
   sampleRate: int,
-  arrayBuffer: Js.ArrayBuffer.t,
+  // arrayBuffer: Js.ArrayBuffer.t,
   audioData: WebAudio.AudioBuffer.t,
   monoPcmData: Js.Int16Array.t,
 }
@@ -88,9 +88,7 @@ type staticMediaResolverOptions = {
 }
 
 @genType.as("StaticMediaResolver")
-type staticMediaResolver = staticMediaResolverOptions => Js.Promise.t<
-  array<forceTsReturnResolveMedia>,
->
+type staticMediaResolver = staticMediaResolverOptions => Js.Promise.t<unit>
 
 @genType.as("MediaResolver")
 type mediaResolveFnWithOptions = mediaResolverOptions => Js.Promise.t<forceTsReturnResolveMedia>
@@ -98,11 +96,13 @@ type mediaResolveFnWithOptions = mediaResolverOptions => Js.Promise.t<forceTsRet
 @module("./MediaResolvers") external resolveAudio: mediaResolveFnWithOptions = "resolveAudio"
 @module("./MediaResolvers")
 external resolveSubtitles: mediaResolveFnWithOptions = "resolveSubtitles"
+@module("./MediaResolvers") external resolveFont: mediaResolveFnWithOptions = "resolveFont"
+@module("./MediaResolvers") external resolveImage: mediaResolveFnWithOptions = "resolveImage"
 
 @module("./MediaResolvers")
 external resolveStaticFonts: staticMediaResolver = "resolveStaticFonts"
-@module("./MediaResolvers") external resolveFont: mediaResolveFnWithOptions = "resolveFont"
-@module("./MediaResolvers") external resolveImage: mediaResolveFnWithOptions = "resolveImage"
+@module("./MediaResolvers")
+external resolveStaticAudios: staticMediaResolver = "resolveStaticAudios"
 
 // This is pretty dumb of how genType works for typescript.
 // It only maps public types to the internal types when using public API, so we can't do this on Promise.then step
@@ -118,12 +118,18 @@ let populateInlinedMedia = (
   ~wasmController: WasmController.t,
   ~options: WasmController.options,
 ) => {
+  wasmController.populate_static_fonts_db_with_static_fonts()
   let fonts_loader = resolveStaticFonts({
     wasmController: wasmController,
     wasmControllerOptions: options,
   })
 
-  Promise.all([fonts_loader])
+  let audios_loader = resolveStaticAudios({
+    wasmController: wasmController,
+    wasmControllerOptions: options,
+  })
+
+  Promise.all([fonts_loader, audios_loader])
 }
 
 @genType

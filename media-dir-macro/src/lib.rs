@@ -54,24 +54,39 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
 
     let fonts_identifiers = media_files
         .iter()
-        .filter_map(|MediaFile { variant, ident, .. }| {
-            matches!(variant, MediaVariant::Font).then_some(quote! { self.#ident })
+        .filter_map(|MediaFile { variant, ident, filename, .. }| {
+            matches!(variant, MediaVariant::Font).then_some(quote! { ( &self.#ident, #filename )})
         })
         .collect::<Vec<_>>();
     let audio_identifiers = media_files
         .iter()
-        .filter_map(|MediaFile { variant, ident, .. }| {
-            matches!(variant, MediaVariant::Audio).then_some(quote! { &self.#ident })
+        .filter_map(|MediaFile { variant, ident, filename, .. }| {
+            matches!(variant, MediaVariant::Audio).then_some(quote! { ( &self.#ident, #filename )})
         })
         .collect::<Vec<_>>();
 
     quote! {
+        // This is a workaround to force include_bytes which is the way we inline styles to force
+        // the alignment of the plain &'static [u8] to be aligned with i16 which we use for audio
+        // data.
+        //
+        // More info here https://jack.wrenn.fyi/blog/include-transmute/
+        #[repr(align(16))]
+        struct AudioAlign;
+
+        #[repr(C)]
+        #[repr(align(16))]
+        struct AudioInlinedWithSafeAlign<Bytes: ?Sized> { 
+            pub _align: [AudioAlign; 0],
+            pub bytes: Bytes
+        }
+
         #[derive(Debug)]
         #visibility struct #ident {
             #(#fields)*
         }
 
-        impl #fframes_crate_ident::StaticMediaProvider for #ident {
+        impl #fframes_crate_ident::StaticMediaProvider<'_> for #ident {
             fn prepare() -> #fframes_crate_ident::error::Result<Self> {
                 Ok(Self {
                     #(#instantiate_fields)*
@@ -79,7 +94,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl #fframes_crate_ident::MediaProvider for #ident {
+        impl #fframes_crate_ident::MediaProvider<'_> for #ident {
             fn resolve_audio(&self, name: &str) -> Option<&#fframes_crate_ident::AudioData> {
                 match name {
                     #(#audio_handle_tokens)*
@@ -109,13 +124,13 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
                 None
             }
 
-            fn get_all_font_data(&self) -> Vec<&[u8]> {
+            fn get_all_font_data(&self) -> Vec<(&[u8], &str)> {
                 vec![ 
                     #(#fonts_identifiers),*
                 ]
             }
 
-            fn get_all_audio_data(&self) -> Vec<&#fframes_crate_ident::AudioData> { 
+            fn get_all_audio_data(&self) -> Vec<(&#fframes_crate_ident::AudioData, &str)> { 
                vec![
                     #(#audio_identifiers),*
                ]
@@ -161,6 +176,7 @@ impl MediaVariant {
 #[derive(Debug)]
 struct MediaFile {
     path: PathBuf,
+    filename: String,
     ident: syn::Ident,
     variant: MediaVariant,
 }
@@ -208,12 +224,13 @@ impl MediaFile {
                     #fframes_crate_ident::AudioData::Preloaded(
                         #fframes_crate_ident::media::PreloadedAudioData {
                             samples: {
-                                let literal = #literal;
-                                // TODO investigate why it fails when passing literal directlry to
-                                // the cast_clise
-                                // fframes::log!("BYTESLEN {} {}", #name, #literal.len());
+                                static ALIGNED_LITERAL: &AudioInlinedWithSafeAlign<[u8]> = &AudioInlinedWithSafeAlign { 
+                                    _align: [],
+                                    bytes: *#literal
+                                };
+
                                 std::borrow::Cow::Borrowed(
-                                    #fframes_crate_ident::bytemuck::cast_slice::<u8, i16>(#literal)
+                                    #fframes_crate_ident::bytemuck::cast_slice::<u8, i16>(&ALIGNED_LITERAL.bytes)
                                 )
                             },
                             sample_rate: #sample_rate,
@@ -269,10 +286,9 @@ impl MediaFile {
         let MediaFile {
             variant,
             ident,
-            path,
+            filename,
+            ..
         } = self;
-
-        let filename = path.file_name().and_then(|f| f.to_str()).unwrap();
 
         if variant == &target_variant && target_variant == MediaVariant::Font {
             return Some(quote! {
@@ -359,6 +375,7 @@ fn read_media_files_dir(path: &Path) -> Vec<MediaFile> {
                 media_files.push(MediaFile {
                     ident: syn::Ident::new(&to_valid_rust_identifier(file_name), Span::call_site()),
                     variant,
+                    filename: file_name.to_owned(),
                     path: child,
                 });
             }
@@ -462,16 +479,6 @@ fn test_align() {
     let i16_slice: &[i16] = cast_slice::<u8, i16>(u8_slice);
 
     assert_eq!(initial_slize, i16_slice);
-}
-
-#[cfg(feature = "nightly")]
-fn get_env(variable: &str) -> Option<String> {
-    proc_macro::tracked_env::var(variable).ok()
-}
-
-#[cfg(not(feature = "nightly"))]
-fn get_env(variable: &str) -> Option<String> {
-    std::env::var(variable).ok()
 }
 
 fn track_path(_path: &Path) {

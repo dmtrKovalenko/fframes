@@ -48,12 +48,6 @@ macro_rules! setup_wasm_editor {
                 SCENES.lock().unwrap().replace(scenes);
             }
 
-            let mut font_wasm_db = FONTS.lock().unwrap();
-            let fonts= (&$static_media).get_all_font_data();
-            for font_data in (&$static_media).get_all_font_data() {
-                font_wasm_db.insert_font(font_data.into());
-            }
-
             Ok(video_metadata)
         }
 
@@ -117,7 +111,7 @@ macro_rules! setup_wasm_editor {
                     time_base,
                     font_source: Some(FONTS.lock().unwrap().deref()),
                     scenes:  SCENES.lock().unwrap().as_ref(),
-                    media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
+                    media_source: Some(MEDIA_PROVIDER.lock().unwrap().deref()),
                 },
             ).value
         }
@@ -139,7 +133,7 @@ macro_rules! setup_wasm_editor {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: FFramesMode::EditorTimelinePreview,
                     scenes:  SCENES.lock().unwrap().as_ref(),
-                    media_provider: MEDIA_PROVIDER.lock().unwrap().deref(),
+                    media_source: Some(MEDIA_PROVIDER.lock().unwrap().deref()),
                     font_source: Some(FONTS.lock().unwrap().deref()),
                 },
             ).value
@@ -149,27 +143,30 @@ macro_rules! setup_wasm_editor {
         pub fn ingest_font(slice: &[u8]) -> JsValue {
             use fframes::FontSource;
 
-            panic!("Regular ingest font");
-
             let mut fonts = FONTS.lock().unwrap();
-            let face_info = fonts.insert_font(slice.to_vec().into());
+            let face_info = fonts.insert_font(slice.to_vec().into(), None);
 
             serde_wasm_bindgen::to_value(&face_info).unwrap()
         }
 
         #[wasm_bindgen]
+        pub fn populate_static_fonts_db_with_static_fonts() {
+            let mut font_wasm_db = FONTS.lock().unwrap();
+            for (font_data, filename) in (&$static_media).get_all_font_data() {
+                font_wasm_db.insert_font(font_data.into(), Some(filename));
+            }
+        }
+
+        #[wasm_bindgen]
         pub fn get_static_font_data_by_index(index: usize) -> Option<wasm_font_source::StaticFontFace> {
             let fonts = FONTS.lock().unwrap();
-            fframes::log!("fonts {}", fonts.static_fonts.len());
-            let res = fonts.static_fonts.get(index)?.clone();
-
-            Some(res)
+            fonts.static_fonts.get(index).cloned()
         }
 
         #[wasm_bindgen]
         pub fn get_static_audio_data_by_index(index: usize) -> Option<wasm_audio::AudioData> {
             let audios = (&$static_media).get_all_audio_data();
-            audios.get(index).map(|static_audio|wasm_audio::AudioData::new(*static_audio))
+            audios.get(index).map(|(static_audio, filename)| wasm_audio::AudioData::new(*static_audio, filename))
         }
     };
 }

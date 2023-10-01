@@ -16,7 +16,14 @@ pub enum TextAlign {
 #[derive(Debug, Clone, Copy)]
 pub struct BreakLinesOpts<'a> {
     pub width: usize,
+    /// Similar to css `line-height` property where 1.0 is the line height of the selected font
+    /// size. 1.1 is 10% larger than the font size which adds 10% of the font size as a margin
+    /// between lines after the break.
+    ///
+    /// @default 1.1
     pub line_height: f32,
+    /// The font family to use for the text.
+    /// Remember that you can check the font family name in the editor media panel.
     pub font_family: &'a str,
     pub font_size: usize,
     pub x: &'a str,
@@ -24,9 +31,19 @@ pub struct BreakLinesOpts<'a> {
     pub align: TextAlign,
     pub font_weight: u16,
     pub fill: &'a str,
+    /// Font style (normal, italic, oblique) to use. If the font is variadic, applies the style.
+    /// If not - uses the font tha applies this style and name.
     pub font_style: FontStyle,
     pub font_stretch: FontStretch,
+    /// The [dominant-baseline](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline) svg attribute specifies the dominant baseline,
+    /// which is the baseline used to align the box's text and inline-level contents.
+    /// It also indicates the default alignment baseline of any boxes
+    /// participating in baseline alignment in the box's alignment context.
+    ///
+    /// **In short: defines how to align text vertically based to the `y` position.**
     pub dominant_baseline: &'a str,
+    /// The [text-anchor](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor) attribute is used to align (start-, middle- or end-alignment) a string of pre-formatted text or auto-wrapped text where the wrapping area is determined from the inline-size property relative to a given point.
+    /// **In short: defines how to align text horizontally based to the `x` position.**
     pub text_anchor: &'a str,
 }
 
@@ -39,6 +56,9 @@ impl BreakLinesOpts<'_> {
         s.finish()
     }
 
+    /// When using `frame.text_break_lines_structure` which returns the text structure
+    /// use this function to create top level `text` element that applies all the options from the
+    /// `BreakLinesOpts` to the `text` svg element.
     pub fn create_text_svgr(&self, children: Svgr) -> Svgr {
         let BreakLinesOpts {
             font_family,
@@ -49,11 +69,12 @@ impl BreakLinesOpts<'_> {
             fill,
             dominant_baseline,
             text_anchor,
+            font_stretch,
             ..
         } = self;
 
         svgr!(
-          <text x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
+          <text x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} font-stretch={font_stretch} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
              {children}
           </text>
         )
@@ -216,7 +237,6 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
             structure.push((vec![word.to_owned()], word_width));
         } else {
             if *last_line_width != 0 {
-                // last_line.push(' ');
                 *last_line_width += space_width;
             }
 

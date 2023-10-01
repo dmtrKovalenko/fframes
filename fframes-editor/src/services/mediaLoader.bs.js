@@ -58,11 +58,13 @@ var resolveAudio = MediaResolvers.resolveAudio;
 
 var resolveSubtitles = MediaResolvers.resolveSubtitles;
 
-var resolveStaticFonts = MediaResolvers.resolveStaticFonts;
-
 var resolveFont = MediaResolvers.resolveFont;
 
 var resolveImage = MediaResolvers.resolveImage;
+
+var resolveStaticFonts = MediaResolvers.resolveStaticFonts;
+
+var resolveStaticAudios = MediaResolvers.resolveStaticAudios;
 
 function resolveMedia(name, media) {
   Curry._1(MediaLoaderObserver.dispatch, {
@@ -74,11 +76,19 @@ function resolveMedia(name, media) {
 }
 
 function populateInlinedMedia(wasmController, options) {
+  Curry._1(wasmController.populate_static_fonts_db_with_static_fonts, undefined);
   var fonts_loader = Curry._1(resolveStaticFonts, {
         wasmController: wasmController,
         wasmControllerOptions: options
       });
-  return Promise.all([fonts_loader]);
+  var audios_loader = Curry._1(resolveStaticAudios, {
+        wasmController: wasmController,
+        wasmControllerOptions: options
+      });
+  return Promise.all([
+              fonts_loader,
+              audios_loader
+            ]);
 }
 
 function processDynamicMedia(imports, wasmController, options) {
@@ -132,9 +142,10 @@ export {
   MediaLoaderObserver ,
   resolveAudio ,
   resolveSubtitles ,
-  resolveStaticFonts ,
   resolveFont ,
   resolveImage ,
+  resolveStaticFonts ,
+  resolveStaticAudios ,
   resolveMedia ,
   populateInlinedMedia ,
   processDynamicMedia ,

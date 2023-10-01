@@ -38,6 +38,24 @@ pub enum FontStretch {
     UltraExpanded,
 }
 
+impl std::fmt::Display for FontStretch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            FontStretch::UltraCondensed => "ultra-condensed".to_string(),
+            FontStretch::ExtraCondensed => "extra-condensed".to_string(),
+            FontStretch::Condensed => "condensed".to_string(),
+            FontStretch::SemiCondensed => "semi-condensed".to_string(),
+            FontStretch::Normal => "normal".to_string(),
+            FontStretch::SemiExpanded => "semi-expanded".to_string(),
+            FontStretch::Expanded => "expanded".to_string(),
+            FontStretch::ExtraExpanded => "extra-expanded".to_string(),
+            FontStretch::UltraExpanded => "ultra-expanded".to_string(),
+        };
+
+        f.write_str(&value)
+    }
+}
+
 impl From<ttf_parser::Width> for FontStretch {
     fn from(width: ttf_parser::Width) -> Self {
         match width {

@@ -4,6 +4,7 @@ use crate::animation;
 
 /// The basic rgb color type. It is limited to the range of 0-255 because the most of video
 /// codecs only support 8-bit color depth.  
+///
 /// Can be used in fframes animations and as a raw svgr! value.
 ///
 /// @example
@@ -47,7 +48,7 @@ pub const fn char_to_digit(char: char, radix: u32) -> u32 {
 
 impl Color {
     /// Creates a new color from a hex string. #RGB and #RRGGBB formats are supported.
-    /// Available for const contexts.
+    /// Works as constant so avialabel for **const variables** and does not do parsing in runtime.
     pub const fn hex(hex_str: &str) -> Self {
         let buffer = hex_str.as_bytes();
 

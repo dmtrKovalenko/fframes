@@ -7,9 +7,9 @@ use tiktok_example::GooseVideo;
 #[derive(Debug)]
 pub struct ExamplesScene<'a> {
     pub hello_world_video: HelloWorldVideo<'a>,
-    pub marketing_video: MarketingVideo,
-    pub podcast_video: PodcastVideo,
-    pub tiktok_video: GooseVideo,
+    pub marketing_video: MarketingVideo<'a>,
+    pub podcast_video: PodcastVideo<'a>,
+    pub tiktok_video: GooseVideo<'a>,
 }
 
 impl Scene for ExamplesScene<'_> {

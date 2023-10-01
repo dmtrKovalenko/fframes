@@ -12,8 +12,8 @@ import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
 var iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center";
 
 function MediaList$LoadedMediaIcon(Props) {
-  var media = Props.media;
   var variant = Props.variant;
+  var media = Props.media;
   var style = variant ? ({
         height: "2.5rem",
         width: "2.5rem",
@@ -144,8 +144,8 @@ function MediaList$LoadedMedia(Props) {
               className: Cx.cx([variant ? "py-2 h-16 2xl:h-20 flex space-x-2 px-6" : "w-32 flex flex-col space-y-2"]),
               title: name
             }, React.createElement(MediaList$LoadedMediaIcon, {
-                  media: media,
-                  variant: variant
+                  variant: variant,
+                  media: media
                 }), React.createElement("div", {
                   className: "ml-0.5 flex flex-col"
                 }, React.createElement("p", {

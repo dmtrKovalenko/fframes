@@ -1,3 +1,4 @@
+#![cfg(target_arch = "wasm32")]
 use fframes_editor_controller::{prelude::*, setup_wasm_editor};
 use marketing_example::{MarketingMedia, MarketingVideo};
 

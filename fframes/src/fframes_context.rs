@@ -1,8 +1,8 @@
-use media::ImageData;
 use crate::{
     media, AudioData, AudioTimelineSamples, AudioTimelineUnit, DynamicMediaProvider, FontSource,
     Frame, MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
+use media::ImageData;
 use std::iter::FromIterator;
 
 #[derive(Clone, Debug)]
@@ -19,29 +19,29 @@ pub struct TimeBase {
 }
 
 #[derive(Debug)]
-pub struct FFramesContext<'a> {
+pub struct FFramesContext<'a, 'media: 'a> {
     pub time_base: TimeBase,
     pub duration_in_frames: usize,
     pub mode: FFramesMode,
-    pub media_provider: &'a DynamicMediaProvider<'a>,
+    pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
     pub scenes: Option<&'a ResolvedScenesTimeline>,
 }
 
-impl<'a, 'media: 'a> FFramesContext<'media> {
+impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
     pub fn get_audio(&self, filename: impl AsRef<str>) -> Option<&'media AudioData<'media>> {
-        self.media_provider.resolve_audio(filename.as_ref())
+        self.media_source?.resolve_audio(filename.as_ref())
     }
 
     pub fn get_subtitles(
         &'a self,
         filename: impl AsRef<str>,
     ) -> Option<&'media media::Subtitles<'media>> {
-        self.media_provider.resolve_subtitles(filename.as_ref())
+        self.media_source?.resolve_subtitles(filename.as_ref())
     }
 
     pub fn get_image_href(&self, filename: impl AsRef<str>) -> Option<&'media str> {
-        self.media_provider
+        self.media_source?
             .resolve_image(filename.as_ref())
             .map(ImageData::href)
     }
@@ -91,29 +91,34 @@ impl<'a, 'media: 'a> FFramesContext<'media> {
     ) -> Vec<f32> {
         let mut audio_data = vec![0.0; frame_size];
 
+        let media_source = if let Some(media_source) = self.media_source {
+            media_source
+        } else {
+            return vec![];
+        };
+
         audio_map.0.iter().for_each(|(f, sample_range)| {
             if sample_range.contains(&start_sample) {
                 let start_of_this_frame_in_file =
                     start_sample.as_usize() - sample_range.start.as_usize();
-                let range = self.media_provider.resolve_audio(f).map(|a| {
+
+                let range = media_source.resolve_audio(f).and_then(|a| {
                     a.get_range(
                         start_of_this_frame_in_file..start_of_this_frame_in_file + frame_size,
                     )
                 });
 
                 if let Some(range) = range {
-                    range.map(|data| {
-                        data.iter().enumerate().for_each(|(i, sample)| {
-                            let fltp_sample = *sample as f32 / i16::MAX as f32;
-                            let filled_sample = audio_data[i];
+                    range.iter().enumerate().for_each(|(i, sample)| {
+                        let fltp_sample = *sample as f32 / i16::MAX as f32;
+                        let filled_sample = audio_data[i];
 
-                            if filled_sample == 0. {
-                                audio_data[i] = fltp_sample
-                            } else {
-                                audio_data[i] =
-                                    filled_sample + fltp_sample - (filled_sample * fltp_sample)
-                            }
-                        });
+                        if filled_sample == 0. {
+                            audio_data[i] = fltp_sample
+                        } else {
+                            audio_data[i] =
+                                filled_sample + fltp_sample - (filled_sample * fltp_sample)
+                        }
                     });
                 }
             }

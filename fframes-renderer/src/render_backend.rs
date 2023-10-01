@@ -4,6 +4,7 @@ use crate::{
 use fframes::{usvgr, AudioTimelineSamples, ResolvedRenderingTimeline, Video};
 use std::sync::Arc;
 
+// TODO: feature flag this
 pub use crate::gpu::GpuRenderingBackend;
 
 #[allow(clippy::too_many_arguments)]

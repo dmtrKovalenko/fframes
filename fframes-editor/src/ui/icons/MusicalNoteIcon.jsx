@@ -1,12 +1,7 @@
 import * as React from "react";
 
 export const MusicalNoteIcon = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-
-    viewBox="0 0 512 512"
-    {...props}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" {...props}>
     <path
       d="M192 218v-6c0-14.84 10-27 24.24-30.59l174.59-46.68A20 20 0 0 1 416 154v22"
       fill="none"

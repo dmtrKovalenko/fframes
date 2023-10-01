@@ -6,6 +6,8 @@ import type {Js_BigInt_t as ReScriptJs_Js_BigInt_t} from './shims/Js.shim';
 
 import type {Js_Dict_t as ReScriptJs_Js_Dict_t} from './shims/Js.shim';
 
+import type {Js_Float32Array_t as ReScriptJs_Js_Float32Array_t} from './shims/Js.shim';
+
 import type {Js_Int16Array_t as ReScriptJs_Js_Int16Array_t} from './shims/Js.shim';
 
 import type {Js_Nullable_t as ReScriptJs_Js_Nullable_t} from './shims/Js.shim';
@@ -74,7 +76,19 @@ export type fontInfo = {
 export type initOut = { readonly prepare: (_1:number, _2:number) => number };
 
 // tslint:disable-next-line:interface-over-type-literal
-export type staticFont = { readonly data: ReScriptJs_Js_Uint8Array_t; readonly fontInfo: fontInfo };
+export type staticFont = {
+  readonly data: ReScriptJs_Js_Uint8Array_t; 
+  readonly info: fontInfo; 
+  readonly name: string
+};
+
+// tslint:disable-next-line:interface-over-type-literal
+export type staticAudio = {
+  readonly fltp_data: ReScriptJs_Js_Float32Array_t; 
+  readonly mono_pcm_data: ReScriptJs_Js_Int16Array_t; 
+  readonly sample_rate: number; 
+  readonly name: string
+};
 
 // tslint:disable-next-line:interface-over-type-literal
 export type t = {
@@ -86,6 +100,8 @@ export type t = {
   readonly render_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 
   readonly render_preview_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 
   readonly ingest_font: (_1:ReScriptJs_Js_Uint8Array_t) => fontInfo; 
-  readonly get_static_font_data_by_index: (_1:number) => ReScriptJs_Js_Nullable_t<staticFont>
+  readonly populate_static_fonts_db_with_static_fonts: () => void; 
+  readonly get_static_font_data_by_index: (_1:number) => ReScriptJs_Js_Nullable_t<staticFont>; 
+  readonly get_static_audio_data_by_index: (_1:number) => ReScriptJs_Js_Nullable_t<staticAudio>
 };
 export type WasmController = t;

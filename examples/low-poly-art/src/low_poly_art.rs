@@ -41,7 +41,7 @@ impl Video for LowPolyVideo {
           >
             <defs>
               <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
-                <image href={ctx.get_image_href("white_noise.png")} x="0" y="0" width="230" height="177" />
+                <image href={ctx.get_image_href("white_noise.png").expect("missing white_noise.png")} x="0" y="0" width="230" height="177" />
               </pattern>
             </defs>
 

@@ -79,7 +79,7 @@ unsafe fn create_encoder_copy_from_file(
 
     let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
     let audio_stream = Stream::make_audio(
-        encoder_options.sample_rate.unwrap_or(44100),
+        encoder_options.sample_rate as i32,
         output_format_ctx,
         encoder_options,
     )?;

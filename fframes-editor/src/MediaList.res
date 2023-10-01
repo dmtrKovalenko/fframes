@@ -1,5 +1,5 @@
-open Belt
 open Cx
+open Belt
 
 type listVariant = Grid | List
 
@@ -7,7 +7,7 @@ module LoadedMediaIcon = {
   let iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center"
 
   @react.component
-  let make = (~media: MediaLoader.processedMedia, ~variant) => {
+  let make = (~variant, ~media: MediaLoader.processedMedia) => {
     let style = switch variant {
     | Grid => ReactDOM.Style.make(~width="7.4rem", ~height="7.4rem", ~borderRadius="1.35rem", ())
     | List => ReactDOM.Style.make(~width="2.5rem", ~height="2.5rem", ~borderRadius="0.75rem", ())
@@ -106,7 +106,7 @@ module Loading = {
   }
 }
 
-let memo = React.memoCustomCompareProps(_, (propsA, propsB) => {
+let memo = React.memoCustomCompareProps(_, (propsB, propsA) => {
   propsA["variant"] === propsB["variant"]
 })
 

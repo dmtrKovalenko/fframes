@@ -16,7 +16,7 @@ impl Scene for Owl {
         let noise_y = (rand::random::<f64>() * 60.) as i32 - 30;
 
         let visualization = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
-            audio: ctx.get_audio_data("owl.mp3"),
+            audio: ctx.get_audio("owl.mp3").expect("owl.mp3 must be present"),
             sample_size: fframes::SampleSize::S64,
             smooth_level: 4,
             window: Some(fframes::WindowFunction::Hamming),

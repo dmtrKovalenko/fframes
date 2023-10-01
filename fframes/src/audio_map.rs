@@ -333,9 +333,9 @@ impl<'a> AudioMap<'a> {
         })
     }
 
-    pub fn resolve_with_ctx<TUnit: AudioTimelineUnit + std::fmt::Debug>(
+    pub fn resolve_with_ctx<'media: 'a, TUnit: AudioTimelineUnit + std::fmt::Debug>(
         &'a self,
-        ctx: &'a FFramesContext<'a>,
+        ctx: &'a FFramesContext<'a, 'media>,
     ) -> error::Result<Option<ResolvedAudioMap<TUnit>>> {
         self.resolve_with_scenes(ctx.scenes, &ctx.time_base, |filename| {
             let audio_data = ctx.get_audio(filename).ok_or_else(|| {
