@@ -1,5 +1,5 @@
 import reactRefresh from "@vitejs/plugin-react-refresh";
-import { kek, defineConfig } from "vite";
+import { defineConfig } from "vite";
 import ViteRsw from "vite-plugin-rsw";
 
 export default defineConfig({
@@ -9,7 +9,6 @@ export default defineConfig({
       strict: false,
     },
   },
-  assetsInlineLimit: 0,
   optimizeDeps: {
     entries: [".editor-bridge/main.tsx"],
   },

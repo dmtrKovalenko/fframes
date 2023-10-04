@@ -15,13 +15,10 @@ pub struct IncludeMediaDirInput {
 impl Parse for IncludeMediaDirInput {
     fn parse(input: ParseStream) -> Result<Self> {
         let visibility = input.parse::<syn::Visibility>()?;
-
-        println!("visibility: {:?}", visibility);
         input.parse::<Struct>()?;
         let ident = input.parse::<syn::Ident>()?;
         input.parse::<Comma>()?;
         let path_literal = input.parse::<LitStr>()?;
-        println!("path_literal: {:?}", path_literal.value());
 
         let path = std::fs::canonicalize(path_literal.value())
             .map_err(|err| syn::Error::new(path_literal.span(), format!("{err}\nMedia dir should be relative cargo project root (the project or workspace Cargo.toml directory)")))?;

@@ -1,4 +1,4 @@
-use crate::{error::Result, media, AudioData, Video};
+use crate::{error::Result, media, AudioData};
 use std::{collections::HashMap, fmt::Debug};
 
 pub trait MediaProvider<'a>: Send + Sync + Debug {
@@ -13,12 +13,6 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
 
 pub trait StaticMediaProvider<'a>: std::fmt::Debug + Sized + MediaProvider<'a> {
     fn prepare() -> Result<Self>;
-}
-
-pub trait VideoMaybeWithStaticMedia<'a, TMedia: StaticMediaProvider<'a>>: Video {
-    fn media(&'a self) -> Option<&'a TMedia> {
-        return None;
-    }
 }
 
 impl<'a> MediaProvider<'a> for () {
@@ -62,12 +56,13 @@ impl<'media> DynamicMediaProvider<'media> {
         audio: HashMap<String, AudioData<'media>>,
         images: HashMap<String, crate::media::ImageData>,
         subtitles: HashMap<String, crate::media::Subtitles<'media>>,
+        fonts_data: Vec<&'media [u8]>,
     ) -> Self {
         Self {
             audio,
             images,
             subtitles,
-            fontdata: Vec::new(),
+            fontdata: fonts_data,
         }
     }
 }

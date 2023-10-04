@@ -156,7 +156,9 @@ impl AudioTimestamp<'_> {
 type AudioDuration<'a> = Range<AudioTimestamp<'a>>;
 
 #[derive(Debug, Clone)]
-/// Audio map represents when and how long each audio file should be played within video or scene.
+/// Audio map represents when and how long each audio file should be played within a video or a scene.
+/// In case of scene audio map is always relative to the scene timestamp (which is resolved based on
+/// the `Video::define_scenes()`).
 ///
 /// @example
 /// ```rust

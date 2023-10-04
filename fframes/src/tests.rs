@@ -70,7 +70,7 @@ fn test_audio_map_resolve() {
 
     let ResolvedRenderingTimeline { audio_map, .. } = resolve_timeline::<AudioTimelineSamples, _>(
         &video.duration(),
-        &crate::ScenesWithAudio::from(&video.define_scenes()),
+        &crate::ScenesWithAudio::new(&video.define_scenes()),
         &tb,
         &audio_map,
         |_| Ok(24),

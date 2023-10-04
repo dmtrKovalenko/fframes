@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use fframes::{animation, svgr, Scene, Video};
 use hello_world_example::HelloWorldVideo;
 use marketing_example::MarketingVideo;
@@ -6,10 +8,10 @@ use tiktok_example::GooseVideo;
 
 #[derive(Debug)]
 pub struct ExamplesScene<'a> {
-    pub hello_world_video: HelloWorldVideo<'a>,
-    pub marketing_video: MarketingVideo<'a>,
-    pub podcast_video: PodcastVideo<'a>,
-    pub tiktok_video: GooseVideo<'a>,
+    pub hello_world_video: Arc<HelloWorldVideo<'a>>,
+    pub marketing_video: Arc<MarketingVideo<'a>>,
+    pub podcast_video: Arc<PodcastVideo<'a>>,
+    pub tiktok_video: Arc<GooseVideo<'a>>,
 }
 
 impl Scene for ExamplesScene<'_> {

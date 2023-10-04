@@ -136,6 +136,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "604178f6c5c21f02dc555784810edfb88d34ac2c73b2eae109655649ee73ce3d"
 
 [[package]]
+name = "beta-editor-bridge"
+version = "0.1.0"
+dependencies = [
+ "beta-example",
+ "fframes-editor-controller",
+ "marketing-example",
+ "tiktok-media",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "beta-example"
 version = "0.1.0"
 dependencies = [
@@ -2355,6 +2366,8 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "svgfilters"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "639abcebc15fdc2df179f37d6f5463d660c1c79cd552c12343a4600827a04bce"
 dependencies = [
  "float-cmp",
  "rgb",
@@ -2362,7 +2375,9 @@ dependencies = [
 
 [[package]]
 name = "svgr"
-version = "0.28.4"
+version = "0.28.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c3ab907aec47934895e1ba362a0c36f748a48d8dbb441d27673249481631cd5"
 dependencies = [
  "gif 0.11.3",
  "jpeg-decoder",
@@ -2395,7 +2410,9 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.28.4"
+version = "0.28.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34f5494f875b04ea197d5f0e8923115483697a4e283dc0c5eac520191068e757"
 dependencies = [
  "kurbo 0.8.0",
  "proc-macro2",
@@ -2642,7 +2659,9 @@ checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "usvgr"
-version = "0.28.4"
+version = "0.28.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43c1378177a9a38464f091d8f7c60b85b9c2fde4063ccfea1586fb275bde9439"
 dependencies = [
  "base64 0.13.0",
  "data-url",
@@ -2662,7 +2681,9 @@ dependencies = [
 
 [[package]]
 name = "usvgr-text-layout"
-version = "0.28.4"
+version = "0.28.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "808fbfcb5d5149ab678053fd80c13e43da438f66696bd4c966ffd3f12da5352d"
 dependencies = [
  "fontdb",
  "kurbo 0.9.1",

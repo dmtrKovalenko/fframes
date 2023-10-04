@@ -8,7 +8,7 @@ impl Scene for CodeDemoScene {
         fframes::Duration::Frames(200)
     }
 
-    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
         let tilt_angle = frame.animate(&fframes::timeline!(
           on 0.3, val -0.4 => 1.2, &animation::Easing::Linear(3.)
         ));
@@ -27,7 +27,7 @@ impl Scene for CodeDemoScene {
              }
              y="50"
              transform={format!("skewX({tilt_angle}), skewY({y})", y=-tilt_angle + 0.4)}
-             href={_ctx.get_image_href("code.png")}
+             href={ctx.get_image_href("code.png").expect("Do not do like this")}
              opacity={frame.animate(fframes::timeline!(
                on 0.3, val 0. => 1., &animation::Easing::Linear(0.5)
              ))}

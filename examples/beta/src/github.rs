@@ -13,10 +13,16 @@ impl Scene for GithubScene {
     }
 
     fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> fframes::Svgr {
+        let github_image = if let Some(github_image) = ctx.get_image_href("github_screenshot.png") {
+            github_image
+        } else {
+            return fframes::Svgr::default();
+        };
+
         svgr!(
             <image
                 width="1920"
-                href={ctx.get_image_href("github_screenshot.png")}
+                href={github_image}
                 transform={format!("translate({} -{})",
                 frame.animate(&fframes::timeline!(
                     on 0.0, val 1920. => 0., &animation::Easing::Spring2(0.3, 90., 26.)

@@ -21,17 +21,20 @@ members = [
     "examples/marketing/editor/editor-bridge",
     "examples/low-poly-art",
     "examples/beta",
+    "examples/beta/editor/editor-bridge",
 ]
 
 [workspace.dependencies]
-svgr = { path = "../resvg"}
-usvgr = { path = "../resvg/usvgr"}
-usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
-fframes-editor-controller = { path = "fframes-editor-controller"}
-hello-world-example = { path = "examples/hello-world"}
-# svgr = "0.28.4"
-# usvgr = "0.28.4"
-# usvgr-text-layout = "0.28.4"
+# This is a base CPU renderer which is a fork of another project. 
+# Clone it in the same directlry as fframes from here https://github.com/dmtrKovalenko/svgr and 
+# uncomment the following lines to run them together
+
+# svgr = { path = "../resvg"}
+# usvgr = { path = "../resvg/usvgr"}
+# usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
+svgr = "0.28.5"
+usvgr = "0.28.5"
+usvgr-text-layout = "0.28.5"
 
 # fframes internal deps
 webvtt-parser = { path = "webvtt-parser" }

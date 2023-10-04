@@ -1,7 +1,7 @@
 use fframes::error::FFramesError;
 use fframes::{
     AudioTimelineFrames, Duration, ResolvedAudioMap, ResolvedRenderingTimeline,
-    ResolvedScenesTimeline, ScenesWithAudio, StaticMediaProvider, TimeBase, Video,
+    ResolvedScenesTimeline, Scenes, ScenesWithAudio, StaticMediaProvider, TimeBase, Video,
 };
 use futures::future::join_all;
 use std::collections::HashMap;
@@ -135,16 +135,16 @@ pub async fn prepare_video_with_audio<'a, TVideo: Video, TStaticMedia: StaticMed
     video: &'a TVideo,
     tb: &'a TimeBase,
     static_media: &'a TStaticMedia,
+    scenes: &'a Scenes<'a>,
 ) -> (
     usize,
-    Option<ResolvedScenesTimeline>,
+    Option<ResolvedScenesTimeline<'a>>,
     Option<ResolvedAudioMap<AudioTimelineFrames>>,
 ) {
     let video_duration = video.duration();
 
     let audio_map = video.audio();
-    let scenes = video.define_scenes();
-    let scene_audios = ScenesWithAudio::from(&scenes);
+    let scene_audios = ScenesWithAudio::new(&scenes);
 
     let audio_durations =
         resolve_used_audio_durations(tb, &video_duration, &scene_audios, &audio_map, static_media)

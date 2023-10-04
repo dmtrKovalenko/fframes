@@ -1,8 +1,8 @@
+use crate::media::{ImageData, Subtitles};
 use crate::{
-    media, AudioData, AudioTimelineSamples, AudioTimelineUnit, DynamicMediaProvider, FontSource,
-    Frame, MediaProvider, ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
+    AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame, MediaProvider,
+    ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
-use media::ImageData;
 use std::iter::FromIterator;
 
 #[derive(Clone, Debug)]
@@ -25,7 +25,7 @@ pub struct FFramesContext<'a, 'media: 'a> {
     pub mode: FFramesMode,
     pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
-    pub scenes: Option<&'a ResolvedScenesTimeline>,
+    pub scenes: Option<&'a ResolvedScenesTimeline<'a>>,
 }
 
 impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
@@ -33,10 +33,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         self.media_source?.resolve_audio(filename.as_ref())
     }
 
-    pub fn get_subtitles(
-        &'a self,
-        filename: impl AsRef<str>,
-    ) -> Option<&'media media::Subtitles<'media>> {
+    pub fn get_subtitles(&'a self, filename: impl AsRef<str>) -> Option<&'media Subtitles<'media>> {
         self.media_source?.resolve_subtitles(filename.as_ref())
     }
 

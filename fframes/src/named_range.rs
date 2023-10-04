@@ -31,7 +31,7 @@ impl Into<Vec<NamedRange>> for ResolvedAudioMap<AudioTimelineFrames> {
     }
 }
 
-impl Into<Vec<NamedRange>> for &ResolvedScenesTimeline {
+impl Into<Vec<NamedRange>> for &ResolvedScenesTimeline<'_> {
     fn into(self) -> Vec<NamedRange> {
         self.iter()
             .map(|(range, _, scene)| NamedRange {

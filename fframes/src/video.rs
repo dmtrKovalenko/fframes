@@ -23,34 +23,35 @@ pub trait Video: Sync + Sized {
 }
 
 #[derive(Debug)]
-pub struct ResolvedScenesTimeline(
-    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene>)>,
+pub struct ResolvedScenesTimeline<'a>(
+    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene + 'a>)>,
 );
 
-impl ResolvedScenesTimeline {
+impl<'a> ResolvedScenesTimeline<'_> {
     pub fn iter(
-        &self,
-    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene>)> {
+        &'a self,
+    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene + 'a>)> {
         self.0.iter()
     }
 }
 
-pub struct ResolvedRenderingTimeline<TAudioUnit: AudioTimelineUnit + std::fmt::Debug> {
+pub struct ResolvedRenderingTimeline<'a, TAudioUnit: AudioTimelineUnit + std::fmt::Debug> {
     pub audio_map: Option<ResolvedAudioMap<TAudioUnit>>,
-    pub scenes: Option<ResolvedScenesTimeline>,
+    pub scenes: Option<ResolvedScenesTimeline<'a>>,
     pub duration_in_frames: usize,
 }
 
 pub fn resolve_timeline<
+    'a,
     TAudioUnit: AudioTimelineUnit + std::fmt::Debug + Copy,
     TFun: Fn(&str) -> super::error::Result<usize>,
 >(
     duration: &Duration,
-    scenes: &ScenesWithAudio,
+    scenes: &ScenesWithAudio<'a>,
     time_base: &TimeBase,
     top_level_audio_map: &AudioMap,
     resolve_audio_duration: TFun,
-) -> crate::error::Result<ResolvedRenderingTimeline<TAudioUnit>> {
+) -> crate::error::Result<ResolvedRenderingTimeline<'a, TAudioUnit>> {
     let scenes_count = scenes.len();
 
     let (duration, resolved_scenes) = match (scenes.0.as_deref(), duration) {

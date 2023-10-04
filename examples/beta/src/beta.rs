@@ -1,10 +1,18 @@
 use fframes::{animation, AudioMap, AudioTimestamp, FFramesContext, Frame, Scene, Svgr, Video};
-use std::sync::Arc;
+use hello_world_example::HelloWorldVideo;
+use marketing_example::MarketingVideo;
+use podcast_example::PodcastVideo;
+use std::{rc::Rc, sync::Arc};
 use svgr_macro::{self, svgr};
+use tiktok_example::GooseVideo;
 
-pub struct BetaVideo {
+pub struct BetaVideo<'a> {
     pub minutes: u32,
     pub hours: u32,
+    pub hello_world_video: Arc<HelloWorldVideo<'a>>,
+    pub marketing_video: Arc<MarketingVideo<'a>>,
+    pub podcast_video: Arc<PodcastVideo<'a>>,
+    pub tiktok_video: Arc<GooseVideo<'a>>,
 }
 
 #[derive(Debug)]
@@ -51,7 +59,7 @@ impl Scene for HeadingScene {
     }
 }
 
-impl Video for BetaVideo {
+impl Video for BetaVideo<'_> {
     const FPS: usize = 60;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
@@ -71,6 +79,14 @@ impl Video for BetaVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
+        // this are Arc 
+        let examples = Arc::new(crate::examples::ExamplesScene {
+            hello_world_video: self.hello_world_video.clone(),
+            marketing_video: self.marketing_video.clone(),
+            podcast_video: self.podcast_video.clone(),
+            tiktok_video: self.tiktok_video.clone(),
+        });
+
         let vec: Vec<Arc<dyn Scene>> = vec![
             Arc::new(HeadingScene {}),
             Arc::new(crate::code_demo::CodeDemoScene {}),
@@ -79,24 +95,8 @@ impl Video for BetaVideo {
                 hours: self.hours,
                 minutes: self.minutes,
             }),
+            examples,
             Arc::new(crate::github::GithubScene {}),
-            Arc::new(crate::examples::ExamplesScene {
-                hello_world_video: hello_world_example::HelloWorldVideo {
-                    slug: "Hello World!",
-                    media: todo!(),
-                },
-                podcast_video: podcast_example::PodcastVideo {
-                    goose_audio: "beta.mp3",
-                    duck_audio: "beta.mp3",
-                    guest_audio: "beta.mp3",
-                },
-                marketing_video: marketing_example::MarketingVideo {
-                    audio_track: "beta.mp3",
-                },
-                tiktok_video: tiktok_example::GooseVideo {
-                    audio_track: "beta.mp3",
-                },
-            }),
             Arc::new(crate::end::EndScene {}),
         ];
 
@@ -115,7 +115,7 @@ impl Video for BetaVideo {
               height={Self::HEIGHT}
               x="0"
               y="0"
-              href={ctx.get_image_href("background.png")}
+              href={ctx.get_image_href("background.png").expect("Do not use .expect() om media in the real code")}
               fill="#fff"
             />
 

@@ -20,10 +20,9 @@ use std::{
 /// Video trait implementation provides direct access to the bytes owned by this struct.
 pub struct MediaDirectory(Vec<(PathBuf, Vec<u8>)>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl MediaDirectory {
-    pub(crate) fn read_folder(
-        folder_path: impl AsRef<Path>,
-    ) -> FFramesRendererResult<MediaDirectory> {
+    pub fn read_folder(folder_path: impl AsRef<Path>) -> FFramesRendererResult<MediaDirectory> {
         let mut folder_content = vec![];
 
         if !folder_path.as_ref().is_dir() {
@@ -45,21 +44,16 @@ impl MediaDirectory {
         Ok(MediaDirectory(folder_content))
     }
 
-    pub(crate) fn into_dynamic_media_provider(
+    pub fn process_media_source(
         &self,
-        logger: &Arc<dyn FFramesLogger>,
-    ) -> FFramesRendererResult<(
-        DynamicMediaProvider,
-        usvgr_text_layout::fontdb::Database,
-        HashMap<String, Arc<usvgr::PreloadedImageData>>,
-    )> {
+        // logger: &Arc<dyn FFramesLogger>,
+    ) -> FFramesRendererResult<DynamicMediaProvider> {
         let audio_hash = Mutex::new(HashMap::new());
         let subtitles_hash = Mutex::new(HashMap::new());
         let image_hash = Mutex::new(HashMap::new());
-        let usvgr_image_data = Mutex::new(HashMap::new());
-        let fontdb = Mutex::new(usvgr_text_layout::fontdb::Database::new());
+        let fontdata = Mutex::new(Vec::new());
 
-        logger.init_media_processing(self.0.len())?;
+        // logger.init_media_processing(self.0.len())?;
 
         self.0
             .par_iter()
@@ -69,7 +63,7 @@ impl MediaDirectory {
                     .and_then(OsStr::to_str)
                     .zip(path.file_name().and_then(OsStr::to_str))
                 {
-                    logger.log_media_processing_start(filename, &path);
+                    // logger.log_media_processing_start(filename, &path);
                     match extension {
                         "mp3" => {
                             let audio_data = fframes::media::decode_mp3(Cursor::new(bytes))?;
@@ -88,37 +82,38 @@ impl MediaDirectory {
                             );
                         }
                         "ttf" | "ttc" | "otf" | "otc" => {
-                            let data = std::fs::read(path)?;
-                            fontdb.lock()?.load_font_file(path);
+                            fontdata.lock()?.push(bytes.as_slice());
                         }
                         "jpg" | "jpeg" | "png" => {
-                            let data = fs::read(&path)?;
+                            let image = decode_image(filename, bytes)
+                                .map_err(fframes::media::FFramesMediaError::from)?;
 
-                            usvgr_image_data.lock()?.insert(
+                            image_hash.lock()?.insert(
                                 filename.to_owned(),
-                                Arc::new(decode_image(filename, &data)?),
+                                fframes::media::ImageData {
+                                    image: Arc::new(image),
+                                    filename: filename.to_owned(),
+                                },
                             );
                         }
                         "DS_Store" => (),
                         _ => {
-                            logger.log_unprocessed_media_file(filename);
+                            // logger.log_unprocessed_media_file(filename);
                         }
                     };
                 };
 
-                logger.log_processed_media(&path);
+                // logger.log_processed_media(&path);
                 Ok(())
             })?;
 
-        fontdb.lock()?.load_system_fonts();
-        Ok((
-            DynamicMediaProvider::new(
-                audio_hash.into_inner()?,
-                image_hash.into_inner()?,
-                subtitles_hash.into_inner()?,
-            ),
-            fontdb.into_inner()?,
-            usvgr_image_data.into_inner()?,
-        ))
+        let provider = DynamicMediaProvider::new(
+            audio_hash.into_inner()?,
+            image_hash.into_inner()?,
+            subtitles_hash.into_inner()?,
+            fontdata.into_inner()?,
+        );
+
+        Ok(provider)
     }
 }

@@ -16,13 +16,14 @@ mod concatenator;
 mod encoder;
 mod encoder_frame;
 mod ffmpeg_helper;
-mod media_processor;
+mod media_dirctory;
 mod render_backend;
 mod renderer_error;
 mod renderer_font_source;
 mod stream;
 
 pub use fframes_logger::*;
+pub use media_dirctory::*;
 pub use render_backend::*;
 
 #[derive(Debug, Clone, Default)]
@@ -54,9 +55,10 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
         sample_rate: options.encoder_options.sample_rate,
     };
 
+    let scenes = video.define_scenes();
     let timeline = fframes::resolve_timeline(
         &video.duration(),
-        &ScenesWithAudio::from(&video.define_scenes()),
+        &ScenesWithAudio::new(&scenes),
         &time_base,
         &video.audio(),
         |name| {
@@ -80,9 +82,11 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
 
     logger.init_frames_rendering(timeline.duration_in_frames)?;
     let mut font_db = usvgr_text_layout::fontdb::Database::new();
+
     if options.load_system_fonts {
         font_db.load_system_fonts();
     }
+
     if let Some(media) = options.media {
         for (data, filename) in media.get_all_font_data() {
             // TODO change to memmap
