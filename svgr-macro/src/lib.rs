@@ -37,7 +37,7 @@ fn create_svgr_ident(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let svg_tree = crate::nodes_to_svgtree::nodes_to_svgtree(&nodes, fframes_crate_ident)?;
     let (html_string, values) =
-        crate::nodes_to_format::prepare_svg_nodes_for_format_statement(nodes, &fframes_crate_ident);
+        crate::nodes_to_format::prepare_svg_nodes_for_format_statement(nodes, fframes_crate_ident);
 
     Ok(quote! {
         #fframes_crate_ident::Svgr {

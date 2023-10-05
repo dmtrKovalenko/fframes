@@ -20,7 +20,7 @@ export const resolveAudio: MediaResolver = async ({
 
   const decoder = await createDecoder(
     new Uint8Array(arrayBuffer.slice(0)),
-    minimp3decoderWasm
+    minimp3decoderWasm,
   );
 
   const data = decoder.decode(decoder.duration);
@@ -58,7 +58,7 @@ export const resolveStaticAudios: StaticMediaResolver = async ({
     const audioBuffer = audioContext.createBuffer(
       1,
       audio.fltp_data.length,
-      audio.sample_rate
+      audio.sample_rate,
     );
     audioBuffer.copyToChannel(audio.fltp_data, 0);
 
@@ -80,17 +80,16 @@ async function prepareFontMediaData(
   fontInfo: fontInfo,
   arrayBuffer: ArrayBuffer,
   name: string,
-  url?: string
+  url?: string,
 ) {
   const decoder = new TextDecoder("utf-8");
-  console.log({ fontInfo });
   let fontName = fontInfo.name
     ? decoder.decode(new Uint8Array(fontInfo.name).buffer)
     : "unknown";
 
   if (!fontName) {
     console.error(
-      `Can not parse the font file ${url} there is a huge chance that this font file won't work in the renderer. For now trying to fallback to browser based font`
+      `Can not parse the font file ${url} there is a huge chance that this font file won't work in the renderer. For now trying to fallback to browser based font`,
     );
   }
 
@@ -129,7 +128,7 @@ export const resolveStaticFonts: StaticMediaResolver = async ({
   await Promise.all(
     fonts.map(({ data, info, name }) => {
       return prepareFontMediaData(info, data.buffer, name);
-    })
+    }),
   );
 };
 

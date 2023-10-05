@@ -258,7 +258,7 @@ impl Video for MarketingVideo<'_> {
             </defs>
 
 
-            <rect x="0" y="0" width="100%" height="100%" fill="red" />
+            <rect x="0" y="0" width="100%" height="100%" fill="#111827" />
 
             {
               PRETTY_SPECTRUM

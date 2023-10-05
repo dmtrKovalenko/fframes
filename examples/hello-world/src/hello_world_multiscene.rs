@@ -1,6 +1,5 @@
 use fframes::{animation, AudioMap, FFramesContext, Frame, Scene, Svgr};
 pub use fframes::{Color, Video};
-use std::sync::Arc;
 
 pub struct HelloWorldMultiSceneVideo {}
 
@@ -61,7 +60,7 @@ impl Video for HelloWorldMultiSceneVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Arc<dyn Scene>> = vec![Arc::new(SceneOne {}), Arc::new(SceneTwo {})];
+        let vec: Vec<Box<dyn Scene>> = vec![Box::new(SceneOne {}), Box::new(SceneTwo {})];
 
         fframes::Scenes::from(vec)
     }

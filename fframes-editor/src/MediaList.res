@@ -99,13 +99,6 @@ module LoadedMedia = {
   }
 }
 
-module Loading = {
-  @react.component
-  let make = (~name) => {
-    <div> <p> {name->React.string} </p> </div>
-  }
-}
-
 let memo = React.memoCustomCompareProps(_, (propsB, propsA) => {
   propsA["variant"] === propsB["variant"]
 })
@@ -129,7 +122,8 @@ let make = memo((~variant: listVariant) => {
       {
         switch media {
         | Media(media) => <LoadedMedia key={name} variant name media />
-        | Loading(_) => <Loading key={name} name />
+        // Might reconsider this choice but adding rendering ton of spinners does look wordse
+        | Loading(_) => React.null
         | _ => React.null
         }
       }

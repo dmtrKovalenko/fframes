@@ -1,7 +1,7 @@
-use crate::{fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult};
+use crate::renderer_error::FFramesRendererResult;
 use fframes::{
     media::{decode_image, Subtitles},
-    usvgr, DynamicMediaProvider,
+    DynamicMediaProvider,
 };
 use rayon::prelude::*;
 use std::{

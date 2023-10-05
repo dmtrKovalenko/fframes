@@ -141,8 +141,10 @@ version = "0.1.0"
 dependencies = [
  "beta-example",
  "fframes-editor-controller",
+ "hello-world-example",
  "marketing-example",
- "tiktok-media",
+ "podcast-example",
+ "tiktok-example",
  "wasm-bindgen",
 ]
 

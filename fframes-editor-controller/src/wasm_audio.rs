@@ -133,7 +133,7 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
 
 pub async fn prepare_video_with_audio<'a, TVideo: Video, TStaticMedia: StaticMediaProvider<'a>>(
     video: &'a TVideo,
-    tb: &'a TimeBase,
+    tb: &TimeBase,
     static_media: &'a TStaticMedia,
     scenes: &'a Scenes<'a>,
 ) -> (

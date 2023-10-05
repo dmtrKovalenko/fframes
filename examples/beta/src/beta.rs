@@ -1,18 +1,19 @@
+use std::sync::Arc;
+
 use fframes::{animation, AudioMap, AudioTimestamp, FFramesContext, Frame, Scene, Svgr, Video};
 use hello_world_example::HelloWorldVideo;
 use marketing_example::MarketingVideo;
 use podcast_example::PodcastVideo;
-use std::{rc::Rc, sync::Arc};
 use svgr_macro::{self, svgr};
 use tiktok_example::GooseVideo;
 
-pub struct BetaVideo<'a> {
+pub struct BetaVideo {
     pub minutes: u32,
     pub hours: u32,
-    pub hello_world_video: Arc<HelloWorldVideo<'a>>,
-    pub marketing_video: Arc<MarketingVideo<'a>>,
-    pub podcast_video: Arc<PodcastVideo<'a>>,
-    pub tiktok_video: Arc<GooseVideo<'a>>,
+    pub hello_world_video: Arc<HelloWorldVideo<'static>>,
+    pub marketing_video: Arc<MarketingVideo<'static>>,
+    pub podcast_video: Arc<PodcastVideo<'static>>,
+    pub tiktok_video: Arc<GooseVideo<'static>>,
 }
 
 #[derive(Debug)]
@@ -59,7 +60,7 @@ impl Scene for HeadingScene {
     }
 }
 
-impl Video for BetaVideo<'_> {
+impl Video for BetaVideo {
     const FPS: usize = 60;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
@@ -79,25 +80,22 @@ impl Video for BetaVideo<'_> {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        // this are Arc 
-        let examples = Arc::new(crate::examples::ExamplesScene {
-            hello_world_video: self.hello_world_video.clone(),
-            marketing_video: self.marketing_video.clone(),
-            podcast_video: self.podcast_video.clone(),
-            tiktok_video: self.tiktok_video.clone(),
-        });
-
-        let vec: Vec<Arc<dyn Scene>> = vec![
-            Arc::new(HeadingScene {}),
-            Arc::new(crate::code_demo::CodeDemoScene {}),
-            Arc::new(crate::rendering::RenderingScene {}),
-            Arc::new(crate::iphone::IphoneScene {
+        let vec: Vec<Box<dyn Scene>> = vec![
+            Box::new(HeadingScene {}),
+            Box::new(crate::code_demo::CodeDemoScene {}),
+            Box::new(crate::rendering::RenderingScene {}),
+            Box::new(crate::iphone::IphoneScene {
                 hours: self.hours,
                 minutes: self.minutes,
             }),
-            examples,
-            Arc::new(crate::github::GithubScene {}),
-            Arc::new(crate::end::EndScene {}),
+            Box::new(crate::github::GithubScene {}),
+            Box::new(crate::examples::ExamplesScene {
+                hello_world_video: self.hello_world_video.clone(),
+                marketing_video: self.marketing_video.clone(),
+                podcast_video: self.podcast_video.clone(),
+                tiktok_video: self.tiktok_video.clone(),
+            }),
+            Box::new(crate::end::EndScene {}),
         ];
 
         fframes::Scenes::from(vec)

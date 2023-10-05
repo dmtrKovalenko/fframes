@@ -1,7 +1,7 @@
 use fframes::lazy_static::lazy_static;
 use fframes::{
-    animation, prettify_spectrum, svgr, AudioMap, FFramesContext, Frame, SampleSize, Svgr, Video,
-    VisualizeFrameInput,
+    animation, center_spectrum_low_frequences, svgr, AudioMap, FFramesContext, Frame, SampleSize,
+    Svgr, Video, VisualizeFrameInput,
 };
 pub use tiktok_media::GooseMedia;
 
@@ -43,7 +43,7 @@ impl Video for GooseVideo<'_> {
             window: None,
         });
 
-        let audio_visualization = prettify_spectrum(audio_visualization.as_slice());
+        let audio_visualization = center_spectrum_low_frequences(audio_visualization.as_slice());
 
         svgr!(
             <svg width="1080" height="1920" fill="none" xmlns="http://www.w3.org/2000/svg">

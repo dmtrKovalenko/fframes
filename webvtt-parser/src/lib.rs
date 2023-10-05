@@ -180,9 +180,9 @@ pub struct VttCue<'a> {
     pub cue_settings: Option<VttCueSettings>,
 }
 
-impl<'a> Into<&'a str> for VttCue<'a> {
-    fn into(self) -> &'a str {
-        self.text
+impl<'a> From<VttCue<'a>> for &'a str {
+    fn from(value: VttCue<'a>) -> &'a str {
+        value.text
     }
 }
 
@@ -197,14 +197,14 @@ pub struct OwnedVttCue {
     pub cue_settings: Option<VttCueSettings>,
 }
 
-impl<'a> Into<&'a str> for &'a OwnedVttCue {
-    fn into(self) -> &'a str {
-        &self.text
+impl<'a> From<&'a OwnedVttCue> for &'a str {
+    fn from(value: &'a OwnedVttCue) -> &'a str {
+        &value.text
     }
 }
 
 impl OwnedVttCue {
-    pub fn as_ref<'a>(&'a self) -> VttCue<'a> {
+    pub fn as_ref(&self) -> VttCue {
         VttCue {
             start: self.start,
             end: self.end,
@@ -389,16 +389,16 @@ impl OwnedVtt {
     }
 }
 
-impl<'a> Into<Vtt<'a>> for &'a OwnedVtt {
-    fn into(self) -> Vtt<'a> {
+impl<'a> From<&'a OwnedVtt> for Vtt<'a> {
+    fn from(value: &'a OwnedVtt) -> Self {
         Vtt {
-            slugs: self
+            slugs: value
                 .slugs
                 .iter()
                 .map(|(key, value)| (key.as_str(), value.as_str()))
                 .collect(),
-            style: self.style.as_deref(),
-            cues: self.cues.iter().map(|cue| cue.as_ref()).collect(),
+            style: value.style.as_deref(),
+            cues: value.cues.iter().map(|cue| cue.as_ref()).collect(),
         }
     }
 }

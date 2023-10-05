@@ -16,4 +16,6 @@ wasm-bindgen = "0.2.74"
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
 beta-example = { path = "../../", default-features = false }
 marketing-example = { path = "../../../marketing", default-features = false }
-tiktok-media  = { path = "../../../tiktok/media", default-features = false }
+tiktok-example  = { path = "../../../tiktok", default-features = false }
+hello-world-example = { path = "../../../hello-world", default-features = false }
+podcast-example = { path = "../../../podcast", default-features = false }

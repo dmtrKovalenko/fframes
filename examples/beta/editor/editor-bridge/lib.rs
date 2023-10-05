@@ -1,14 +1,35 @@
 #![cfg(target_arch = "wasm32")]
 use beta_example::BetaVideo;
 use fframes_editor_controller::{prelude::*, setup_wasm_editor};
-use tiktok_media::GooseMedia;
+use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
+use marketing_example::{MarketingMedia, MarketingVideo};
+use podcast_example::PodcastVideo;
+use std::sync::Arc;
+use tiktok_example::{GooseMedia, GooseVideo};
 
 lazy_static! {
-    static ref MEDIA: GooseMedia = GooseMedia::prepare().unwrap();
+    static ref TIKTOK_MEDIA: GooseMedia = GooseMedia::prepare().unwrap();
+    static ref MARKETING_MEDIA: MarketingMedia = MarketingMedia::prepare().unwrap();
+    static ref HELLO_WORLD_MEDIA: HelloWorldMedia = HelloWorldMedia::prepare().unwrap();
 }
 
 setup_wasm_editor!(BetaVideo, {
   hours: 14,
   minutes: 4,
-  tiktok_media: &MEDIA,
+  tiktok_video: Arc::new(GooseVideo {
+    media: &TIKTOK_MEDIA,
+  }),
+  hello_world_video: Arc::new(HelloWorldVideo { 
+    slug: "Hello, Beta!",
+    media: &HELLO_WORLD_MEDIA
+  }),
+  marketing_video: Arc::new(MarketingVideo {
+    audio_track: "beta.mp3",
+    media: &MARKETING_MEDIA,
+  }),
+  podcast_video: Arc::new(PodcastVideo {
+    goose_audio: "beta.mp3",
+    duck_audio: "beta.mp3",
+    guest_audio: "beta.mp3"
+  })
 }, ());

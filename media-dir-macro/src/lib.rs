@@ -312,7 +312,7 @@ fn create_image_identifier_for_platform(
         width,
         mime,
         data,
-    } = &fframes_media_loaders::decode_image(file_name, &bytes).unwrap();
+    } = &fframes_media_loaders::decode_image(file_name, bytes).unwrap();
 
     let bytes_literal = Literal::byte_string(data);
 

@@ -3,7 +3,6 @@ use crate::{
     scenes::*, AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo,
     Svgr, TimeBase,
 };
-use std::sync::Arc;
 
 /// The base fframes video trait. It represents how to render a video for a struct which becomes an
 /// input of the video.
@@ -24,13 +23,13 @@ pub trait Video: Sync + Sized {
 
 #[derive(Debug)]
 pub struct ResolvedScenesTimeline<'a>(
-    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene + 'a>)>,
+    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, &'a Box<dyn Scene + 'a>)>,
 );
 
 impl<'a> ResolvedScenesTimeline<'_> {
     pub fn iter(
         &'a self,
-    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, Arc<dyn Scene + 'a>)> {
+    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, &Box<dyn Scene + 'a>)> {
         self.0.iter()
     }
 }
@@ -75,7 +74,7 @@ pub fn resolve_timeline<
                         duration_in_frames: duration + overlap_next,
                         is_last: index == scenes_count - 1,
                     },
-                    Arc::clone(scene),
+                    *scene,
                 ));
 
                 final_duration += duration;

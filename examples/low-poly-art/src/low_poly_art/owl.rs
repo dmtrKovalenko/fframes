@@ -40,7 +40,7 @@ impl Scene for Owl {
         > "BUBO BUBO" </text>
 
          {
-               fframes::prettify_spectrum(visualization.as_slice())
+               fframes::center_spectrum_low_frequences(visualization.as_slice())
                .iter()
                .skip(2)
                .enumerate()

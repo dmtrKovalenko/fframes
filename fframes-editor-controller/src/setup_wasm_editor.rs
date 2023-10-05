@@ -8,17 +8,20 @@ macro_rules! setup_wasm_editor {
         }
 
         lazy_static! {
-            static ref VIDEO: $x<'static> = $x $params;
+            static ref VIDEO: $x = $x $params;
+            static ref RAW_SCENES: fframes::Scenes<'static> = VIDEO.define_scenes();
+
             static ref DURATION_IN_FRAMES: Mutex<usize> = Mutex::new(0);
             static ref BREAK_LINES_CACHE: fframes::BreaksLruCache = fframes::BreaksLruCache::new(10).unwrap();
             static ref FONTS: Mutex<wasm_font_source::WasmFontSource> = Mutex::new(wasm_font_source::WasmFontSource::new());
-            static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline>> = Mutex::new(None);
+            static ref SCENES: Mutex<Option<fframes::ResolvedScenesTimeline<'static>>> = Mutex::new(None);
             static ref TIME_BASE: Mutex<Option<fframes::TimeBase>> = Mutex::new(None);
             static ref MEDIA_PROVIDER: Mutex<fframes::DynamicMediaProvider<'static>> =
                 Mutex::new(fframes::DynamicMediaProvider::new(
                 HashMap::new(),
                 HashMap::new(),
                 HashMap::new(),
+                Vec::new()
             ));
         }
 
@@ -32,7 +35,7 @@ macro_rules! setup_wasm_editor {
             };
 
             TIME_BASE.lock().unwrap().replace(tb);
-            let (duration, scenes, audio_map) = wasm_audio::prepare_video_with_audio(&*VIDEO, &tb, &$static_media).await;
+            let (duration, scenes, audio_map) = wasm_audio::prepare_video_with_audio(&*VIDEO, &tb, &$static_media, &RAW_SCENES).await;
 
             let mut duration_mutex_ref = DURATION_IN_FRAMES.lock().unwrap();
             *duration_mutex_ref = duration;
@@ -87,8 +90,10 @@ macro_rules! setup_wasm_editor {
             media_provider.images.insert(
                 file,
                 fframes::media::ImageData {
+                    // in wasm we might skip base64 loading but we always have url provided.
+                    // base64 is required for canvas preview render but the data is better
+                    base64_data: std::borrow::Cow::Owned(base64_data.unwrap_or(url.clone())),
                     filename: url,
-                    base64_data: std::borrow::Cow::Owned(base64_data.unwrap_or_default()),
                 }
             );
         }

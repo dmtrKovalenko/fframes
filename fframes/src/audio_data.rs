@@ -176,7 +176,7 @@ pub fn get_visualization(
 /// Stranger if you are reading this comment you might be interested in implementation and how
 /// to make it more efficient and faster. Here is a great place to help fframes by changing implementation
 /// of this function to be in-place and do not allocate.
-pub fn prettify_spectrum(spectrum: &[f32]) -> Vec<f32> {
+pub fn center_spectrum_low_frequences(spectrum: &[f32]) -> Vec<f32> {
     let mut pretty_spectrum = vec![0.0; spectrum.len()];
     let mid = spectrum.len() / 2 - 1;
 
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_prettify_spectrum() {
         assert_eq!(
-            prettify_spectrum([1., 2., 3., 4., 5., 6., 7., 8.].as_slice()),
+            center_spectrum_low_frequences([1., 2., 3., 4., 5., 6., 7., 8.].as_slice()),
             vec![7., 5., 3., 1., 2., 4., 6., 8.]
         );
     }

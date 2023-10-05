@@ -16,18 +16,19 @@ mod concatenator;
 mod encoder;
 mod encoder_frame;
 mod ffmpeg_helper;
-mod media_dirctory;
+mod media_directory;
 mod render_backend;
 mod renderer_error;
 mod renderer_font_source;
 mod stream;
 
 pub use fframes_logger::*;
-pub use media_dirctory::*;
+pub use media_directory::*;
 pub use render_backend::*;
 
 #[derive(Debug, Clone, Default)]
-/// Options that are passed to the rendere process
+/// All the final render-specific options applies to the video includes media providing, loggin,
+/// and encoding.
 pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub media: Option<&'a (dyn MediaProvider<'a>)>,
     pub logger: FFramesLoggerVariant,
@@ -88,7 +89,7 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
     }
 
     if let Some(media) = options.media {
-        for (data, filename) in media.get_all_font_data() {
+        for (data, _filename) in media.get_all_font_data() {
             // TODO change to memmap
             font_db.load_font_data(data.to_vec());
         }

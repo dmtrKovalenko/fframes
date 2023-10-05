@@ -61,7 +61,6 @@ impl WasmFontSource {
         data: Cow<'static, [u8]>,
         filename: Option<&'static str>,
     ) -> Option<FaceInfo> {
-        fframes::log!("{}", matches!(data, Cow::Borrowed(_)));
         let face = ttf_parser::Face::parse(&data, 0).ok()?;
         let name_bytes = parse_family_name(face.raw_face())?;
 
@@ -74,7 +73,6 @@ impl WasmFontSource {
 
         match (&data, filename) {
             (Cow::Borrowed(borrowed_data), Some(filename)) => {
-                fframes::log!("{filename}");
                 self.static_fonts.push(StaticFontFace {
                     filename,
                     data: borrowed_data,

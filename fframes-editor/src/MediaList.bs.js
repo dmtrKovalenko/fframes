@@ -162,17 +162,8 @@ var LoadedMedia = {
   make: MediaList$LoadedMedia
 };
 
-function MediaList$Loading(Props) {
-  var name = Props.name;
-  return React.createElement("div", undefined, React.createElement("p", undefined, name));
-}
-
-var Loading = {
-  make: MediaList$Loading
-};
-
 function memo(__x) {
-  return React.memo(__x, (function (propsA, propsB) {
+  return React.memo(__x, (function (propsB, propsA) {
                 return propsA.variant === propsB.variant;
               }));
 }
@@ -185,11 +176,6 @@ var make = memo(function (Props) {
                 }, Belt_Array.map(Belt_MapString.keysToArray(mediaState.mediaList), (function (name) {
                         var media = Belt_MapString.getExn(mediaState.mediaList, name);
                         switch (media.TAG | 0) {
-                          case /* Loading */0 :
-                              return React.createElement(MediaList$Loading, {
-                                          name: name,
-                                          key: name
-                                        });
                           case /* Media */1 :
                               return React.createElement(MediaList$LoadedMedia, {
                                           name: name,
@@ -197,6 +183,7 @@ var make = memo(function (Props) {
                                           variant: variant,
                                           key: name
                                         });
+                          case /* Loading */0 :
                           case /* Error */2 :
                               return null;
                           
@@ -208,7 +195,6 @@ export {
   LoadedMediaIcon ,
   stringifyFontWeight ,
   LoadedMedia ,
-  Loading ,
   memo ,
   make ,
   

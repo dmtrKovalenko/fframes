@@ -38,6 +38,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
     }
 
     pub fn get_image_href(&self, filename: impl AsRef<str>) -> Option<&'media str> {
+        println!("get_image_href: {}", filename.as_ref());
         self.media_source?
             .resolve_image(filename.as_ref())
             .map(ImageData::href)

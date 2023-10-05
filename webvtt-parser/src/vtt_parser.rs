@@ -15,7 +15,7 @@ use nom::{
 use crate::cue_settings_parser::parse_cue_settings;
 use crate::{Time, Vtt, VttCue, START_MARKER};
 
-fn parse_note<'a>(input: Span<'a>) -> IResult<Span, Option<&'a str>> {
+fn parse_note(input: Span) -> IResult<Span, Option<&str>> {
     let (rest, line) = take_until("\n")(input)?;
 
     if !line.contains("NOTE ") {
