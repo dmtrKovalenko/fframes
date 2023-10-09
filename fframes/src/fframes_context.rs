@@ -38,7 +38,6 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
     }
 
     pub fn get_image_href(&self, filename: impl AsRef<str>) -> Option<&'media str> {
-        println!("get_image_href: {}", filename.as_ref());
         self.media_source?
             .resolve_image(filename.as_ref())
             .map(ImageData::href)
@@ -69,8 +68,8 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         if let Some(scenes) = self.scenes.as_ref() {
             scenes.0.iter().find_map(|(_, info, boxed_scene)| {
                 #[allow(clippy::ptr_eq)]
-                let pointers_equal = boxed_scene.as_ref() as *const dyn crate::Scene as *const T
-                    == scene as *const T;
+                let pointers_equal =
+                    *boxed_scene as *const dyn crate::Scene as *const T == scene as *const T;
 
                 pointers_equal.then_some(info)
             })

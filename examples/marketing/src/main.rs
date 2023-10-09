@@ -4,7 +4,6 @@ use marketing_example::{MarketingMedia, MarketingVideo};
 
 fn main() {
     let media = MarketingMedia::prepare().unwrap();
-    println!("{:?}", media.resolve_image("code.png"));
 
     render(
         &MarketingVideo {

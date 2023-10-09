@@ -1,7 +1,7 @@
 use fframes;
 use fframes::svgr;
-use fframes::Scene;
 use fframes::Svgr;
+use fframes::{AudioMap, Scene};
 
 #[derive(Debug)]
 pub(crate) struct Owl {}
@@ -9,6 +9,12 @@ pub(crate) struct Owl {}
 impl Scene for Owl {
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(10.)
+    }
+
+    fn audio_map(&self) -> AudioMap {
+        use fframes::AudioTimestamp::*;
+
+        AudioMap::from([("owl.mp3", (Frame(0)..Second(10.)))])
     }
 
     fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> Svgr {

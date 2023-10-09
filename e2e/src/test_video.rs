@@ -18,10 +18,10 @@ impl Video for TestVideo {
     fn audio(&self) -> AudioMap {
         AudioMap::none()
     }
-
+ 
     fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
         const BACKGROUND_EASING: animation::Easing = animation::Easing::Linear(5.);
-
+ 
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"

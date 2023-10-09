@@ -6,6 +6,7 @@ use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
 use fframes_logger::FFramesLoggerVariant;
 use render_backend::FFramesRenderBackend;
 use renderer_error::FFramesRendererResult;
+use std::collections::HashMap;
 
 pub mod fframes_logger;
 
@@ -82,20 +83,20 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
     )?;
 
     logger.init_frames_rendering(timeline.duration_in_frames)?;
-    let mut font_db = usvgr_text_layout::fontdb::Database::new();
+
+    let mut image_source = HashMap::new();
+    let mut font_source = RendererFontSource {
+        fontdb: usvgr_text_layout::fontdb::Database::new(),
+    };
 
     if options.load_system_fonts {
-        font_db.load_system_fonts();
+        font_source.fontdb.load_system_fonts();
     }
 
     if let Some(media) = options.media {
-        for (data, _filename) in media.get_all_font_data() {
-            // TODO change to memmap
-            font_db.load_font_data(data.to_vec());
-        }
+        media.populate_font_source(&mut font_source);
+        media.populate_image_source(&mut image_source);
     }
-
-    let font_source = RendererFontSource { fontdb: &font_db };
 
     let ctx = FFramesContext {
         time_base: TimeBase {
@@ -109,17 +110,18 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
         font_source: Some(&font_source),
     };
 
+    let font_db = font_source.as_db_ref();
     options.render_backend.render(
         output,
         video,
         logger,
         &fframes::usvgr::Options {
-            // image_data: Some(&image_data),
+            image_data: Some(&image_source),
             font_family: options.default_font.to_string(),
             ..Default::default()
         },
         &options.encoder_options,
-        &font_db,
+        font_db,
         &timeline,
         ctx,
     )?;

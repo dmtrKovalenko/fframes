@@ -1,5 +1,5 @@
 use crate::{AudioMap, Svgr};
-use std::{fmt::Debug};
+use std::fmt::Debug;
 
 pub enum Overlap {
     Previous(f32),
@@ -57,7 +57,7 @@ pub trait Scene: Debug + Sync + Send {
     }
 }
 
-pub struct Scenes<'a>(pub(crate) Option<Vec<Box<dyn Scene + 'a>>>);
+pub struct Scenes<'a>(pub(crate) Option<Vec<&'a (dyn Scene + 'a)>>);
 
 impl Scenes<'_> {
     pub fn len(&self) -> usize {
@@ -69,15 +69,15 @@ impl Scenes<'_> {
     }
 }
 
-impl From<Vec<Box<dyn Scene>>> for Scenes<'_> {
-    fn from(arr: Vec<Box<dyn Scene>>) -> Self {
+impl<'a> From<Vec<&'a dyn Scene>> for Scenes<'a> {
+    fn from(arr: Vec<&'a (dyn Scene)>) -> Self {
         Self(Some(arr))
     }
 }
 
 pub struct SceneWithAudio<'a> {
     pub audio_map: AudioMap<'a>,
-    pub scene: &'a Box<dyn Scene + 'a>,
+    pub scene: &'a (dyn Scene + 'a),
 }
 
 pub struct ScenesWithAudio<'a>(pub(crate) Option<Vec<SceneWithAudio<'a>>>);
@@ -88,7 +88,7 @@ impl<'a> ScenesWithAudio<'a> {
             s.iter()
                 .map(|s| SceneWithAudio {
                     audio_map: s.audio_map(),
-                    scene: s,
+                    scene: *s,
                 })
                 .collect::<Vec<_>>()
         }))

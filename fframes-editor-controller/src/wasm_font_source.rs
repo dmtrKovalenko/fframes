@@ -2,7 +2,7 @@ use fframes::{
     ttf_parser::{self},
     FontStretch, FontStyle,
 };
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, fframes::serde::Serialize)]
@@ -135,6 +135,10 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
             face,
             name: font_name.to_owned(),
         }))
+    }
+
+    fn add_font(&mut self, _filename: String, _font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
+        unimplemented!("Adding fonts for wasm font source must be done through WasmFontSource::insert_font api")
     }
 }
 

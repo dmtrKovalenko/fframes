@@ -1,6 +1,5 @@
 #[derive(Debug)]
 pub struct StaticFontFace<'a> {
-    // pub name: String,
     pub face: ttf_parser::Face<'a>,
 }
 
@@ -10,5 +9,4 @@ impl<'a> StaticFontFace<'a> {
 
         Ok(Self { face })
     }
-    
 }

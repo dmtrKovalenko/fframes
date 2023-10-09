@@ -1,19 +1,10 @@
-use std::sync::Arc;
-
+use crate::{BetaExamples, IphoneScene};
 use fframes::{animation, AudioMap, AudioTimestamp, FFramesContext, Frame, Scene, Svgr, Video};
-use hello_world_example::HelloWorldVideo;
-use marketing_example::MarketingVideo;
-use podcast_example::PodcastVideo;
 use svgr_macro::{self, svgr};
-use tiktok_example::GooseVideo;
 
-pub struct BetaVideo {
-    pub minutes: u32,
-    pub hours: u32,
-    pub hello_world_video: Arc<HelloWorldVideo<'static>>,
-    pub marketing_video: Arc<MarketingVideo<'static>>,
-    pub podcast_video: Arc<PodcastVideo<'static>>,
-    pub tiktok_video: Arc<GooseVideo<'static>>,
+pub struct BetaVideo<'a> {
+    pub iphone_scene: IphoneScene,
+    pub beta_examples: BetaExamples<'a>,
 }
 
 #[derive(Debug)]
@@ -60,7 +51,7 @@ impl Scene for HeadingScene {
     }
 }
 
-impl Video for BetaVideo {
+impl Video for BetaVideo<'_> {
     const FPS: usize = 60;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
@@ -80,22 +71,14 @@ impl Video for BetaVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Box<dyn Scene>> = vec![
-            Box::new(HeadingScene {}),
-            Box::new(crate::code_demo::CodeDemoScene {}),
-            Box::new(crate::rendering::RenderingScene {}),
-            Box::new(crate::iphone::IphoneScene {
-                hours: self.hours,
-                minutes: self.minutes,
-            }),
-            Box::new(crate::github::GithubScene {}),
-            Box::new(crate::examples::ExamplesScene {
-                hello_world_video: self.hello_world_video.clone(),
-                marketing_video: self.marketing_video.clone(),
-                podcast_video: self.podcast_video.clone(),
-                tiktok_video: self.tiktok_video.clone(),
-            }),
-            Box::new(crate::end::EndScene {}),
+        let vec: Vec<&dyn Scene> = vec![
+            &HeadingScene {},
+            &crate::code_demo::CodeDemoScene {},
+            &crate::rendering::RenderingScene {},
+            &self.iphone_scene,
+            &crate::github::GithubScene {},
+            &self.beta_examples,
+            &crate::end::EndScene {},
         ];
 
         fframes::Scenes::from(vec)

@@ -7,14 +7,14 @@ use podcast_example::PodcastVideo;
 use tiktok_example::GooseVideo;
 
 #[derive(Debug)]
-pub struct ExamplesScene<'a> {
+pub struct BetaExamples<'a> {
     pub hello_world_video: Arc<HelloWorldVideo<'a>>,
     pub marketing_video: Arc<MarketingVideo<'a>>,
     pub podcast_video: Arc<PodcastVideo<'a>>,
     pub tiktok_video: Arc<GooseVideo<'a>>,
 }
 
-impl Scene for ExamplesScene<'_> {
+impl Scene for BetaExamples<'_> {
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Frames(500)
     }

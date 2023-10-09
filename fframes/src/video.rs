@@ -11,9 +11,44 @@ pub trait Video: Sync + Sized {
     const WIDTH: usize;
     const HEIGHT: usize;
 
-    fn audio(&self) -> AudioMap;
     fn duration(&self) -> Duration;
+    fn audio(&self) -> AudioMap;
 
+    /// Defines the scenes timeline of the video.
+    /// Each scene is an object which implements the `Scene` trait.
+    ///
+    /// Every scene must be either bound to the `&self` lifetime or be a zero sized type.
+    ///
+    ///
+    /// # Example
+    /// ```
+    ///
+    /// use fframes::{Video, Scenes, Scene, Frame, Svgr, FFramesContext};
+    ///
+    /// struct SceneZeroSize;
+    /// struct SceneWithInput {
+    ///    value: String;
+    /// }
+    ///
+    /// impl Scene For SceneZeroSize { }
+    /// impl Scene For SceneWithInput { }
+    ///
+    /// struct MyVideo {
+    ///     scenes_with_input: SceneWithInput,
+    /// };
+    ///
+    /// impl Video for MyVideo {
+    ///     fn define_scenes(&self) -> Scenes {
+    ///         let scenes: Vec<&dyn Scene> = vec![
+    ///             // notice this is a zero sized type so we can create ref right here
+    ///             &SceneZeroSize { },
+    ///             // And here we passing a ref bound to the &self
+    ///             &self.scenes_with_input,
+    ///         ]
+    ///         
+    ///         Scenes::from(scenes)
+    ///     }
+    /// }
     fn define_scenes(&self) -> Scenes {
         Scenes(None)
     }
@@ -23,13 +58,13 @@ pub trait Video: Sync + Sized {
 
 #[derive(Debug)]
 pub struct ResolvedScenesTimeline<'a>(
-    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, &'a Box<dyn Scene + 'a>)>,
+    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))>,
 );
 
 impl<'a> ResolvedScenesTimeline<'_> {
     pub fn iter(
         &'a self,
-    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, &Box<dyn Scene + 'a>)> {
+    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))> {
         self.0.iter()
     }
 }

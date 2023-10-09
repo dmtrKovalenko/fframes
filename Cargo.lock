@@ -776,6 +776,7 @@ dependencies = [
  "indicatif",
  "lazy_static",
  "lyon",
+ "memmap",
  "minimp3",
  "once_cell",
  "rayon",
@@ -1315,9 +1316,9 @@ dependencies = [
 
 [[package]]
 name = "kurbo"
-version = "0.9.1"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db8c31eaef73f18e0d938785e01ab471ec73e3f90c3389e84335ade689ba953b"
+checksum = "bd85a5776cd9500c2e2059c8c76c3b01528566b7fcbaf8098b55a33fc298849b"
 dependencies = [
  "arrayvec 0.7.2",
 ]
@@ -1509,6 +1510,16 @@ name = "memchr"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b16bd47d9e329435e309c58469fe0791c2d0d1ba96ec0954152a5ae2b04387dc"
+
+[[package]]
+name = "memmap"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "memmap2"
@@ -2688,7 +2699,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "808fbfcb5d5149ab678053fd80c13e43da438f66696bd4c966ffd3f12da5352d"
 dependencies = [
  "fontdb",
- "kurbo 0.9.1",
+ "kurbo 0.9.5",
  "log",
  "lru",
  "rustybuzz",

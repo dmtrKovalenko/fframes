@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+use self::owl::Owl;
 use fframes::{AudioMap, AudioTimestamp, Scene, Svgr};
 pub use fframes::{FFramesContext, Frame, Video};
 
@@ -18,14 +20,11 @@ impl Video for LowPolyVideo {
     }
 
     fn audio(&self) -> AudioMap {
-        AudioMap::from([(
-            "owl.mp3",
-            (AudioTimestamp::Frame(0)..AudioTimestamp::Second(10.)),
-        )])
+        AudioMap::none()
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Box<dyn Scene>> = vec![Box::new(owl::Owl {})];
+        let vec: Vec<&(dyn Scene)> = vec![&Owl {}];
 
         fframes::Scenes::from(vec)
     }

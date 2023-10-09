@@ -1,7 +1,7 @@
 use crate::renderer_error::FFramesRendererResult;
 use fframes::{
     media::{decode_image, Subtitles},
-    DynamicMediaProvider,
+    DynamicMediaProvider, RawFontData,
 };
 use rayon::prelude::*;
 use std::{
@@ -73,16 +73,19 @@ impl MediaDirectory {
                             );
                         }
                         "vtt" => {
-                            let str_bytes = std::str::from_utf8(&bytes)?;
+                            let str_bytes = std::str::from_utf8(bytes)?;
 
                             subtitles_hash.lock()?.insert(
                                 filename.to_owned(),
-                                Subtitles::parse(&str_bytes)
+                                Subtitles::parse(str_bytes)
                                     .map_err(fframes::media::FFramesMediaError::from)?,
                             );
                         }
                         "ttf" | "ttc" | "otf" | "otc" => {
-                            fontdata.lock()?.push(bytes.as_slice());
+                            fontdata.lock()?.push(RawFontData {
+                                file_name: filename.to_owned(),
+                                data: Arc::new(bytes.to_owned()),
+                            });
                         }
                         "jpg" | "jpeg" | "png" => {
                             let image = decode_image(filename, bytes)

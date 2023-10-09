@@ -91,17 +91,16 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
 
     let all_used_files = all_used_files
         .into_iter()
-        .filter_map(|file| {
+        .filter(|file| {
             let static_audio = static_media.resolve_audio(file);
 
             // if audio is not static than we need to fetch and load it through the browser xhr
-            match static_audio.map(|audio| {
-                let duration = audio.duration_in_frames(tb);
-                duration_map.insert(file, duration);
-            }) {
-                Some(_) => None,
-                None => Some(file),
-            }
+            static_audio
+                .map(|audio| {
+                    let duration = audio.duration_in_frames(tb);
+                    duration_map.insert(file, duration);
+                })
+                .is_some()
         })
         .collect::<Vec<_>>();
 
@@ -144,7 +143,7 @@ pub async fn prepare_video_with_audio<'a, TVideo: Video, TStaticMedia: StaticMed
     let video_duration = video.duration();
 
     let audio_map = video.audio();
-    let scene_audios = ScenesWithAudio::new(&scenes);
+    let scene_audios = ScenesWithAudio::new(scenes);
 
     let audio_durations =
         resolve_used_audio_durations(tb, &video_duration, &scene_audios, &audio_map, static_media)

@@ -8,7 +8,7 @@ macro_rules! setup_wasm_editor {
         }
 
         lazy_static! {
-            static ref VIDEO: $x = $x $params;
+            static ref VIDEO: $x<'static> = $x $params;
             static ref RAW_SCENES: fframes::Scenes<'static> = VIDEO.define_scenes();
 
             static ref DURATION_IN_FRAMES: Mutex<usize> = Mutex::new(0);
@@ -170,7 +170,7 @@ macro_rules! setup_wasm_editor {
 
         #[wasm_bindgen]
         pub fn get_static_audio_data_by_index(index: usize) -> Option<wasm_audio::AudioData> {
-            let audios = (&$static_media).get_all_audio_data();
+            let audios = (&$static_media).get_all_audio_data()?;
             audios.get(index).map(|(static_audio, filename)| wasm_audio::AudioData::new(*static_audio, filename))
         }
     };

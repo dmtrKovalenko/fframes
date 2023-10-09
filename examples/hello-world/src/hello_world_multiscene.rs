@@ -60,7 +60,7 @@ impl Video for HelloWorldMultiSceneVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<Box<dyn Scene>> = vec![Box::new(SceneOne {}), Box::new(SceneTwo {})];
+        let vec: Vec<&dyn Scene> = vec![&SceneOne {}, &SceneTwo {}];
 
         fframes::Scenes::from(vec)
     }

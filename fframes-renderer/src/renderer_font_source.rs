@@ -4,6 +4,8 @@ use usvgr_text_layout::fontdb::{self, Family, Query, Weight};
 
 pub(crate) struct RendererFont<'a> {
     pub(crate) index: u32,
+    // We can not use the ttf_parser::Face directly because it can be a file
+    // which in theory not a big deal because "parse" here mostly not doing any data transofmrations
     pub(crate) data: Arc<dyn AsRef<[u8]> + Send + Sync + 'a>,
 }
 
@@ -35,11 +37,17 @@ impl<'a> fframes::FontFace<'a> for RendererFont<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct RendererFontSource<'a> {
-    pub(crate) fontdb: &'a usvgr_text_layout::fontdb::Database,
+pub(crate) struct RendererFontSource {
+    pub(crate) fontdb: usvgr_text_layout::fontdb::Database,
 }
 
-impl<'a> fframes::FontSource<'a> for RendererFontSource<'a> {
+impl RendererFontSource {
+    pub fn as_db_ref(&self) -> &usvgr_text_layout::fontdb::Database {
+        &self.fontdb
+    }
+}
+
+impl<'a> fframes::FontSource<'a> for RendererFontSource {
     fn resolve_font(
         &'a self,
         font_name: &str,
@@ -69,15 +77,19 @@ impl<'a> fframes::FontSource<'a> for RendererFontSource<'a> {
         })?;
 
         let (source, index) = self.fontdb.face_source(font_id)?;
-        let data_ref = match source {
-            fontdb::Source::Binary(data) => data.clone(),
-            fontdb::Source::File(file) => Arc::new(std::fs::read(file).ok()?),
-            fontdb::Source::SharedFile(_, data) => data.clone(),
+        let font_data = match source {
+            fontdb::Source::Binary(data) | fontdb::Source::SharedFile(_, data) => data.clone(),
+            fontdb::Source::File(path) => Arc::new(std::fs::read(path).ok()?),
         };
 
         Some(Box::new(RendererFont {
             index,
-            data: data_ref,
+            data: font_data,
         }))
+    }
+
+    fn add_font(&mut self, _filename: String, font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
+        self.fontdb
+            .load_font_source(usvgr_text_layout::fontdb::Source::Binary(font_data.clone()));
     }
 }

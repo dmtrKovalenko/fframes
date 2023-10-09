@@ -52,10 +52,23 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
-    let fonts_identifiers = media_files
+    // These are the values we give to the renderer/editor to access all of the media dynamicaly.
+    let populate_fonts_expressions = media_files
         .iter()
         .filter_map(|MediaFile { variant, ident, filename, .. }| {
-            matches!(variant, MediaVariant::Font).then_some(quote! { ( &self.#ident, #filename )})
+            matches!(variant, MediaVariant::Font).then_some(
+                quote! {
+                    font_source.add_font(String::from(#filename), std::sync::Arc::new(self.#ident));
+                }
+            )
+        })
+        .collect::<Vec<_>>();
+    let populate_images_expressions = media_files
+        .iter()
+        .filter_map(|MediaFile { variant, ident, filename, .. }| {
+            matches!(variant, MediaVariant::Image).then_some(quote! {
+                image_data.insert(String::from(#filename), std::sync::Arc::clone(&self.#ident.image));
+            })
         })
         .collect::<Vec<_>>();
     let audio_identifiers = media_files
@@ -65,19 +78,16 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
+
     quote! {
         // This is a workaround to force include_bytes which is the way we inline styles to force
         // the alignment of the plain &'static [u8] to be aligned with i16 which we use for audio
         // data.
         //
         // More info here https://jack.wrenn.fyi/blog/include-transmute/
-        #[repr(align(16))]
-        struct AudioAlign;
-
         #[repr(C)]
-        #[repr(align(16))]
-        struct AudioInlinedWithSafeAlign<Bytes: ?Sized> { 
-            pub _align: [AudioAlign; 0],
+        struct ForceAlignTo<Align, Bytes: ?Sized> { 
+            pub _align: [Align; 0],
             pub bytes: Bytes
         }
 
@@ -92,6 +102,11 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
                     #(#instantiate_fields)*
                 })
             }
+
+            fn get_all_audio_data(&self) -> Option<Vec<(&#fframes_crate_ident::AudioData, &str)>> {
+                Some(vec![#(#audio_identifiers),*])
+            }
+
         }
 
         impl #fframes_crate_ident::MediaProvider<'_> for #ident {
@@ -124,16 +139,13 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
                 None
             }
 
-            fn get_all_font_data(&self) -> Vec<(&[u8], &str)> {
-                vec![ 
-                    #(#fonts_identifiers),*
-                ]
+            fn populate_font_source(&self, font_source: &mut dyn #fframes_crate_ident::FontSource) {
+               #(#populate_fonts_expressions);*
             }
 
-            fn get_all_audio_data(&self) -> Vec<(&#fframes_crate_ident::AudioData, &str)> { 
-               vec![
-                    #(#audio_identifiers),*
-               ]
+            #[cfg(not(target_arch = "wasm32"))]
+            fn populate_image_source(&self, image_data: &mut std::collections::HashMap<String, std::sync::Arc<#fframes_crate_ident::media::PreloadedImageData>>) {
+               #(#populate_images_expressions);*
             }
         }
     }
@@ -224,7 +236,7 @@ impl MediaFile {
                     #fframes_crate_ident::AudioData::Preloaded(
                         #fframes_crate_ident::media::PreloadedAudioData {
                             samples: {
-                                static ALIGNED_LITERAL: &AudioInlinedWithSafeAlign<[u8]> = &AudioInlinedWithSafeAlign { 
+                                static ALIGNED_LITERAL: &ForceAlignTo<i16, [u8]> = &ForceAlignTo { 
                                     _align: [],
                                     bytes: *#literal
                                 };
@@ -317,15 +329,24 @@ fn create_image_identifier_for_platform(
     let bytes_literal = Literal::byte_string(data);
 
     quote! {
-    image: std::sync::Arc::new(
-        #fframes_crate_ident::usvgr::PreloadedImageData {
-            data: std::borrow::Cow::Borrowed(
-                #bytes_literal
-            ),
-            width: #width,
-            height: #height,
-            mime: #mime.to_owned(),
-        })
+    image: {
+        // This is basically the u32 rgba images under the hood so we must align them correctly
+        // they will be again casted via bytemuch to the u32
+        static ALIGNED_LITERAL: &ForceAlignTo<u32, [u8]> = &ForceAlignTo { 
+            _align: [],
+            bytes: *#bytes_literal
+        };
+
+        std::sync::Arc::new(
+            #fframes_crate_ident::usvgr::PreloadedImageData {
+                data: std::borrow::Cow::Borrowed(
+                    &ALIGNED_LITERAL.bytes
+                ),
+                width: #width,
+                height: #height,
+                mime: #mime.to_owned(),
+            })
+        }
     }
 }
 
