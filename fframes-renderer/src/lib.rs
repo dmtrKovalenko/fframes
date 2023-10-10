@@ -3,8 +3,6 @@ pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 use fframes::MediaProvider;
 use fframes::Video;
 use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
-use fframes_logger::FFramesLoggerVariant;
-use render_backend::FFramesRenderBackend;
 use renderer_error::FFramesRendererResult;
 use std::collections::HashMap;
 

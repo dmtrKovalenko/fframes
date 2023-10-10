@@ -48,7 +48,7 @@ impl FrameFormatConvertor {
         sws_scale(
             self.sws_ctx,
             (*self.tmp_frame).data.as_ptr() as *const *const u8,
-            (*self.tmp_frame).linesize.as_ptr() as *const i32,
+            (*self.tmp_frame).linesize.as_ptr(),
             0,
             (*self.tmp_frame).height,
             (*destination_frame).data.as_ptr(),
