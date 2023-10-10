@@ -416,7 +416,7 @@ impl Display for Vtt<'_> {
             "{}\n\n{}",
             START_MARKER,
             self.cues.iter().fold(String::new(), |mut out, subtitle| {
-                let _ = write!(out, "{subtitle}/n");
+                let _ = write!(out, "{subtitle}\n");
                 out
             })
         )

@@ -508,12 +508,12 @@ impl Display for UnableToParseVariable {
 }
 
 #[test]
-fn test_align() {
+fn verify_correct_algiment_of_the_file() {
     use bytemuck::cast_slice;
 
+    let bytes = include_bytes!("../../examples/marketing/media/marketing.mp3");
     let initial_slize: &[i16] = &fframes_media_loaders::decode_mp3(
-        File::open("/Users/dmtrkovalenko/dev/fframes/examples/marketing/media/marketing.mp3")
-            .unwrap(),
+        std::io::Cursor::new(bytes),
     )
     .unwrap()
     .samples;
