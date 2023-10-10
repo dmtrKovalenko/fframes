@@ -1,0 +1,691 @@
+beta-editor-bridge v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/beta/editor/editor-bridge)
+├── beta-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/beta)
+│   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes)
+│   │   ├── fframes-media-loaders v0.0.1 (/Users/dmtrkovalenko/dev/fframes/fframes-media-loaders)
+│   │   │   ├── bytemuck v1.13.1
+│   │   │   │   └── bytemuck_derive v1.4.1 (proc-macro)
+│   │   │   │       ├── proc-macro2 v1.0.66
+│   │   │   │       │   └── unicode-ident v1.0.6
+│   │   │   │       ├── quote v1.0.31
+│   │   │   │       │   └── proc-macro2 v1.0.66 (*)
+│   │   │   │       └── syn v2.0.26
+│   │   │   │           ├── proc-macro2 v1.0.66 (*)
+│   │   │   │           ├── quote v1.0.31 (*)
+│   │   │   │           └── unicode-ident v1.0.6
+│   │   │   ├── image v0.24.6
+│   │   │   │   ├── bytemuck v1.13.1 (*)
+│   │   │   │   ├── byteorder v1.4.3
+│   │   │   │   ├── color_quant v1.1.0
+│   │   │   │   ├── exr v1.5.3
+│   │   │   │   │   ├── bit_field v0.10.1
+│   │   │   │   │   ├── flume v0.10.12
+│   │   │   │   │   │   ├── futures-core v0.3.27
+│   │   │   │   │   │   ├── futures-sink v0.3.27
+│   │   │   │   │   │   ├── nanorand v0.7.0
+│   │   │   │   │   │   │   └── getrandom v0.2.6
+│   │   │   │   │   │   │       ├── cfg-if v1.0.0
+│   │   │   │   │   │   │       └── libc v0.2.147
+│   │   │   │   │   │   ├── pin-project v1.0.10
+│   │   │   │   │   │   │   └── pin-project-internal v1.0.10 (proc-macro)
+│   │   │   │   │   │   │       ├── proc-macro2 v1.0.66 (*)
+│   │   │   │   │   │   │       ├── quote v1.0.31 (*)
+│   │   │   │   │   │   │       └── syn v1.0.107
+│   │   │   │   │   │   │           ├── proc-macro2 v1.0.66 (*)
+│   │   │   │   │   │   │           ├── quote v1.0.31 (*)
+│   │   │   │   │   │   │           └── unicode-ident v1.0.6
+│   │   │   │   │   │   └── spin v0.9.3
+│   │   │   │   │   │       └── lock_api v0.4.6
+│   │   │   │   │   │           └── scopeguard v1.1.0
+│   │   │   │   │   ├── half v2.3.1
+│   │   │   │   │   │   └── cfg-if v1.0.0
+│   │   │   │   │   ├── lebe v0.5.2
+│   │   │   │   │   ├── miniz_oxide v0.6.2
+│   │   │   │   │   │   └── adler v1.0.2
+│   │   │   │   │   ├── smallvec v1.8.0
+│   │   │   │   │   ├── threadpool v1.8.1
+│   │   │   │   │   │   └── num_cpus v1.16.0
+│   │   │   │   │   │       └── libc v0.2.147
+│   │   │   │   │   └── zune-inflate v0.2.54
+│   │   │   │   │       └── simd-adler32 v0.3.7
+│   │   │   │   ├── gif v0.12.0
+│   │   │   │   │   ├── color_quant v1.1.0
+│   │   │   │   │   └── weezl v0.1.5
+│   │   │   │   ├── jpeg-decoder v0.3.0
+│   │   │   │   │   └── rayon v1.5.1
+│   │   │   │   │       ├── crossbeam-deque v0.8.0
+│   │   │   │   │       │   ├── cfg-if v1.0.0
+│   │   │   │   │       │   ├── crossbeam-epoch v0.9.5
+│   │   │   │   │       │   │   ├── cfg-if v1.0.0
+│   │   │   │   │       │   │   ├── crossbeam-utils v0.8.5
+│   │   │   │   │       │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │       │   │   │   └── lazy_static v1.4.0
+│   │   │   │   │       │   │   ├── lazy_static v1.4.0
+│   │   │   │   │       │   │   ├── memoffset v0.6.4
+│   │   │   │   │       │   │   │   [build-dependencies]
+│   │   │   │   │       │   │   │   └── autocfg v1.0.1
+│   │   │   │   │       │   │   └── scopeguard v1.1.0
+│   │   │   │   │       │   └── crossbeam-utils v0.8.5 (*)
+│   │   │   │   │       ├── either v1.6.1
+│   │   │   │   │       └── rayon-core v1.9.1
+│   │   │   │   │           ├── crossbeam-channel v0.5.1
+│   │   │   │   │           │   ├── cfg-if v1.0.0
+│   │   │   │   │           │   └── crossbeam-utils v0.8.5 (*)
+│   │   │   │   │           ├── crossbeam-deque v0.8.0 (*)
+│   │   │   │   │           ├── crossbeam-utils v0.8.5 (*)
+│   │   │   │   │           ├── lazy_static v1.4.0
+│   │   │   │   │           └── num_cpus v1.16.0 (*)
+│   │   │   │   │       [build-dependencies]
+│   │   │   │   │       └── autocfg v1.0.1
+│   │   │   │   ├── num-rational v0.4.0
+│   │   │   │   │   ├── num-bigint v0.4.0
+│   │   │   │   │   │   ├── num-integer v0.1.44
+│   │   │   │   │   │   │   └── num-traits v0.2.14
+│   │   │   │   │   │   │       [build-dependencies]
+│   │   │   │   │   │   │       └── autocfg v1.0.1
+│   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   └── autocfg v1.0.1
+│   │   │   │   │   │   └── num-traits v0.2.14 (*)
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── autocfg v1.0.1
+│   │   │   │   │   ├── num-integer v0.1.44 (*)
+│   │   │   │   │   └── num-traits v0.2.14 (*)
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── autocfg v1.0.1
+│   │   │   │   ├── num-traits v0.2.14 (*)
+│   │   │   │   ├── png v0.17.6
+│   │   │   │   │   ├── bitflags v1.2.1
+│   │   │   │   │   ├── crc32fast v1.2.1
+│   │   │   │   │   │   └── cfg-if v1.0.0
+│   │   │   │   │   ├── flate2 v1.0.20
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   ├── crc32fast v1.2.1 (*)
+│   │   │   │   │   │   ├── libc v0.2.147
+│   │   │   │   │   │   └── miniz_oxide v0.4.4
+│   │   │   │   │   │       └── adler v1.0.2
+│   │   │   │   │   │       [build-dependencies]
+│   │   │   │   │   │       └── autocfg v1.0.1
+│   │   │   │   │   └── miniz_oxide v0.5.4
+│   │   │   │   │       └── adler v1.0.2
+│   │   │   │   ├── qoi v0.4.1
+│   │   │   │   │   └── bytemuck v1.13.1 (*)
+│   │   │   │   └── tiff v0.8.1
+│   │   │   │       ├── flate2 v1.0.20 (*)
+│   │   │   │       ├── jpeg-decoder v0.3.0 (*)
+│   │   │   │       └── weezl v0.1.5
+│   │   │   ├── minimp3 v0.5.1
+│   │   │   │   ├── minimp3-sys v0.3.2
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── cc v1.0.69
+│   │   │   │   ├── slice-deque v0.3.0
+│   │   │   │   │   ├── libc v0.2.147
+│   │   │   │   │   └── mach v0.3.2
+│   │   │   │   │       └── libc v0.2.147
+│   │   │   │   └── thiserror v1.0.26
+│   │   │   │       └── thiserror-impl v1.0.26 (proc-macro)
+│   │   │   │           ├── proc-macro2 v1.0.66 (*)
+│   │   │   │           ├── quote v1.0.31 (*)
+│   │   │   │           └── syn v1.0.107 (*)
+│   │   │   ├── ttf-parser v0.19.1
+│   │   │   ├── usvgr v0.28.5
+│   │   │   │   ├── base64 v0.13.0
+│   │   │   │   ├── data-url v0.2.0
+│   │   │   │   ├── flate2 v1.0.20 (*)
+│   │   │   │   ├── imagesize v0.10.1
+│   │   │   │   ├── kurbo v0.8.0
+│   │   │   │   │   └── arrayvec v0.5.2
+│   │   │   │   ├── log v0.4.14
+│   │   │   │   │   └── cfg-if v1.0.0
+│   │   │   │   ├── proc-macro2 v1.0.66 (*)
+│   │   │   │   ├── quote v1.0.31 (*)
+│   │   │   │   ├── rctree v0.5.0
+│   │   │   │   ├── roxmltree v0.15.1
+│   │   │   │   │   └── xmlparser v0.13.5
+│   │   │   │   ├── simplecss v0.2.1
+│   │   │   │   │   └── log v0.4.14 (*)
+│   │   │   │   ├── siphasher v0.3.7
+│   │   │   │   ├── strict-num v0.1.0
+│   │   │   │   │   └── float-cmp v0.9.0
+│   │   │   │   └── svgrtypes v0.28.5
+│   │   │   │       ├── kurbo v0.8.0 (*)
+│   │   │   │       ├── proc-macro2 v1.0.66 (*)
+│   │   │   │       ├── quote v1.0.31 (*)
+│   │   │   │       └── siphasher v0.3.7
+│   │   │   └── webvtt-parser v0.1.0 (/Users/dmtrkovalenko/dev/fframes/webvtt-parser)
+│   │   │       ├── nom v7.1.0
+│   │   │       │   ├── memchr v2.4.0
+│   │   │       │   └── minimal-lexical v0.2.1
+│   │   │       │   [build-dependencies]
+│   │   │       │   └── version_check v0.9.4
+│   │   │       └── nom_locate v4.0.0
+│   │   │           ├── bytecount v0.6.2
+│   │   │           ├── memchr v2.4.0
+│   │   │           └── nom v7.1.0 (*)
+│   │   ├── konst v0.2.15
+│   │   │   ├── konst_macro_rules v0.2.14
+│   │   │   └── konst_proc_macros v0.2.11 (proc-macro)
+│   │   ├── lazy_static v1.4.0
+│   │   ├── libm v0.2.8
+│   │   ├── lru v0.9.0
+│   │   │   └── hashbrown v0.13.1
+│   │   │       └── ahash v0.8.2
+│   │   │           ├── cfg-if v1.0.0
+│   │   │           └── once_cell v1.17.0
+│   │   │           [build-dependencies]
+│   │   │           └── version_check v0.9.4
+│   │   ├── media-dir-macro v0.7.3 (proc-macro) (/Users/dmtrkovalenko/dev/fframes/media-dir-macro)
+│   │   │   ├── base64 v0.21.2
+│   │   │   ├── bytemuck v1.13.1
+│   │   │   │   └── bytemuck_derive v1.4.1 (proc-macro) (*)
+│   │   │   ├── fframes-media-loaders v0.0.1 (/Users/dmtrkovalenko/dev/fframes/fframes-media-loaders) (*)
+│   │   │   ├── proc-macro-crate v1.3.1
+│   │   │   │   ├── once_cell v1.17.0
+│   │   │   │   └── toml_edit v0.19.12
+│   │   │   │       ├── indexmap v2.0.0
+│   │   │   │       │   ├── equivalent v1.0.1
+│   │   │   │       │   └── hashbrown v0.14.0
+│   │   │   │       ├── toml_datetime v0.6.3
+│   │   │   │       └── winnow v0.4.7
+│   │   │   ├── proc-macro2 v1.0.66 (*)
+│   │   │   ├── quote v1.0.31 (*)
+│   │   │   └── syn v1.0.107 (*)
+│   │   ├── microfft v0.4.0
+│   │   │   ├── num-complex v0.4.0
+│   │   │   │   └── num-traits v0.2.14 (*)
+│   │   │   └── static_assertions v1.1.0
+│   │   ├── num v0.4.0
+│   │   │   ├── num-bigint v0.4.0 (*)
+│   │   │   ├── num-complex v0.4.0 (*)
+│   │   │   ├── num-integer v0.1.44 (*)
+│   │   │   ├── num-iter v0.1.42
+│   │   │   │   ├── num-integer v0.1.44 (*)
+│   │   │   │   └── num-traits v0.2.14 (*)
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── autocfg v1.0.1
+│   │   │   ├── num-rational v0.4.0 (*)
+│   │   │   └── num-traits v0.2.14 (*)
+│   │   ├── parking_lot v0.12.1
+│   │   │   ├── lock_api v0.4.6 (*)
+│   │   │   └── parking_lot_core v0.9.7
+│   │   │       ├── cfg-if v1.0.0
+│   │   │       ├── libc v0.2.147
+│   │   │       └── smallvec v1.8.0
+│   │   ├── rangemap v1.0.3
+│   │   ├── roxmltree v0.14.1
+│   │   │   └── xmlparser v0.13.5
+│   │   ├── serde v1.0.152
+│   │   │   └── serde_derive v1.0.152 (proc-macro)
+│   │   │       ├── proc-macro2 v1.0.66 (*)
+│   │   │       ├── quote v1.0.31 (*)
+│   │   │       └── syn v1.0.107 (*)
+│   │   ├── svgr-macro v0.1.1 (proc-macro) (/Users/dmtrkovalenko/dev/fframes/svgr-macro)
+│   │   │   ├── lazy_static v1.4.0
+│   │   │   ├── proc-macro-crate v1.3.1 (*)
+│   │   │   ├── proc-macro2 v1.0.66 (*)
+│   │   │   ├── quote v1.0.31 (*)
+│   │   │   ├── rust-fuzzy-search v0.1.1
+│   │   │   ├── syn v1.0.107 (*)
+│   │   │   ├── usvgr v0.28.5 (*)
+│   │   │   └── uuid v0.8.2
+│   │   │       └── getrandom v0.2.6
+│   │   │           ├── cfg-if v1.0.0
+│   │   │           └── libc v0.2.147
+│   │   │   [dev-dependencies]
+│   │   │   └── criterion v0.3.4
+│   │   │       ├── atty v0.2.14
+│   │   │       │   └── libc v0.2.147
+│   │   │       ├── cast v0.2.7
+│   │   │       │   [build-dependencies]
+│   │   │       │   └── rustc_version v0.4.0
+│   │   │       │       └── semver v1.0.3
+│   │   │       ├── clap v2.33.3
+│   │   │       │   ├── bitflags v1.2.1
+│   │   │       │   ├── textwrap v0.11.0
+│   │   │       │   │   └── unicode-width v0.1.8
+│   │   │       │   └── unicode-width v0.1.8
+│   │   │       ├── criterion-plot v0.4.3
+│   │   │       │   ├── cast v0.2.7 (*)
+│   │   │       │   └── itertools v0.9.0
+│   │   │       │       └── either v1.6.1
+│   │   │       ├── csv v1.1.6
+│   │   │       │   ├── bstr v0.2.16
+│   │   │       │   │   ├── lazy_static v1.4.0
+│   │   │       │   │   ├── memchr v2.4.0
+│   │   │       │   │   ├── regex-automata v0.1.10
+│   │   │       │   │   └── serde v1.0.152
+│   │   │       │   ├── csv-core v0.1.10
+│   │   │       │   │   └── memchr v2.4.0
+│   │   │       │   ├── itoa v0.4.7
+│   │   │       │   ├── ryu v1.0.5
+│   │   │       │   └── serde v1.0.152
+│   │   │       ├── itertools v0.10.1
+│   │   │       │   └── either v1.6.1
+│   │   │       ├── lazy_static v1.4.0
+│   │   │       ├── num-traits v0.2.14 (*)
+│   │   │       ├── oorandom v11.1.3
+│   │   │       ├── plotters v0.3.1
+│   │   │       │   ├── num-traits v0.2.14 (*)
+│   │   │       │   ├── plotters-backend v0.3.2
+│   │   │       │   └── plotters-svg v0.3.1
+│   │   │       │       └── plotters-backend v0.3.2
+│   │   │       ├── rayon v1.5.1 (*)
+│   │   │       ├── regex v1.5.4
+│   │   │       │   └── regex-syntax v0.6.25
+│   │   │       ├── serde v1.0.152
+│   │   │       ├── serde_cbor v0.11.1
+│   │   │       │   ├── half v1.8.2
+│   │   │       │   └── serde v1.0.152
+│   │   │       ├── serde_derive v1.0.152 (proc-macro) (*)
+│   │   │       ├── serde_json v1.0.64
+│   │   │       │   ├── itoa v0.4.7
+│   │   │       │   ├── ryu v1.0.5
+│   │   │       │   └── serde v1.0.152
+│   │   │       ├── tinytemplate v1.2.1
+│   │   │       │   ├── serde v1.0.152
+│   │   │       │   └── serde_json v1.0.64 (*)
+│   │   │       └── walkdir v2.3.2
+│   │   │           └── same-file v1.0.6
+│   │   ├── ttf-parser v0.18.0
+│   │   ├── usvgr v0.28.5 (*)
+│   │   └── webvtt-parser v0.1.0 (/Users/dmtrkovalenko/dev/fframes/webvtt-parser) (*)
+│   │   [dev-dependencies]
+│   │   └── futures v0.3.27
+│   │       ├── futures-channel v0.3.27
+│   │       │   ├── futures-core v0.3.27
+│   │       │   └── futures-sink v0.3.27
+│   │       ├── futures-core v0.3.27
+│   │       ├── futures-executor v0.3.27
+│   │       │   ├── futures-core v0.3.27
+│   │       │   ├── futures-task v0.3.27
+│   │       │   └── futures-util v0.3.27
+│   │       │       ├── futures-channel v0.3.27 (*)
+│   │       │       ├── futures-core v0.3.27
+│   │       │       ├── futures-io v0.3.27
+│   │       │       ├── futures-macro v0.3.27 (proc-macro)
+│   │       │       │   ├── proc-macro2 v1.0.66 (*)
+│   │       │       │   ├── quote v1.0.31 (*)
+│   │       │       │   └── syn v1.0.107 (*)
+│   │       │       ├── futures-sink v0.3.27
+│   │       │       ├── futures-task v0.3.27
+│   │       │       ├── memchr v2.4.0
+│   │       │       ├── pin-project-lite v0.2.8
+│   │       │       ├── pin-utils v0.1.0
+│   │       │       └── slab v0.4.6
+│   │       ├── futures-io v0.3.27
+│   │       ├── futures-sink v0.3.27
+│   │       ├── futures-task v0.3.27
+│   │       └── futures-util v0.3.27 (*)
+│   ├── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer)
+│   │   ├── bytemuck v1.13.1 (*)
+│   │   ├── colored v2.0.0
+│   │   │   ├── atty v0.2.14 (*)
+│   │   │   └── lazy_static v1.4.0
+│   │   ├── ffmpeg-next v6.0.0
+│   │   │   ├── bitflags v1.2.1
+│   │   │   ├── ffmpeg-sys-next v6.0.1
+│   │   │   │   └── libc v0.2.147
+│   │   │   │   [build-dependencies]
+│   │   │   │   ├── bindgen v0.64.0
+│   │   │   │   │   ├── bitflags v1.2.1
+│   │   │   │   │   ├── cexpr v0.6.0
+│   │   │   │   │   │   └── nom v7.1.0 (*)
+│   │   │   │   │   ├── clang-sys v1.4.0
+│   │   │   │   │   │   ├── glob v0.3.0
+│   │   │   │   │   │   ├── libc v0.2.147
+│   │   │   │   │   │   └── libloading v0.7.3
+│   │   │   │   │   │       └── cfg-if v1.0.0
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── glob v0.3.0
+│   │   │   │   │   ├── lazy_static v1.4.0
+│   │   │   │   │   ├── lazycell v1.3.0
+│   │   │   │   │   ├── peeking_take_while v0.1.2
+│   │   │   │   │   ├── proc-macro2 v1.0.66 (*)
+│   │   │   │   │   ├── quote v1.0.31 (*)
+│   │   │   │   │   ├── regex v1.5.4 (*)
+│   │   │   │   │   ├── rustc-hash v1.1.0
+│   │   │   │   │   ├── shlex v1.1.0
+│   │   │   │   │   └── syn v1.0.107 (*)
+│   │   │   │   ├── cc v1.0.69
+│   │   │   │   ├── num_cpus v1.16.0 (*)
+│   │   │   │   └── pkg-config v0.3.20
+│   │   │   └── libc v0.2.147
+│   │   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   │   ├── futures v0.3.27 (*)
+│   │   ├── image v0.24.6 (*)
+│   │   ├── indicatif v0.16.2
+│   │   │   ├── console v0.15.0
+│   │   │   │   ├── libc v0.2.147
+│   │   │   │   ├── once_cell v1.17.0
+│   │   │   │   └── terminal_size v0.1.17
+│   │   │   │       └── libc v0.2.147
+│   │   │   ├── lazy_static v1.4.0
+│   │   │   ├── number_prefix v0.4.0
+│   │   │   └── regex v1.5.4
+│   │   │       └── regex-syntax v0.6.25
+│   │   ├── lazy_static v1.4.0
+│   │   ├── lyon v0.17.10
+│   │   │   ├── lyon_algorithms v0.17.7
+│   │   │   │   ├── lyon_path v0.17.7
+│   │   │   │   │   └── lyon_geom v0.17.6
+│   │   │   │   │       ├── arrayvec v0.5.2
+│   │   │   │   │       ├── euclid v0.22.7
+│   │   │   │   │       │   └── num-traits v0.2.14 (*)
+│   │   │   │   │       └── num-traits v0.2.14 (*)
+│   │   │   │   └── sid v0.6.1
+│   │   │   │       └── num-traits v0.2.14 (*)
+│   │   │   └── lyon_tessellation v0.17.10
+│   │   │       ├── float_next_after v0.1.5
+│   │   │       │   └── num-traits v0.2.14 (*)
+│   │   │       └── lyon_path v0.17.7 (*)
+│   │   ├── memmap v0.7.0
+│   │   │   └── libc v0.2.147
+│   │   ├── minimp3 v0.5.1 (*)
+│   │   ├── once_cell v1.17.0
+│   │   ├── rayon v1.5.1 (*)
+│   │   ├── svgr v0.28.5
+│   │   │   ├── gif v0.11.3
+│   │   │   │   ├── color_quant v1.1.0
+│   │   │   │   └── weezl v0.1.5
+│   │   │   ├── jpeg-decoder v0.3.0 (*)
+│   │   │   ├── log v0.4.14 (*)
+│   │   │   ├── lru v0.9.0 (*)
+│   │   │   ├── pico-args v0.5.0
+│   │   │   ├── png v0.17.6 (*)
+│   │   │   ├── rgb v0.8.35
+│   │   │   │   └── bytemuck v1.13.1 (*)
+│   │   │   ├── svgfilters v0.4.0
+│   │   │   │   ├── float-cmp v0.9.0
+│   │   │   │   └── rgb v0.8.35 (*)
+│   │   │   ├── svgrtypes v0.28.5 (*)
+│   │   │   ├── tiny-skia v0.8.3
+│   │   │   │   ├── arrayref v0.3.6
+│   │   │   │   ├── arrayvec v0.7.2
+│   │   │   │   ├── bytemuck v1.13.1 (*)
+│   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   ├── png v0.17.6 (*)
+│   │   │   │   └── tiny-skia-path v0.8.3
+│   │   │   │       ├── arrayref v0.3.6
+│   │   │   │       ├── bytemuck v1.13.1 (*)
+│   │   │   │       └── strict-num v0.1.0 (*)
+│   │   │   ├── usvgr v0.28.5 (*)
+│   │   │   └── usvgr-text-layout v0.28.5
+│   │   │       ├── fontdb v0.12.0
+│   │   │       │   ├── log v0.4.14 (*)
+│   │   │       │   ├── memmap2 v0.5.0
+│   │   │       │   │   └── libc v0.2.147
+│   │   │       │   └── ttf-parser v0.18.0
+│   │   │       ├── kurbo v0.9.5
+│   │   │       │   └── arrayvec v0.7.2
+│   │   │       ├── log v0.4.14 (*)
+│   │   │       ├── lru v0.9.0 (*)
+│   │   │       ├── rustybuzz v0.6.0
+│   │   │       │   ├── bitflags v1.2.1
+│   │   │       │   ├── bytemuck v1.13.1 (*)
+│   │   │       │   ├── smallvec v1.8.0
+│   │   │       │   ├── ttf-parser v0.17.1
+│   │   │       │   ├── unicode-bidi-mirroring v0.1.0
+│   │   │       │   ├── unicode-ccc v0.1.2
+│   │   │       │   ├── unicode-general-category v0.6.0
+│   │   │       │   └── unicode-script v0.5.3
+│   │   │       ├── unicode-bidi v0.3.5
+│   │   │       │   └── matches v0.1.8
+│   │   │       ├── unicode-script v0.5.3
+│   │   │       ├── unicode-vo v0.1.0
+│   │   │       └── usvgr v0.28.5 (*)
+│   │   ├── svgr-macro v0.1.1 (proc-macro) (/Users/dmtrkovalenko/dev/fframes/svgr-macro) (*)
+│   │   ├── syn v1.0.107
+│   │   │   ├── proc-macro2 v1.0.66 (*)
+│   │   │   ├── quote v1.0.31 (*)
+│   │   │   └── unicode-ident v1.0.6
+│   │   ├── usvgr-text-layout v0.28.5 (*)
+│   │   ├── uuid v0.8.2 (*)
+│   │   └── wgpu v0.12.0
+│   │       ├── arrayvec v0.7.2
+│   │       ├── log v0.4.14 (*)
+│   │       ├── parking_lot v0.11.2
+│   │       │   ├── instant v0.1.12
+│   │       │   │   └── cfg-if v1.0.0
+│   │       │   ├── lock_api v0.4.6 (*)
+│   │       │   └── parking_lot_core v0.8.5
+│   │       │       ├── cfg-if v1.0.0
+│   │       │       ├── instant v0.1.12 (*)
+│   │       │       ├── libc v0.2.147
+│   │       │       └── smallvec v1.8.0
+│   │       ├── raw-window-handle v0.4.3
+│   │       │   └── cty v0.2.2
+│   │       ├── smallvec v1.8.0
+│   │       ├── wgpu-core v0.12.2
+│   │       │   ├── arrayvec v0.7.2
+│   │       │   ├── bitflags v1.2.1
+│   │       │   ├── codespan-reporting v0.11.1
+│   │       │   │   ├── termcolor v1.1.3
+│   │       │   │   └── unicode-width v0.1.8
+│   │       │   ├── copyless v0.1.5
+│   │       │   ├── fxhash v0.2.1
+│   │       │   │   └── byteorder v1.4.3
+│   │       │   ├── log v0.4.14 (*)
+│   │       │   ├── naga v0.8.5
+│   │       │   │   ├── bit-set v0.5.2
+│   │       │   │   │   └── bit-vec v0.6.3
+│   │       │   │   ├── bitflags v1.2.1
+│   │       │   │   ├── codespan-reporting v0.11.1 (*)
+│   │       │   │   ├── hexf-parse v0.2.1
+│   │       │   │   ├── indexmap v1.8.1
+│   │       │   │   │   └── hashbrown v0.11.2
+│   │       │   │   │   [build-dependencies]
+│   │       │   │   │   └── autocfg v1.0.1
+│   │       │   │   ├── log v0.4.14 (*)
+│   │       │   │   ├── num-traits v0.2.14 (*)
+│   │       │   │   ├── rustc-hash v1.1.0
+│   │       │   │   └── thiserror v1.0.26 (*)
+│   │       │   ├── parking_lot v0.11.2 (*)
+│   │       │   ├── profiling v1.0.5
+│   │       │   ├── raw-window-handle v0.4.3 (*)
+│   │       │   ├── smallvec v1.8.0
+│   │       │   ├── thiserror v1.0.26 (*)
+│   │       │   ├── wgpu-hal v0.12.5
+│   │       │   │   ├── arrayvec v0.7.2
+│   │       │   │   ├── bitflags v1.2.1
+│   │       │   │   ├── block v0.1.6
+│   │       │   │   ├── core-graphics-types v0.1.1
+│   │       │   │   │   ├── bitflags v1.2.1
+│   │       │   │   │   ├── core-foundation v0.9.3
+│   │       │   │   │   │   ├── core-foundation-sys v0.8.3
+│   │       │   │   │   │   └── libc v0.2.147
+│   │       │   │   │   ├── foreign-types v0.3.2
+│   │       │   │   │   │   └── foreign-types-shared v0.1.1
+│   │       │   │   │   └── libc v0.2.147
+│   │       │   │   ├── foreign-types v0.3.2 (*)
+│   │       │   │   ├── fxhash v0.2.1 (*)
+│   │       │   │   ├── log v0.4.14 (*)
+│   │       │   │   ├── metal v0.23.1
+│   │       │   │   │   ├── bitflags v1.2.1
+│   │       │   │   │   ├── block v0.1.6
+│   │       │   │   │   ├── core-graphics-types v0.1.1 (*)
+│   │       │   │   │   ├── foreign-types v0.3.2 (*)
+│   │       │   │   │   ├── log v0.4.14 (*)
+│   │       │   │   │   └── objc v0.2.7
+│   │       │   │   │       ├── malloc_buf v0.0.6
+│   │       │   │   │       │   └── libc v0.2.147
+│   │       │   │   │       └── objc_exception v0.1.2
+│   │       │   │   │           [build-dependencies]
+│   │       │   │   │           └── cc v1.0.69
+│   │       │   │   ├── naga v0.8.5 (*)
+│   │       │   │   ├── objc v0.2.7 (*)
+│   │       │   │   ├── parking_lot v0.11.2 (*)
+│   │       │   │   ├── profiling v1.0.5
+│   │       │   │   ├── raw-window-handle v0.4.3 (*)
+│   │       │   │   ├── thiserror v1.0.26 (*)
+│   │       │   │   └── wgpu-types v0.12.0
+│   │       │   │       └── bitflags v1.2.1
+│   │       │   └── wgpu-types v0.12.0 (*)
+│   │       │   [build-dependencies]
+│   │       │   └── cfg_aliases v0.1.1
+│   │       ├── wgpu-hal v0.12.5 (*)
+│   │       └── wgpu-types v0.12.0 (*)
+│   │   [build-dependencies]
+│   │   └── cc v1.0.69
+│   ├── getrandom v0.2.6 (*)
+│   ├── hello-world-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/hello-world)
+│   │   ├── clap v4.3.12
+│   │   │   ├── clap_builder v4.3.12
+│   │   │   │   ├── anstream v0.3.2
+│   │   │   │   │   ├── anstyle v1.0.1
+│   │   │   │   │   ├── anstyle-parse v0.2.1
+│   │   │   │   │   │   └── utf8parse v0.2.1
+│   │   │   │   │   ├── anstyle-query v1.0.0
+│   │   │   │   │   ├── colorchoice v1.0.0
+│   │   │   │   │   ├── is-terminal v0.4.9
+│   │   │   │   │   │   └── rustix v0.38.4
+│   │   │   │   │   │       ├── bitflags v2.3.3
+│   │   │   │   │   │       ├── errno v0.3.1
+│   │   │   │   │   │       │   └── libc v0.2.147
+│   │   │   │   │   │       └── libc v0.2.147
+│   │   │   │   │   └── utf8parse v0.2.1
+│   │   │   │   ├── anstyle v1.0.1
+│   │   │   │   ├── clap_lex v0.5.0
+│   │   │   │   └── strsim v0.10.0
+│   │   │   ├── clap_derive v4.3.12 (proc-macro)
+│   │   │   │   ├── heck v0.4.1
+│   │   │   │   ├── proc-macro2 v1.0.66 (*)
+│   │   │   │   ├── quote v1.0.31 (*)
+│   │   │   │   └── syn v2.0.26 (*)
+│   │   │   └── once_cell v1.17.0
+│   │   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   │   └── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+│   ├── lazy_static v1.4.0
+│   ├── libm v0.2.8
+│   ├── marketing-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/marketing)
+│   │   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   │   └── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+│   │   [dev-dependencies]
+│   │   ├── fframes_test_utils v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-test-utils)
+│   │   │   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   │   │   └── futures v0.3.27 (*)
+│   │   └── futures v0.3.27 (*)
+│   ├── podcast-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/podcast)
+│   │   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   │   ├── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+│   │   └── libm v0.2.8
+│   ├── rand v0.8.5
+│   │   ├── libc v0.2.147
+│   │   ├── rand_chacha v0.3.1
+│   │   │   ├── ppv-lite86 v0.2.16
+│   │   │   └── rand_core v0.6.4
+│   │   │       └── getrandom v0.2.6 (*)
+│   │   └── rand_core v0.6.4 (*)
+│   ├── svgr-macro v0.1.1 (proc-macro) (/Users/dmtrkovalenko/dev/fframes/svgr-macro) (*)
+│   └── tiktok-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok)
+│       ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│       ├── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+│       ├── libm v0.2.8
+│       └── tiktok-media v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok/media)
+│           └── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+├── fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller)
+│   ├── console_error_panic_hook v0.1.7
+│   │   ├── cfg-if v1.0.0
+│   │   └── wasm-bindgen v0.2.84
+│   │       ├── cfg-if v1.0.0
+│   │       ├── serde v1.0.152 (*)
+│   │       ├── serde_json v1.0.64 (*)
+│   │       └── wasm-bindgen-macro v0.2.84 (proc-macro)
+│   │           ├── quote v1.0.31 (*)
+│   │           └── wasm-bindgen-macro-support v0.2.84
+│   │               ├── proc-macro2 v1.0.66 (*)
+│   │               ├── quote v1.0.31 (*)
+│   │               ├── syn v1.0.107 (*)
+│   │               ├── wasm-bindgen-backend v0.2.84
+│   │               │   ├── bumpalo v3.7.0
+│   │               │   ├── log v0.4.14 (*)
+│   │               │   ├── once_cell v1.17.0
+│   │               │   ├── proc-macro2 v1.0.66 (*)
+│   │               │   ├── quote v1.0.31 (*)
+│   │               │   ├── syn v1.0.107 (*)
+│   │               │   └── wasm-bindgen-shared v0.2.84
+│   │               └── wasm-bindgen-shared v0.2.84
+│   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   ├── futures v0.3.27 (*)
+│   ├── js-sys v0.3.55
+│   │   └── wasm-bindgen v0.2.84 (*)
+│   ├── lazy_static v1.4.0
+│   ├── serde-wasm-bindgen v0.5.0
+│   │   ├── js-sys v0.3.55 (*)
+│   │   ├── serde v1.0.152 (*)
+│   │   └── wasm-bindgen v0.2.84 (*)
+│   ├── wasm-bindgen v0.2.84 (*)
+│   └── wasm-bindgen-futures v0.4.28
+│       ├── cfg-if v1.0.0
+│       ├── js-sys v0.3.55 (*)
+│       └── wasm-bindgen v0.2.84 (*)
+├── hello-world-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/hello-world) (*)
+├── marketing-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/marketing) (*)
+├── podcast-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/podcast) (*)
+├── tiktok-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok) (*)
+└── wasm-bindgen v0.2.84 (*)
+
+beta-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/beta) (*)
+
+e2e-tests v0.1.0 (/Users/dmtrkovalenko/dev/fframes/e2e)
+├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+├── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+├── lazy_static v1.4.0
+└── rayon v1.5.1 (*)
+
+editor-bridge v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/marketing/editor/editor-bridge)
+├── fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller) (*)
+├── marketing-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/marketing) (*)
+└── wasm-bindgen v0.2.84 (*)
+
+fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+
+fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller) (*)
+
+fframes-media-loaders v0.0.1 (/Users/dmtrkovalenko/dev/fframes/fframes-media-loaders) (*)
+
+fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+
+fframes_test_utils v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-test-utils) (*)
+
+hello-world-editor-bridge-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/hello-world/editor/editor-bridge)
+├── fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller) (*)
+├── hello-world-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/hello-world) (*)
+└── wasm-bindgen v0.2.84 (*)
+
+hello-world-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/hello-world) (*)
+
+low-poly-art-bridge v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/low-poly-art/editor/editor-bridge)
+├── fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller) (*)
+├── low-poly-art-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/low-poly-art)
+│   ├── fframes v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes) (*)
+│   ├── fframes_renderer v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-renderer) (*)
+│   ├── getrandom v0.2.6 (*)
+│   ├── libm v0.2.8
+│   └── rand v0.8.5 (*)
+│   [dev-dependencies]
+│   └── fframes_test_utils v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-test-utils) (*)
+└── wasm-bindgen v0.2.84 (*)
+
+low-poly-art-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/low-poly-art) (*)
+
+marketing-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/marketing) (*)
+
+media-dir-macro v0.7.3 (proc-macro) (/Users/dmtrkovalenko/dev/fframes/media-dir-macro) (*)
+
+podcast-editor-bridge v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/podcast/editor/editor-bridge)
+├── fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller) (*)
+├── podcast-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/podcast) (*)
+└── wasm-bindgen v0.2.84 (*)
+
+podcast-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/podcast) (*)
+
+svgr-macro v0.1.1 (proc-macro) (/Users/dmtrkovalenko/dev/fframes/svgr-macro) (*)
+
+tiktok-editor-bridge v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok/editor/editor-bridge)
+├── fframes-editor-controller v0.1.0 (/Users/dmtrkovalenko/dev/fframes/fframes-editor-controller) (*)
+├── tiktok-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok) (*)
+└── wasm-bindgen v0.2.84 (*)
+
+tiktok-example v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok) (*)
+
+tiktok-media v0.1.0 (/Users/dmtrkovalenko/dev/fframes/examples/tiktok/media) (*)
+
+webvtt-parser v0.1.0 (/Users/dmtrkovalenko/dev/fframes/webvtt-parser) (*)

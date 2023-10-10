@@ -1,6 +1,5 @@
 use crate::{error::Result, media, AudioData, FontSource};
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
-use usvgr::PreloadedImageData;
 
 #[derive(Clone)]
 pub struct RawFontData {
@@ -26,7 +25,10 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     // fn populate_font_source(&'a self, font_source: &mut dyn FontSource) -> Result<Vec<RawFontData>>;
     fn populate_font_source(&'a self, font_source: &mut dyn FontSource);
     #[cfg(not(target_arch = "wasm32"))]
-    fn populate_image_source(&'a self, image_data: &mut HashMap<String, Arc<PreloadedImageData>>);
+    fn populate_image_source(
+        &'a self,
+        image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
+    );
 }
 
 pub trait StaticMediaProvider<'a>: std::fmt::Debug + Sized + MediaProvider<'a> {
@@ -50,7 +52,10 @@ impl<'a> MediaProvider<'a> for () {
 
     fn populate_font_source(&'a self, _font_source: &mut dyn FontSource) {}
     #[cfg(not(target_arch = "wasm32"))]
-    fn populate_image_source(&'a self, _image_data: &mut HashMap<String, Arc<PreloadedImageData>>) {
+    fn populate_image_source(
+        &'a self,
+        _image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
+    ) {
     }
 }
 
@@ -112,7 +117,10 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn populate_image_source(&'a self, image_data: &mut HashMap<String, Arc<PreloadedImageData>>) {
+    fn populate_image_source(
+        &'a self,
+        image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
+    ) {
         for (name, data) in self.images.iter() {
             image_data.insert(name.clone(), data.image.clone());
         }
@@ -163,7 +171,10 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn populate_image_source(&'a self, image_data: &mut HashMap<String, Arc<PreloadedImageData>>) {
+    fn populate_image_source(
+        &'a self,
+        image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
+    ) {
         for provider in self.0.iter() {
             provider.populate_image_source(image_data);
         }

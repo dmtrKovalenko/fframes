@@ -1,4 +1,3 @@
-use crate::error::Result;
 use std::borrow::Cow;
 
 #[derive(Clone, Debug)]
@@ -28,7 +27,7 @@ impl PreloadedAudioData<'_> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn decode_mp3(buf: impl std::io::Read) -> Result<PreloadedAudioData<'static>> {
+pub fn decode_mp3(buf: impl std::io::Read) -> crate::error::Result<PreloadedAudioData<'static>> {
     use minimp3::{Decoder as Mp3Decoder, Error as Mp3Error, Frame as Mp3Frame};
 
     let mut decoder = Mp3Decoder::new(buf);

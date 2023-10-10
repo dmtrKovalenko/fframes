@@ -9,7 +9,7 @@ edition = "2021"
 microfft = "0.4.0"
 libm = "0.2.1"
 lazy_static = "1.4.0"
-num = "0.4.0"
+num = "0.4.1"
 webvtt-parser = { path = "../webvtt-parser" }
 svgr-macro = { path = "../svgr-macro" }
 media-dir-macro = { path = "../media-dir-macro" }
