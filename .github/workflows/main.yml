@@ -58,7 +58,7 @@ jobs:
 
 
       - name: Check examples wasm build
-        run: 
+        run: |
           cargo install wasm-pack
           just check-examples
 
