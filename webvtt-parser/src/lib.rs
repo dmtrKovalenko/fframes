@@ -408,16 +408,17 @@ pub trait ASubtitle {}
 impl ASubtitle for OwnedVtt {}
 impl ASubtitle for Vtt<'_> {}
 
+use std::fmt::Write;
 impl Display for Vtt<'_> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(
             formatter,
             "{}\n\n{}",
             START_MARKER,
-            self.cues
-                .iter()
-                .map(|subtitle| format!("{subtitle}\n"))
-                .collect::<String>()
+            self.cues.iter().fold(String::new(), |mut out, subtitle| {
+                let _ = write!(out, "{subtitle}/n");
+                out
+            })
         )
     }
 }

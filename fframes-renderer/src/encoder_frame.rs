@@ -51,8 +51,8 @@ impl FrameFormatConvertor {
             (*self.tmp_frame).linesize.as_ptr() as *const i32,
             0,
             (*self.tmp_frame).height,
-            (*destination_frame).data.as_ptr() as *const *mut u8,
-            (*destination_frame).linesize.as_ptr() as *const i32,
+            (*destination_frame).data.as_ptr(),
+            (*destination_frame).linesize.as_ptr(),
         );
 
         destination_frame
