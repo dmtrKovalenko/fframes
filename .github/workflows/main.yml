@@ -59,7 +59,7 @@ jobs:
 
       - name: Check examples wasm build
         run: |
-          cargo install wasm-pack
+          rustup target add wasm32-unknown-unknown
           just check-examples
 
       - name: Clippy
