@@ -56,8 +56,11 @@ jobs:
       - name: Build
         run: just build
 
+
       - name: Check examples wasm build
-        run: just check-examples
+        run: 
+          rustup target add wasm32-unknown-unknow
+          just check-examples
 
       - name: Clippy
         run: just clippy
