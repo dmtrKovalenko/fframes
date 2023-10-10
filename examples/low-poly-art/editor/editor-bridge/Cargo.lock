@@ -81,6 +81,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
+name = "base64"
+version = "0.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
+
+[[package]]
 name = "bindgen"
 version = "0.64.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -150,6 +156,20 @@ name = "bytemuck"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17febce684fd15d89027105661fec94afb475cb995fbc59d2865198446ba2eea"
+dependencies = [
+ "bytemuck_derive",
+]
+
+[[package]]
+name = "bytemuck_derive"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "965ab7eb5f8f97d2a083c799f3a1b994fc397b2fe2da5d1da1626ce15a39f2b1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
 
 [[package]]
 name = "byteorder"
@@ -425,10 +445,12 @@ dependencies = [
 name = "fframes"
 version = "0.1.0"
 dependencies = [
+ "fframes-media-loaders",
  "konst",
  "lazy_static",
  "libm",
  "lru",
+ "media-dir-macro",
  "microfft",
  "num",
  "parking_lot 0.12.1",
@@ -457,6 +479,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fframes-media-loaders"
+version = "0.0.1"
+dependencies = [
+ "bytemuck",
+ "image",
+ "minimp3",
+ "ttf-parser 0.19.2",
+ "usvgr",
+ "webvtt-parser",
+]
+
+[[package]]
 name = "fframes_renderer"
 version = "0.1.0"
 dependencies = [
@@ -470,7 +504,8 @@ dependencies = [
  "indicatif",
  "lazy_static",
  "lyon",
- "media-loader",
+ "memmap",
+ "minimp3",
  "once_cell",
  "rayon",
  "svgr",
@@ -1090,10 +1125,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "media-loader"
-version = "0.1.0"
+name = "media-dir-macro"
+version = "0.7.3"
 dependencies = [
- "minimp3",
+ "base64 0.21.4",
+ "bytemuck",
+ "fframes-media-loaders",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1101,6 +1142,16 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
+
+[[package]]
+name = "memmap"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "memmap2"
@@ -1490,9 +1541,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.56"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b63bdb0cd06f1f4dedf69b254734f9b45af66e4a031e42a7480257d9898b435"
+checksum = "134c189feb4956b20f6f547d2cf727d4c0fe06722b20a0eec87ed445a97f92da"
 dependencies = [
  "unicode-ident",
 ]
@@ -1865,9 +1916,9 @@ dependencies = [
 
 [[package]]
 name = "svgr"
-version = "0.28.4"
+version = "0.28.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4be89e1a453423255ef1d2a106404447b6e27c8f3b285d109f829c4ab7214903"
+checksum = "7c3ab907aec47934895e1ba362a0c36f748a48d8dbb441d27673249481631cd5"
 dependencies = [
  "gif 0.11.4",
  "jpeg-decoder",
@@ -1899,9 +1950,9 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.28.4"
+version = "0.28.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8501f968b96d37ced53d2b3ec6c5d4dffeeb38cdf190d975fe850d776cf61ce7"
+checksum = "34f5494f875b04ea197d5f0e8923115483697a4e283dc0c5eac520191068e757"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -2026,6 +2077,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0609f771ad9c6155384897e1df4d948e692667cc0588548b68eb44d052b27633"
 
 [[package]]
+name = "ttf-parser"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49d64318d8311fc2668e48b63969f4343e0a85c4a109aa8460d6672e364b8bd1"
+
+[[package]]
 name = "unicode-bidi"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2075,11 +2132,11 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 
 [[package]]
 name = "usvgr"
-version = "0.28.4"
+version = "0.28.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e50084f256514163428acb3cefbd989f3e18a7ca2aed3366d35f2353a4ad5d07"
+checksum = "43c1378177a9a38464f091d8f7c60b85b9c2fde4063ccfea1586fb275bde9439"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "data-url",
  "flate2",
  "imagesize",
@@ -2097,9 +2154,9 @@ dependencies = [
 
 [[package]]
 name = "usvgr-text-layout"
-version = "0.28.4"
+version = "0.28.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7c8e4c40caa960dd9086fd0052e6ba1cfba125d76c14e5af80560d9b371d85d"
+checksum = "808fbfcb5d5149ab678053fd80c13e43da438f66696bd4c966ffd3f12da5352d"
 dependencies = [
  "fontdb",
  "kurbo 0.9.4",

@@ -107,7 +107,7 @@ impl ScenesWithAudio<'_> {
     pub fn used_audio_files(&self) -> Option<Vec<&str>> {
         self.0.as_ref().map(|s| {
             s.iter()
-                .flat_map(|s| s.audio_map.used_audio_files())
+                .flat_map(|s| s.audio_map.used_audio_files::<Vec<&str>>())
                 .flatten()
                 .collect::<Vec<_>>()
         })

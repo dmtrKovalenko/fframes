@@ -1,16 +1,20 @@
 #![allow(dead_code)]
-use self::owl::Owl;
-use fframes::{AudioMap, AudioTimestamp, Scene, Svgr};
+use fframes::{include_media_dir, AudioMap, Scene, Svgr};
 pub use fframes::{FFramesContext, Frame, Video};
 
-pub struct LowPolyVideo {}
+include_media_dir!(pub struct LowPolyMedia, "examples/low-poly-art/media");
 
-mod owl;
-mod pelican;
-mod popuga;
-mod spektacled_owl;
+pub struct LowPolyVideo<'a> {
+    pub scene: &'a dyn Scene,
+    pub media: &'a LowPolyMedia,
+}
 
-impl Video for LowPolyVideo {
+pub mod owl;
+pub mod pelican;
+pub mod popuga;
+pub mod spektacled_owl;
+
+impl Video for LowPolyVideo<'_> {
     const FPS: usize = 60;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
@@ -24,9 +28,7 @@ impl Video for LowPolyVideo {
     }
 
     fn define_scenes(&self) -> fframes::Scenes {
-        let vec: Vec<&(dyn Scene)> = vec![&Owl {}];
-
-        fframes::Scenes::from(vec)
+        fframes::Scenes::from(vec![self.scene])
     }
 
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {

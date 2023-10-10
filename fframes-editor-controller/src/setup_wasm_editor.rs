@@ -157,8 +157,11 @@ macro_rules! setup_wasm_editor {
         #[wasm_bindgen]
         pub fn populate_static_fonts_db_with_static_fonts() {
             let mut font_wasm_db = FONTS.lock().unwrap();
-            for (font_data, filename) in (&$static_media).get_all_font_data() {
-                font_wasm_db.insert_font(font_data.into(), Some(filename));
+
+            if let Some(fonts) = (&$static_media).get_all_font_data() {
+                for (font_data, filename) in fonts {
+                    font_wasm_db.insert_font(font_data.into(), Some(filename));
+                }
             }
         }
 
@@ -171,6 +174,7 @@ macro_rules! setup_wasm_editor {
         #[wasm_bindgen]
         pub fn get_static_audio_data_by_index(index: usize) -> Option<wasm_audio::AudioData> {
             let audios = (&$static_media).get_all_audio_data()?;
+        fframes::log!("audios: {:?}", audios);
             audios.get(index).map(|(static_audio, filename)| wasm_audio::AudioData::new(*static_audio, filename))
         }
     };

@@ -17,10 +17,10 @@ fframes_renderer ={path="../../fframes-renderer"}
 default=["renderer"]
 renderer=["fframes/compile-time-svgtree"]
 
-
 [lib]
 name = "marketing_example"
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "marketing_example_bin"

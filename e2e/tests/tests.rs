@@ -9,7 +9,7 @@ fn e2e_rendering() {
     println!("Running e2e rendering tests for {OS}-{ARCH}");
 
     render(
-        TestVideo {
+        &TestVideo {
             slug: "This frame index:".to_owned(),
         },
         "out.mp4",

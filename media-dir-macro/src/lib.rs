@@ -71,10 +71,19 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
             })
         })
         .collect::<Vec<_>>();
+
+    // These are used mainly for editor and provides direct access to all the static media as 
+    // 'static borrow which significantly simplifies wasm code
     let audio_identifiers = media_files
         .iter()
         .filter_map(|MediaFile { variant, ident, filename, .. }| {
             matches!(variant, MediaVariant::Audio).then_some(quote! { ( &self.#ident, #filename )})
+        })
+        .collect::<Vec<_>>();
+    let font_identifiers = media_files
+        .iter()
+        .filter_map(|MediaFile { variant, ident, filename, .. }| {
+            matches!(variant, MediaVariant::Font).then_some(quote! { ( &self.#ident, #filename )})
         })
         .collect::<Vec<_>>();
 
@@ -96,6 +105,15 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
             #(#fields)*
         }
 
+        impl #ident { 
+            // we do have this only to avoid the requirement of importing the trait 
+            pub fn new() -> #fframes_crate_ident::error::Result<Self> {
+                Ok(Self {
+                    #(#instantiate_fields)*
+                })
+            }
+        }
+
         impl #fframes_crate_ident::StaticMediaProvider<'_> for #ident {
             fn prepare() -> #fframes_crate_ident::error::Result<Self> {
                 Ok(Self {
@@ -107,6 +125,9 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
                 Some(vec![#(#audio_identifiers),*])
             }
 
+            fn get_all_font_data(&self) -> Option<Vec<(&[u8], &str)>> {
+                Some(vec![#(#font_identifiers),*])
+            }
         }
 
         impl #fframes_crate_ident::MediaProvider<'_> for #ident {
@@ -401,7 +422,8 @@ fn read_media_files_dir(path: &Path) -> Vec<MediaFile> {
                 });
             }
         } else {
-            panic!("\"{}\" is neither a file nor a directory", child.display());
+            // We do not process nested folders becuase it allows to nest media structure as
+            // different static media provider per scene seamlessly
         }
     }
 

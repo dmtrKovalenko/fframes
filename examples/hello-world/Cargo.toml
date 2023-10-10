@@ -17,6 +17,7 @@ renderer = ["fframes/compile-time-svgtree"]
 [lib]
 name = "hello_world_example"
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "hello_world_example_bin"

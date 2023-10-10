@@ -1,12 +1,17 @@
 use fframes;
+use fframes::include_media_dir;
 use fframes::svgr;
 use fframes::Svgr;
 use fframes::{AudioMap, Scene};
 
-#[derive(Debug)]
-pub(crate) struct Owl {}
+include_media_dir!(pub struct OwlMedia, "examples/low-poly-art/media/owl");
 
-impl Scene for Owl {
+#[derive(Debug)]
+pub struct Owl<'a> {
+    pub media: &'a OwlMedia,
+}
+
+impl Scene for Owl<'_> {
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(10.)
     }

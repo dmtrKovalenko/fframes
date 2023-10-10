@@ -32,6 +32,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
 pub trait StaticMediaProvider<'a>: std::fmt::Debug + Sized + MediaProvider<'a> {
     fn prepare() -> Result<Self>;
     fn get_all_audio_data(&'a self) -> Option<Vec<(&'a AudioData, &'a str)>>;
+    fn get_all_font_data(&'a self) -> Option<Vec<(&'a [u8], &'a str)>>;
 }
 
 impl<'a> MediaProvider<'a> for () {
@@ -59,6 +60,10 @@ impl StaticMediaProvider<'_> for () {
     }
 
     fn get_all_audio_data(&self) -> Option<Vec<(&AudioData, &str)>> {
+        None
+    }
+
+    fn get_all_font_data(&self) -> Option<Vec<(&[u8], &str)>> {
         None
     }
 }

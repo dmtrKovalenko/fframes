@@ -25,6 +25,7 @@ renderer=["fframes/compile-time-svgtree", "hello-world-example/renderer", "marke
 [lib]
 name = "beta_example"
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "beta_example_bin"

@@ -230,7 +230,7 @@ impl<'a> AudioMap<'a> {
         Self(Some(map))
     }
 
-    pub fn used_audio_files(&'a self) -> Option<Vec<&'a str>> {
+    pub fn used_audio_files<T: FromIterator<&'a str>>(&'a self) -> Option<T> {
         self.0.as_ref().map(|map| {
             map.iter()
                 .filter_map(|(filename, range)| {
@@ -253,7 +253,7 @@ impl<'a> AudioMap<'a> {
                     }
                 })
                 .flatten()
-                .collect()
+                .collect::<T>()
         })
     }
 

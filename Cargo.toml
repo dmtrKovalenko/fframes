@@ -8,7 +8,7 @@ members = [
     "fframes-editor-controller",
     "fframes-test-utils",
     "fframes-media-loaders",
-    "examples/marketing",
+    # Examples 
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
     "examples/hello-world",
@@ -20,6 +20,7 @@ members = [
     "examples/tiktok/editor/editor-bridge",
     "examples/marketing/editor/editor-bridge",
     "examples/low-poly-art",
+    "examples/low-poly-art/editor/editor-bridge",
     "examples/beta",
     "examples/beta/editor/editor-bridge",
 ]

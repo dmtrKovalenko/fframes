@@ -4,7 +4,7 @@ use fframes::{
     ResolvedScenesTimeline, Scenes, ScenesWithAudio, StaticMediaProvider, TimeBase, Video,
 };
 use futures::future::join_all;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
@@ -72,22 +72,20 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     static_media: &'media TStaticMedia,
 ) -> fframes::error::Result<HashMap<&'a str, usize>> {
     let mut duration_map: HashMap<&'a str, usize> = HashMap::new();
-    let mut all_used_files = global_audio_map.used_audio_files().unwrap_or_default();
+    let mut all_used_files = global_audio_map
+        .used_audio_files::<HashSet<&str>>()
+        .unwrap_or_default();
 
-    if let Some(mut duration_audios) = duration.used_audio_files() {
-        all_used_files.append(&mut duration_audios);
+    if let Some(duration_audios) = duration.used_audio_files() {
+        all_used_files.extend(duration_audios.into_iter());
     }
-    if let Some(mut duration_audios) = scene_audios.used_audio_files() {
-        all_used_files.append(&mut duration_audios);
+    if let Some(duration_audios) = scene_audios.used_audio_files() {
+        all_used_files.extend(duration_audios.into_iter());
     }
 
     if all_used_files.is_empty() {
         return Ok(HashMap::new());
     }
-
-    // make sure that vec::dedup removes only consecutive duplicates
-    all_used_files.sort();
-    all_used_files.dedup();
 
     let all_used_files = all_used_files
         .into_iter()
@@ -100,7 +98,7 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
                     let duration = audio.duration_in_frames(tb);
                     duration_map.insert(file, duration);
                 })
-                .is_some()
+                .is_none()
         })
         .collect::<Vec<_>>();
 

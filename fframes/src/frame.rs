@@ -7,7 +7,9 @@ use crate::{
     BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
 };
 
-/// The Frame {} struct contains temporal information about the current frame.
+/// Contains all the temporal information about the current frame and the mutable links to the
+/// intermidient caches.
+#[derive(Debug, Default, Clone)]
 pub struct Frame {
     /// The frame index of the current scene. If rendering a Scene it is relative to the current frame.
     pub index: usize,
