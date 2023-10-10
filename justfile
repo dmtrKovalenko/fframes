@@ -37,7 +37,7 @@ check-wasm example:
   cd examples/{{example}} && cargo check --lib --target wasm32-unknown-unknown
 
 check-examples:
-  just check-wasm hellow-world & just check-wasm podcast & just check-wasm tiktok & just check-wasm beta & just check-wasm low-poly-art
+  just check-wasm hello-world & just check-wasm podcast & just check-wasm tiktok & just check-wasm beta & just check-wasm low-poly-art
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
