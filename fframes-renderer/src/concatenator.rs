@@ -114,11 +114,40 @@ unsafe fn create_encoder_copy_from_file(
     Ok(encoder)
 }
 
+// This function is replicating the logic of validating non-monotous dts from ffmpeg
+// https://github.com/FFmpeg/FFmpeg/blob/ea3d24bbe3c58b171e55fe2151fc7ffaca3ab3d2/fftools/ffmpeg_mux.c#L108-L126
+//
+// Make sure that logic is basically adding 1 to the max decoding timestamp which is the last muxed
+// packet dts. Which is likely not safe enough.
+unsafe fn validate_non_monotous_dts(
+    packet: *mut AVPacket,
+    last_mux_dts: &mut i64,
+    av_format_context: *mut AVFormatContext,
+) -> Result<(), RenderEncodingError> {
+    let max: i64 = *last_mux_dts
+        + match (*(*av_format_context).oformat).flags & AVFMT_TS_NONSTRICT == 0 {
+            true => 1,
+            false => 0,
+        };
+
+    if (*packet).dts < max {
+        if (*packet).pts >= (*packet).dts {
+            (*packet).pts = (*packet).pts.max(max);
+        }
+
+        (*packet).dts = max;
+    }
+
+    Ok(())
+}
+
 unsafe fn fill_video_stream_from_files(
     encoder: &mut Encoder,
     files: &[String],
 ) -> Result<(), RenderEncodingError> {
     let mut start_time = 0;
+    let mut last_mux_dts: Option<i64> = None;
+
     let packet = av_packet_alloc();
 
     for file in files.iter() {
@@ -126,6 +155,12 @@ unsafe fn fill_video_stream_from_files(
 
         let input_video_stream =
             open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
+
+        let start_file_ts = av_rescale_q(
+            start_time,
+            AV_TIME_BASE_Q,
+            (*encoder.video_stream.st).time_base,
+        );
 
         loop {
             let res = av_read_frame(input_format_ctx, packet);
@@ -135,15 +170,14 @@ unsafe fn fill_video_stream_from_files(
 
             (*packet).flags |= AV_PKT_FLAG_KEY;
 
-            // This calculates the delta in pts based on the duration when this file must be appeared
-            let delta = av_rescale_q(
-                start_time,
-                AV_TIME_BASE_Q,
-                (*encoder.video_stream.st).time_base,
-            );
+            (*packet).pts += start_file_ts;
+            (*packet).dts += start_file_ts;
 
-            (*packet).pts += delta;
-            (*packet).dts += delta;
+            if let Some(last_mux_dts) = last_mux_dts.as_mut() {
+                validate_non_monotous_dts(packet, last_mux_dts, encoder.oc)?;
+            }
+
+            last_mux_dts = Some((*packet).dts);
 
             av_packet_rescale_ts(
                 packet,
