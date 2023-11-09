@@ -1,4 +1,4 @@
-{
+  {
   // Use IntelliSense to learn about possible attributes.
   // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
@@ -18,7 +18,6 @@
       "request": "launch",
       "name": "Debug Hello World",
       "program": "${workspaceFolder}/target/debug/hello_world_example_bin",
-      "args": ["1", "2"],
       "cwd": "${workspaceFolder}/examples/hello-world",
       "preLaunchTask": "cargo:build"
     }
