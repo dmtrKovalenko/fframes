@@ -25,7 +25,7 @@ fn main() {
     let media = HelloWorldMedia::prepare().unwrap();
 
     render(
-       &HelloWorldVideo {
+        &HelloWorldVideo {
             media: &media,
             slug: &args.slug,
         },
