@@ -11,6 +11,8 @@ members = [
     # Examples 
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
+    "examples/audio-announce",
+    "examples/audio-announce/editor/editor-bridge",
     "examples/hello-world",
     "examples/hello-world/editor/editor-bridge",
     "examples/marketing",

@@ -58,21 +58,6 @@ pub enum SampleSize {
     S1024,
 }
 
-fn get_fft_size_number(variant: &SampleSize) -> usize {
-    match variant {
-        SampleSize::S2 => 2,
-        SampleSize::S4 => 4,
-        SampleSize::S8 => 8,
-        SampleSize::S16 => 16,
-        SampleSize::S32 => 32,
-        SampleSize::S64 => 64,
-        SampleSize::S128 => 128,
-        SampleSize::S256 => 256,
-        SampleSize::S512 => 512,
-        SampleSize::S1024 => 1024,
-    }
-}
-
 #[derive(Debug)]
 pub struct VisualizeFrameInput<'a> {
     pub audio: &'a AudioData<'a>,
@@ -160,17 +145,18 @@ pub fn get_visualization(
     }: &VisualizeFrameInput,
 ) -> Vec<f32> {
     // TODO cache the results per frame to avoid same frame calculation when smoothing
-    let fft_size = get_fft_size_number(sample_size);
+    let mut spectrum = apply_fft_to_frame(sample_size, window, audio, frame, fps as i64);
 
-    let res = apply_fft_to_frame(sample_size, window, audio, frame, fps as i64)
-        .iter()
-        .map(|x| x.norm() / fft_size as f32)
-        .collect::<Vec<f32>>();
+    // since the real-valued coefficient at the Nyquist frequency is packed into the
+    // imaginary part of the DC bin, it must be cleared before computing the amplitudes
+    spectrum[0].im = 0.0;
+
+    let res = spectrum.iter().map(|x| x.norm()).collect::<Vec<f32>>();
 
     res
 }
 
-/// Prettifies audio spectrum by moving low frequences (first elements) in the middle and all the other
+/// Prettifies audio spectrum by moving low frequencies (first elements) in the middle and all the other
 /// elements to be proportionally positioned to the edges from the middle
 ///
 /// Stranger if you are reading this comment you might be interested in implementation and how

@@ -1,0 +1,25 @@
+[package]
+name = "audio-announce-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fframes = { path = "../../fframes" }
+clap = { version = "4.3.4", features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fframes_renderer = { path = "../../fframes-renderer" }
+
+[features]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree"]
+
+[lib]
+name = "hello_world_example"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "hello_world_example_bin"
+path = "src/main.rs"
+required-features = ["renderer"]

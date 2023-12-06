@@ -4,7 +4,7 @@
   "main": "./dist/fframes-editor.js",
   "types": "./src/fframes-editor.tsx",
   "scripts": {
-    "build": "rescript",
+    "build": "yarn rescript:build && yarn bundle:dev",
     "rescript:build": "rescript build -with-deps",
     "rescript:clean": "rescript clean -with-deps",
     "postinstall": "ln -s -f ./src/shims ./src/services/shims",

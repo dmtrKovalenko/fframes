@@ -80,6 +80,7 @@ module Path = {
 }
 
 module Bool = {
+  @inline
   let invert = a => !a
   let then = a => a ? Some() : None
 }

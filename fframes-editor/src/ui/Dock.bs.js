@@ -150,7 +150,7 @@ function Dock(Props) {
   var loggedMagnetRef = React.useRef(false);
   var setMagnet = Hooks.useEvent(function (param) {
         if (!loggedMagnetRef.current) {
-          console.log("Press 0 or Shift+h to seek to magnet point.");
+          console.log("Press 0 or Shift+j to seek to magnet point.");
           loggedMagnetRef.current = true;
         }
         return Curry._1(dispatch, /* SetMagnet */3);
@@ -212,8 +212,8 @@ function Dock(Props) {
               case "G" :
                   return Curry._1(seekToEnd, undefined);
               case "0" :
-              case "H" :
               case "Home" :
+              case "J" :
                   return Curry._1(seekToStart, undefined);
               case "S" :
               case "b" :

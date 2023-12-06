@@ -109,7 +109,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
 
   let setMagnet = Hooks.useEvent(() => {
     if !loggedMagnetRef.current {
-      Js.Console.log("Press 0 or Shift+h to seek to magnet point.")
+      Js.Console.log("Press 0 or Shift+j to seek to magnet point.")
       loggedMagnetRef.current = true
     }
 
@@ -156,7 +156,7 @@ let make = (~fullScreenToggler: Hooks.toggle) => {
       ) {
         switch e->KeyboardEvent.key {
         | " " => handlePlayOrPause()
-        | "0" | "H" | "Home" => seekToStart()
+        | "0" | "J" | "Home" => seekToStart()
         | "ArrowLeft" if e->KeyboardEvent.shiftKey => seekToStart()
         | "G" | "End" => seekToEnd()
         | "ArrowRight" if e->KeyboardEvent.shiftKey => seekToEnd()
