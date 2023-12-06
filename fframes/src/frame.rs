@@ -199,7 +199,7 @@ impl Frame {
     /// ```  
     pub fn text_break_lines<'a: 'b, 'b, 'media: 'a>(
         &mut self,
-        ctx: &crate::FFramesContext<'a, 'media>,
+        ctx: &'b crate::FFramesContext<'a, 'media>,
         value: &'b str,
         opts: &BreakLinesOpts,
     ) -> Option<crate::Svgr> {

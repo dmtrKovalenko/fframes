@@ -33,7 +33,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         self.media_source?.resolve_audio(filename.as_ref())
     }
 
-    pub fn get_subtitles(&'a self, filename: impl AsRef<str>) -> Option<&'media Subtitles<'media>> {
+    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> Option<&'media Subtitles<'media>> {
         self.media_source?.resolve_subtitles(filename.as_ref())
     }
 

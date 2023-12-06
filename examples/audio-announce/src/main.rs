@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use clap::Parser;
-use fframes::StaticMediaProvider;
+use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider};
 use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
 use hello_world_example::{AudioAnnounce, AudioAnnounceMedia};
 
@@ -20,6 +22,9 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let media = AudioAnnounceMedia::prepare().unwrap();
+    let media_folder =
+        fframes_renderer::MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
+    let dynamic_media = media_folder.process_media_source().unwrap();
 
     render(
         &AudioAnnounce {
@@ -28,7 +33,10 @@ fn main() {
         },
         args.output.as_str(),
         RenderOptions {
-            media: Some(&media),
+            media: Some(&CombinedMediaProvider::from([
+                &media as &dyn MediaProvider,
+                &dynamic_media as &dyn MediaProvider,
+            ])),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
