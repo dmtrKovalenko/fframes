@@ -67,20 +67,19 @@ pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
         let is_eq = snapshot == read_snapshot(snapshot_path).unwrap();
 
         if !is_eq {
-            let diff_path = if cfg!(feature = "compile-time-svgtree") {
-                format!("_svgr_snapshots/${name}.runtime-diff.txt")
+            let actual_path = if cfg!(feature = "compile-time-svgtree") {
+                format!("_svgr_snapshots/${name}.runtime-actual.txt")
             } else {
-                format!("_svgr_snapshots/${name}.inlined-diff.txt")
+                format!("_svgr_snapshots/${name}.inlined-actual.txt")
             };
 
-            let diff_path = std::path::Path::new(diff_path.as_str());
-
-            std::fs::write(diff_path, prefixed_snapshot).unwrap();
+            let actual_path = std::path::Path::new(actual_path.as_str());
+            std::fs::write(actual_path, prefixed_snapshot).unwrap();
 
             if cfg!(feature = "compile-time-svgtree") {
-                panic!("Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", diff_path.display())
+                panic!("Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", actual_path.display())
             } else {
-                panic!("Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", diff_path.display())
+                panic!("Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", actual_path.display())
             }
         }
     }
