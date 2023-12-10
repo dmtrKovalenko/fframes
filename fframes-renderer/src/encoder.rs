@@ -181,7 +181,7 @@ impl Encoder {
         res
     }
 
-    pub unsafe fn send_customizeable_frame_packet<F: Fn(*mut AVPacket) -> i32>(
+    pub unsafe fn send_customizable_frame_packet<F: Fn(*mut AVPacket) -> i32>(
         &mut self,
         stream: &stream::Stream,
         EncoderFrame { frame, .. }: &EncoderFrame,
@@ -225,7 +225,7 @@ impl Encoder {
     ) -> RenderEncodingResult<()> {
         let oc = self.oc;
 
-        self.send_customizeable_frame_packet(stream, frame, |packet| {
+        self.send_customizable_frame_packet(stream, frame, |packet| {
             av_packet_rescale_ts(packet, (*stream.enc).time_base, (*stream.st).time_base);
 
             (*packet).stream_index = (*stream.st).index;

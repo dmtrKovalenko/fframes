@@ -14,7 +14,7 @@ var currentFps = {
   contents: undefined
 };
 
-function get_magent_key(video) {
+function get_magnet_key(video) {
   return video.name + "_ffmagnet";
 }
 
@@ -284,7 +284,7 @@ var max_volume = 100;
 
 export {
   currentFps ,
-  get_magent_key ,
+  get_magnet_key ,
   min_volume ,
   max_volume ,
   validateVolume ,

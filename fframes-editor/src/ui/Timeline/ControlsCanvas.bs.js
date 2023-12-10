@@ -13,7 +13,7 @@ var imageData = new Image(18, 18);
 
 imageData.src = "data:image/svg+xml;base64,".concat(Icons.magnetRawIcon);
 
-function renderMagent(ctx, size, frame) {
+function rendermagnet(ctx, size, frame) {
   var magnetX = CanvasSize.frameToX(frame, size);
   ctx.beginPath();
   ctx.moveTo(magnetX, 0);
@@ -37,7 +37,7 @@ function ControlsCanvas(Props) {
                   var ctx = canvasElement.getContext("2d");
                   ctx.clearRect(0, 0, size.scaledWidth, size.scaledHeight);
                   return Belt_Option.map(player.magnet, (function (param) {
-                                return renderMagent(ctx, size, param);
+                                return rendermagnet(ctx, size, param);
                               }));
                 }));
           
@@ -61,7 +61,7 @@ var make = ControlsCanvas;
 export {
   imageSize ,
   imageData ,
-  renderMagent ,
+  rendermagnet ,
   make ,
   
 }

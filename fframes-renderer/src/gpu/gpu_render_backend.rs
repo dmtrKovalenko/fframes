@@ -13,7 +13,7 @@ use futures::executor::block_on;
 use std::{num::NonZeroU32, sync::Arc};
 use wgpu::{include_wgsl, util::DeviceExt};
 
-use super::tesselator::{tesselate_svg, GpuGlobals, GpuPrimitive, GpuTransform, GpuVertex};
+use super::tessellator::{tessellate_svg, GpuGlobals, GpuPrimitive, GpuTransform, GpuVertex};
 
 #[derive(Default)]
 pub struct GpuRenderingBackend {
@@ -118,7 +118,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
                             )
                             .into_svg_tree(usvg_options)?;
 
-                        let (mesh, transforms, primitives) = tesselate_svg(rtree);
+                        let (mesh, transforms, primitives) = tessellate_svg(rtree);
 
                         let prim_buffer_byte_size =
                             (primitives.len() * std::mem::size_of::<GpuPrimitive>()) as u64;

@@ -354,7 +354,7 @@ pub fn macro_animations() {
     };
 
     assert_compile_time_svgr_eq_runtime(
-        "maco_animations",
+        "macro_animations",
         svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"

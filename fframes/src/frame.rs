@@ -227,7 +227,7 @@ impl Frame {
     /// Same as `text_break_lines` but returns inner lines structure instead of ready-to-render svgr.
     /// It may be used to customize renderer of wrapped text lines. Every line contains `dx` and `dy` fields which must
     /// be passed to `dx={line.dx} dy={line.dy}` attribute of the every line <tspan> element.
-    pub fn text_break_lines_strcuture<'a: 'b, 'b, 'media: 'a>(
+    pub fn text_break_lines_structure<'a: 'b, 'b, 'media: 'a>(
         &mut self,
         ctx: &crate::FFramesContext<'a, 'media>,
         value: &'b str,
@@ -253,7 +253,7 @@ impl Frame {
         }
     }
 
-    /// Retruns a phrase that must be rendered by time in this frame.
+    /// Returns a phrase that must be rendered by time in this frame.
     /// If there is no phrase to render returns None.
     ///
     /// # Examples
@@ -273,7 +273,7 @@ impl Frame {
         Some(cue.text())
     }
 
-    /// Retruns a cue that must be rendered by the time of the current frame
+    /// Returns a cue that must be rendered by the time of the current frame
     /// Besides text cue contains additional metadata like start/end time stamp,
     /// notes and cue settings which can be used to customise text.
     ///

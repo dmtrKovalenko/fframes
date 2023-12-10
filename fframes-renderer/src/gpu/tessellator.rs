@@ -76,7 +76,7 @@ impl StrokeVertexConstructor<GpuVertex> for VertexCtor {
     }
 }
 
-pub fn tesselate_svg(
+pub fn tessellate_svg(
     rtree: usvgr::Tree,
 ) -> (
     VertexBuffers<GpuVertex, u32>,
@@ -141,7 +141,7 @@ pub fn tesselate_svg(
                                 },
                             ),
                         )
-                        .expect("Error during tesselation!");
+                        .expect("Error during tessellation!");
                 }
 
                 if let Some(ref stroke) = p.stroke {

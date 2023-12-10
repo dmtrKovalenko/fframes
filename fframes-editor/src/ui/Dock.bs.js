@@ -32,7 +32,7 @@ var DockDivider = {
   make: make
 };
 
-var baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 transiton-all duration-300";
+var baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 duration-300";
 
 var make$1 = React.memo(function (Props) {
       var children = Props.children;

@@ -1,12 +1,24 @@
-name: Build
-
+name: CI
 on: [push]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  spellcheck:
+    name: Spellcheck
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Spellcheck
+        uses: crate-ci/typos@master
+        with:
+          config: ./typos.toml
+      
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:6.0-ubuntu2004
     env:
@@ -15,18 +27,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - uses: actions/checkout@v2
       - uses: extractions/setup-just@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: apt-get update
-      - run: apt install -y build-essential lsb-release wget software-properties-common gnupg
-      - run: apt-get install -y curl pkg-config
+      - run: apt update
+      - run: apt install -y build-essential lsb-release wget curl software-properties-common gnupg
       - run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-      - run: curl -fsSL https://deb.nodesource.com/setup_19.x | bash -
-      - run: apt-get install -y nodejs
-      - run: npm install -g yarn
+
+      - name: Install yarn
+        run: |-
+          curl -fsSL --create-dirs -o $HOME/bin/yarn \
+          https://github.com/yarnpkg/yarn/releases/download/v1.22.19/yarn-1.22.19.js
+          chmod +x $HOME/bin/yarn
+          echo "$HOME/bin" >> $GITHUB_PATH
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -39,20 +53,17 @@ jobs:
           prefix-key: "v0-rust"
           cache-on-failure: true
 
-      # TODO support macos
-      # - name: Configure Homebrew cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: |
-      #       ~/Library/Caches/Homebrew/foo--*
-      #       ~/Library/Caches/Homebrew/downloads/*--foo-*
-      #     key: brew-${{ hashFiles('.github/brew-formulae') }}
-      #     restore-keys: brew-
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
 
-      # - run: brew install ffmpeg
-      # - run: brew link --force ffmpeg
-      # - run: ffmpeg -version
-
+      - name: Install frontend deps
+        run: |
+          npm install -g yarn
+          yarn install --frozen-lockfile --prefer-offline
+      
       - name: Build
         run: just build
 
@@ -67,16 +78,15 @@ jobs:
       - name: Clippy
         run: just clippy
 
-      # We have to use the Release mode, otherwise it will take forever.
       - name: Test
-        run: just test-release
+        run: just test
 
       - name: Upload visual regression results and diff
         uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: results
-          if-no-files-found: error
+          if-no-files-found: ignore
           path: |
             e2e/frames/results
             e2e/frames/diff

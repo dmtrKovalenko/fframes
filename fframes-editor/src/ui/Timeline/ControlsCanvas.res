@@ -6,7 +6,7 @@ let imageData = Image.make(~width=imageSize, ~height=imageSize)
 imageData->Image.setSrc(Icons.magnetRawIcon |> Js.String.concat("data:image/svg+xml;base64,"))
 
 @ext
-let renderMagent = (ctx, size, frame) => {
+let rendermagnet = (ctx, size, frame) => {
   let magnetX = frameToX(frame, size)
 
   ctx->Canvas2d.beginPath
@@ -40,7 +40,7 @@ let make = (~size) => {
       let ctx = Webapi.Canvas.CanvasElement.getContext2d(canvasElement)
       ctx->Canvas2d.clearRect(~x=0., ~y=0., ~w=size.scaledWidth, ~h=size.scaledHeight)
 
-      Belt.Option.map(player.magnet, renderMagent(ctx, size))
+      Belt.Option.map(player.magnet, rendermagnet(ctx, size))
     })
     ->ignore
 

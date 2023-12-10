@@ -3,7 +3,7 @@ pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 use low_poly_art_example::{owl, LowPolyMedia, LowPolyVideo};
 
 /// Make sure that this example will compile very slowly but the rendering will be (relatively) fast.
-/// This is becuase fframes inlines and parses all the svg at compile time and skipping mostly all
+/// This is because fframes inlines and parses all the svg at compile time and skipping mostly all
 /// the runtime work for processng and preparing svg.
 fn main() {
     let media = LowPolyMedia::new().unwrap();

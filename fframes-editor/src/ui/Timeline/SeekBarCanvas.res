@@ -63,7 +63,7 @@ let make = (~size) => {
     None
   }, (size, player.frame, player.playState))
 
-  let hanldeMouseMove = Hooks.useEvent(e => {
+  let handleMouseMove = Hooks.useEvent(e => {
     if player.playState !== Playing && Webapi.Dom.document->Web.Document.hasFocus {
       dispatch(NewFrame(calculateFrameFromEvent(e, ~size)))
     }
@@ -78,7 +78,7 @@ let make = (~size) => {
 
   <canvas
     onClick=handleClick
-    onMouseMove=hanldeMouseMove
+    onMouseMove=handleMouseMove
     className={Cx.cx([
       "absolute inset-0",
       switch player.playState {

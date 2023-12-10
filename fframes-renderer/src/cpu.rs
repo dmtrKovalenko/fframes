@@ -20,7 +20,7 @@ pub struct CpuRenderingBackend {
     /// The number of **individual svg elements or groups** to cache. Pure CPU rendering is very slow
     /// for mostly any filter, shadows, or gradients so it is important to cache unchanged elements.
     /// At the same time do not set this to the unreasonably large values as it will consume a lot
-    /// of memory and will decrease cache efficientcy.
+    /// of memory and will decrease cache efficiently.
     ///
     /// The optimal size = general number of static (not animating) elements in your video.
     ///

@@ -12,7 +12,7 @@ module DockDivider = {
 }
 
 module DockSpace = {
-  let baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 transiton-all duration-300"
+  let baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 duration-300"
 
   @react.component
   let make = React.memo((~children, ~className="") => {

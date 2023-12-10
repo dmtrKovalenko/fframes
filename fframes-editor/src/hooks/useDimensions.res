@@ -13,11 +13,11 @@ let getDimensions = _ => {
 }
 
 let useDimensions = () => {
-  let (dimensions, setDimesions) = React.useState(getDimensions)
+  let (dimensions, setDimensions) = React.useState(getDimensions)
 
   React.useLayoutEffect0(() => {
     let handleResize = _ => {
-      setDimesions(getDimensions)
+      setDimensions(getDimensions)
     }
 
     Dom.window

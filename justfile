@@ -6,8 +6,7 @@ clippy-fix *ARGS:
 
 build:
   cargo build
-  yarn install ---frozen-lockfile
-  cd fframes-editor && yarn rescript:build
+  cd fframes-editor && yarn build 
 
 init-repo:
   ffmpeg -version

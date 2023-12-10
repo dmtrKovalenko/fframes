@@ -18,10 +18,10 @@ function useDimensions(param) {
   var match = React.useState(function () {
         return getDimensions(undefined);
       });
-  var setDimesions = match[1];
+  var setDimensions = match[1];
   React.useLayoutEffect((function () {
           var handleResize = function (param) {
-            return Curry._1(setDimesions, getDimensions);
+            return Curry._1(setDimensions, getDimensions);
           };
           window.addEventListener("resize", handleResize);
           return (function (param) {

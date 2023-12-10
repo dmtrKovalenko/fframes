@@ -26,8 +26,8 @@ pub use media_directory::*;
 pub use render_backend::*;
 
 #[derive(Debug, Clone, Default)]
-/// All the final render-specific options applies to the video includes media providing, loggin,
-/// and encoding.
+/// All the final render-specific options applies to the final video rendering pipeline
+/// including media resolution, logging, rendering backend, and encoding.
 pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub media: Option<&'a (dyn MediaProvider<'a>)>,
     pub logger: FFramesLoggerVariant,

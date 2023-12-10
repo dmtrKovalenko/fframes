@@ -7,7 +7,6 @@ esbuild
     bundle: true,
     splitting: true,
     treeShaking: true,
-    pure: true,
     format: "esm",
     target: ["es2020"],
     external: ["*?url"],

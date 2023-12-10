@@ -32,7 +32,7 @@ let volume_key = "ffvolume"
 let frame_key = "fframe"
 @inline
 let scene_key = "ffscene"
-let get_magent_key = (video: WasmController.videoMeta) => video.name ++ "_ffmagnet"
+let get_magnet_key = (video: WasmController.videoMeta) => video.name ++ "_ffmagnet"
 
 let min_volume = 0
 let max_volume = 100
@@ -47,7 +47,7 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       Dom.Storage.getItem(scene_key, Dom.Storage.localStorage)->Option.flatMap(Js.Int.fromString)
 
     let savedMagnet =
-      Dom.Storage.getItem(get_magent_key(Wasm.videoMeta), Dom.Storage.localStorage)->Option.flatMap(
+      Dom.Storage.getItem(get_magnet_key(Wasm.videoMeta), Dom.Storage.localStorage)->Option.flatMap(
         Js.Int.fromString,
       )
 
@@ -193,11 +193,11 @@ module MakePlayer = (Wasm: WasmController.WasmBridge) => {
       }
     | SetMagnet if get().magnet !== Some(get().frame) =>
       Dom.Storage.localStorage |> Dom.Storage.setItem(
-        get_magent_key(Wasm.videoMeta),
+        get_magnet_key(Wasm.videoMeta),
         get().frame->Js.Int.toString,
       )
     | SetMagnet if get().magnet === Some(get().frame) =>
-      Dom.Storage.localStorage |> Dom.Storage.removeItem(get_magent_key(Wasm.videoMeta))
+      Dom.Storage.localStorage |> Dom.Storage.removeItem(get_magnet_key(Wasm.videoMeta))
     | _ => ()
     }
   }

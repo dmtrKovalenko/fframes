@@ -23,7 +23,7 @@ pub struct BreakLinesOpts<'a> {
     /// @default 1.1
     pub line_height: f32,
     /// The font family to use for the text.
-    /// Remember that you can check the font family name in the editor media panel.
+    /// **Pro tip**: check resolved font family name in the editor media panel.
     pub font_family: &'a str,
     pub font_size: usize,
     pub x: &'a str,
@@ -32,7 +32,7 @@ pub struct BreakLinesOpts<'a> {
     pub font_weight: u16,
     pub fill: &'a str,
     /// Font style (normal, italic, oblique) to use. If the font is variadic, applies the style.
-    /// If not - uses the font tha applies this style and name.
+    /// If not - uses the will try to resolve font from the family that satisfies this style.
     pub font_style: FontStyle,
     pub font_stretch: FontStretch,
     /// The [dominant-baseline](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline) svg attribute specifies the dominant baseline,
@@ -221,7 +221,7 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
             crate::FontVariant::Monospaced(mono_width) => word.len() * mono_width,
             crate::FontVariant::Other => word
                 .chars()
-                .map_while(|char| font_face.resolve_char_width(font_size, char))
+                .filter_map(|char| font_face.resolve_char_width(font_size, char))
                 .sum(),
         };
 

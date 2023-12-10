@@ -1,4 +1,4 @@
 mod gpu_render_backend;
-mod tesselator;
+mod tessellator;
 
 pub use gpu_render_backend::*;
