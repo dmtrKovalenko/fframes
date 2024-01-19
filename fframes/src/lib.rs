@@ -29,6 +29,7 @@ pub use duration::*;
 pub use fframes_context::*;
 pub use font_data::*;
 pub use frame::*;
+#[allow(unused_imports)]
 pub use log::log::*;
 pub use media_provider::*;
 pub use named_range::*;
