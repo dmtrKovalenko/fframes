@@ -192,7 +192,7 @@ export const resolveImage: MediaResolver = async ({
   const image = await loadImage(url);
   const base64 =
     image.naturalHeight * image.naturalWidth >
-      wasmControllerOptions.dynamicImageLengthLimit
+    wasmControllerOptions.dynamicImageLengthLimit
       ? null
       : imageToBase64(image);
 

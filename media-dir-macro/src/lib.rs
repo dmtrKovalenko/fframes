@@ -109,13 +109,12 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     quote! {
-        // This is a workaround to force include_bytes which is the way we inline styles to force
-        // the alignment of the plain &'static [u8] to be aligned with i16 which we use for audio
-        // data.
+        // This is a workaround to force include_bytes which is the way we inline bytes to force
+        // the alignment of the plain &'static [u8] to match alignment of i16 which we need for audio
         //
         // More info here https://jack.wrenn.fyi/blog/include-transmute/
         #[repr(C)]
-        struct ForceAlignTo<Align, Bytes: ?Sized> {
+        struct FFramesForceAlignTo<Align, Bytes: ?Sized> {
             pub _align: [Align; 0],
             pub bytes: Bytes
         }
@@ -126,7 +125,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         }
 
         impl #ident {
-            // we do have this only to avoid the requirement of importing the trait 
+            // we have this only to avoid the requirement of importing the trait 
             pub fn new() -> #fframes_crate_ident::error::Result<Self> {
                 Ok(Self {
                     #(#instantiate_fields)*
@@ -277,7 +276,7 @@ impl MediaFile {
                     #fframes_crate_ident::AudioData::Preloaded(
                         #fframes_crate_ident::media::PreloadedAudioData {
                             samples: {
-                                static ALIGNED_LITERAL: &ForceAlignTo<i16, [u8]> = &ForceAlignTo {
+                                static ALIGNED_LITERAL: &FFramesForceAlignTo<i16, [u8]> = &FFramesForceAlignTo {
                                     _align: [],
                                     bytes: *#literal
                                 };
@@ -373,7 +372,7 @@ fn create_image_identifier_for_platform(
     image: {
         // This is basically the u32 rgba images under the hood so we must align them correctly
         // they will be again casted via bytemuch to the u32
-        static ALIGNED_LITERAL: &ForceAlignTo<u32, [u8]> = &ForceAlignTo {
+        static ALIGNED_LITERAL: &FFramesForceAlignTo<u32, [u8]> = &FFramesForceAlignTo {
             _align: [],
             bytes: *#bytes_literal
         };

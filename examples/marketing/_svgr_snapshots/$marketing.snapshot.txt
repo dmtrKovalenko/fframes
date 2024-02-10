@@ -203,10 +203,10 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 374.4843, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 1240.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
-                    Attribute { name: height, value: Length(Length { number: 728.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 259.03137, unit: None }) }
                     Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
                     Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
                     Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
@@ -218,12 +218,12 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 374.4843, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 1240.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
                     Attribute { name: fill, value: Paint("6-gradient", None) }
                     Attribute { name: filter, value: String("url(#6-shadow)") }
-                    Attribute { name: height, value: Length(Length { number: 720.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 251.03136, unit: None }) }
                     Attribute { name: width, value: Length(Length { number: 96.0, unit: None }) }
                     Attribute { name: rx, value: Length(Length { number: 48.0, unit: None }) }
                     Attribute { name: ry, value: Length(Length { number: 48.0, unit: None }) }
@@ -309,10 +309,10 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 284.06433, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 544.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
-                    Attribute { name: height, value: Length(Length { number: 728.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 439.87137, unit: None }) }
                     Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
                     Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
                     Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
@@ -324,12 +324,12 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 284.06433, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 544.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
                     Attribute { name: fill, value: Paint("0-gradient", None) }
                     Attribute { name: filter, value: String("url(#0-shadow)") }
-                    Attribute { name: height, value: Length(Length { number: 720.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 431.87137, unit: None }) }
                     Attribute { name: width, value: Length(Length { number: 96.0, unit: None }) }
                     Attribute { name: rx, value: Length(Length { number: 48.0, unit: None }) }
                     Attribute { name: ry, value: Length(Length { number: 48.0, unit: None }) }
@@ -415,10 +415,10 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 359.0786, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 1124.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
-                    Attribute { name: height, value: Length(Length { number: 728.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 289.84277, unit: None }) }
                     Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
                     Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
                     Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
@@ -430,12 +430,12 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 359.0786, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 1124.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
                     Attribute { name: fill, value: Paint("5-gradient", None) }
                     Attribute { name: filter, value: String("url(#5-shadow)") }
-                    Attribute { name: height, value: Length(Length { number: 720.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 281.84277, unit: None }) }
                     Attribute { name: width, value: Length(Length { number: 96.0, unit: None }) }
                     Attribute { name: rx, value: Length(Length { number: 48.0, unit: None }) }
                     Attribute { name: ry, value: Length(Length { number: 48.0, unit: None }) }
@@ -521,10 +521,10 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 380.94745, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 660.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
-                    Attribute { name: height, value: Length(Length { number: 728.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 246.10507, unit: None }) }
                     Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
                     Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
                     Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
@@ -536,12 +536,12 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 380.94745, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 660.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
                     Attribute { name: fill, value: Paint("1-gradient", None) }
                     Attribute { name: filter, value: String("url(#1-shadow)") }
-                    Attribute { name: height, value: Length(Length { number: 720.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 238.10507, unit: None }) }
                     Attribute { name: width, value: Length(Length { number: 96.0, unit: None }) }
                     Attribute { name: rx, value: Length(Length { number: 48.0, unit: None }) }
                     Attribute { name: ry, value: Length(Length { number: 48.0, unit: None }) }
@@ -627,10 +627,10 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 333.98193, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 1008.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
-                    Attribute { name: height, value: Length(Length { number: 728.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 340.03613, unit: None }) }
                     Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
                     Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
                     Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
@@ -642,12 +642,12 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 333.98193, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 1008.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
                     Attribute { name: fill, value: Paint("4-gradient", None) }
                     Attribute { name: filter, value: String("url(#4-shadow)") }
-                    Attribute { name: height, value: Length(Length { number: 720.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 332.03613, unit: None }) }
                     Attribute { name: width, value: Length(Length { number: 96.0, unit: None }) }
                     Attribute { name: rx, value: Length(Length { number: 48.0, unit: None }) }
                     Attribute { name: ry, value: Length(Length { number: 48.0, unit: None }) }
@@ -733,10 +733,10 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 193.12906, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 776.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
-                    Attribute { name: height, value: Length(Length { number: 728.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 621.7419, unit: None }) }
                     Attribute { name: fill, value: Color(Color { red: 0, green: 0, blue: 0, alpha: 0 }) }
                     Attribute { name: stroke, value: Color(Color { red: 255, green: 255, blue: 255, alpha: 255 }) }
                     Attribute { name: stroke-width, value: Length(Length { number: 4.0, unit: None }) }
@@ -748,12 +748,12 @@ Document [
             Element {
                 tag_name: Some(rect)
                 attributes: [
-                    Attribute { name: y, value: Length(Length { number: 140.0, unit: None }) }
+                    Attribute { name: y, value: Length(Length { number: 193.12906, unit: None }) }
                     Attribute { name: x, value: Length(Length { number: 776.0, unit: None }) }
                     Attribute { name: transform-origin, value: TransformOrigin(TransformOrigin { x: Length { number: 50.0, unit: Percent }, y: Length { number: 50.0, unit: Percent } }) }
                     Attribute { name: fill, value: Paint("2-gradient", None) }
                     Attribute { name: filter, value: String("url(#2-shadow)") }
-                    Attribute { name: height, value: Length(Length { number: 720.0, unit: None }) }
+                    Attribute { name: height, value: Length(Length { number: 613.7419, unit: None }) }
                     Attribute { name: width, value: Length(Length { number: 96.0, unit: None }) }
                     Attribute { name: rx, value: Length(Length { number: 48.0, unit: None }) }
                     Attribute { name: ry, value: Length(Length { number: 48.0, unit: None }) }

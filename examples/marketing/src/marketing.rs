@@ -257,7 +257,6 @@ impl Video for MarketingVideo<'_> {
               </linearGradient>
             </defs>
 
-
             <rect x="0" y="0" width="100%" height="100%" fill="#111827" />
 
             {
@@ -266,7 +265,7 @@ impl Video for MarketingVideo<'_> {
               .map(|SpectrumValue { spectrum_index, from_color, to_color, position }|  {
                 let val: f32 = audio_visualization[*spectrum_index];
 
-                let bar_height = match val / 20.0 {
+                let bar_height = match val / 300.0 {
                   height if height.is_nan() => BAR_SIZE_F32,
                   height if height < BAR_SIZE_F32 => BAR_SIZE_F32,
                   height if height > 720.0 => 720.0,

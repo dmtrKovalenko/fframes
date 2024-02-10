@@ -1,5 +1,4 @@
 mod setup_wasm_editor;
-pub use setup_wasm_editor::*;
 
 pub mod video_metadata;
 pub mod wasm_audio;
