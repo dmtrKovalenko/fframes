@@ -140,8 +140,8 @@ function renderAudioWaveForm(ctx, endFrame, startFrame, x0, y0, audioSpaceWidth,
   ctx.beginPath();
   Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, "#e2e8f0");
   while(x < audioSpaceWidth || position < positionEnd) {
-    var pcm = audioInfo.monoPcmData[position];
-    var y = mid + y0 + pcm / 32768 * mid;
+    var pcm = Utils.$$Option.unwrapOr(audioInfo.fltpData.at(position), 0.0);
+    var y = mid + y0 + pcm * mid;
     ctx.lineTo(x, y);
     position = Math.floor(position + sector);
     x = Math.floor(x + 1);

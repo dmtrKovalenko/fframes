@@ -20,7 +20,7 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:6.1-ubuntu2004
+    container: jrottenberg/ffmpeg:6.1.1-ubuntu2204
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -91,3 +91,4 @@ jobs:
             e2e/frames/results
             e2e/frames/diff
             e2e/out.mp4
+            */**/_svgr_snapshots/*

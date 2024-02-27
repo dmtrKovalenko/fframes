@@ -59,9 +59,11 @@ let make = () => {
         ->Belt.Option.map(size =>
           <div
             style={size->UseEditorLayout.sizeToStyle}
-            className="col-span-2 h-full overflow-auto flex flex-col p-6 border-r border-gray-800">
-            <div className="flex items-center justify-between mb-6 pt-4">
-              <h1 className="text-3xl mt-px font-medium text-white"> {videoTitle} </h1>
+            className="col-span-2 h-full overflow-auto flex flex-col p-4 border-r border-gray-800">
+            <div className="flex items-center justify-between mb-6 pt-1 gap-2">
+              <h1 className="text-3xl mt-px font-medium text-white grow-0 truncate">
+                {videoTitle}
+              </h1>
               <div className="isolate flex rounded-md shadow-sm">
                 <button
                   type_="button"

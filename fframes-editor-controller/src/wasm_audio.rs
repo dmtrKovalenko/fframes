@@ -5,7 +5,6 @@ use fframes::{
 };
 use futures::future::join_all;
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[wasm_bindgen(module = "fframes-editor")]
@@ -16,9 +15,8 @@ extern "C" {
 
 #[wasm_bindgen]
 pub struct AudioData {
-    pub sample_rate: i32,
+    pub sample_rate: u32,
     name: &'static str,
-    mono_pcm_data: js_sys::Int16Array,
     fltp_data: js_sys::Float32Array,
 }
 
@@ -29,16 +27,9 @@ impl AudioData {
             fframes::AudioData::Lazy => panic!("Lazy audio is not supported in wasm"),
         };
 
-        let fltp_data = preloaded_data
-            .samples
-            .iter()
-            .map(|sample| *sample as f32 / i16::MAX as f32)
-            .collect::<Vec<f32>>();
-
         Self {
             name,
-            fltp_data: js_sys::Float32Array::from(fltp_data.as_slice()),
-            mono_pcm_data: js_sys::Int16Array::from(preloaded_data.samples.deref()),
+            fltp_data: js_sys::Float32Array::from(preloaded_data.samples.as_ref()),
             sample_rate: preloaded_data.sample_rate,
         }
     }
@@ -51,11 +42,6 @@ impl AudioData {
     #[wasm_bindgen(getter)]
     pub fn fltp_data(&self) -> js_sys::Float32Array {
         self.fltp_data.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn mono_pcm_data(&self) -> js_sys::Int16Array {
-        self.mono_pcm_data.clone()
     }
 
     #[wasm_bindgen(getter)]

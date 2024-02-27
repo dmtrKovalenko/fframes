@@ -6,7 +6,8 @@ type audioInfo = {
   sampleRate: int,
   // arrayBuffer: Js.ArrayBuffer.t,
   audioData: WebAudio.AudioBuffer.t,
-  monoPcmData: Js.Int16Array.t,
+  /* It is not really planar as we support only mono */
+  fltpData: Js.Float32Array.t,
 }
 
 type imageInfo = {
@@ -151,16 +152,11 @@ let processDynamicMedia = (
     ) {
       None
     } else {
-      switch name {
-      | name if name->Js.String.endsWith(".mp3") => Some(resolveAudio)
-      | name if name->Js.String.endsWith(".vtt") => Some(resolveSubtitles)
-      | name if name->Js.String.endsWith(".ttf") || name->Js.String.endsWith(".otf") =>
-        Some(resolveFont)
-      | name
-        if name->Js.String.endsWith(".png") ||
-        name->Js.String.endsWith(".jpg") ||
-        name->Js.String.endsWith(".jpeg") =>
-        Some(resolveImage)
+      switch name->Js.String.split(".")->Utils.Array.last {
+      | Some("mp3" | "aac" | "ogg" | "wav" | "pcm" | "flac") => Some(resolveAudio)
+      | Some("vtt") => Some(resolveSubtitles)
+      | Some("ttf" | "otf") => Some(resolveFont)
+      | Some("png" | "jpg" | "jpeg") => Some(resolveImage)
       | _ => None
       }->Option.map(resolveFn =>
         resolveFn({

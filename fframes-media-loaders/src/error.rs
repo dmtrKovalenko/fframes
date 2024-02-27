@@ -1,11 +1,15 @@
-#[derive(Debug)]
 pub enum FFramesMediaError {
     #[cfg(not(target_arch = "wasm32"))]
     Mp3Error(minimp3::Error),
     #[cfg(not(target_arch = "wasm32"))]
     ImageError(image::ImageError),
+    #[cfg(not(target_arch = "wasm32"))]
+    AudioError(symphonia::core::errors::Error),
+    LibAVAudioDecodingError((i32, String)),
+    AudioDecodingError(String),
     FontError(ttf_parser::FaceParsingError),
     VttError(webvtt_parser::VttError),
+    NulError(std::ffi::NulError),
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -34,4 +38,30 @@ impl From<webvtt_parser::VttError> for FFramesMediaError {
     }
 }
 
+impl From<std::ffi::NulError> for FFramesMediaError {
+    fn from(err: std::ffi::NulError) -> Self {
+        Self::NulError(err)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, FFramesMediaError>;
+
+impl std::fmt::Debug for FFramesMediaError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LibAVAudioDecodingError((code, msg)) => {
+                write!(f, "LibAVAudioDecodingError: {} - {}", code, msg,)
+            }
+            Self::AudioDecodingError(msg) => write!(f, "AudioDecodingError: {}", msg),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Mp3Error(err) => write!(f, "Mp3Error: {:?}", err),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::ImageError(err) => write!(f, "ImageError: {:?}", err),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::AudioError(err) => write!(f, "AudioError: {:?}", err),
+            Self::FontError(err) => write!(f, "FontError: {:?}", err),
+            Self::VttError(err) => write!(f, "VttError: {:?}", err),
+            Self::NulError(err) => write!(f, "{:?}", err),
+        }
+    }
+}

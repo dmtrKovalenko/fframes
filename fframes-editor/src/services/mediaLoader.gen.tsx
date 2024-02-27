@@ -12,7 +12,7 @@ const mediaLoaderBS: any = mediaLoaderBS__Es6Import;
 
 import type {AudioBuffer_t as WebAudio_AudioBuffer_t} from '../../src/bindings/WebAudio.gen';
 
-import type {Js_Int16Array_t as ReScriptJs_Js_Int16Array_t} from './shims/Js.shim';
+import type {Js_Float32Array_t as ReScriptJs_Js_Float32Array_t} from './shims/Js.shim';
 
 import type {Js_Promise_t as ReScriptJs_Js_Promise_t} from './shims/Js.shim';
 
@@ -27,7 +27,7 @@ export type audioInfo = {
   readonly duration: number; 
   readonly sampleRate: number; 
   readonly audioData: WebAudio_AudioBuffer_t; 
-  readonly monoPcmData: ReScriptJs_Js_Int16Array_t
+  readonly fltpData: ReScriptJs_Js_Float32Array_t
 };
 
 // tslint:disable-next-line:interface-over-type-literal

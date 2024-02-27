@@ -144,8 +144,8 @@ impl Video for PodcastVideo<'_> {
                .iter()
                .enumerate()
                .map(|(i, fr)|  {
-                 let db = 10.0 * libm::log10f(*fr);
-                 let save_height = if db.is_nan() || db < 10.0 { &10.0 } else { &db };
+                 let db = 200.0 * fr;
+                 let save_height = db.clamp(10.0, 40.0);
 
                  svgr!(
                    <rect
@@ -177,8 +177,8 @@ impl Video for PodcastVideo<'_> {
                .iter()
                .enumerate()
                .map(|(i, fr)|  {
-                 let db = 10.0*libm::log10f(*fr);
-                 let save_height = db.max(10.0);
+                 let db = 200.0 * fr;
+                 let save_height = db.clamp(10.0, 40.0);
 
                  svgr!(
                    <rect
@@ -200,8 +200,8 @@ impl Video for PodcastVideo<'_> {
                .iter()
                .enumerate()
                .map(|(i, fr)|  {
-                 let db = 10.0 * libm::log10f(*fr);
-                 let save_height = if db.is_nan() || db < 10.0 { &10.0 } else { &db };
+                 let db = 200.0 * fr;
+                 let save_height = db.clamp(10.0, 40.0);
 
                  svgr!(
                    <rect

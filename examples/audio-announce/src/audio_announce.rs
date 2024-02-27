@@ -63,7 +63,7 @@ impl Video for AudioAnnounce<'_> {
 
     fn audio(&self) -> AudioMap {
         use fframes::AudioTimestamp::*;
-        AudioMap::from([("audio.mp3", Second(0.)..Eof)])
+        AudioMap::from([("audio.wav", Second(0.)..Eof)])
     }
 
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> fframes::Svgr {
@@ -73,14 +73,11 @@ impl Video for AudioAnnounce<'_> {
 
         let visualisation = frame.visualize_audio_frame(VisualizeFrameInput {
             // safe to unwrap because used in the `audio` method
-            audio: ctx.get_audio("audio.mp3").expect("audio.mp3 not found"),
+            audio: ctx.get_audio("audio.wav").expect("audio.wav not found"),
             sample_size: fframes::SampleSize::S512,
             smooth_level: 4,
             window: Some(fframes::WindowFunction::Hann),
         });
-
-        // FIXME remove this
-        let visualisation_iter = visualisation.iter().map(|f| f / (i16::MAX) as f32);
 
         fframes::svgr!(
            <svg
@@ -112,21 +109,21 @@ impl Video for AudioAnnounce<'_> {
                  // to achieve a good look no science behind them.
                  <path
                    fill="#4C20A8"
-                   d={frequencies_to_path(100, 1200., visualisation_iter.clone().step_by(2))}
+                   d={frequencies_to_path(100, 1200., visualisation.iter().copied().step_by(2))}
                  />
                  <path
                    fill="mediumpurple"
-                   d={frequencies_to_path(100, 400., visualisation_iter.clone().step_by(4))}
+                   d={frequencies_to_path(100, 400., visualisation.iter().copied().step_by(4))}
                  />
                  <path
                    fill="#db2777"
                    stroke="#fff"
-                   d={frequencies_to_path(100, 1200., visualisation_iter.clone().step_by(6))}
+                   d={frequencies_to_path(100, 1200., visualisation.iter().copied().step_by(6))}
                  />
                  <path
                    fill="#ea580c"
                    transform="translate(-1600, 0)"
-                   d={frequencies_to_path(100, 1200., visualisation_iter.rev().step_by(7))}
+                   d={frequencies_to_path(100, 1200., visualisation.into_iter().rev().step_by(7))}
                  />
              </g>
           </svg>

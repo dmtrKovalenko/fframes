@@ -3,9 +3,6 @@ import {
   StaticMediaResolver,
   resolveMedia,
 } from "fframes-editor/src/services/mediaLoader.gen";
-import { createDecoder } from "minimp3-wasm/dist/minimp3-wasm";
-// @ts-expect-error no  types
-import minimp3decoderWasm from "minimp3-wasm/dist/decoder.opt.wasm?url";
 import { fontInfo } from "src/WasmController.gen";
 
 const audioContext = new AudioContext();
@@ -18,29 +15,17 @@ export const resolveAudio: MediaResolver = async ({
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
 
-  const decoder = await createDecoder(
-    new Uint8Array(arrayBuffer.slice(0)),
-    minimp3decoderWasm,
-  );
-
-  const data = decoder.decode(decoder.duration);
-  const length = Math.floor(data.pcm.length / data.numChannels);
-
-  const monoPcm = new Int16Array(length);
-  for (let i = 0, j = 0; i < length; i += 1, j += data.numChannels) {
-    monoPcm[i] = data.pcm[j]; // or maybe we should do (data.pcm[j + 1]) / 2?
-  }
-
-  wasmController.add_audio_source(name, monoPcm);
   const audioData = await audioContext.decodeAudioData(arrayBuffer);
+  const channelData = audioData.getChannelData(0);
+  wasmController.add_audio_source(name, audioData.sampleRate, channelData);
 
   return resolveMedia(name, {
     tag: "Audio",
     value: {
       audioData,
-      monoPcmData: monoPcm,
-      sampleRate: data.samplingRate,
-      duration: monoPcm.length / data.samplingRate,
+      fltpData: channelData,
+      sampleRate: audioData.sampleRate,
+      duration: audioData.length / audioData.sampleRate,
     },
   });
 };
@@ -67,8 +52,8 @@ export const resolveStaticAudios: StaticMediaResolver = async ({
       value: {
         audioData: audioBuffer,
         sampleRate: audio.sample_rate,
-        duration: audio.mono_pcm_data.length / audio.sample_rate,
-        monoPcmData: audio.mono_pcm_data,
+        duration: audio.fltp_data.length / audio.sample_rate,
+        fltpData: audio.fltp_data,
       },
     });
 

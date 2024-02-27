@@ -1,13 +1,11 @@
 mod parser;
 use crate::parser::IncludeMediaDirInput;
-use fframes_media_loaders::PreloadedAudioData;
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use quote::{quote, ToTokens};
 use std::{
     error::Error,
     fmt::{self, Display, Formatter},
-    fs::File,
     path::{Path, PathBuf},
 };
 use syn::{parse_macro_input, Ident};
@@ -110,7 +108,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
 
     quote! {
         // This is a workaround to force include_bytes which is the way we inline bytes to force
-        // the alignment of the plain &'static [u8] to match alignment of i16 which we need for audio
+        // the alignment of the plain &'static [u8] to match alignment of f32 which we need for audio
         //
         // More info here https://jack.wrenn.fyi/blog/include-transmute/
         #[repr(C)]
@@ -264,25 +262,31 @@ impl MediaFile {
     fn inline_file(&self, fframes_crate_ident: &syn::Ident) -> proc_macro2::TokenStream {
         match self.variant {
             MediaVariant::Audio => {
-                let PreloadedAudioData {
-                    sample_rate,
+                let bytes = std::fs::read(&self.path).unwrap();
+                let fframes_media_loaders::PreloadedAudioData {
                     samples,
-                } = fframes_media_loaders::decode_mp3(File::open(&self.path).unwrap()).unwrap();
+                    sample_rate,
+                } = fframes_media_loaders::PreloadedAudioData::decode_buffer(
+                    None,
+                    &self.path.to_string_lossy(),
+                    &bytes,
+                )
+                .unwrap();
 
-                let bytes = bytemuck::cast_slice::<i16, u8>(&samples);
+                let bytes = bytemuck::cast_slice::<f32, u8>(&samples);
                 let literal = Literal::byte_string(bytes);
 
                 quote! {
                     #fframes_crate_ident::AudioData::Preloaded(
                         #fframes_crate_ident::media::PreloadedAudioData {
                             samples: {
-                                static ALIGNED_LITERAL: &FFramesForceAlignTo<i16, [u8]> = &FFramesForceAlignTo {
+                                static ALIGNED_LITERAL: &FFramesForceAlignTo<f32, [u8]> = &FFramesForceAlignTo {
                                     _align: [],
                                     bytes: *#literal
                                 };
 
                                 std::borrow::Cow::Borrowed(
-                                    #fframes_crate_ident::bytemuck::cast_slice::<u8, i16>(&ALIGNED_LITERAL.bytes)
+                                    #fframes_crate_ident::bytemuck::cast_slice::<u8, f32>(&ALIGNED_LITERAL.bytes)
                                 )
                             },
                             sample_rate: #sample_rate,
@@ -531,14 +535,18 @@ fn verify_correct_algiment_of_the_file() {
     use bytemuck::cast_slice;
 
     let bytes = include_bytes!("../../examples/marketing/media/marketing.mp3");
-    let initial_slize: &[i16] = &fframes_media_loaders::decode_mp3(std::io::Cursor::new(bytes))
-        .unwrap()
-        .samples;
+    let initial_slize: &[f32] = &fframes_media_loaders::PreloadedAudioData::decode_buffer(
+        Some(44100),
+        "marketing.mp3",
+        bytes,
+    )
+    .unwrap()
+    .samples;
 
-    let u8_slice: &[u8] = cast_slice::<i16, u8>(initial_slize);
-    let i16_slice: &[i16] = cast_slice::<u8, i16>(u8_slice);
+    let u8_slice: &[u8] = cast_slice::<f32, u8>(initial_slize);
+    let f32_slice: &[f32] = cast_slice::<u8, f32>(u8_slice);
 
-    assert_eq!(initial_slize, i16_slice);
+    assert_eq!(initial_slize, f32_slice);
 }
 
 fn track_path(_path: &Path) {

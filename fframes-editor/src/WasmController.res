@@ -50,14 +50,13 @@ type staticFont = {data: Js.Uint8Array.t, info: fontInfo, name: string}
 @genType
 type staticAudio = {
   fltp_data: Js.Float32Array.t,
-  mono_pcm_data: Js.Int16Array.t,
   sample_rate: int,
   name: string,
 }
 
 @genType.as("WasmController")
 type t = {
-  add_audio_source: (string, ReScriptJs.Js.Int16Array.t) => unit,
+  add_audio_source: (string, int, Js.Float32Array.t) => unit,
   add_image_source: (string, string, Js.Undefined.t<string>) => unit,
   add_subtitles_source: (string, string) => int,
   default: unit => Js.Promise.t<initOut>,

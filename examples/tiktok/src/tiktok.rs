@@ -58,7 +58,7 @@ impl Video for GooseVideo<'_> {
                  </defs>
                  {
                      audio_visualization.iter().enumerate().map(|(i, value)| {
-                         let height= (value * 7.).clamp(30., 400.);
+                         let height= (value * 2000.).clamp(30., 400.);
                          svgr!(
                              <rect
                                  x={i * (BAR_SIZE + BAR_PADDING) + (Self::WIDTH - SPECTRUM_WIDTH) / 2}

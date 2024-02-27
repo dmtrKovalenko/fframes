@@ -182,9 +182,9 @@ let renderAudioWaveForm = (
   ctx->Canvas2d.setStrokeStyle(String, "#e2e8f0")
 
   while x.contents < audioSpaceWidth || position.contents < positionEnd {
-    let pcm = audioInfo.monoPcmData->Web.Int16Array.get(position.contents)
+    let pcm = audioInfo.fltpData->Web.Float32Array.at(position.contents)->Utils.Option.unwrapOr(0.0)
 
-    let y = mid +. y0 +. pcm /. 32768. *. mid
+    let y = mid +. y0 +. pcm *. mid
     ctx->Canvas2d.lineTo(~x=x.contents, ~y)
 
     position := (position.contents->Float.fromInt +. sector)->Utils.Math.floor

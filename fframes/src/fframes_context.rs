@@ -111,14 +111,12 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
 
                 if let Some(range) = range {
                     range.iter().enumerate().for_each(|(i, sample)| {
-                        let fltp_sample = *sample as f32 / i16::MAX as f32;
                         let filled_sample = audio_data[i];
 
                         if filled_sample == 0. {
-                            audio_data[i] = fltp_sample
+                            audio_data[i] = *sample
                         } else {
-                            audio_data[i] =
-                                filled_sample + fltp_sample - (filled_sample * fltp_sample)
+                            audio_data[i] = filled_sample + *sample - (filled_sample * *sample)
                         }
                     });
                 }

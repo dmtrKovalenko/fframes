@@ -189,14 +189,13 @@ impl Scene for IphoneScene {
                   .skip(1)
                   .take(6)
                   .map(|(i, freq)| {
-                    let db = (10.0 * libm::log10f(*freq)).max(10.);
-
+                    let db = (10.0 * libm::log10f(*freq * 500.)).clamp(4., 18.);
                     svgr!(
                       <rect
                         x={1025. + i as f64 * 3.5 + i as f64}
                         y={190. - db / 2.}
                         width="3"
-                        height={db - 3.}
+                        height={db}
                         ry="1"
                         fill="#6366f1"
                       />

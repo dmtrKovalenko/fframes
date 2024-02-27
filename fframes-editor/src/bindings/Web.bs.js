@@ -41,11 +41,14 @@ var $$Element = {
 
 var $$Int16Array = {};
 
+var $$Float32Array = {};
+
 export {
   $$Window ,
   $$Document ,
   $$Element ,
   $$Int16Array ,
+  $$Float32Array ,
   
 }
 /* No side effect */

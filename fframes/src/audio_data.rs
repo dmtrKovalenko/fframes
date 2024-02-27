@@ -22,21 +22,21 @@ impl AudioData<'_> {
         }
     }
 
-    pub fn sample_rate(&self) -> i32 {
+    pub fn sample_rate(&self) -> u32 {
         match self {
             AudioData::Lazy => 0,
             AudioData::Preloaded(data) => data.sample_rate,
         }
     }
 
-    pub fn get_range(&self, range: Range<usize>) -> Option<&[i16]> {
+    pub fn get_range(&self, range: Range<usize>) -> Option<&[f32]> {
         match self {
             AudioData::Preloaded(data) => data.get_range(range),
             AudioData::Lazy => None,
         }
     }
 
-    pub fn get_frame_data(&self, length: usize, frame: usize, fps: i64) -> &[i16] {
+    pub fn get_frame_data(&self, length: usize, frame: usize, fps: i64) -> &[f32] {
         match self {
             AudioData::Preloaded(data) => data.get_frame_data(length, frame, fps).unwrap_or(&[]),
             AudioData::Lazy => &[],
@@ -79,10 +79,7 @@ fn apply_fft_to_frame(
         if let Some(window_function) = window {
             audio_window_functions::apply_window_function(*window_function, samples_per_frame)
         } else {
-            samples_per_frame
-                .iter()
-                .map(|sample| *sample as f32)
-                .collect()
+            samples_per_frame.to_vec()
         }
     };
 
@@ -123,6 +120,7 @@ fn apply_fft_to_frame(
         }
         SampleSize::S512 => {
             let mut buffer: [_; 512] = apply_window(512).try_into().unwrap_or_else(|_| [0.0; 512]);
+            crate::log!("buffer: {:?}", buffer);
             microfft::real::rfft_512(&mut buffer).to_vec()
         }
         SampleSize::S1024 => {

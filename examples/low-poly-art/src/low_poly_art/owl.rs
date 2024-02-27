@@ -56,11 +56,11 @@ impl Scene for Owl<'_> {
                .skip(2)
                .enumerate()
                .map(|(i, fr)|  {
-                 let save_height = (fr / 400.).clamp(20.0, 100.0);
+                 let save_height = fr.clamp(20.0, 100.0);
 
                  fframes::svgr!(
                    <rect
-                     y={(550) as f32 - save_height / 2.0}
+                     y={550. - save_height / 2.0}
                      x={1220 + (i * 15)}
                      fill="white"
                      height={save_height}

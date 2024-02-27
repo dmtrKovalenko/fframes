@@ -55,10 +55,10 @@ macro_rules! setup_wasm_editor {
         }
 
         #[wasm_bindgen]
-        pub fn add_audio_source(file: String, input: &[i16]) {
+        pub fn add_audio_source(file: String, sample_rate: i32, input: &[f32]) {
             let audio_data =
                 fframes::media::PreloadedAudioData {
-                    sample_rate: 44100,
+                    sample_rate: sample_rate as u32,
                     // Can't guarantee the lifetime of the input slice
                     samples: std::borrow::Cow::Owned(input.to_vec()),
                 };

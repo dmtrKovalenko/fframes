@@ -8,8 +8,6 @@ import type {Js_Dict_t as ReScriptJs_Js_Dict_t} from './shims/Js.shim';
 
 import type {Js_Float32Array_t as ReScriptJs_Js_Float32Array_t} from './shims/Js.shim';
 
-import type {Js_Int16Array_t as ReScriptJs_Js_Int16Array_t} from './shims/Js.shim';
-
 import type {Js_Nullable_t as ReScriptJs_Js_Nullable_t} from './shims/Js.shim';
 
 import type {Js_Promise_t as ReScriptJs_Js_Promise_t} from './shims/Js.shim';
@@ -85,14 +83,13 @@ export type staticFont = {
 // tslint:disable-next-line:interface-over-type-literal
 export type staticAudio = {
   readonly fltp_data: ReScriptJs_Js_Float32Array_t; 
-  readonly mono_pcm_data: ReScriptJs_Js_Int16Array_t; 
   readonly sample_rate: number; 
   readonly name: string
 };
 
 // tslint:disable-next-line:interface-over-type-literal
 export type t = {
-  readonly add_audio_source: (_1:string, _2:ReScriptJs_Js_Int16Array_t) => void; 
+  readonly add_audio_source: (_1:string, _2:number, _3:ReScriptJs_Js_Float32Array_t) => void; 
   readonly add_image_source: (_1:string, _2:string, _3:ReScriptJs_Js_Undefined_t<string>) => void; 
   readonly add_subtitles_source: (_1:string, _2:string) => number; 
   readonly default: () => ReScriptJs_Js_Promise_t<initOut>; 

@@ -104,22 +104,45 @@ function processDynamicMedia(imports, wasmController, options) {
                                   return regex.test(moduleRelativePath);
                                 })), false)) {
                       return ;
-                    } else {
-                      return Belt_Option.map(name.endsWith(".mp3") ? resolveAudio : (
-                                    name.endsWith(".vtt") ? resolveSubtitles : (
-                                        name.endsWith(".ttf") || name.endsWith(".otf") ? resolveFont : (
-                                            name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") ? resolveImage : undefined
-                                          )
-                                      )
-                                  ), (function (resolveFn) {
-                                    return Curry._1(resolveFn, {
-                                                name: name,
-                                                url: moduleVal,
-                                                wasmController: wasmController,
-                                                wasmControllerOptions: options
-                                              });
-                                  }));
                     }
+                    var match = Utils.$$Array.last(name.split("."));
+                    var tmp;
+                    if (match !== undefined) {
+                      switch (match) {
+                        case "jpeg" :
+                        case "jpg" :
+                        case "png" :
+                            tmp = resolveImage;
+                            break;
+                        case "otf" :
+                        case "ttf" :
+                            tmp = resolveFont;
+                            break;
+                        case "vtt" :
+                            tmp = resolveSubtitles;
+                            break;
+                        case "aac" :
+                        case "flac" :
+                        case "mp3" :
+                        case "ogg" :
+                        case "pcm" :
+                        case "wav" :
+                            tmp = resolveAudio;
+                            break;
+                        default:
+                          tmp = undefined;
+                      }
+                    } else {
+                      tmp = undefined;
+                    }
+                    return Belt_Option.map(tmp, (function (resolveFn) {
+                                  return Curry._1(resolveFn, {
+                                              name: name,
+                                              url: moduleVal,
+                                              wasmController: wasmController,
+                                              wasmControllerOptions: options
+                                            });
+                                }));
                   })));
 }
 

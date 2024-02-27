@@ -28,5 +28,10 @@ fn compile_time_svg() {
         },
     );
 
-    fframes_test_utils::assert_compile_time_svgr_eq_runtime("marketing", frame);
+    // It looks like there are a slight difference on how ffmpeg decodes audio on different OS
+    // the difference in minimal and might be related to the resolutiono of sample rate
+    fframes_test_utils::assert_compile_time_svgr_eq_runtime(
+        &format!("marketing-{}", std::env::consts::OS),
+        frame,
+    );
 }

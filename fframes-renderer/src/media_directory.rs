@@ -8,7 +8,7 @@ use std::{
     collections::HashMap,
     ffi::OsStr,
     fs,
-    io::{self, Cursor},
+    io::{self},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -65,8 +65,16 @@ impl MediaDirectory {
                 {
                     // logger.log_media_processing_start(filename, &path);
                     match extension {
-                        "mp3" => {
-                            let audio_data = fframes::media::decode_mp3(Cursor::new(bytes))?;
+                        "mp3" | "wav" | "flac" | "aac" | "pcm" | "ogg" | "mp2" => {
+                            // todo pull out to the options
+                            const SAMPLE_RATE: u32 = 44100;
+
+                            let audio_data = fframes::media::PreloadedAudioData::decode_buffer(
+                                Some(SAMPLE_RATE),
+                                &path.to_string_lossy(),
+                                bytes,
+                            )?;
+
                             audio_hash.lock()?.insert(
                                 filename.to_owned(),
                                 fframes::AudioData::Preloaded(audio_data),
