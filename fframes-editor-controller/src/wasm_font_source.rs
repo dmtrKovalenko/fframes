@@ -9,7 +9,7 @@ use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 #[serde(crate = "fframes::serde")] // https://github.com/serde-rs/serde/issues/1465
 pub struct FaceInfo {
     /// font name as bytes (we are in wasm so no utf8 strings parsing in runtime)
-    name: Vec<u8>,
+    name: String,
     stretch: fframes::FontStretch,
     weight: u16,
     style: fframes::FontStyle,
@@ -63,9 +63,10 @@ impl WasmFontSource {
     ) -> Option<FaceInfo> {
         let face = ttf_parser::Face::parse(&data, 0).ok()?;
         let name_bytes = parse_family_name(face.raw_face())?;
+        let name = String::from_utf8_lossy(&name_bytes).to_string();
 
         let face_info = FaceInfo {
-            name: name_bytes,
+            name,
             weight: face.weight().to_number(),
             stretch: face.width().into(),
             style: face.style().into(),
@@ -123,7 +124,7 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
         font_stretch: FontStretch,
     ) -> Option<Box<dyn fframes::FontFace + 'a>> {
         let font = self.data.get(&FaceInfo {
-            name: font_name.as_bytes().to_vec(),
+            name: font_name.to_string(),
             stretch: font_stretch,
             weight: font_weight,
             style: font_style,
@@ -148,15 +149,11 @@ pub fn parse_family_name(raw_face: &ttf_parser::RawFace) -> Option<Vec<u8>> {
     let name_table = ttf_parser::name::Table::parse(name_data)?;
 
     name_table.names.into_iter().find_map(|name| {
-        if name.name_id == ttf_parser::name_id::FAMILY {
-            Some(
-                name.name
-                    .iter()
-                    .filter_map(|b| if *b != 0 { Some(*b) } else { None })
-                    .collect(),
-            )
-        } else {
-            None
-        }
+        (name.name_id == ttf_parser::name_id::FAMILY).then_some(
+            name.name
+                .iter()
+                .filter_map(|b| if *b != 0 { Some(*b) } else { None })
+                .collect(),
+        )
     })
 }

@@ -65,7 +65,7 @@ export type VideoMeta = videoMeta;
 
 // tslint:disable-next-line:interface-over-type-literal
 export type fontInfo = {
-  readonly name: ReScriptJs_Js_Nullable_t<ReScriptJs_Js_Uint8Array_t>; 
+  readonly name: string; 
   readonly weight: number; 
   readonly style: string
 };

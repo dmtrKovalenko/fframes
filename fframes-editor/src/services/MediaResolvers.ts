@@ -65,20 +65,8 @@ async function prepareFontMediaData(
   fontInfo: fontInfo,
   arrayBuffer: ArrayBuffer,
   name: string,
-  url?: string,
 ) {
-  const decoder = new TextDecoder("utf-8");
-  let fontName = fontInfo.name
-    ? decoder.decode(new Uint8Array(fontInfo.name).buffer)
-    : "unknown";
-
-  if (!fontName) {
-    console.error(
-      `Can not parse the font file ${url} there is a huge chance that this font file won't work in the renderer. For now trying to fallback to browser based font`,
-    );
-  }
-
-  let guaranteedFontName = fontName ?? name.replace(/\.[^/.]+$/, "");
+  let guaranteedFontName = fontInfo.name ?? name.replace(/\.[^/.]+$/, "");
   const fontFace = new FontFace(guaranteedFontName, arrayBuffer);
 
   const loadedFont = await fontFace.load();
@@ -126,7 +114,7 @@ export const resolveFont: MediaResolver = async ({
   const arrayBuffer = await response.arrayBuffer();
 
   let fontInfo = wasmController.ingest_font(new Uint8Array(arrayBuffer));
-  return prepareFontMediaData(fontInfo, arrayBuffer, name, url);
+  return prepareFontMediaData(fontInfo, arrayBuffer, name);
 };
 
 export const resolveSubtitles: MediaResolver = async ({

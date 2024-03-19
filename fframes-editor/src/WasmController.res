@@ -37,7 +37,7 @@ type videoMeta = {
 }
 
 type fontInfo = {
-  name: Js.Nullable.t<Js.Uint8Array.t>,
+  name: string,
   weight: int,
   style: string,
 }

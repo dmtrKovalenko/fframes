@@ -120,7 +120,6 @@ fn apply_fft_to_frame(
         }
         SampleSize::S512 => {
             let mut buffer: [_; 512] = apply_window(512).try_into().unwrap_or_else(|_| [0.0; 512]);
-            crate::log!("buffer: {:?}", buffer);
             microfft::real::rfft_512(&mut buffer).to_vec()
         }
         SampleSize::S1024 => {
