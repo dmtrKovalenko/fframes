@@ -117,14 +117,14 @@ const AV_TMP_BUF_SIZE: usize = 4096;
 /// mono. For planar audio we take only first channel, make sure that it might be required to
 /// normalize channels manually. To do so do here is a  simple ffmpeg command:
 ///
+/// ```bash
+/// ffmpeg -i input.mp3 -ac 1 output.mp3
+/// ```
+///
 /// # Returns
 ///
 /// A sample rate that and a vector of f32 fltp planar audio samples. If the sample_rate were not
 /// provided uses original sample rate of the input audio file.
-///
-/// ```bash
-/// ffmpeg -i input.mp3 -ac 1 output.mp3
-/// ```
 pub unsafe fn decode_audio(
     data: &[u8],
     filename: &str,

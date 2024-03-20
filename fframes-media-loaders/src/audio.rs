@@ -1,8 +1,6 @@
 use crate::error::Result;
 use std::borrow::Cow;
 
-pub use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
-
 #[derive(Clone, Debug)]
 pub struct PreloadedAudioData<'a> {
     pub samples: Cow<'a, [f32]>,

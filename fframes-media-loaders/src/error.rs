@@ -3,8 +3,6 @@ pub enum FFramesMediaError {
     Mp3Error(minimp3::Error),
     #[cfg(not(target_arch = "wasm32"))]
     ImageError(image::ImageError),
-    #[cfg(not(target_arch = "wasm32"))]
-    AudioError(symphonia::core::errors::Error),
     LibAVAudioDecodingError((i32, String)),
     AudioDecodingError(String),
     FontError(ttf_parser::FaceParsingError),
@@ -57,8 +55,6 @@ impl std::fmt::Debug for FFramesMediaError {
             Self::Mp3Error(err) => write!(f, "Mp3Error: {:?}", err),
             #[cfg(not(target_arch = "wasm32"))]
             Self::ImageError(err) => write!(f, "ImageError: {:?}", err),
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::AudioError(err) => write!(f, "AudioError: {:?}", err),
             Self::FontError(err) => write!(f, "FontError: {:?}", err),
             Self::VttError(err) => write!(f, "VttError: {:?}", err),
             Self::NulError(err) => write!(f, "{:?}", err),
