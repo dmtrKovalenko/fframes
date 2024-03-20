@@ -13,9 +13,9 @@ target = "wasm32-unknown-unknown"
 [dependencies]
 fframes = { path = "../fframes", default-features=false }
 lazy_static = "1.4.0"
-console_error_panic_hook = "0.1.6"
-wasm-bindgen-futures= "0.4.28"
-wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
-js-sys = "0.3.55"
-futures = "0.3.27"
-serde-wasm-bindgen = "0.5"
+console_error_panic_hook = "0.1.7"
+wasm-bindgen-futures= "0.4.42"
+wasm-bindgen = { version = "0.2.92", features = ["serde-serialize"] }
+js-sys = "0.3.69"
+futures = "0.3.30"
+serde-wasm-bindgen = "0.6.5"
