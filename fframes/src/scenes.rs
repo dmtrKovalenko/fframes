@@ -48,7 +48,7 @@ pub trait Scene: Debug + Sync + Send {
         Overlap::None
     }
 
-    fn audio_map(&self) -> crate::audio_map::AudioMap {
+    fn audio(&self) -> crate::audio_map::AudioMap {
         crate::audio_map::AudioMap::none()
     }
 
@@ -87,7 +87,7 @@ impl<'a> ScenesWithAudio<'a> {
         Self(scenes.0.as_ref().map(|s| {
             s.iter()
                 .map(|s| SceneWithAudio {
-                    audio_map: s.audio_map(),
+                    audio_map: s.audio(),
                     scene: *s,
                 })
                 .collect::<Vec<_>>()

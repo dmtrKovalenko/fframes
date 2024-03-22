@@ -310,7 +310,7 @@ impl<'a> AudioMap<'a> {
                     .0
                     .iter()
                     .map(|(range, _, scene)| {
-                        scene.audio_map().resolve(
+                        scene.audio().resolve(
                             TUnit::from_frames(range.start, tb),
                             tb,
                             &resolve_audio_duration_in_frames,

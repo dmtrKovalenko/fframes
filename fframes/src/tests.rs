@@ -7,7 +7,7 @@ use crate::{
 struct FakeScene {}
 
 impl Scene for FakeScene {
-    fn audio_map(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap {
         use AudioTimestamp::*;
 
         AudioMap::from([

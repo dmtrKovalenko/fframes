@@ -16,7 +16,7 @@ impl Scene for Owl<'_> {
         fframes::Duration::Seconds(10.)
     }
 
-    fn audio_map(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap {
         use fframes::AudioTimestamp::*;
 
         AudioMap::from([("owl.mp3", (Frame(0)..Second(10.)))])
