@@ -1,9 +1,9 @@
 use std::path::Path;
 
+use audio_announce_example::{AudioAnnounce, AudioAnnounceMedia};
 use clap::Parser;
 use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider};
 use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
-use hello_world_example::{AudioAnnounce, AudioAnnounceMedia};
 
 #[derive(Debug, Parser)]
 struct Args {

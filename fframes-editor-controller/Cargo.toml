@@ -7,9 +7,6 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[build]
-target = "wasm32-unknown-unknown"
-
 [dependencies]
 fframes = { path = "../fframes", default-features=false }
 lazy_static = "1.4.0"

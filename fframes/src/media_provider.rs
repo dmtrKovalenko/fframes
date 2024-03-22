@@ -51,6 +51,7 @@ impl<'a> MediaProvider<'a> for () {
     }
 
     fn populate_font_source(&'a self, _font_source: &mut dyn FontSource) {}
+
     #[cfg(not(target_arch = "wasm32"))]
     fn populate_image_source(
         &'a self,

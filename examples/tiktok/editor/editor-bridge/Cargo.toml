@@ -12,6 +12,3 @@ path = "./lib.rs"
 wasm-bindgen = "0.2.74"
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
 tiktok-example = { path = "../../", default-features=false }
-
-[profile.release]
-opt-level = 'z'

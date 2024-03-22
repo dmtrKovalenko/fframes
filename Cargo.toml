@@ -28,16 +28,14 @@ members = [
 ]
 
 [workspace.dependencies]
-# This is a base CPU renderer which is a fork of another project. 
-# Clone it in the same directlry as fframes from here https://github.com/dmtrKovalenko/svgr and 
-# uncomment the following lines to run them together
-
+# If you are working locally on renderer, just clone https://github.com/dmtrKovalenko/svgr 
+# into the parent directory of fframes (as a sibling) and uncomment the following lines:
 # svgr = { path = "../resvg"}
 # usvgr = { path = "../resvg/usvgr"}
 # usvgr-text-layout = { path = "../resvg/usvgr-text-layout"}
-svgr = "0.28.5"
-usvgr = "0.28.5"
-usvgr-text-layout = "0.28.5"
+svgr = "0.30.0"
+usvgr = "0.30.0"
+usvgr-text-layout = "0.30.0"
 
 # fframes internal deps
 webvtt-parser = { path = "webvtt-parser" }
