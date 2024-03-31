@@ -1,0 +1,38 @@
+
+{
+  "sortFirst": [
+    "name",
+    "description",
+    "version",
+    "keywords",
+    "author",
+    "repository",
+    "private",
+    "license",
+    "sideEffects",
+    "exports",
+    "main",
+    "module",
+    "browser",
+    "types",
+    "files",
+    "bin",
+    "scripts",
+    "workspaces",
+    "type"
+  ],
+  "versionGroups": [
+    {
+      "label": "Enforce devDependencies",
+      "dependencies": ["wasm-pack", "vite"],
+      "dependencyTypes": ["!dev"],
+      "isBanned": true
+    },
+    {
+      "label": "Use workspace protocol when developing local packages",
+      "packages": ["!fframes-editor"],
+      "dependencies": ["fframes-editor"],
+      "pinVersion": "*"
+    }
+  ]
+}

@@ -4,6 +4,9 @@ clippy *ARGS:
 clippy-fix *ARGS:
   cargo clippy {{ARGS}} --fix -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match
 
+syncpack:
+  yarn syncpack lint
+
 build:
   cargo build
   cd fframes-editor && yarn build 

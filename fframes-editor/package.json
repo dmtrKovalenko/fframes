@@ -1,21 +1,21 @@
 {
   "name": "fframes-editor",
   "version": "0.0.1",
-  "main": "./dist/fframes-editor.js",
-  "types": "./src/fframes-editor.tsx",
-  "scripts": {
-    "build": "yarn rescript:build && yarn bundle:dev",
-    "rescript:build": "rescript build -with-deps",
-    "rescript:clean": "rescript clean -with-deps",
-    "postinstall": "ln -s -f ./src/shims ./src/services/shims",
-    "bundle:dev": "node esbuild.mjs && tailwindcss -o tw.css",
-    "dev": "concurrently --raw 'rescript build -w' 'tailwindcss -o tw.css --watch' 'node esbuild.mjs --watch'"
-  },
   "keywords": [
     "rescript"
   ],
   "author": "Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>",
   "license": "MIT",
+  "main": "./dist/fframes-editor.js",
+  "types": "./src/fframes-editor.tsx",
+  "scripts": {
+    "build": "yarn rescript:build && yarn bundle:dev",
+    "bundle:dev": "node esbuild.mjs && tailwindcss -o tw.css",
+    "dev": "concurrently --raw 'rescript build -w' 'tailwindcss -o tw.css --watch' 'node esbuild.mjs --watch'",
+    "postinstall": "ln -s -f ./src/shims ./src/services/shims",
+    "rescript:build": "rescript build -with-deps",
+    "rescript:clean": "rescript clean -with-deps"
+  },
   "dependencies": {
     "@radix-ui/react-slider": "^0.1.4",
     "@radix-ui/react-tooltip": "^1.0.5",

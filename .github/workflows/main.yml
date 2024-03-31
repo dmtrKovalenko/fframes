@@ -68,6 +68,9 @@ jobs:
           npm install -g yarn
           yarn install --frozen-lockfile --prefer-offline
 
+      - name: Syncpack
+        run: just syncpack
+
       - name: Build
         run: just build
 

@@ -2,6 +2,7 @@
   "name": "fframes-root",
   "private": true,
   "workspaces": [
+    "e2e/**/*",
     "fframes-editor",
     "examples/**/*"
   ],
@@ -9,6 +10,10 @@
     "react-from-svg": "^5.1.2"
   },
   "devDependencies": {
-    "odiff-bin": "^2.5.1"
+    "@vitejs/plugin-react-refresh": "^1.3.3",
+    "odiff-bin": "^2.5.1",
+    "rsw-node": "^0.1.2",
+    "typescript": "^4.3.2",
+    "wasm-pack": "^0.12.1"
   }
 }
