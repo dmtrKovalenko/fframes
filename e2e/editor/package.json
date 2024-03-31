@@ -1,5 +1,5 @@
 {
-  "name": "hello-world-example",
+  "name": "e2e-example",
   "version": "0.0.0",
   "scripts": {
     "dev": "vite"
