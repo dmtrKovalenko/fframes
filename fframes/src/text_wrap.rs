@@ -59,7 +59,7 @@ impl BreakLinesOpts<'_> {
     /// When using `frame.text_break_lines_structure` which returns the text structure
     /// use this function to create top level `text` element that applies all the options from the
     /// `BreakLinesOpts` to the `text` svg element.
-    pub fn create_text_svgr(&self, children: Svgr) -> Svgr {
+    pub fn create_text_svgr<'a>(&'a self, children: Svgr<'a>) -> Svgr<'a> {
         let BreakLinesOpts {
             font_family,
             font_size,
@@ -165,7 +165,7 @@ impl WrappedTextStructure {
             text_anchor,
             ..
         }: &BreakLinesOpts,
-    ) -> Svgr {
+    ) -> Svgr<'static> {
         svgr_macro::svgr!(
          <text id={self.hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
            {

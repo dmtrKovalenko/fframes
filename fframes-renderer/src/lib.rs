@@ -5,11 +5,12 @@ use fframes::MediaProvider;
 use fframes::Video;
 use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
 use std::collections::HashMap;
+use usvgr::fontdb;
 
 pub mod fframes_logger;
 
 pub mod cpu;
-pub mod gpu;
+// pub mod gpu;
 
 mod concatenator;
 mod encoder;
@@ -84,7 +85,7 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
 
     let mut image_source = HashMap::new();
     let mut font_source = RendererFontSource {
-        fontdb: usvgr_text_layout::fontdb::Database::new(),
+        fontdb: fontdb::Database::new(),
     };
 
     if options.load_system_fonts {

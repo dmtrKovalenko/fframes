@@ -5,13 +5,14 @@ use std::{
     io::{self, BufRead, Read},
 };
 
-use fframes::{usvgr::svgtree::Document, Svgr};
+use fframes::{usvgr::svgtree::parse, usvgr::svgtree::Document, Svgr};
 
 pub use futures;
 
 #[cfg(feature = "compile-time-svgtree")]
 fn resolve_maybe_precompiled_tree(svgr: Svgr) -> Document {
-    svgr.svg_tree.try_into().unwrap()
+    // svgr.svg_tree.try_into().unwrap()
+    todo!()
 }
 
 #[cfg(not(feature = "compile-time-svgtree"))]
@@ -73,13 +74,14 @@ pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
                 format!("_svgr_snapshots/${name}.inlined-actual.txt")
             };
 
-            let actual_path = std::path::Path::new(actual_path.as_str());
-            std::fs::write(actual_path, prefixed_snapshot).unwrap();
+            let diff_path = std::path::Path::new(actual_path.as_str());
+
+            std::fs::write(diff_path, prefixed_snapshot).unwrap();
 
             if cfg!(feature = "compile-time-svgtree") {
-                panic!("Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", actual_path.display())
+                panic!("Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", diff_path.display())
             } else {
-                panic!("Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", actual_path.display())
+                panic!("Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", diff_path.display())
             }
         }
     }

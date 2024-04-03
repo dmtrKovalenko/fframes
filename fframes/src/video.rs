@@ -10,19 +10,17 @@ pub trait Video: Sync + Sized {
     const FPS: usize;
     const WIDTH: usize;
     const HEIGHT: usize;
-
     fn duration(&self) -> Duration;
     fn audio(&self) -> AudioMap;
 
     /// Defines the scenes timeline of the video.
-    /// Each scene is an object which implements the `Scene` trait.
+    /// Each scene is an dyn object which implements the `Scene` trait.
     ///
     /// Every scene must be either bound to the `&self` lifetime or be a zero sized type.
-    ///
+    /// In short: put your scenes to the `&self` or do not add any fields to the scene struct.
     ///
     /// # Example
-    /// ```
-    ///
+    /// ```rust
     /// use fframes::{Video, Scenes, Scene, Frame, Svgr, FFramesContext};
     ///
     /// struct SceneZeroSize;
@@ -30,11 +28,11 @@ pub trait Video: Sync + Sized {
     ///    value: String;
     /// }
     ///
-    /// impl Scene For SceneZeroSize { }
-    /// impl Scene For SceneWithInput { }
+    /// impl Scene For SceneZeroSize { ... }
+    /// impl Scene For SceneWithInput { ... }
     ///
     /// struct MyVideo {
-    ///     scenes_with_input: SceneWithInput,
+    ///     scene_with_input: SceneWithInput,
     /// };
     ///
     /// impl Video for MyVideo {
@@ -43,17 +41,22 @@ pub trait Video: Sync + Sized {
     ///             // notice this is a zero sized type so we can create ref right here
     ///             &SceneZeroSize { },
     ///             // And here we passing a ref bound to the &self
-    ///             &self.scenes_with_input,
+    ///             &self.scene_with_input,
     ///         ]
     ///         
     ///         Scenes::from(scenes)
     ///     }
     /// }
+    /// ```
     fn define_scenes(&self) -> Scenes {
         Scenes(None)
     }
 
-    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr;
+    fn render_frame<'a, 'media>(
+        &'a self,
+        frame: Frame,
+        ctx: &FFramesContext<'a, 'media>,
+    ) -> Svgr<'a>;
 }
 
 #[derive(Debug)]

@@ -365,8 +365,8 @@ fn create_image_identifier_for_platform(
     let fframes_media_loaders::PreloadedImageData {
         height,
         width,
-        mime,
         data,
+        id,
     } = &fframes_media_loaders::decode_image(file_name, bytes).unwrap();
 
     let bytes_literal = Literal::byte_string(data);
@@ -382,12 +382,12 @@ fn create_image_identifier_for_platform(
 
         std::sync::Arc::new(
             #fframes_crate_ident::usvgr::PreloadedImageData {
+                id: String::from(#id),
                 data: std::borrow::Cow::Borrowed(
                     &ALIGNED_LITERAL.bytes
                 ),
                 width: #width,
                 height: #height,
-                mime: #mime.to_owned(),
             })
         }
     }

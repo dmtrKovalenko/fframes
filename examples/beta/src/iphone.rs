@@ -6,13 +6,13 @@ pub struct IphoneScene {
     pub minutes: u32,
 }
 
-fn render_discord_message(
+fn render_discord_message<'a>(
     x: usize,
     y: usize,
-    name: &str,
-    content: &str,
+    name: &'a str,
+    content: &'a str,
     image: Option<&str>,
-) -> Svgr {
+) -> Svgr<'a> {
     match image {
         None => Svgr::default(),
         Some(image) => {

@@ -1,6 +1,6 @@
 use fframes::{self, FontFace, FontStretch, FontStyle};
 use std::sync::Arc;
-use usvgr_text_layout::fontdb::{self, Family, Query, Weight};
+use usvgr::fontdb::{self, Family, Query, Weight};
 
 pub(crate) struct RendererFont<'a> {
     pub(crate) index: u32,
@@ -38,11 +38,11 @@ impl<'a> fframes::FontFace<'a> for RendererFont<'a> {
 
 #[derive(Debug)]
 pub(crate) struct RendererFontSource {
-    pub(crate) fontdb: usvgr_text_layout::fontdb::Database,
+    pub(crate) fontdb: fontdb::Database,
 }
 
 impl RendererFontSource {
-    pub fn as_db_ref(&self) -> &usvgr_text_layout::fontdb::Database {
+    pub fn as_db_ref(&self) -> &fontdb::Database {
         &self.fontdb
     }
 }
@@ -90,6 +90,6 @@ impl<'a> fframes::FontSource<'a> for RendererFontSource {
 
     fn add_font(&mut self, _filename: String, font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
         self.fontdb
-            .load_font_source(usvgr_text_layout::fontdb::Source::Binary(font_data.clone()));
+            .load_font_source(fontdb::Source::Binary(font_data.clone()));
     }
 }

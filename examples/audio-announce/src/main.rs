@@ -50,7 +50,7 @@ fn main() {
                 ..Default::default()
             },
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                cache_capacity: 300,
+                cache_capacity: 40,
                 ..Default::default()
             },
             ..Default::default()

@@ -3,9 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::ExprBlock;
 
-use usvgr::svgtree::{
-    self, attributes_list, parse::SVG_NS, AId, AttributeValue, EId, NestedNodeKind,
-};
+use usvgr::svgtree::{self, parse::SVG_NS, AId, EId, NestedNodeKind};
 
 #[derive(Debug)]
 enum MaybeParsedValue<T: ToTokens> {
@@ -55,26 +53,27 @@ fn maybe_value<T: ToTokens>(
 #[derive(Debug)]
 struct MaybeAttribute {
     name: AId,
-    value: MaybeParsedValue<AttributeValue>,
+    value: MaybeParsedValue<String>,
 }
 
 impl ToTokens for MaybeAttribute {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let MaybeAttribute { name, value } = self;
+        let name = name.to_tokens();
 
         match value {
             MaybeParsedValue::Value(value) => quote! {
-                Some(Attribute {
+                Attribute {
                     name: #name,
-                    value: #value
-                })
+                    value: roxmltree::StringStorage::Borrowed(& #value)
+                }
             },
             MaybeParsedValue::Expression(block) => {
                 quote! {
-                    #block.map(|value| Attribute {
+                    Attribute {
                         name: #name,
-                        value
-                    })
+                        value: roxmltree::StringStorage::new_owned(&*#block.to_string())
+                    }
                 }
             }
         }
@@ -96,7 +95,7 @@ impl<T: ToTokens> ToTokens for TokenizeableVec<T> {
 }
 
 struct MaybeNodeData {
-    pub kind: NestedNodeKind,
+    pub kind: NestedNodeKind<'static>,
     pub attrs: Vec<MaybeAttribute>,
     pub children: Vec<MaybeParsedValue<MaybeNodeData>>,
 }
@@ -159,14 +158,15 @@ fn tokenize_nodes(nodes: &[MaybeParsedValue<MaybeNodeData>]) -> TokenStream {
 }
 
 lazy_static::lazy_static! {
-    static ref ATTRIBUTE_NAMES_LIST: Vec<&'static str> = attributes_list();
+    static ref ATTRIBUTE_NAMES_LIST: Vec<&'static str> =
+        svgtree::ATTRIBUTES.entries.iter().map(|(name, _)| *name).collect();
 }
 
-fn detail_attribute_error(attribute: &str, span: Span) -> syn::Error {
+fn detailed_attribute_error(attribute: &str, span: Span) -> syn::Error {
     syn::Error::new(
         span,
         match attribute {
-            "xlink:href" => "Svgr do not support custom namespaces. Use `href` instead.".to_owned(),
+            "xlink:href" => "FFrames svg does not support custom namespaces. Use `href` instead.".to_owned(),
             attribute if attribute.starts_with("xmlns:") => {
                 "The `xmlns:` attributes and dynamic xml namespaces are not supported.\n\nMost of that popular namespaces are deprecated and will be resolved without namespace,\ne.g. the `xlink:href` will be resolved exactly the same as `href`.".to_owned()
             },
@@ -174,20 +174,21 @@ fn detail_attribute_error(attribute: &str, span: Span) -> syn::Error {
             _ => {
                 let fuzzy_match = rust_fuzzy_search::fuzzy_search_best_n(attribute, &ATTRIBUTE_NAMES_LIST, 1);
                 let suggestion = match fuzzy_match.first() {
-                    Some((suggestion, value)) if *value > 0.6 => format!("\n\nMaybe you meant `{suggestion}`?"),
+                    Some((suggestion, value)) if *value > 0.6 => format!("Did you mean `{suggestion}`?"),
                     _ => "".to_owned()
                 };
 
-                format!("{attribute} attribute is not valid or not supported{suggestion}")
+                format!("{attribute} attribute is not supported or not valid for this element.\n{suggestion}")
             },
         },
     )
 }
 
+// TODO: parse and precache attribute value instead of always inlining as string
 fn maybe_parse_svg_attribute(
     attribute: &Node,
-    eid: EId,
-) -> Result<Option<(AId, MaybeParsedValue<AttributeValue>)>, syn::Error> {
+    _eid: EId,
+) -> Result<Option<(AId, MaybeParsedValue<String>)>, syn::Error> {
     let attribute_span = attribute.name_span().unwrap_or_else(|| {
         panic!("Critical parsing error. Trying to locate some attribute but couldn't.")
     });
@@ -205,7 +206,7 @@ fn maybe_parse_svg_attribute(
     }
 
     let aid = AId::from_str(attribute.name_as_string().unwrap().as_str())
-        .ok_or_else(|| detail_attribute_error(attribute_name.as_str(), attribute_span))?;
+        .ok_or_else(|| detailed_attribute_error(attribute_name.as_str(), attribute_span))?;
 
     if aid == AId::Class {
         return Err(syn::Error::new(
@@ -216,15 +217,8 @@ fn maybe_parse_svg_attribute(
 
     let value = maybe_value(
         attribute,
-        |block| quote! {parse::parse_svg_attribute(#eid, #aid, #block.to_string().as_str())},
-        |value| {
-            svgtree::parse::parse_svg_attribute(eid, aid, value).ok_or_else(|| {
-                syn::Error::new(
-                    attribute.value_span().unwrap(),
-                    "value is not valid for attribute",
-                )
-            })
-        },
+        |block| block.into_token_stream(),
+        |value| Ok(String::from(value)),
     )?;
 
     Ok(Some((aid, value)))
@@ -242,7 +236,16 @@ fn map_text_node_children(
             parsed_nodes.push(MaybeParsedValue::Value(MaybeNodeData {
                 attrs: vec![],
                 children: vec![],
-                kind: svgtree::NestedNodeKind::Text(node.value_as_string().unwrap()),
+                kind: svgtree::NestedNodeKind::Text(svgtree::roxmltree::StringStorage::new_owned(
+                    node.value_as_string()
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                node.name_span().unwrap(),
+                                "Failed to parse text element tag",
+                            )
+                        })?
+                        .as_str(),
+                )),
             }));
 
             continue;
@@ -372,9 +375,7 @@ pub fn nodes_to_svgtree(
 
     let tokens = tokenize_nodes(&nodes);
     let output_tree = quote! {
-        NestedSvgDocument {
-            nodes: #tokens
-        }
+        NestedSvgDocument::from_nodes(#tokens)
     };
 
     Ok(output_tree)

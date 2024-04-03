@@ -45,6 +45,8 @@ fn create_svgr_ident(
             svg_tree: #svg_tree,
             #[cfg(target_arch="wasm32")]
             value: format!(#html_string, #(#values),*),
+            #[cfg(target_arch="wasm32")]
+            marker: std::marker::PhantomData,
         }
     })
 }
@@ -60,6 +62,7 @@ fn create_svgr_ident(
     Ok(quote! {
         #fframes_crate_ident::Svgr {
              value: format!(#html_string, #(#values),*),
+             marker: std::marker::PhantomData,
         }
     })
 }

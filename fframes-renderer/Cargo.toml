@@ -10,7 +10,7 @@ license = "MIT"
 
 [dependencies]
 svgr = { workspace = true }
-usvgr-text-layout = { workspace = true }
+usvgr = { workspace = true }
 rayon = "1.5.1"
 colored = "2"
 indicatif = "0.16.2"

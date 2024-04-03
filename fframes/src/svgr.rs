@@ -2,63 +2,81 @@ use crate::error::{FFramesError, Result};
 use std::{fmt, iter::FromIterator};
 
 #[derive(Default, Clone)]
-pub struct Svgr {
+pub struct Svgr<'a> {
     #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
     pub value: String,
+    #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
+    pub marker: std::marker::PhantomData<&'a str>,
     #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
-    pub svg_tree: usvgr::svgtree::NestedSvgDocument<usvgr::svgtree::NestedNodeData>,
+    pub svg_tree: usvgr::svgtree::NestedSvgDocument<'a, usvgr::svgtree::NestedNodeData<'a>>,
 }
 
-impl Svgr {
+impl<'a> Svgr<'a> {
     #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
-    pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
-        usvgr::Tree::from_nested_svgtree(self.svg_tree, opt).map_err(FFramesError::ParserError)
+    pub fn into_svg_tree(
+        self,
+        opt: &usvgr::Options,
+        fontdb: &usvgr::fontdb::Database,
+    ) -> Result<usvgr::Tree> {
+        usvgr::Tree::from_nested_svgtree(&self.svg_tree, opt, fontdb)
+            .map_err(FFramesError::ParserError)
     }
 
     #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
-    pub fn into_svg_tree(self, opt: &usvgr::Options) -> Result<usvgr::Tree> {
-        usvgr::Tree::from_str(self.value.as_str(), opt).map_err(FFramesError::ParserError)
+    pub fn into_svg_tree(
+        self,
+        opt: &usvgr::Options,
+        fontdb: &usvgr::fontdb::Database,
+    ) -> Result<usvgr::Tree> {
+        usvgr::Tree::from_str(&self.value, opt, fontdb).map_err(FFramesError::ParserError)
     }
 
     #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
-    pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData>> {
+    pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData<'a>>> {
         self.svg_tree.nodes
     }
 
     #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
-    pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData>> {
+    pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData<'a>>> {
         unimplemented!("Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly.")
     }
 }
 
 #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
-impl From<String> for Svgr {
+impl From<String> for Svgr<'_> {
     fn from(value: String) -> Self {
-        Svgr { value }
+        Svgr {
+            value,
+            marker: std::marker::PhantomData,
+        }
     }
 }
 
 #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
-impl From<String> for Svgr {
+impl From<String> for Svgr<'_> {
     fn from(val: String) -> Self {
         use usvgr::svgtree::{NestedNodeData, NestedSvgDocument};
 
         Svgr {
-            svg_tree: NestedSvgDocument {
-                nodes: vec![Some(NestedNodeData {
-                    kind: usvgr::svgtree::NestedNodeKind::Text(val),
+            svg_tree: NestedSvgDocument::from_nodes(vec![
+                Some(NestedNodeData {
+                    kind: usvgr::svgtree::NestedNodeKind::Text(
+                        usvgr::svgtree::roxmltree::StringStorage::new_owned(&*val)
+                    ),
                     attrs: vec![],
                     children: vec![],
-                })],
-            },
+                });
+                1
+            ]),
         }
     }
 }
 
 #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
-impl FromIterator<Svgr> for Svgr {
-    fn from_iter<T: IntoIterator<Item = Svgr>>(iter: T) -> Self {
+impl<'a> FromIterator<Svgr<'a>> for Svgr<'a> {
+    fn from_iter<T: IntoIterator<Item = Svgr<'a>>>(iter: T) -> Self {
         Svgr {
+            marker: std::marker::PhantomData,
             value: iter
                 .into_iter()
                 .fold(String::new(), |acc, s| acc + &s.value),
@@ -67,9 +85,9 @@ impl FromIterator<Svgr> for Svgr {
 }
 
 #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
-impl FromIterator<Svgr> for Svgr {
-    fn from_iter<T: IntoIterator<Item = Svgr>>(iter: T) -> Self {
-        let mut child_nodes = usvgr::svgtree::NestedSvgDocument { nodes: vec![] };
+impl<'a> FromIterator<Svgr<'a>> for Svgr<'a> {
+    fn from_iter<T: IntoIterator<Item = Svgr<'a>>>(iter: T) -> Self {
+        let mut child_nodes = usvgr::svgtree::NestedSvgDocument::from_nodes(vec![]);
 
         for sub_tree in iter {
             let mut nested_tree = sub_tree.svg_tree;
@@ -83,27 +101,40 @@ impl FromIterator<Svgr> for Svgr {
     }
 }
 
-impl<'a> From<&'a str> for Svgr {
+impl<'a> From<&'a str> for Svgr<'a> {
     fn from(val: &'a str) -> Self {
-        Svgr::from(String::from(val))
+        use usvgr::svgtree::{NestedNodeData, NestedSvgDocument};
+
+        Svgr {
+            svg_tree: NestedSvgDocument::from_nodes(vec![
+                Some(NestedNodeData {
+                    kind: usvgr::svgtree::NestedNodeKind::Text(
+                        usvgr::svgtree::roxmltree::StringStorage::Borrowed(val)
+                    ),
+                    attrs: vec![],
+                    children: vec![],
+                });
+                1
+            ]),
+        }
     }
 }
 
-impl From<Vec<Svgr>> for Svgr {
-    fn from(val: Vec<Svgr>) -> Svgr {
+impl<'a> From<Vec<Svgr<'a>>> for Svgr<'a> {
+    fn from(val: Vec<Svgr<'a>>) -> Svgr<'a> {
         FromIterator::from_iter(val)
     }
 }
 
 #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
-impl fmt::Display for Svgr {
+impl fmt::Display for Svgr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.svg_tree)
     }
 }
 
 #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
-impl fmt::Display for Svgr {
+impl fmt::Display for Svgr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }

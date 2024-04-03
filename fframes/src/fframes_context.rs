@@ -43,7 +43,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
             .map(ImageData::href)
     }
 
-    pub fn render_scenes(&self, global_frame: &Frame) -> Svgr {
+    pub fn render_scenes(&self, global_frame: &Frame) -> Svgr<'a> {
         if let Some(scenes) = self.scenes.as_ref() {
             Svgr::from_iter(
                 scenes

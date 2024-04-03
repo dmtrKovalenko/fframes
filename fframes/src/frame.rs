@@ -197,12 +197,12 @@ impl Frame {
     /// });
     ///
     /// ```  
-    pub fn text_break_lines<'a: 'b, 'b, 'media: 'a>(
+    pub fn text_break_lines<'a, 'media>(
         &mut self,
-        ctx: &'b crate::FFramesContext<'a, 'media>,
-        value: &'b str,
+        ctx: &crate::FFramesContext<'a, 'media>,
+        value: &str,
         opts: &BreakLinesOpts,
-    ) -> Option<crate::Svgr> {
+    ) -> Option<crate::Svgr<'a>> {
         let font_source = ctx.font_source?;
         let hash = opts.hash_with_value(value);
 

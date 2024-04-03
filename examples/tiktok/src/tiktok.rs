@@ -35,7 +35,11 @@ impl Video for GooseVideo<'_> {
         AudioMap::from([("thought.mp3", (Frame(0)..Eof))])
     }
 
-    fn render_frame(&self, mut frame: Frame, ctx: &FFramesContext) -> Svgr {
+    fn render_frame<'a, 'media>(
+        &'a self,
+        mut frame: Frame,
+        ctx: &FFramesContext<'a, 'media>,
+    ) -> Svgr<'a> {
         let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
             audio: &self.media.thought_mp3,
             sample_size: SampleSize::S32,

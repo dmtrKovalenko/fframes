@@ -3,33 +3,34 @@ use crate::{
 };
 use fframes::{usvgr, AudioTimelineSamples, ResolvedRenderingTimeline, Video};
 use std::sync::Arc;
+use usvgr::fontdb;
 
 // TODO: feature flag this
-pub use crate::gpu::GpuRenderingBackend;
+// pub use crate::gpu::GpuRenderingBackend;
 
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
     #[cfg(debug_assertions)]
-    fn debug_frame<TVideo: Video + Sync + Sized>(
+    fn debug_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,
         out: &str,
-        video: &TVideo,
+        video: &'a TVideo,
         usvg_options: &usvgr::Options,
-        font_db: &usvgr_text_layout::fontdb::Database,
-        ctx: fframes::FFramesContext,
+        font_db: &usvgr::fontdb::Database,
+        ctx: fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<()>;
 
-    fn render<'a, TVideo: Video + Sync + Sized>(
+    fn render<'a, 'media, TVideo: Video + Sync + Sized>(
         &self,
         output: &'a str,
         video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &usvgr::Options,
         encoder_options: &EncoderOptions<'a>,
-        font_db: &usvgr_text_layout::fontdb::Database,
+        font_db: &fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
-        ctx: fframes::FFramesContext,
+        ctx: fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<()>
     where
         Self: Sized;
