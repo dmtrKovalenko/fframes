@@ -2,4 +2,6 @@
 extend-exclude = [
    "*.snapshot.txt"
 ]
+[default.extend-words]
+hd = "hd"
 
