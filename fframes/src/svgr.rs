@@ -101,6 +101,17 @@ impl<'a> FromIterator<Svgr<'a>> for Svgr<'a> {
     }
 }
 
+#[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
+impl<'a> From<&'a str> for Svgr<'a> {
+    fn from(val: &'a str) -> Self {
+        Svgr {
+            value: val.to_string(),
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
 impl<'a> From<&'a str> for Svgr<'a> {
     fn from(val: &'a str) -> Self {
         use usvgr::svgtree::{NestedNodeData, NestedSvgDocument};

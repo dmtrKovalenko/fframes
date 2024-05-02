@@ -150,12 +150,14 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     );
 
                                     let rtree = svg.into_svg_tree(usvg_options, &font_db)?;
+                                    let now = std::time::Instant::now();
                                     svgr::render(
                                         &rtree,
                                         svgr::tiny_skia::Transform::default(),
                                         &mut pixmap.as_mut(),
                                         &mut svgr_cache,
                                     );
+                                    println!("Rendered frame {} in {:?}", index, now.elapsed());
 
                                     logger.log_frame(index, thread_number);
 

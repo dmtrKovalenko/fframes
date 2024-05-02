@@ -10,6 +10,7 @@ fn main() {
         &GooseVideo { media: &media },
         "out.mp4",
         RenderOptions {
+            media: Some(&media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 cache_capacity: 10,

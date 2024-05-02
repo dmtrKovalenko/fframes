@@ -53,7 +53,7 @@ fn main() {
                 }
             } else {
                 fframes_renderer::cpu::CpuRenderingBackend {
-                    cache_capacity: 5,
+                    cache_capacity: 0,
                     ..Default::default()
                 }
             },

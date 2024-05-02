@@ -51,7 +51,7 @@ let stringifyFontWeight = weight => {
   | 700 => "Bold"
   | 800 => "Extra bold"
   | 900 => "Black"
-  | _ => ""
+  | _ => "Unknown"
   }
 }
 
