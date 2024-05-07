@@ -5,7 +5,6 @@ use proc_macro2::{Literal, Span};
 use quote::{quote, ToTokens};
 use std::{
     error::Error,
-    fmt::{self, Display, Formatter},
     path::{Path, PathBuf},
 };
 use syn::{parse_macro_input, Ident};
@@ -515,19 +514,6 @@ fn read_dir(dir: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
 fn read_file(path: &Path) -> Vec<u8> {
     track_path(path);
     std::fs::read(path).unwrap_or_else(|e| panic!("Unable to read \"{}\": {}", path.display(), e))
-}
-
-#[derive(Debug, PartialEq)]
-struct UnableToParseVariable {
-    rest: String,
-}
-
-impl Error for UnableToParseVariable {}
-
-impl Display for UnableToParseVariable {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Unable to parse a variable from \"{}\"", self.rest)
-    }
 }
 
 #[test]

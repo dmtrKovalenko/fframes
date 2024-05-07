@@ -24,7 +24,7 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:6.1.1-ubuntu2204
+    container: jrottenberg/ffmpeg:7-ubuntu
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:

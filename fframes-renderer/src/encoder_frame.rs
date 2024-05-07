@@ -94,7 +94,7 @@ impl EncoderFrame {
                 av_channel_layout_copy(&mut (*frame).ch_layout, &(*stream.enc).ch_layout);
 
                 (*frame).format = (*stream.enc).sample_fmt as i32;
-                (*frame).channel_layout = (*stream.enc).channel_layout;
+                (*frame).ch_layout = (*stream.enc).ch_layout;
                 (*frame).sample_rate = (*stream.enc).sample_rate;
                 (*frame).nb_samples = if ((*(*stream.enc).codec).capabilities
                     & AV_CODEC_CAP_VARIABLE_FRAME_SIZE as i32)

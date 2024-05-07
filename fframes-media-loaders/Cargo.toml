@@ -16,7 +16,7 @@ bytemuck = { version = "1.13.1", features = ["derive"] }
 ttf-parser = "0.19.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ffmpeg-next = "6.1.1"
+ffmpeg-next = "7.0.0"
 minimp3 = "0.5.1"
 image = { version = "0.24.6", default-features = false, features = [
   "png",

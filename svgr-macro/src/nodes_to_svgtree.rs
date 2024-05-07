@@ -82,18 +82,6 @@ impl ToTokens for MaybeAttribute {
     }
 }
 
-struct LiteralOption<T: ToTokens>(Option<T>);
-
-impl<T: ToTokens> ToTokens for LiteralOption<T> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            LiteralOption(Some(value)) => quote! { Some(#value) },
-            LiteralOption(None) => quote! { None },
-        }
-        .to_tokens(tokens)
-    }
-}
-
 struct TokenizeableVec<T: ToTokens>(Vec<T>);
 
 impl<T: ToTokens> ToTokens for TokenizeableVec<T> {

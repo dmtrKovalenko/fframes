@@ -106,6 +106,14 @@ unsafe extern "C" fn read_packet(
 }
 
 const AV_TMP_BUF_SIZE: usize = 4096;
+const MONO_CH_LAYOUT: AVChannelLayout = AVChannelLayout {
+    order: AVChannelOrder::AV_CHANNEL_ORDER_NATIVE,
+    nb_channels: 1,
+    u: AVChannelLayout__bindgen_ty_1 {
+        mask: AV_CH_LAYOUT_MONO,
+    },
+    opaque: std::ptr::null_mut(),
+};
 
 /// # Safety
 /// Uses libav directly so it can't be safe. Let's hope for the best and avoid segfaults.
@@ -238,14 +246,15 @@ pub unsafe fn decode_audio(
 
     av_opt_set_chlayout(
         swr_ctx as *mut _ as *mut std::ffi::c_void,
-        CString::new("ichl")?.as_ptr(),
+        CString::new("in_chlayout")?.as_ptr(),
         &(*decoding_ctx).ch_layout,
         0,
     );
-    av_opt_set_channel_layout(
+
+    av_opt_set_chlayout(
         swr_ctx as *mut _ as *mut std::ffi::c_void,
-        CString::new("out_channel_layout")?.as_ptr(),
-        AV_CH_LAYOUT_MONO as i64,
+        CString::new("out_chlayout")?.as_ptr(),
+        &MONO_CH_LAYOUT,
         0,
     );
 
