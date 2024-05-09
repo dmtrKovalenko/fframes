@@ -13,28 +13,12 @@ Document [
                     Attribute { name: id, value: use1 }
                     Attribute { name: href, value: #use2 }
                 ]
-                children: [
-                    Element {
-                        tag_name: Some(use)
-                        attributes: [
-                            Attribute { name: href, value: #use1 }
-                        ]
-                    }
-                ]
             }
             Element {
                 tag_name: Some(use)
                 attributes: [
                     Attribute { name: id, value: use2 }
                     Attribute { name: href, value: #use1 }
-                ]
-                children: [
-                    Element {
-                        tag_name: Some(use)
-                        attributes: [
-                            Attribute { name: href, value: #use2 }
-                        ]
-                    }
                 ]
             }
             Element {

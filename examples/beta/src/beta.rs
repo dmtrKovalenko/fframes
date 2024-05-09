@@ -72,19 +72,19 @@ impl Video for BetaVideo<'_> {
 
     fn define_scenes(&self) -> fframes::Scenes {
         let vec: Vec<&dyn Scene> = vec![
-             &HeadingScene {},
-             &crate::code_demo::CodeDemoScene {},
-             &crate::rendering::RenderingScene {},
-             &self.iphone_scene,
-             &crate::github::GithubScene {},
+            &HeadingScene {},
+            &crate::code_demo::CodeDemoScene {},
+            &crate::rendering::RenderingScene {},
+            &self.iphone_scene,
+            &crate::github::GithubScene {},
             &self.beta_examples,
-             &crate::end::EndScene {},
+            &crate::end::EndScene {},
         ];
 
         fframes::Scenes::from(vec)
     }
 
-    fn render_frame<'a, 'media>(&self, frame: Frame, ctx: &FFramesContext<'a, 'media>) -> Svgr<'a> {
+    fn render_frame<'a>(&self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"

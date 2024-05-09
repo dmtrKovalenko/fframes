@@ -72,15 +72,12 @@ impl WasmFontSource {
             style: face.style().into(),
         };
 
-        match (&data, filename) {
-            (Cow::Borrowed(borrowed_data), Some(filename)) => {
-                self.static_fonts.push(StaticFontFace {
-                    filename,
-                    data: borrowed_data,
-                    info: face_info.clone(),
-                })
-            }
-            _ => (),
+        if let (Cow::Borrowed(borrowed_data), Some(filename)) = (&data, filename) {
+            self.static_fonts.push(StaticFontFace {
+                filename,
+                data: borrowed_data,
+                info: face_info.clone(),
+            })
         }
 
         self.data.insert(face_info.clone(), data);
@@ -124,7 +121,7 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
         font_stretch: FontStretch,
     ) -> Option<Box<dyn fframes::FontFace + 'a>> {
         let font = self.data.get(&FaceInfo {
-            name: font_name.as_bytes().to_vec(),
+            name: font_name.to_owned(),
             stretch: font_stretch,
             weight: font_weight,
             style: font_style,

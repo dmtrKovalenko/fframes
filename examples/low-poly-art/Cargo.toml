@@ -7,7 +7,7 @@ edition = "2021"
 fframes = {path="../../fframes"}
 libm="0.2.1"
 rand="0.8.5"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2.15", features = ["js"] }
 
 [dev-dependencies]
 fframes_test_utils = {path="../../fframes-test-utils"}

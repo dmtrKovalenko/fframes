@@ -11,10 +11,10 @@ pub struct AudioAnnounce<'a> {
 }
 
 impl AudioAnnounce<'_> {
-    fn render_glowing_subtitles<'a, 'media>(
+    fn render_glowing_subtitles<'a>(
         &'a self,
         mut frame: Frame,
-        ctx: &FFramesContext<'a, 'media>,
+        ctx: &FFramesContext<'a, '_>,
     ) -> fframes::Svgr<'a> {
         let phrase = ctx
             .get_subtitles("subtitles.vtt")
@@ -70,11 +70,7 @@ impl Video for AudioAnnounce<'_> {
         AudioMap::from([("audio.wav", Second(0.)..Eof)])
     }
 
-    fn render_frame<'a, 'media>(
-        &'a self,
-        frame: Frame,
-        ctx: &FFramesContext<'a, 'media>,
-    ) -> fframes::Svgr {
+    fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr {
         const AVATAR_SIZE: usize = 300;
         const AVATAR_X: usize = 80;
         const AVATAR_Y: usize = 85;

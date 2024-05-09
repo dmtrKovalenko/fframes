@@ -52,11 +52,7 @@ pub trait Video: Sync + Sized {
         Scenes(None)
     }
 
-    fn render_frame<'a, 'media>(
-        &'a self,
-        frame: Frame,
-        ctx: &FFramesContext<'a, 'media>,
-    ) -> Svgr<'a>;
+    fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a>;
 }
 
 #[derive(Debug)]

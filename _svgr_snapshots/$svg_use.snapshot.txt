@@ -26,18 +26,6 @@ Document [
                     Attribute { name: x, value: 0 }
                     Attribute { name: y, value: 90 }
                 ]
-                children: [
-                    Element {
-                        tag_name: Some(rect)
-                        attributes: [
-                            Attribute { name: x, value: 20 }
-                            Attribute { name: y, value: 20 }
-                            Attribute { name: width, value: 160 }
-                            Attribute { name: height, value: 70 }
-                            Attribute { name: fill, value: green }
-                        ]
-                    }
-                ]
             }
             Element {
                 tag_name: Some(rect)

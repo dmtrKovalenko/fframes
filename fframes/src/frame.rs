@@ -197,9 +197,9 @@ impl Frame {
     /// });
     ///
     /// ```  
-    pub fn text_break_lines<'a, 'media>(
+    pub fn text_break_lines<'a>(
         &mut self,
-        ctx: &crate::FFramesContext<'a, 'media>,
+        ctx: &crate::FFramesContext<'a, '_>,
         value: &str,
         opts: &BreakLinesOpts,
     ) -> Option<crate::Svgr<'a>> {

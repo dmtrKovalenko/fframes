@@ -16,9 +16,10 @@ impl<'a> Svgr<'a> {
     pub fn into_svg_tree(
         self,
         opt: &usvgr::Options,
+        cache: &mut usvgr::Cache,
         fontdb: &usvgr::fontdb::Database,
     ) -> Result<usvgr::Tree> {
-        usvgr::Tree::from_nested_svgtree(&self.svg_tree, opt, fontdb)
+        usvgr::Tree::from_nested_svgtree_with_cache(&self.svg_tree, opt, cache, fontdb)
             .map_err(FFramesError::ParserError)
     }
 
@@ -26,6 +27,7 @@ impl<'a> Svgr<'a> {
     pub fn into_svg_tree(
         self,
         opt: &usvgr::Options,
+        _cache: &mut usvgr::Cache,
         fontdb: &usvgr::fontdb::Database,
     ) -> Result<usvgr::Tree> {
         usvgr::Tree::from_str(&self.value, opt, fontdb).map_err(FFramesError::ParserError)

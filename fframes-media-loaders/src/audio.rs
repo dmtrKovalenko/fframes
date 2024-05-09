@@ -1,4 +1,3 @@
-use crate::error::Result;
 use std::borrow::Cow;
 
 #[derive(Clone, Debug)]
@@ -31,7 +30,7 @@ impl PreloadedAudioData<'_> {
         sample_rate: Option<u32>,
         filename: &'a str,
         buffer: &'a [u8],
-    ) -> Result<Self> {
+    ) -> crate::error::Result<Self> {
         let (sample_rate, samples) =
             unsafe { crate::audio_ffmpeg::decode_audio(buffer, filename, sample_rate) }?;
 

@@ -56,13 +56,6 @@ fn main() {
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-<<<<<<< HEAD
-                //cache_capacity: 0,
-                //concurrency: 1,
-=======
-                cache_capacity: 500,
-                concurrency: 1,
->>>>>>> fd69795 (wip)
                 ..Default::default()
             },
             default_font: "Inter",

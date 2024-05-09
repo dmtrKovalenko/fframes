@@ -16,3 +16,5 @@ wasm-bindgen = { version = "0.2.92", features = ["serde-serialize"] }
 js-sys = "0.3.69"
 futures = "0.3.30"
 serde-wasm-bindgen = "0.6.5"
+# This is only needed for the wasm32 target for uuid
+getrandom = { version = "0.2.15", features = ["js"] }

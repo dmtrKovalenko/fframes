@@ -21,7 +21,7 @@ pub trait FFramesRenderBackend {
         ctx: fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<()>;
 
-    fn render<'a, 'media, TVideo: Video + Sync + Sized>(
+    fn render<'a, TVideo: Video + Sync + Sized>(
         &self,
         output: &'a str,
         video: &'a TVideo,
@@ -30,7 +30,7 @@ pub trait FFramesRenderBackend {
         encoder_options: &EncoderOptions<'a>,
         font_db: &fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
-        ctx: fframes::FFramesContext<'a, 'media>,
+        ctx: fframes::FFramesContext<'a, '_>,
     ) -> FFramesRendererResult<()>
     where
         Self: Sized;

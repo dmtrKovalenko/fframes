@@ -5,24 +5,26 @@ use std::{
     io::{self, BufRead, Read},
 };
 
-use fframes::{usvgr::svgtree::parse, usvgr::svgtree::Document, Svgr};
+use fframes::{usvgr::svgtree::Document, Svgr};
 
 pub use futures;
 
 #[cfg(feature = "compile-time-svgtree")]
-fn resolve_maybe_precompiled_tree(svgr: Svgr) -> Document {
-    // svgr.svg_tree.try_into().unwrap()
-    todo!()
+fn resolve_maybe_precompiled_tree<'a>(svgr: &'a Svgr<'a>) -> Document<'a> {
+    fframes::usvgr::svgtree::Document::try_from(&svgr.svg_tree).unwrap()
 }
 
 #[cfg(not(feature = "compile-time-svgtree"))]
-fn resolve_maybe_precompiled_tree(svgr: Svgr) -> Document {
+fn resolve_maybe_precompiled_tree<'a>(svgr: &'a Svgr<'a>) -> Document<'a> {
     use fframes::usvgr::roxmltree::ParsingOptions;
 
-    fframes::usvgr::svgtree::Document::parse(
+    fframes::usvgr::svgtree::Document::parse_tree(
         &fframes::usvgr::roxmltree::Document::parse_with_options(
             svgr.value.as_str(),
-            ParsingOptions { allow_dtd: true },
+            ParsingOptions {
+                allow_dtd: true,
+                nodes_limit: 1000,
+            },
         )
         .unwrap(),
     )
@@ -45,7 +47,7 @@ fn read_snapshot(path: &std::path::Path) -> io::Result<String> {
 }
 
 pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
-    let svgtree: Document = resolve_maybe_precompiled_tree(svgr);
+    let svgtree: Document = resolve_maybe_precompiled_tree(&svgr);
 
     let snapshot = format!("{svgtree:?}");
     let path = format!("_svgr_snapshots/${name}.snapshot.txt");
@@ -69,9 +71,9 @@ pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
 
         if !is_eq {
             let actual_path = if cfg!(feature = "compile-time-svgtree") {
-                format!("_svgr_snapshots/${name}.runtime-actual.txt")
-            } else {
                 format!("_svgr_snapshots/${name}.inlined-actual.txt")
+            } else {
+                format!("_svgr_snapshots/${name}.runtime-actual.txt")
             };
 
             let diff_path = std::path::Path::new(actual_path.as_str());

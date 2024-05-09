@@ -72,7 +72,7 @@ impl CpuRenderingBackend {
 }
 
 impl FFramesRenderBackend for CpuRenderingBackend {
-    fn render<'a, 'media, TVideo: Video + Sync + Sized>(
+    fn render<'a, TVideo: Video + Sync + Sized>(
         &self,
         output: &'a str,
         video: &'a TVideo,
@@ -81,7 +81,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         encoder_options: &EncoderOptions<'a>,
         font_db: &fontdb::Database,
         timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
-        ctx: fframes::FFramesContext<'a, 'media>,
+        ctx: fframes::FFramesContext<'a, '_>,
     ) -> FFramesRendererResult<()> {
         let extension = output
             .split('.')
@@ -123,9 +123,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
-                            // let mut text_layout_cache =
-                            //     UsvgrTextLayoutCache::new(self.text_cache_capacity);
-                            // let mut fonts_cache = FontsCache::new();
+                            let mut converter_cache =
+                                usvgr::Cache::new_with_text_cache(self.text_cache_capacity);
 
                             let mut pixmap = svgr::tiny_skia::Pixmap::new(
                                 TVideo::WIDTH as u32,
@@ -134,6 +133,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             .ok_or_else(|| {
                                 RenderEncodingError::CantAllocate("pixmap".to_owned())
                             })?;
+
+                            let svgr_ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
 
                             chunk_range
                                 .to_owned()
@@ -149,18 +150,20 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         &ctx,
                                     );
 
-                                    let rtree = svg.into_svg_tree(usvg_options, &font_db)?;
-                                    let now = std::time::Instant::now();
+                                    let rtree = svg.into_svg_tree(
+                                        usvg_options,
+                                        &mut converter_cache,
+                                        font_db,
+                                    )?;
                                     svgr::render(
                                         &rtree,
                                         svgr::tiny_skia::Transform::default(),
                                         &mut pixmap.as_mut(),
                                         &mut svgr_cache,
+                                        &svgr_ctx,
                                     );
-                                    println!("Rendered frame {} in {:?}", index, now.elapsed());
 
                                     logger.log_frame(index, thread_number);
-
                                     frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
 
                                     let video_stream = encoder.video_stream;
@@ -218,15 +221,20 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         let mut pixmap = svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32)
             .ok_or_else(|| FFramesRendererError::Internal("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
 
-        let rtree = video
-            .render_frame(frame, &ctx)
-            .into_svg_tree(usvg_options, &font_db)?;
+        let mut converter_cache = usvgr::Cache::default();
+        let rtree = video.render_frame(frame, &ctx).into_svg_tree(
+            usvg_options,
+            &mut converter_cache,
+            font_db,
+        )?;
 
+        let ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
         svgr::render(
             &rtree,
             svgr::tiny_skia::Transform::default(),
             &mut pixmap.as_mut(),
             &mut SvgrCache::none(),
+            &ctx,
         );
 
         let buffer = pixmap.encode_png().unwrap();

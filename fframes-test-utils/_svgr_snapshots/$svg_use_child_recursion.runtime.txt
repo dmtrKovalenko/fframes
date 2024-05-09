@@ -19,14 +19,6 @@ Document [
                             Attribute { name: href, value: #use1 }
                             Attribute { name: id, value: use2 }
                         ]
-                        children: [
-                            Element {
-                                tag_name: Some(use)
-                                attributes: [
-                                    Attribute { name: href, value: #g1 }
-                                ]
-                            }
-                        ]
                     }
                 ]
             }

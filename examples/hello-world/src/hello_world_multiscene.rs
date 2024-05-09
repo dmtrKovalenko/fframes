@@ -65,11 +65,7 @@ impl Video for HelloWorldMultiSceneVideo {
         fframes::Scenes::from(vec)
     }
 
-    fn render_frame<'a, 'media>(
-        &'a self,
-        frame: Frame,
-        ctx: &FFramesContext<'a, 'media>,
-    ) -> Svgr<'a> {
+    fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         const BACKGROUND_EASING: animation::Easing = animation::Easing::Linear(5.);
 
         fframes::svgr!(

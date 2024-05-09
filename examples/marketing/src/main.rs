@@ -17,7 +17,6 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 // TODO figure out caching issue with path animation
-                cache_capacity: 20,
                 ..Default::default()
             },
             ..Default::default()

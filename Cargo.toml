@@ -30,14 +30,15 @@ members = [
 [workspace.dependencies]
 # If you are working locally on renderer, just clone https://github.com/dmtrKovalenko/svgr 
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
-svgr = { path = "../resvg/crates/svgr"}
-usvgr = { path = "../resvg/crates/usvgr"}
-# svgr = "0.30.0"
-# usvgr = "0.30.0"
-# usvgr-text-layout = "0.30.0"
-# fframes internal deps webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.1" }
+# svgr = { path = "../svgr/crates/svgr"}
+# usvgr = { path = "../svgr/crates/usvgr"}
+svgr = "0.42.2"
+usvgr = "0.42.2"
+
+# fframes internal deps 
 fframes-media-loaders = { path = "fframes-media-loaders", version = "1.0.0-beta.1" }
 svgr-macro = { path = "svgr-macro", version = "1.0.0-beta.1" }
 fframes-media-dir-macro = { path = "media-dir-macro", version = "1.0.0-beta.1" }
 fframes = { path = "fframes", version = "1.0.0-beta.1" }
+webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.1" }
 
