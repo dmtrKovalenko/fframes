@@ -56,7 +56,6 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
         sample_rate: options.encoder_options.sample_rate,
     };
 
-    println!("video duration: {:?}", video.duration());
     let scenes = video.define_scenes();
     let timeline = fframes::resolve_timeline(
         &video.duration(),

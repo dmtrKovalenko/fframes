@@ -291,8 +291,8 @@ impl Frame {
     ///
     /// ### Params
     /// * `overlap` – value in milliseconds is used to control when the next cue will join the stack,
-    /// e.g if overlap is 1000ms, the next cue will join the stack when it's timestamp is 1000ms or less
-    /// then the time of the current frame.
+    ///   e.g if overlap is 1000ms, the next cue will join the stack when it's timestamp is 1000ms or less
+    ///   then the time of the current frame.
     pub fn get_cue_stack<'a, TSubtitles: FFramesSubtitles<'a>>(
         &self,
         subtitles: &'a TSubtitles,

@@ -782,9 +782,9 @@ dependencies = [
 
 [[package]]
 name = "ffmpeg-sys-fframes"
-version = "7.0.2"
+version = "7.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29df4bcf79578436661b3342d587c17b9bd1d77619aa9ddd90afb0c105603e13"
+checksum = "13d4fced9d3ce3cc566ed2a8f8929a896602a0c0653fd4ceb8fbd18d83236cc4"
 dependencies = [
  "bindgen",
  "cc",
@@ -1220,7 +1220,6 @@ dependencies = [
  "clap 4.3.12",
  "fframes",
  "fframes_renderer",
- "getrandom",
 ]
 
 [[package]]

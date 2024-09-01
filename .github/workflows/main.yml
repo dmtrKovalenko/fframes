@@ -23,28 +23,42 @@ jobs:
 
   build:
     name: Build and Test
-    runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:7-ubuntu
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: extractions/setup-just@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: apt update
-      - run: apt install -y build-essential lsb-release wget curl software-properties-common gnupg pkg-config
-      - run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+      - name: Install apt-deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libmp3lame-dev libopus-dev 
+
+      - name: Install brew deps 
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config ffmpeg x264 x265 lame opus nasm
+          brew link x264 x265 lame --force
 
       - name: Install yarn
         run: |-
-          curl -fsSL --create-dirs -o $HOME/bin/yarn \
+          curl -fsSL --create-dirs -o $HOME/.local/bin/yarn \
           https://github.com/yarnpkg/yarn/releases/download/v1.22.19/yarn-1.22.19.js
-          chmod +x $HOME/bin/yarn
-          echo "$HOME/bin" >> $GITHUB_PATH
+          chmod +x $HOME/.local/bin/yarn
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -54,7 +68,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v0-rust"
+          prefix-key: "v1-rust"
           cache-on-failure: true
 
       - name: Set up Node.js

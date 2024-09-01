@@ -1,5 +1,5 @@
-use crate::encoder::validate_sample_rate_fits_codec;
 use crate::ffmpeg_action;
+use crate::ffmpeg_helper::MONO_CH_LAYOUT;
 use crate::ffmpeg_loggable_action;
 use crate::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use crate::EncoderOptions;
@@ -18,6 +18,23 @@ pub struct Stream {
     pub(crate) st: *mut AVStream,
     pub(crate) enc: *mut AVCodecContext,
     pub(crate) variant: StreamVariant,
+}
+
+pub unsafe fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32 {
+    if (*codec).supported_samplerates.is_null() {
+        return sample_rate; // we are likely in some bad state here
+    }
+
+    let mut i = 0;
+    // it is terminated by 0
+    while *(*codec).supported_samplerates.add(i) != 0 {
+        if *(*codec).supported_samplerates.add(i) == sample_rate {
+            return sample_rate;
+        }
+        i += 1;
+    }
+
+    *(*codec).supported_samplerates
 }
 
 unsafe fn is_pixel_format_supported(
@@ -182,7 +199,7 @@ impl Stream {
             den: sample_rate,
         };
 
-        crate::encoder::make_stereo_layout_channel(c);
+        (*c).ch_layout = MONO_CH_LAYOUT;
 
         // TODO pass user options
         let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
@@ -200,8 +217,8 @@ impl Stream {
         Self::set_swr_option(swr_ctx, "in_sample_rate", (*c).sample_rate);
         Self::set_swr_option(swr_ctx, "out_sample_rate", (*c).sample_rate);
 
-        Self::set_swr_chlayout(swr_ctx, "in_chlayout", &(*c).ch_layout);
-        Self::set_swr_chlayout(swr_ctx, "out_chlayout", &(*c).ch_layout);
+        Self::set_swr_chlayout(swr_ctx, "in_chlayout", &MONO_CH_LAYOUT);
+        Self::set_swr_chlayout(swr_ctx, "out_chlayout", &MONO_CH_LAYOUT);
 
         Self::set_swr_fmt(swr_ctx, "in_sample_fmt", AVSampleFormat::AV_SAMPLE_FMT_FLTP);
         Self::set_swr_fmt(swr_ctx, "out_sample_fmt", (*c).sample_fmt);

@@ -1,7 +1,12 @@
 use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use ffmpeg_sys_fframes::*;
 pub use ffmpeg_sys_fframes::{AVPixelFormat, AVSampleFormat};
-use std::{ffi::CString, os::raw::c_char, path::PathBuf, sync::Arc};
+use std::{
+    ffi::{CStr, CString},
+    os::raw::c_char,
+    path::PathBuf,
+    sync::Arc,
+};
 
 use crate::{
     ffmpeg_action,
@@ -15,12 +20,17 @@ pub const fn FFMPEG_AVERROR(e: std::os::raw::c_int) -> std::os::raw::c_int {
     -e
 }
 
-#[allow(dead_code)]
-extern "C" {
-    pub fn av_error_to_string(err: i32) -> *mut c_char;
-    pub fn make_stereo_layout_channel(c: *mut AVCodecContext) -> i32;
-    pub fn log_packet(fmt_ctx: *mut AVStream, packet: *mut AVPacket);
-    pub fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32;
+pub fn av_error_to_string(errnum: i32) -> String {
+    let mut errbuf = [0 as c_char; AV_ERROR_MAX_STRING_SIZE];
+    unsafe {
+        if av_strerror(errnum, errbuf.as_mut_ptr(), AV_ERROR_MAX_STRING_SIZE) < 0 {
+            return "Unknown error".to_string();
+        }
+
+        CStr::from_ptr(errbuf.as_ptr())
+            .to_string_lossy()
+            .to_string()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -69,7 +79,7 @@ pub struct EncoderOptions<'a> {
     /// You can pass this set of options like:
     /// ```rust
     /// let encoder_options = fframes_renderer::EncoderOptions {
-    ///     codec_params: Some(&[("crf", "18"), ("tune", "animation"), ("preset", "ultrafast")]),
+    ///     codec_params: Some(&[("crf", "23"), ("tune", "animation"), ("preset", "ultrafast")]),
     ///     ..Default::default()
     /// };
     /// ```
@@ -91,15 +101,20 @@ impl<'a> Default for EncoderOptions<'a> {
         Self {
             audio_bitrate: None,
             bitrate_tolerance: 0,
-            codec_params: None,
-            gop_size: 12,
+            codec_params: Some(&[
+                ("crf", "23"),
+                ("tune", "animation"),
+                ("preset", "ultrafast"),
+                ("bframes", "5"),
+            ]),
+            gop_size: 24,
             max_qdiff: 4,
             pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P,
             preferred_audio_codec: None,
             preferred_video_codec: None,
             qcompress: 0.6,
-            qmax: 51,
-            qmin: 10,
+            qmax: 40,
+            qmin: 15,
             sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
             sample_rate: 44100,
             tmp_files_directory: None,
@@ -195,10 +210,7 @@ impl Encoder {
             let error_description = av_error_to_string(status);
 
             return Err(renderer_error::RenderEncodingError::CantWriteFrame(
-                CString::from_raw(error_description)
-                    .to_str()
-                    .unwrap_or("Unknown libav error.")
-                    .to_owned(),
+                error_description,
             ));
         }
 
