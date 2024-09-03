@@ -1,4 +1,4 @@
-import * as videoWasmBinding from "./editor-bridge/pkg/editor-bridge";
+import * as videoWasmBinding from "./editor-bridge/pkg";
 import { renderEditor } from "fframes-editor";
 import "fframes-editor/dist/fframes-editor.css";
 

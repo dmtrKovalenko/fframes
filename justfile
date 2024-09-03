@@ -24,7 +24,8 @@ watch-editor:
   cd fframes-editor && yarn dev
 
 run example:
-  cd examples/{{example}}/editor && yarn dev
+  cd examples/{{example}}/editor && yarn dev &
+  cd examples/{{example}}/editor/editor-bridge && cargo watch -i ../../../../.gitignore -s "wasm-pack build --mode no-install --target web --dev"
 
 render example *ARGS:
   cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}

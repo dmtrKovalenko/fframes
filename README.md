@@ -20,7 +20,7 @@ Once everything is installed please install the just command runner and init the
 
 ```bash
   npm install --global yarn # the package manager for nodejs based editor
-  cargo install just
+  cargo install --locked just cargo-watch 
   just init-repo
 ```
 
@@ -28,8 +28,8 @@ Once everything is installed please install the just command runner and init the
 
 If during the build you are getting an error that `libavformat`.h` or some other C header from libav is missing it means that either:
 
-- You don't have ffmpeg installed 
-- Your linker is not able to find the ffmpeg headers
+- You don't have required system linbraries installed 
+- Your linker is not able to find the libav headers
 
 ### Troubleshooting
 
@@ -37,31 +37,6 @@ Run the following command and if you are seeing errors it means that you might n
 
 ```bash
 pkg-config --libs libavutil libavcodec libavformat libswscale libswresample
-```
-
-### Homebrew and MacOS
-
-On MacOS if you installed ffmpeg via homebrew you might need to provide the path to the headers manually. Usually homebrew prints how to do this after the installation.
-
-```bash
-## Ideally refer to the comment after ffmpeg installation 
-export LDFLAGS="-L/opt/homebrew/opt/ffmpeg@6/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/ffmpeg@6/include"
-```
-
-### Manual linking
-
-You can also manually link ffmpeg during the build using `build.rs` file and populate the linker using rust build system.
-
-Add this to the `build.rs` file:
-
-```rust
-fn main() {
-    cc::Build::new()
-        .file("ffmpeg_helper.c")
-        .include("/opt/homebrew/opt/ffmpeg@5/include")
-        .compile("ffmpeg_helper");
-}
 ```
 
 ### Manual compilation

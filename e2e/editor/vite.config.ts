@@ -1,6 +1,5 @@
-import reactRefresh from "@vitejs/plugin-react-refresh";
+import reactRefresh from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import ViteRsw from "vite-plugin-rsw";
 
 export default defineConfig({
   assetsInclude: ["./media/*", "fframes-editor/*.wasm"],
@@ -10,13 +9,10 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    entries: [".editor-bridge/main.tsx"],
+    entries: ["./main.tsx"],
   },
   plugins: [
     reactRefresh(),
-    ViteRsw({
-      profile: "dev",
-      crates: ["editor-bridge"],
-    }),
   ],
 });
+

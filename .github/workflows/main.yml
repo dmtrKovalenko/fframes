@@ -113,3 +113,20 @@ jobs:
             e2e/frames/diff
             e2e/out.mp4
             */**/_svgr_snapshots/*
+
+  # not now
+  # check-windows-build: 
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #
+  #     - name: Install nasm
+  #       run: choco install nasm
+  #
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         override: true
+  #
+  #     - run: cargo check
