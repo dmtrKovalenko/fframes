@@ -273,30 +273,30 @@ macro_rules! keyframes {
         ];
 
         let mut all_keyframes = Vec::new();
-        let mut cummulative_duration: f32 = 0.0;
+        let mut cumulative_duration: f32 = 0.0;
         let mut durations = Vec::new();
         for (_, delay, easing) in &keyframes_vec {
             let animation_runtime = fframes::animation::AnimationRuntime::from(*easing);
             let duration = animation_runtime.get_duration();
-            cummulative_duration += (duration + *delay);
+            cumulative_duration += (duration + *delay);
             durations.push(duration);
         }
 
-        let cycle_duration = cummulative_duration + $looping_delay;
+        let cycle_duration = cumulative_duration + $looping_delay;
         let mut last_state = $initial_state;
 
         for i in 0..$repeats {
             let loop_start = (i as f32 * cycle_duration);
-            let mut cummulative_duration = 0.0;
+            let mut cumulative_duration = 0.0;
 
             for (j, (to, delay, easing)) in keyframes_vec.iter().enumerate() {
                 let keyframe = fframes::animation::KeyFrame {
-                    start: loop_start + cummulative_duration,
+                    start: loop_start + cumulative_duration,
                     from: last_state,
                     to: *to,
                     easing: easing,
                 };
-                cummulative_duration += durations[j] + delay;
+                cumulative_duration += durations[j] + delay;
                 all_keyframes.push(keyframe);
                 last_state = keyframe.to;
             }
