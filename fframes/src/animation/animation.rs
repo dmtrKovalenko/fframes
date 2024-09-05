@@ -88,6 +88,34 @@ impl Animatable for f32 {
     }
 }
 
+impl Animatable for (f32, f32) {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        (
+            self.0.apply_progress(&to.0, progress),
+            self.1.apply_progress(&to.1, progress),
+        )
+    }
+}
+impl Animatable for (f32, f32, f32) {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        (
+            self.0.apply_progress(&to.0, progress),
+            self.1.apply_progress(&to.1, progress),
+            self.2.apply_progress(&to.2, progress),
+        )
+    }
+}
+impl Animatable for (f32, f32, f32, f32) {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        (
+            self.0.apply_progress(&to.0, progress),
+            self.1.apply_progress(&to.1, progress),
+            self.2.apply_progress(&to.2, progress),
+            self.3.apply_progress(&to.3, progress),
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Tween<T: Animatable + Copy> {
     pub(crate) seconds_range: Range<f32>,
@@ -176,6 +204,16 @@ impl<T: Animatable + Copy> KeyFramesAnimation<T> {
         KeyFramesAnimation { keyframes }
     }
 }
+/// Constructs a new [`KeyFramesAnimation`] from a list of keyframes.
+///
+/// # Examples
+///
+/// ```
+/// let animation = fframes::timeline!(
+///     on 0.0, val 0.0 => 1.0, Easing::Linear(1.0),
+///     on 1.0, val 1.0 => 0.0, Easing::Linear(1.0)
+/// );
+/// ```
 
 #[macro_export]
 macro_rules! timeline {
@@ -191,4 +229,79 @@ macro_rules! timeline {
            ),+
     ])
     };
+}
+
+/// Constructs a new [`KeyFramesAnimation`] from a list of keyframes that loop.
+///
+/// # Examples
+///
+/// use fframes::animation::{self, Easing};
+/// ```
+/// let animation = fframes::keyframes!(
+///     initial_state (0.0, 0.0),
+///     looping_delay 0.0,
+///     repeats 3,
+///     animate_to (1.0, 1.0), delay 0.0, Easing::Linear(1.0),
+///     animate_to (0.0, 0.0), delay 0.0, Easing::Linear(1.0)
+/// );
+/// ```
+/// **Note**: The `keyframes!` macro calculates the delay for each keyframe, which can be inefficient
+/// for spring animations. Consider using this macro in a lazy or cached context for better performance:
+/// ```
+///
+/// fframes::lazy_static::lazy_static! {
+///     static ref MY_ANIMATION: fframes::animation::KeyFramesAnimation<f32> = fframes::keyframes!(
+///         initial_state 0.0,
+///         looping_delay 0.0,
+///         repeats 3,
+///         animate_to 1.0, delay 0.0, Easing::Linear(1.0),
+///         animate_to 0.0, delay 0.0, Easing::Linear(1.0)
+///     );
+/// }
+
+#[macro_export]
+macro_rules! keyframes {
+    (initial_state $initial_state:expr, repeats $repeats:expr, looping_delay $looping_delay:expr,  $(animate_to $to:expr, delay $delay:expr,$easing:expr),+) => {{
+        let keyframes_vec = vec![
+           $(
+            (
+                $to,
+                $delay,
+                $easing,
+            )
+           ),+
+        ];
+
+        let mut all_keyframes = Vec::new();
+        let mut cummulative_duration: f32 = 0.0;
+        let mut durations = Vec::new();
+        for (_, delay, easing) in &keyframes_vec {
+            let animation_runtime = fframes::animation::AnimationRuntime::from(*easing);
+            let duration = animation_runtime.get_duration();
+            cummulative_duration += (duration + *delay);
+            durations.push(duration);
+        }
+
+        let cycle_duration = cummulative_duration + $looping_delay;
+        let mut last_state = $initial_state;
+
+        for i in 0..$repeats {
+            let loop_start = (i as f32 * cycle_duration);
+            let mut cummulative_duration = 0.0;
+
+            for (j, (to, delay, easing)) in keyframes_vec.iter().enumerate() {
+                let keyframe = fframes::animation::KeyFrame {
+                    start: loop_start + cummulative_duration,
+                    from: last_state,
+                    to: *to,
+                    easing: easing,
+                };
+                cummulative_duration += durations[j] + delay;
+                all_keyframes.push(keyframe);
+                last_state = keyframe.to;
+            }
+        }
+
+        &fframes::animation::KeyFramesAnimation::new(all_keyframes)
+    }};
 }

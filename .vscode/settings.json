@@ -21,4 +21,9 @@
     "channel_layout.h": "c"
   },
   "svg.preview.background": "editor",
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#5E0C08",
+    "titleBar.activeBackground": "#84110C",
+    "titleBar.activeForeground": "#FFFCFC"
+  },
 }

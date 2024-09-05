@@ -32,21 +32,24 @@ impl Video for HelloWorldVideo<'_> {
             height={Self::HEIGHT}
           >
             <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
-              x="0"
-              y="0"
-              fill={
-                frame.animate(fframes::timeline!(
-                  on 0., val Color::hex("#fff") => Color::hex("#f8fafc"), &BACKGROUND_EASING,
-                  on 5., val Color::hex("#f8fafc") => Color::hex("#fff7ed"), &BACKGROUND_EASING,
-                  on 10., val Color::hex("#fff7ed") => Color::hex("#fef2f2"), &BACKGROUND_EASING,
-                  on 15., val Color::hex("#fef2f2") => Color::hex("#f7fee7"), &BACKGROUND_EASING,
-                  on 20., val Color::hex("#f7fee7") => Color::hex("#ecfdf5"), &BACKGROUND_EASING,
-                  on 25., val Color::hex("#ecfdf5") => Color::hex("#faf5ff"), &BACKGROUND_EASING
-                ))
-              }
-            />
+            width={Self::WIDTH}
+            height={Self::HEIGHT}
+            x="0"
+            y="0"
+            fill={
+              frame.animate(fframes::keyframes!(
+                initial_state Color::hex("#fff"),
+                repeats 3,
+                looping_delay 0.0,
+                animate_to Color::hex("#f8fafc"), delay 0., &BACKGROUND_EASING,
+                animate_to Color::hex("#fff7ed"), delay 5., &BACKGROUND_EASING,
+                animate_to Color::hex("#fef2f2"), delay 5., &BACKGROUND_EASING,
+                animate_to Color::hex("#f7fee7"), delay 5., &BACKGROUND_EASING,
+                animate_to Color::hex("#ecfdf5"), delay 5., &BACKGROUND_EASING,
+                animate_to Color::hex("#faf5ff"), delay 5., &BACKGROUND_EASING
+              ))
+            }
+          />
 
             <text font-family="DM Sans" x="100" y="300" font-size="150">
               "Hello " {self.slug}
