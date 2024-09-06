@@ -241,8 +241,8 @@ macro_rules! timeline {
 ///     initial_state (0.0, 0.0),
 ///     looping_delay 0.0,
 ///     repeats 3,
-///     animate_to (1.0, 1.0), delay 0.0, Easing::Linear(1.0),
-///     animate_to (0.0, 0.0), delay 0.0, Easing::Linear(1.0)
+///     to (1.0, 1.0), delay 0.0, Easing::Linear(1.0),
+///     to (0.0, 0.0), delay 0.0, Easing::Linear(1.0)
 /// );
 /// ```
 /// **Note**: The `keyframes!` macro calculates the delay for each keyframe, which can be inefficient
@@ -254,14 +254,14 @@ macro_rules! timeline {
 ///         initial_state 0.0,
 ///         looping_delay 0.0,
 ///         repeats 3,
-///         animate_to 1.0, delay 0.0, Easing::Linear(1.0),
-///         animate_to 0.0, delay 0.0, Easing::Linear(1.0)
+///         to 1.0, delay 0.0, Easing::Linear(1.0),
+///         to 0.0, delay 0.0, Easing::Linear(1.0)
 ///     );
 /// }
 
 #[macro_export]
 macro_rules! keyframes {
-    (initial_state $initial_state:expr, repeats $repeats:expr, looping_delay $looping_delay:expr,  $(animate_to $to:expr, delay $delay:expr,$easing:expr),+) => {{
+    (initial_state $initial_state:expr, repeats $repeats:expr, looping_delay $looping_delay:expr,  $(to $to:expr, delay $delay:expr,$easing:expr),+) => {{
         let keyframes_vec = vec![
            $(
             (

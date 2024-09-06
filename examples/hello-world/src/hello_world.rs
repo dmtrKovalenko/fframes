@@ -41,12 +41,12 @@ impl Video for HelloWorldVideo<'_> {
                 initial_state Color::hex("#fff"),
                 repeats 3,
                 looping_delay 0.0,
-                animate_to Color::hex("#f8fafc"), delay 0., &BACKGROUND_EASING,
-                animate_to Color::hex("#fff7ed"), delay 5., &BACKGROUND_EASING,
-                animate_to Color::hex("#fef2f2"), delay 5., &BACKGROUND_EASING,
-                animate_to Color::hex("#f7fee7"), delay 5., &BACKGROUND_EASING,
-                animate_to Color::hex("#ecfdf5"), delay 5., &BACKGROUND_EASING,
-                animate_to Color::hex("#faf5ff"), delay 5., &BACKGROUND_EASING
+                to Color::hex("#f8fafc"), delay 0., &BACKGROUND_EASING,
+                to Color::hex("#fff7ed"), delay 5., &BACKGROUND_EASING,
+                to Color::hex("#fef2f2"), delay 5., &BACKGROUND_EASING,
+                to Color::hex("#f7fee7"), delay 5., &BACKGROUND_EASING,
+                to Color::hex("#ecfdf5"), delay 5., &BACKGROUND_EASING,
+                to Color::hex("#faf5ff"), delay 5., &BACKGROUND_EASING
               ))
             }
           />
