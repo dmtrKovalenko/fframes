@@ -1,7 +1,11 @@
 pub use fframes::{animation, AnimateRuntimeInput, AudioMap, Frame, Svgr, Video};
 use fframes::{include_media_dir, FFramesContext, VisualizeFrameInput};
 
-const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
+const SPRING: animation::Easing = animation::Easing::Spring {
+    mass: 1.85,
+    stiffness: 130.,
+    damping: 16.,
+};
 
 include_media_dir!(pub struct MarketingMedia, "examples/marketing/media");
 
@@ -36,8 +40,8 @@ impl MarketingVideo<'_> {
             height="400"
             x="1456"
             y={frame.animate(fframes::timeline!(
-                on 2.3, val 1400. => 770., animation::Easing::Spring2(1.85, 130.0, 16.0),
-                on 4.8, val 770. => 1400., animation::Easing::Spring2(1.85, 130.0, 16.0)
+                on 2.3, val 1400. => 770., animation::Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 },
+                on 4.8, val 770. => 1400., animation::Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 }
             ))}
             xmlns="http://www.w3.org/2000/svg"
             fill-rule="evenodd"
@@ -337,8 +341,8 @@ impl Video for MarketingVideo<'_> {
               viewBox="0 0 598.3520004127504 417.989493060112"
               width="298"
               opacity={frame.animate(fframes::timeline!(
-                  on 5.8, val 0. => 1., &animation::Easing::Spring2(1.85, 130., 16.),
-                  on 9.0, val 1. => 0., &animation::Easing::Spring2(1.85, 130., 16.)
+                  on 5.8, val 0. => 1., &animation::Easing::Spring{ mass: 1.85, stiffness: 130., damping: 16. },
+                  on 9.0, val 1. => 0., &animation::Easing::Spring{ mass: 1.85, stiffness: 130., damping: 16. }
               ))}
             >
               <g stroke-linecap="round" transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)">
@@ -361,8 +365,8 @@ impl Video for MarketingVideo<'_> {
               height="900"
               href={self.media.code_png.href()}
               x={frame.animate(fframes::timeline!(
-                  on 5.8, val -1000. => 40., &animation::Easing::Spring2(0.85, 80., 16.),
-                  on 9.0, val 40. => -1200., &animation::Easing::Spring2(0.85, 80., 16.)
+                  on 5.8, val -1000. => 40., &animation::Easing::Spring{ mass: 0.85, stiffness: 80., damping: 16. },
+                  on 9.0, val 40. => -1200., &animation::Easing::Spring{ mass: 0.85, stiffness: 80., damping: 16. }
               ))}
               y="10"
             />

@@ -43,12 +43,12 @@ impl Scene for IphoneScene {
         const EXPAND_ISLAND_TS: f32 = 6.2;
 
         let dynamic_island_width = frame.animate(&fframes::timeline!(
-            on 0.0, val 120. => 180., &animation::Easing::Spring2(1.6 , 400., 26.),
-            on EXPAND_ISLAND_TS, val 180. => 348., &animation::Easing::Spring2(1.6 , 300., 26.)
+            on 0.0, val 120. => 180., &animation::Easing::Spring{ mass: 1.6 , stiffness: 400., damping: 26. },
+            on EXPAND_ISLAND_TS, val 180. => 348., &animation::Easing::Spring{ mass: 1.6 , stiffness: 300., damping: 26. }
         ));
 
         let dynamic_island_height = frame.animate(&fframes::timeline!(
-           on EXPAND_ISLAND_TS, val 40. => 80., &animation::Easing::Spring2(1.6 , 300., 26.)
+           on EXPAND_ISLAND_TS, val 40. => 80., &animation::Easing::Spring{ mass: 1.6 , stiffness: 300., damping: 26. }
         ));
 
         let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
@@ -123,7 +123,7 @@ impl Scene for IphoneScene {
             <g clip-path="url(#iphoneUi)">
               <g
                 transform={format!("translate(0 {})", frame.animate(&fframes::timeline!(
-                    on 3.0, val 1800. => 0., &animation::Easing::Spring2(0.4 , 70., 16.)
+                    on 3.0, val 1800. => 0., &animation::Easing::Spring { mass: 0.4 , stiffness: 70., damping: 16. }
                   )))
                 }
               >
@@ -148,9 +148,9 @@ impl Scene for IphoneScene {
                 <g
                   transform-origin="bottom center"
                   transform={format!("translate(0 {y}) scale({scale})", y=frame.animate(&fframes::timeline!(
-                    on SEND_MESSAGE_TS, val 200. => 0., &animation::Easing::Spring2(1.0 , 240., 26.)
+                    on SEND_MESSAGE_TS, val 200. => 0., &animation::Easing::Spring{ mass: 1.0 , stiffness: 240., damping: 26. }
                   )), scale=frame.animate(&fframes::timeline!(
-                    on SEND_MESSAGE_TS, val 0.4 => 1., &animation::Easing::Spring2(1.0 , 220., 26.)
+                    on SEND_MESSAGE_TS, val 0.4 => 1., &animation::Easing::Spring{ mass: 1.0 , stiffness: 220., damping: 26. }
                   )))}
                   opacity={
                     frame.animate(

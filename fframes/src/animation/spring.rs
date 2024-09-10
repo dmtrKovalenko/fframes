@@ -7,17 +7,10 @@ pub struct SpringRuntime {
     pub(crate) b: f32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct SpringOptions {
-    pub mass: f32,
-    pub stiffness: f32,
-    pub damping: f32,
-}
-
 impl SpringRuntime {
-    pub fn from_options(opts: &SpringOptions) -> SpringRuntime {
-        let m_zeta = opts.damping / (2.0 * libm::sqrtf(opts.stiffness * opts.mass));
-        let m_w0 = libm::sqrtf(opts.stiffness / opts.mass);
+    pub fn new(mass: f32, stiffness: f32, damping: f32) -> SpringRuntime {
+        let m_zeta = damping / (2.0 * libm::sqrtf(stiffness * mass));
+        let m_w0 = libm::sqrtf(stiffness / mass);
 
         if m_zeta < 1.0 {
             let m_wd = m_w0 * libm::sqrtf(1.0 - m_zeta * m_zeta);

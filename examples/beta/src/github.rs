@@ -25,7 +25,7 @@ impl Scene for GithubScene {
                 href={github_image}
                 transform={format!("translate({} -{})",
                 frame.animate(&fframes::timeline!(
-                    on 0.0, val 1920. => 0., &animation::Easing::Spring2(0.3, 90., 26.)
+                    on 0.0, val 1920. => 0., &animation::Easing::Spring { mass: 0.3, stiffness: 90., damping: 26. }
                 )),
                 frame.animate(&fframes::timeline!(
                     on 0.8, val 0. => 1700., &animation::Easing::Linear(5.5)

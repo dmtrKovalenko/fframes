@@ -13,24 +13,17 @@ pub enum AnimationRuntime {
 impl From<&Easing> for AnimationRuntime {
     fn from(easing: &Easing) -> Self {
         match easing {
-            Easing::Spring(options) => {
-                let spring_runtime = spring::SpringRuntime::from_options(options);
+            Easing::Spring {
+                mass,
+                stiffness,
+                damping,
+            } => {
+                let spring_runtime = spring::SpringRuntime::new(*mass, *stiffness, *damping);
                 let duration = spring_runtime.get_duration();
 
                 AnimationRuntime::SpringRuntime(spring_runtime, duration)
             }
             Easing::Linear(duration) => AnimationRuntime::Linear(*duration),
-            Easing::Spring2(mass, stiffness, damping) => {
-                let spring_runtime =
-                    spring::SpringRuntime::from_options(&crate::animation::SpringOptions {
-                        mass: *mass,
-                        stiffness: *stiffness,
-                        damping: *damping,
-                    });
-
-                let duration = spring_runtime.get_duration();
-                AnimationRuntime::SpringRuntime(spring_runtime, duration)
-            }
         }
     }
 }
@@ -60,12 +53,13 @@ pub enum Easing {
     /// calculates as Linear(duration): f(current_time) = current_time / duration
     Linear(f32),
     // Inspired by https://webkit.org/demos/spring/spring.js. Copyright (C) 2016 Apple Inc. All rights reserved.
-    Spring(spring::SpringOptions),
     /// Specifies an animation that calculates value based on spring physics.
     /// Learn more about spring physics: https://www.joshwcomeau.com/animation/a-friendly-introduction-to-spring-physics/
-    ///
-    /// Mass, Stiffness, Damping
-    Spring2(f32, f32, f32),
+    Spring {
+        mass: f32,
+        stiffness: f32,
+        damping: f32,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]

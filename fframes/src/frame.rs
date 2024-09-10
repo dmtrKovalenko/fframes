@@ -118,8 +118,8 @@ impl Frame {
     /// fframes::svgr!(
     ///   <rect
     ///     y={frame.animate(fframes::timeline!(
-    ///         on 2.3, val 1400. => 770., Easing::Spring2(1.85, 130.0, 16.0),
-    ///         on 4.8, val 770. => 1400., Easing::Spring2(1.85, 130.0, 16.0)
+    ///         on 2.3, val 1400. => 770., Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 },
+    ///         on 4.8, val 770. => 1400., Easing::Spring { mass: 1.85, stiffness: 130.0,a damping: 16.0 }
     ///     ))}
     ///   />
     /// );

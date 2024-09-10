@@ -62,7 +62,7 @@ impl Scene for BetaExamples<'_> {
              font-weight="700"
              text-anchor="middle"
              x={frame.animate(fframes::timeline!(
-               on 0., val 200. => 960., &animation::Easing::Spring2(1.0 , 100., 16.)
+               on 0., val 200. => 960., &animation::Easing::Spring { mass: 1.0 , stiffness: 100., damping: 16. }
              ))}
              y="8%"
              font-size="60"
@@ -81,16 +81,16 @@ impl Scene for BetaExamples<'_> {
                transform={format!("translate(0, {})",
                  frame.animate(
                    &fframes::timeline!(
-                     on MARKETING_TS, val 0. => -180., &animation::Easing::Spring2(1.0 , 140., 16.),
-                     on PODCAST_TS, val -200. => -380., &animation::Easing::Spring2(1.0 , 140., 16.),
-                     on TIKTOK_TS, val -400. => -580., &animation::Easing::Spring2(1.0 , 140., 16.)
+                     on MARKETING_TS, val 0. => -180., &animation::Easing::Spring { mass: 1.0 , stiffness: 140., damping: 16. },
+                     on PODCAST_TS, val -200. => -380., &animation::Easing::Spring { mass: 1.0 , stiffness: 140., damping: 16. },
+                     on TIKTOK_TS, val -400. => -580., &animation::Easing::Spring { mass: 1.0 , stiffness: 140.,damping: 16. }
                    )
                  )
                )}
              >
                <text
                  x={frame.animate(fframes::timeline!(
-                   on 0., val 1700. => 960., &animation::Easing::Spring2(1.0 , 100., 16.)
+                   on 0., val 1700. => 960., &animation::Easing::Spring{ mass: 1.0 , stiffness: 100., damping: 16. }
                  ))}
                  y="220"
                >

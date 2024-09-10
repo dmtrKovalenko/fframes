@@ -5,7 +5,11 @@ use fframes::{
 };
 pub use tiktok_media::GooseMedia;
 
-const SPRING: animation::Easing = animation::Easing::Spring2(1.85, 130., 16.);
+const SPRING: animation::Easing = animation::Easing::Spring {
+    mass: 1.85,
+    stiffness: 130.,
+    damping: 16.,
+};
 const BAR_SIZE: usize = 30;
 const BAR_PADDING: usize = 20;
 const SPECTRUM_WIDTH: usize = 16 * (BAR_SIZE + BAR_PADDING) - BAR_PADDING;

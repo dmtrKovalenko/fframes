@@ -25,7 +25,7 @@ impl Scene for RenderingScene {
              font-family="DM Sans"
              font-weight="700"
              x={frame.animate(fframes::timeline!(
-               on 0., val -400. => 260., &animation::Easing::Spring2(0.6 , 300., 26.),
+               on 0., val -400. => 260., &animation::Easing::Spring{ mass: 0.6 , stiffness: 300., damping: 26. },
                on 0.3, val 260. => 310., &animation::Easing::Linear(1.9)
              ))}
              y="30%"
@@ -38,7 +38,7 @@ impl Scene for RenderingScene {
              font-family="DM Sans"
              font-weight="700"
              x={frame.animate(fframes::timeline!(
-               on 0., val 1900. => 460., &animation::Easing::Spring2(0.6 , 300., 26.),
+               on 0., val 1900. => 460., &animation::Easing::Spring{ mass: 0.6 , stiffness: 300., damping: 26. },
                on 0.3, val 460. => 410., &animation::Easing::Linear(1.9)
              ))}
              y="50%"

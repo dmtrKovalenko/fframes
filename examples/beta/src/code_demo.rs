@@ -39,7 +39,7 @@ impl Scene for CodeDemoScene {
             height="500"
             x={
               frame.animate(fframes::timeline!(
-                on 0.0, val 2444. => 1245., animation::Easing::Spring2(1.45, 130.0, 20.0),
+                on 0.0, val 2444. => 1245., animation::Easing::Spring{ mass: 1.45, stiffness: 130.0, damping: 20.0 },
                 on 3.8, val 1245. => 3920., &animation::Easing::Linear(0.2)
               ))
             }

@@ -21,7 +21,7 @@ impl Scene for HeadingScene {
             font-family="DM Sans"
             font-weight="700"
             x={frame.animate(fframes::timeline!(
-              on 0., val -400. => 260., &animation::Easing::Spring2(1.0 , 100., 16.)
+              on 0., val -400. => 260., &animation::Easing::Spring { mass: 1.0 , stiffness: 100., damping: 16. }
             ))}
             y="40%"
             font-size="150"
@@ -35,7 +35,7 @@ impl Scene for HeadingScene {
             font-weight="700"
             fill="#000"
             x={frame.animate(fframes::timeline!(
-              on 0., val 1000. => 660., &animation::Easing::Spring2(1.0 , 100., 16.)
+              on 0., val 1000. => 660., &animation::Easing::Spring{ mass: 1.0 , stiffness: 100., damping: 16. }
             ))}
             y="60%"
             font-size="150"
