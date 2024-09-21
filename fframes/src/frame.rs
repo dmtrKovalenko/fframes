@@ -201,7 +201,7 @@ impl Frame {
         &mut self,
         ctx: &crate::FFramesContext<'a, '_>,
         value: &str,
-        opts: &BreakLinesOpts,
+        opts: BreakLinesOpts<'a>,
     ) -> Option<crate::Svgr<'a>> {
         let font_source = ctx.font_source?;
         let hash = opts.hash_with_value(value);
@@ -213,13 +213,13 @@ impl Frame {
                 .ok()?
                 .deref_mut()
                 .get_or_insert(hash, || {
-                    text_wrap_impl(value, font_source, *opts)
+                    text_wrap_impl(value, font_source, opts)
                         .map(|lines| WrappedTextStructure::new(lines, hash))
                 })
                 .as_ref()
                 .map(|structure| structure.as_svgr(opts))
         } else {
-            text_wrap_impl(value, ctx.font_source?, *opts)
+            text_wrap_impl(value, ctx.font_source?, opts)
                 .map(|lines| WrappedTextStructure::new(lines, hash).as_svgr(opts))
         }
     }

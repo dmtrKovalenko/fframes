@@ -37,10 +37,8 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         self.media_source?.resolve_subtitles(filename.as_ref())
     }
 
-    pub fn get_image_href(&self, filename: impl AsRef<str>) -> Option<&'media str> {
-        self.media_source?
-            .resolve_image(filename.as_ref())
-            .map(ImageData::href)
+    pub fn get_image(&self, filename: impl AsRef<str>) -> Option<&'media ImageData> {
+        self.media_source?.resolve_image(filename.as_ref())
     }
 
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr<'a> {

@@ -1,54 +1,7 @@
 (Compile-time)
-Document [
-    Element {
-        tag_name: Some(svg)
-        attributes: [
-            Attribute { name: id, value: svg1 }
-            Attribute { name: viewBox, value: 0 0 200 200 }
-        ]
-        children: [
-            Element {
-                tag_name: Some(use)
-                attributes: [
-                    Attribute { name: id, value: use1 }
-                    Attribute { name: href, value: #use2 }
-                ]
-                children: [
-                    Element {
-                        tag_name: Some(use)
-                        attributes: [
-                            Attribute { name: href, value: #use1 }
-                        ]
-                    }
-                ]
-            }
-            Element {
-                tag_name: Some(use)
-                attributes: [
-                    Attribute { name: id, value: use2 }
-                    Attribute { name: href, value: #use1 }
-                ]
-                children: [
-                    Element {
-                        tag_name: Some(use)
-                        attributes: [
-                            Attribute { name: href, value: #use2 }
-                        ]
-                    }
-                ]
-            }
-            Element {
-                tag_name: Some(rect)
-                attributes: [
-                    Attribute { name: id, value: frame }
-                    Attribute { name: x, value: 1 }
-                    Attribute { name: y, value: 1 }
-                    Attribute { name: width, value: 198 }
-                    Attribute { name: height, value: 198 }
-                    Attribute { name: fill, value: none }
-                    Attribute { name: stroke, value: black }
-                ]
-            }
-        ]
-    }
-]
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs/>
+    <g id="use1"/>
+    <g id="use2"/>
+    <path id="frame" fill="none" stroke="#000000" d="M 1 1 L 199 1 L 199 199 L 1 199 Z"/>
+</svg>

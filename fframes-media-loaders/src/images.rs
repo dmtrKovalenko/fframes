@@ -11,15 +11,14 @@ pub struct ImageData {
 }
 
 impl ImageData {
+    #[cfg(target_arch = "wasm32")]
     pub fn href(&self) -> &str {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            &self.filename
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            &self.base64_data
-        }
+        &self.base64_data
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn href(&self) -> std::sync::Arc<usvgr::PreloadedImageData> {
+        std::sync::Arc::clone(&self.image)
     }
 }
 

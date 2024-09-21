@@ -74,7 +74,17 @@ impl BreakLinesOpts<'_> {
         } = self;
 
         svgr!(
-          <text x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} font-stretch={font_stretch} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
+          <text
+            x={x}
+            y={y}
+            fill={fill}
+            font-size={font_size}
+            font-family={font_family}
+            font-weight={font_weight}
+            font-stretch={font_stretch.to_string()}
+            dominant-baseline={dominant_baseline}
+            text-anchor={text_anchor}
+          >
              {children}
           </text>
         )
@@ -152,7 +162,7 @@ impl WrappedTextStructure {
         Self { lines, hash }
     }
 
-    pub fn as_svgr(
+    pub fn as_svgr<'a>(
         &self,
         BreakLinesOpts {
             x,
@@ -164,14 +174,14 @@ impl WrappedTextStructure {
             dominant_baseline,
             text_anchor,
             ..
-        }: &BreakLinesOpts,
-    ) -> Svgr<'static> {
+        }: BreakLinesOpts<'a>,
+    ) -> Svgr<'a> {
         svgr_macro::svgr!(
          <text id={self.hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
            {
             self.lines.iter().map(|line| {
                 svgr_macro::svgr!(
-                   <tspan x={x} y={y} dx={line.dx} dy={line.dy.to_string()}>
+                   <tspan x={x} y={y} dx={line.dx} dy={line.dy}>
                     {line.words.join(" ")}
                    </tspan>
                 )

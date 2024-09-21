@@ -27,7 +27,7 @@ impl Scene for CodeDemoScene {
              }
              y="50"
              transform={format!("skewX({tilt_angle}), skewY({y})", y=-tilt_angle + 0.4)}
-             href={ctx.get_image_href("code.png").expect("Do not do like this")}
+             href={ctx.get_image("code.png").expect("Do not panic in real code").href()}
              opacity={frame.animate(fframes::timeline!(
                on 0.3, val 0. => 1., &animation::Easing::Linear(0.5)
              ))}

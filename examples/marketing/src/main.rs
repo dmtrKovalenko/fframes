@@ -16,7 +16,6 @@ fn main() {
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                // TODO figure out caching issue with path animation
                 ..Default::default()
             },
             ..Default::default()

@@ -96,7 +96,7 @@ impl Video for BetaVideo<'_> {
               height={Self::HEIGHT}
               x="0"
               y="0"
-              href={ctx.get_image_href("background.png").expect("Do not use .expect() om media in the real code")}
+              href={ctx.get_image("background.png").expect("Do not use .expect() om media in the real code").href()}
               fill="#fff"
             />
 

@@ -1,349 +1,60 @@
 (Compile-time)
-Document [
-    Element {
-        tag_name: Some(svg)
-        attributes: [
-            Attribute { name: viewBox, value: 0 0 1200 800 }
-            Attribute { name: width, value: 400 }
-            Attribute { name: height, value: 400 }
-            Attribute { name: x, value: 1456 }
-            Attribute { name: fill-rule, value: evenodd }
-            Attribute { name: clip-rule, value: evenodd }
-            Attribute { name: stroke-linejoin, value: round }
-            Attribute { name: stroke-miterlimit, value: 1.41421 }
-        ]
-        children: [
-            Element {
-                tag_name: Some(g)
-                attributes: [
-                    Attribute { name: id, value: Layer-1 }
-                ]
-                children: [
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,597.344,637.02) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,-279.559C-121.238,-279.559 -231.39,-264.983 -312.939,-241.23L-312.939,-38.329C-231.39,-14.575 -121.238,0 0,0C138.76,0 262.987,-19.092 346.431,-49.186L346.431,-230.37C262.987,-260.465 138.76,-279.559 0,-279.559 }
-                                    Attribute { name: fill, value: rgb(165,43,0) }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,1068.75,575.642) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,-53.32L-14.211,-82.761C-14.138,-83.879 -14.08,-84.998 -14.08,-86.121C-14.08,-119.496 -48.786,-150.256 -107.177,-174.883L-107.177,2.643C-79.932,-8.849 -57.829,-21.674 -42.021,-35.482C-46.673,-16.775 -62.585,21.071 -75.271,47.686C-96.121,85.752 -103.671,118.889 -102.703,120.53C-102.086,121.563 -94.973,110.59 -84.484,92.809C-60.074,58.028 -13.82,-8.373 -4.575,-25.287C5.897,-44.461 0,-53.32 0,-53.32 }
-                                    Attribute { name: fill, value: rgb(165,43,0) }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,149.064,591.421) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,-99.954C0,-93.526 1.293,-87.194 3.788,-80.985L-4.723,-65.835C-4.723,-65.835 -11.541,-56.989 0.465,-38.327C11.055,-21.872 64.1,42.54 92.097,76.271C104.123,93.564 112.276,104.216 112.99,103.187C114.114,101.554 105.514,69.087 81.631,32.046C70.487,12.151 57.177,-14.206 49.189,-33.675C71.492,-19.559 100.672,-6.755 135.341,4.265L135.341,-204.17C51.797,-177.622 0,-140.737 0,-99.954 }
-                                    Attribute { name: fill, value: rgb(165,43,0) }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(-65.8097,-752.207,-752.207,65.8097,621.707,796.312) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0.991,-0.034L0.933,0.008C0.933,0.014 0.933,0.02 0.933,0.026L0.99,0.069C0.996,0.073 0.999,0.08 0.998,0.087C0.997,0.094 0.992,0.1 0.986,0.103L0.92,0.133C0.919,0.139 0.918,0.145 0.916,0.15L0.964,0.203C0.968,0.208 0.97,0.216 0.968,0.222C0.965,0.229 0.96,0.234 0.953,0.236L0.882,0.254C0.88,0.259 0.877,0.264 0.875,0.27L0.91,0.33C0.914,0.336 0.914,0.344 0.91,0.35C0.907,0.356 0.9,0.36 0.893,0.361L0.82,0.365C0.817,0.369 0.813,0.374 0.81,0.379L0.832,0.445C0.835,0.452 0.833,0.459 0.828,0.465C0.824,0.47 0.816,0.473 0.809,0.472L0.737,0.462C0.733,0.466 0.729,0.47 0.724,0.474L0.733,0.544C0.734,0.551 0.731,0.558 0.725,0.562C0.719,0.566 0.711,0.568 0.704,0.565L0.636,0.542C0.631,0.546 0.626,0.549 0.621,0.552L0.615,0.621C0.615,0.629 0.61,0.635 0.604,0.638C0.597,0.641 0.589,0.641 0.583,0.638L0.521,0.602C0.52,0.603 0.519,0.603 0.518,0.603L0.406,0.729C0.406,0.729 0.394,0.747 0.359,0.725C0.329,0.705 0.206,0.599 0.141,0.543C0.109,0.52 0.089,0.504 0.09,0.502C0.093,0.499 0.149,0.509 0.217,0.554C0.278,0.588 0.371,0.631 0.38,0.619C0.38,0.619 0.396,0.604 0.406,0.575C0.406,0.575 0.406,0.575 0.406,0.575C0.407,0.576 0.407,0.576 0.406,0.575C0.406,0.575 0.091,0.024 0.305,-0.531C0.311,-0.593 0.275,-0.627 0.275,-0.627C0.266,-0.639 0.178,-0.598 0.12,-0.566C0.055,-0.523 0.002,-0.513 0,-0.516C-0.001,-0.518 0.018,-0.533 0.049,-0.555C0.11,-0.608 0.227,-0.707 0.256,-0.726C0.289,-0.748 0.301,-0.73 0.301,-0.73L0.402,-0.615C0.406,-0.614 0.41,-0.613 0.415,-0.613L0.47,-0.658C0.475,-0.663 0.483,-0.664 0.49,-0.662C0.497,-0.66 0.502,-0.655 0.504,-0.648L0.522,-0.58C0.527,-0.578 0.533,-0.576 0.538,-0.574L0.602,-0.608C0.608,-0.612 0.616,-0.612 0.623,-0.608C0.629,-0.605 0.633,-0.599 0.633,-0.592L0.637,-0.522C0.642,-0.519 0.647,-0.515 0.652,-0.512L0.721,-0.534C0.728,-0.536 0.736,-0.535 0.741,-0.531C0.747,-0.526 0.75,-0.519 0.749,-0.512L0.738,-0.443C0.742,-0.439 0.746,-0.435 0.751,-0.431L0.823,-0.439C0.83,-0.44 0.837,-0.437 0.842,-0.432C0.847,-0.426 0.848,-0.419 0.845,-0.412L0.821,-0.347C0.824,-0.342 0.828,-0.337 0.831,-0.332L0.903,-0.327C0.911,-0.327 0.917,-0.322 0.92,-0.316C0.924,-0.31 0.924,-0.302 0.92,-0.296L0.883,-0.236C0.885,-0.231 0.887,-0.226 0.889,-0.22L0.959,-0.202C0.966,-0.2 0.972,-0.195 0.974,-0.188C0.976,-0.181 0.974,-0.174 0.969,-0.168L0.92,-0.116C0.921,-0.111 0.923,-0.105 0.924,-0.099L0.988,-0.068C0.995,-0.065 0.999,-0.059 1,-0.052C1.001,-0.045 0.997,-0.038 0.991,-0.034ZM0.406,0.575C0.406,0.575 0.406,0.575 0.406,0.575C0.406,0.575 0.406,0.575 0.406,0.575Z }
-                                    Attribute { name: fill, value: url(#_Linear1) }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,450.328,483.629) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,167.33C-1.664,165.91 -2.536,165.068 -2.536,165.068L140.006,153.391C23.733,0 -69.418,122.193 -79.333,135.855L-79.333,167.33L0,167.33Z }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,747.12,477.333) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,171.974C1.663,170.554 2.536,169.71 2.536,169.71L-134.448,159.687C-18.12,0 69.421,126.835 79.335,140.497L79.335,171.974L0,171.974Z }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(-1.53e-05,-267.211,-267.211,1.53e-05,809.465,764.23) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M1,-0.586C1,-0.586 0.768,-0.528 0.524,-0.165L0.5,-0.064C0.5,-0.064 1.1,0.265 0.424,0.731C0.424,0.731 0.508,0.586 0.405,0.197C0.405,0.197 0.131,0.376 0.14,0.736C0.14,0.736 -0.275,0.391 0.324,-0.135C0.324,-0.135 0.539,-0.691 1,-0.736L1,-0.586Z }
-                                    Attribute { name: fill, value: url(#_Linear2) }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,677.392,509.61) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,-92.063C0,-92.063 43.486,-139.678 86.974,-92.063C86.974,-92.063 121.144,-28.571 86.974,3.171C86.974,3.171 31.062,47.615 0,3.171C0,3.171 -37.275,-31.75 0,-92.063 }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,727,435.209) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,0.002C0,18.543 -10.93,33.574 -24.408,33.574C-37.885,33.574 -48.814,18.543 -48.814,0.002C-48.814,-18.539 -37.885,-33.572 -24.408,-33.572C-10.93,-33.572 0,-18.539 0,0.002 }
-                                    Attribute { name: fill, value: white }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,483.3,502.984) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,-98.439C0,-98.439 74.596,-131.467 94.956,-57.748C94.956,-57.748 116.283,28.178 33.697,33.028C33.697,33.028 -71.613,12.745 0,-98.439 }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(1,0,0,1,524,436.428) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0,0C0,19.119 -11.27,34.627 -25.173,34.627C-39.071,34.627 -50.344,19.119 -50.344,0C-50.344,-19.124 -39.071,-34.627 -25.173,-34.627C-11.27,-34.627 0,-19.124 0,0 }
-                                    Attribute { name: fill, value: white }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: transform, value: matrix(-1.53e-05,-239.021,-239.021,1.53e-05,402.161,775.388) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: d, value: M0.367,0.129C-0.364,-0.441 0.223,-0.711 0.223,-0.711C0.259,-0.391 0.472,-0.164 0.472,-0.164C0.521,-0.548 0.525,-0.77 0.525,-0.77C1.203,-0.256 0.589,0.161 0.589,0.161C0.627,0.265 0.772,0.372 0.906,0.451L1,0.77C0.376,0.403 0.367,0.129 0.367,0.129Z }
-                                    Attribute { name: fill, value: url(#_Linear3) }
-                                    Attribute { name: fill-rule, value: nonzero }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-            Element {
-                tag_name: Some(defs)
-                children: [
-                    Element {
-                        tag_name: Some(linearGradient)
-                        attributes: [
-                            Attribute { name: id, value: _Linear1 }
-                            Attribute { name: x1, value: 0 }
-                            Attribute { name: y1, value: 0 }
-                            Attribute { name: x2, value: 1 }
-                            Attribute { name: y2, value: 0 }
-                            Attribute { name: gradientUnits, value: userSpaceOnUse }
-                            Attribute { name: gradientTransform, value: matrix(1,0,1.38778e-17,-1,0,-0.000650515) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0 }
-                                    Attribute { name: stop-color, value: rgb(247,76,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0.33 }
-                                    Attribute { name: stop-color, value: rgb(247,76,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 1 }
-                                    Attribute { name: stop-color, value: rgb(244,150,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(linearGradient)
-                        attributes: [
-                            Attribute { name: id, value: _Linear2 }
-                            Attribute { name: x1, value: 0 }
-                            Attribute { name: y1, value: 0 }
-                            Attribute { name: x2, value: 1 }
-                            Attribute { name: y2, value: 0 }
-                            Attribute { name: gradientUnits, value: userSpaceOnUse }
-                            Attribute { name: gradientTransform, value: matrix(1,0,0,-1,0,1.23438e-06) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0 }
-                                    Attribute { name: stop-color, value: rgb(204,58,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0.15 }
-                                    Attribute { name: stop-color, value: rgb(204,58,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0.74 }
-                                    Attribute { name: stop-color, value: rgb(247,76,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 1 }
-                                    Attribute { name: stop-color, value: rgb(247,76,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                        ]
-                    }
-                    Element {
-                        tag_name: Some(linearGradient)
-                        attributes: [
-                            Attribute { name: id, value: _Linear3 }
-                            Attribute { name: x1, value: 0 }
-                            Attribute { name: y1, value: 0 }
-                            Attribute { name: x2, value: 1 }
-                            Attribute { name: y2, value: 0 }
-                            Attribute { name: gradientUnits, value: userSpaceOnUse }
-                            Attribute { name: gradientTransform, value: matrix(1,1.32349e-23,1.32349e-23,-1,0,-9.1568e-07) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0 }
-                                    Attribute { name: stop-color, value: rgb(204,58,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0.15 }
-                                    Attribute { name: stop-color, value: rgb(204,58,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 0.74 }
-                                    Attribute { name: stop-color, value: rgb(247,76,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(stop)
-                                attributes: [
-                                    Attribute { name: offset, value: 1 }
-                                    Attribute { name: stop-color, value: rgb(247,76,0) }
-                                    Attribute { name: stop-opacity, value: 1 }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
-    }
-]
+<svg width="400" height="400" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="_Linear1" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1 0 0 -1 0 -0.00065052)">
+            <stop offset="0" stop-color="#f74c00"/>
+            <stop offset="0.33" stop-color="#f74c00"/>
+            <stop offset="1" stop-color="#f49600"/>
+        </linearGradient>
+        <linearGradient id="_Linear2" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1 0 0 -1 0 0.00000123)">
+            <stop offset="0" stop-color="#cc3a00"/>
+            <stop offset="0.15" stop-color="#cc3a00"/>
+            <stop offset="0.74" stop-color="#f74c00"/>
+            <stop offset="1" stop-color="#f74c00"/>
+        </linearGradient>
+        <linearGradient id="_Linear3" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1 0 0 -1 0 -0.00000092)">
+            <stop offset="0" stop-color="#cc3a00"/>
+            <stop offset="0.15" stop-color="#cc3a00"/>
+            <stop offset="0.74" stop-color="#f74c00"/>
+            <stop offset="1" stop-color="#f74c00"/>
+        </linearGradient>
+    </defs>
+    <g id="Layer-1">
+        <g transform="matrix(1 0 0 1 597.344 637.02)">
+            <path fill="#a52b00" stroke="none" d="M 0 -279.559 C -121.238 -279.559 -231.39 -264.983 -312.939 -241.22998 L -312.939 -38.329 C -231.39 -14.575001 -121.238 0 0 0 C 138.76 0 262.987 -19.092 346.431 -49.186 L 346.431 -230.37 C 262.987 -260.465 138.76 -279.559 0 -279.559"/>
+        </g>
+        <g transform="matrix(1 0 0 1 1068.75 575.642)">
+            <path fill="#a52b00" stroke="none" d="M 0 -53.319996 L -14.211 -82.761 C -14.138 -83.879 -14.08 -84.998 -14.08 -86.121 C -14.08 -119.495995 -48.785995 -150.256 -107.177 -174.883 L -107.177 2.643 C -79.932 -8.849 -57.829 -21.674 -42.021 -35.482 C -46.672997 -16.775 -62.585 21.071 -75.271 47.686 C -96.12101 85.752 -103.671 118.889 -102.703 120.53 C -102.086 121.563 -94.973 110.59 -84.484 92.809 C -60.073997 58.028 -13.82 -8.373 -4.575 -25.287 C 5.897 -44.461 0 -53.319996 0 -53.319996"/>
+        </g>
+        <g transform="matrix(1 0 0 1 149.064 591.421)">
+            <path fill="#a52b00" stroke="none" d="M 0 -99.954 C 0 -93.52601 1.293 -87.194 3.788 -80.985 L -4.723 -65.835 C -4.723 -65.835 -11.541001 -56.989 0.465 -38.327 C 11.055 -21.872 64.1 42.54 92.097 76.271 C 104.123 93.564 112.276 104.216 112.98999 103.187 C 114.114 101.554 105.51401 69.087 81.631 32.046 C 70.487 12.151 57.176994 -14.206 49.188995 -33.675 C 71.492 -19.559 100.672 -6.755 135.341 4.265 L 135.341 -204.17 C 51.797 -177.622 0 -140.737 0 -99.954"/>
+        </g>
+        <g transform="matrix(-65.8097 -752.207 -752.207 65.8097 621.707 796.3121)">
+            <path fill="url(#_Linear1)" stroke="none" d="M 0.991 -0.034 L 0.933 0.008 C 0.933 0.014 0.933 0.02 0.933 0.026 L 0.99 0.069 C 0.996 0.073 0.999 0.08 0.998 0.087 C 0.997 0.094 0.992 0.1 0.986 0.103 L 0.92 0.133 C 0.919 0.139 0.918 0.145 0.916 0.15 L 0.964 0.203 C 0.968 0.208 0.97 0.216 0.968 0.222 C 0.965 0.229 0.96 0.234 0.953 0.236 L 0.882 0.254 C 0.88 0.259 0.877 0.264 0.875 0.27 L 0.91 0.33 C 0.914 0.336 0.914 0.344 0.91 0.35 C 0.907 0.356 0.9 0.36 0.893 0.361 L 0.82 0.365 C 0.817 0.369 0.813 0.374 0.81 0.379 L 0.832 0.445 C 0.835 0.452 0.833 0.459 0.828 0.465 C 0.824 0.47 0.816 0.473 0.809 0.472 L 0.737 0.462 C 0.733 0.466 0.729 0.47 0.724 0.474 L 0.733 0.544 C 0.734 0.551 0.731 0.558 0.725 0.562 C 0.719 0.566 0.711 0.568 0.704 0.565 L 0.636 0.542 C 0.631 0.546 0.626 0.549 0.621 0.552 L 0.615 0.621 C 0.615 0.629 0.61 0.635 0.604 0.638 C 0.597 0.641 0.589 0.641 0.583 0.638 L 0.521 0.602 C 0.52 0.603 0.519 0.603 0.518 0.603 L 0.406 0.729 C 0.406 0.729 0.394 0.747 0.359 0.725 C 0.329 0.705 0.206 0.599 0.141 0.543 C 0.109 0.52 0.089 0.504 0.09 0.502 C 0.093 0.499 0.149 0.509 0.217 0.554 C 0.278 0.588 0.371 0.631 0.38 0.619 C 0.38 0.619 0.396 0.604 0.406 0.575 C 0.406 0.575 0.406 0.575 0.406 0.575 C 0.407 0.576 0.407 0.576 0.406 0.575 C 0.406 0.575 0.091 0.024 0.305 -0.531 C 0.311 -0.593 0.275 -0.627 0.275 -0.627 C 0.266 -0.639 0.178 -0.598 0.12 -0.566 C 0.055 -0.523 0.002 -0.513 0 -0.516 C -0.001 -0.518 0.018 -0.533 0.049 -0.555 C 0.11 -0.608 0.227 -0.707 0.256 -0.726 C 0.289 -0.748 0.301 -0.73 0.301 -0.73 L 0.402 -0.615 C 0.406 -0.614 0.41 -0.613 0.415 -0.613 L 0.47 -0.658 C 0.475 -0.663 0.483 -0.664 0.49 -0.662 C 0.497 -0.66 0.502 -0.655 0.504 -0.648 L 0.522 -0.58 C 0.527 -0.578 0.533 -0.576 0.538 -0.574 L 0.602 -0.608 C 0.608 -0.612 0.616 -0.612 0.623 -0.608 C 0.629 -0.605 0.633 -0.599 0.633 -0.592 L 0.637 -0.522 C 0.642 -0.519 0.647 -0.515 0.652 -0.512 L 0.721 -0.534 C 0.728 -0.536 0.736 -0.535 0.741 -0.531 C 0.747 -0.526 0.75 -0.519 0.749 -0.512 L 0.738 -0.443 C 0.742 -0.439 0.746 -0.435 0.751 -0.431 L 0.823 -0.439 C 0.83 -0.44 0.837 -0.437 0.842 -0.432 C 0.847 -0.426 0.848 -0.419 0.845 -0.412 L 0.821 -0.347 C 0.824 -0.342 0.828 -0.337 0.831 -0.332 L 0.903 -0.327 C 0.911 -0.327 0.917 -0.322 0.92 -0.316 C 0.924 -0.31 0.924 -0.302 0.92 -0.296 L 0.883 -0.236 C 0.885 -0.231 0.887 -0.226 0.889 -0.22 L 0.959 -0.202 C 0.966 -0.2 0.972 -0.195 0.974 -0.188 C 0.976 -0.181 0.974 -0.174 0.969 -0.168 L 0.92 -0.116 C 0.921 -0.111 0.923 -0.105 0.924 -0.099 L 0.988 -0.06800001 C 0.995 -0.065 0.999 -0.059 1 -0.052 C 1.001 -0.045 0.997 -0.038 0.991 -0.034 Z M 0.406 0.575 C 0.406 0.575 0.406 0.575 0.406 0.575 C 0.406 0.575 0.406 0.575 0.406 0.575 Z"/>
+        </g>
+        <g transform="matrix(1 0 0 1 450.328 483.62903)">
+            <path fill="#000000" stroke="none" d="M 0 167.33 C -1.664 165.91 -2.536 165.068 -2.536 165.068 L 140.006 153.391 C 23.733 0 -69.418 122.193 -79.333 135.855 L -79.333 167.33 L 0 167.33 Z"/>
+        </g>
+        <g transform="matrix(1 0 0 1 747.12 477.333)">
+            <path fill="#000000" stroke="none" d="M 0 171.974 C 1.663 170.554 2.536 169.71 2.536 169.71 L -134.448 159.687 C -18.12 0 69.421 126.83499 79.335 140.497 L 79.335 171.974 L 0 171.974 Z"/>
+        </g>
+        <g transform="matrix(-0.0000153 -267.211 -267.211 0.0000153 809.465 764.23)">
+            <path fill="url(#_Linear2)" stroke="none" d="M 1 -0.586 C 1 -0.586 0.768 -0.528 0.524 -0.165 L 0.5 -0.06400001 C 0.5 -0.06400001 1.1 0.265 0.424 0.731 C 0.424 0.731 0.508 0.586 0.405 0.197 C 0.405 0.197 0.131 0.376 0.14 0.736 C 0.14 0.736 -0.275 0.391 0.324 -0.135 C 0.324 -0.135 0.539 -0.691 1 -0.736 L 1 -0.586 Z"/>
+        </g>
+        <g transform="matrix(1 0 0 1 677.392 509.61)">
+            <path fill="#000000" stroke="none" d="M 0 -92.063 C 0 -92.063 43.485996 -139.678 86.97401 -92.063 C 86.97401 -92.063 121.14399 -28.571001 86.97401 3.171 C 86.97401 3.171 31.062 47.615 0 3.171 C 0 3.171 -37.275 -31.75 0 -92.063"/>
+        </g>
+        <g transform="matrix(1 0 0 1 727 435.209)">
+            <path fill="#ffffff" stroke="none" d="M 0 0.002 C 0 18.543 -10.93 33.574 -24.408 33.574 C -37.885 33.574 -48.814 18.543 -48.814 0.002 C -48.814 -18.539 -37.885 -33.572 -24.408 -33.572 C -10.93 -33.572 0 -18.539 0 0.002"/>
+        </g>
+        <g transform="matrix(1 0 0 1 483.3 502.984)">
+            <path fill="#000000" stroke="none" d="M 0 -98.439 C 0 -98.439 74.596 -131.467 94.956 -57.747997 C 94.956 -57.747997 116.28299 28.178 33.697 33.028 C 33.697 33.028 -71.613 12.745 0 -98.439"/>
+        </g>
+        <g transform="matrix(1 0 0 1 524 436.428)">
+            <path fill="#ffffff" stroke="none" d="M 0 0 C 0 19.119 -11.27 34.627 -25.173 34.627 C -39.071 34.627 -50.344 19.119 -50.344 0 C -50.344 -19.124 -39.071 -34.627 -25.173 -34.627 C -11.27 -34.627 0 -19.124 0 0"/>
+        </g>
+        <g transform="matrix(-0.0000153 -239.021 -239.021 0.0000153 402.161 775.38806)">
+            <path fill="url(#_Linear3)" stroke="none" d="M 0.367 0.129 C -0.364 -0.441 0.223 -0.711 0.223 -0.711 C 0.259 -0.391 0.472 -0.164 0.472 -0.164 C 0.521 -0.548 0.525 -0.77 0.525 -0.77 C 1.203 -0.256 0.589 0.161 0.589 0.161 C 0.627 0.265 0.772 0.372 0.906 0.451 L 1 0.77 C 0.376 0.403 0.367 0.129 0.367 0.129 Z"/>
+        </g>
+    </g>
+</svg>

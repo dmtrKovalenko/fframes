@@ -1,4 +1,5 @@
 use std::fmt;
+use usvgr::svgtree::SvgAttributeValue;
 
 use crate::animation;
 
@@ -20,6 +21,14 @@ pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+}
+
+impl From<Color> for SvgAttributeValue<'static> {
+    fn from(color: Color) -> Self {
+        SvgAttributeValue::Color(usvgr::svgtree::svgrtypes::Color::new_rgb(
+            color.r, color.g, color.b,
+        ))
+    }
 }
 
 const HASH: u8 = b'#';

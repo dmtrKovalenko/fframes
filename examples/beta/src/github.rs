@@ -13,8 +13,8 @@ impl Scene for GithubScene {
     }
 
     fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> fframes::Svgr {
-        let github_image = if let Some(github_image) = ctx.get_image_href("github_screenshot.png") {
-            github_image
+        let github_image = if let Some(github_image) = ctx.get_image("github_screenshot.png") {
+            github_image.href()
         } else {
             return fframes::Svgr::default();
         };

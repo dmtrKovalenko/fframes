@@ -45,7 +45,7 @@ impl Video for GooseVideo<'_> {
 
         let audio_visualization = center_spectrum_low_frequencies(audio_visualization.as_slice());
 
-        svgr!(
+        let svgr = svgr!(
             <svg width="1080" height="1920" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <g clip-path="url(#a)">
                     <path fill="#000" d="M0 0h1080v1920H0z"/>
@@ -76,7 +76,7 @@ impl Video for GooseVideo<'_> {
                 {frame.text_break_lines(
                     ctx,
                     frame.get_subtitle_phrase(&self.media.thought_vtt).unwrap_or(""),
-                    &fframes::BreakLinesOpts {
+                    fframes::BreakLinesOpts {
                       width: 1000,
                       line_height: 1.2,
                       x: "40",
@@ -98,6 +98,7 @@ impl Video for GooseVideo<'_> {
                   x={1080 / 2 - 400}
                 />
         </svg>
-        )
+        );
+        svgr
     }
 }

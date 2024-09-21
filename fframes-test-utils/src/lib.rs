@@ -5,31 +5,9 @@ use std::{
     io::{self, BufRead, Read},
 };
 
-use fframes::{usvgr::svgtree::Document, Svgr};
+use fframes::{usvgr, Svgr};
 
 pub use futures;
-
-#[cfg(feature = "compile-time-svgtree")]
-fn resolve_maybe_precompiled_tree<'a>(svgr: &'a Svgr<'a>) -> Document<'a> {
-    fframes::usvgr::svgtree::Document::try_from(&svgr.svg_tree).unwrap()
-}
-
-#[cfg(not(feature = "compile-time-svgtree"))]
-fn resolve_maybe_precompiled_tree<'a>(svgr: &'a Svgr<'a>) -> Document<'a> {
-    use fframes::usvgr::roxmltree::ParsingOptions;
-
-    fframes::usvgr::svgtree::Document::parse_tree(
-        &fframes::usvgr::roxmltree::Document::parse_with_options(
-            svgr.value.as_str(),
-            ParsingOptions {
-                allow_dtd: true,
-                nodes_limit: 1000,
-            },
-        )
-        .unwrap(),
-    )
-    .unwrap()
-}
 
 fn read_snapshot(path: &std::path::Path) -> io::Result<String> {
     let r = File::open(path)?;
@@ -47,9 +25,18 @@ fn read_snapshot(path: &std::path::Path) -> io::Result<String> {
 }
 
 pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
-    let svgtree: Document = resolve_maybe_precompiled_tree(&svgr);
+    let svgtree = svgr
+        .into_svg_tree(
+            &usvgr::Options::default(),
+            &mut usvgr::Cache::default(),
+            &usvgr::fontdb::Database::default(),
+        )
+        .unwrap();
 
-    let snapshot = format!("{svgtree:?}");
+    let snapshot = svgtree.to_string(&usvgr::WriteOptions {
+        preserve_text: true,
+        ..Default::default()
+    });
     let path = format!("_svgr_snapshots/${name}.snapshot.txt");
     let snapshot_path = std::path::Path::new(path.as_str());
     let existing_file = snapshot_path.exists();

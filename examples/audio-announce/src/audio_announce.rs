@@ -37,7 +37,7 @@ impl AudioAnnounce<'_> {
                 {frame.text_break_lines(
                     ctx,
                     phrase,
-                    &fframes::BreakLinesOpts {
+                    fframes::BreakLinesOpts {
                       width: 1400,
                       line_height: 1.2,
                       x: "420",

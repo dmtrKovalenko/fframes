@@ -1,6 +1,7 @@
 use crate::node::{Node, NodeType};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::str::FromStr;
 use syn::ExprBlock;
 
 use usvgr::svgtree::{self, parse::SVG_NS, AId, EId, NestedNodeKind};
@@ -46,7 +47,7 @@ fn maybe_value<T: ToTokens>(
     Ok(match (inlined_value, runtime_value) {
         (Some(value), _) => MaybeParsedValue::Value(get_value(value.as_str())?),
         (None, Some(block)) => MaybeParsedValue::Expression(create_expression(block)),
-        _ => panic!(""),
+        _ => unreachable!(),
     })
 }
 
@@ -56,23 +57,52 @@ struct MaybeAttribute {
     value: MaybeParsedValue<String>,
 }
 
+fn inline_attribute_value(value: &str) -> TokenStream {
+    if let Ok(float) = f32::from_str(value) {
+        quote! {
+            SvgAttributeValue::Float(#float, StringStorage::Borrowed(#value))
+        }
+    } else if let Ok(color) = svgtree::svgrtypes::Color::from_str(value) {
+        quote! {
+            SvgAttributeValue::Color(#color)
+        }
+    } else if let Ok(length) = svgtree::svgrtypes::Length::from_str(value) {
+        quote! {
+            SvgAttributeValue::Length(#length)
+        }
+    } else if let Ok(transform) = svgtree::svgrtypes::Transform::from_str(value) {
+        quote! {
+            SvgAttributeValue::Transform(#transform)
+        }
+    } else {
+        quote! {
+            SvgAttributeValue::StringStorage(
+                StringStorage::Borrowed(#value)
+            )
+        }
+    }
+}
+
 impl ToTokens for MaybeAttribute {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let MaybeAttribute { name, value } = self;
         let name = name.to_tokens();
 
         match value {
-            MaybeParsedValue::Value(value) => quote! {
-                Attribute {
-                    name: #name,
-                    value: roxmltree::StringStorage::Borrowed(& #value)
+            MaybeParsedValue::Value(value) => {
+                let value_tokens = inline_attribute_value(value);
+                quote! {
+                    Attribute {
+                        name: #name,
+                        value: #value_tokens
+                    }
                 }
-            },
+            }
             MaybeParsedValue::Expression(block) => {
                 quote! {
                     Attribute {
                         name: #name,
-                        value: roxmltree::StringStorage::new_owned(&*#block.to_string())
+                        value: SvgAttributeValue::from(#block)
                     }
                 }
             }

@@ -128,27 +128,7 @@ pub fn inlined_tree_2() {
             width="1920"
             height="1080"
           >
-            <defs>
-              <linearGradient id="gradient-test" x1="1" y1="1">
-                <stop stop-color="#3a1c71"/>
-                <stop offset=".5" stop-color="#d76d77"/>
-                <stop offset="1" stop-color="#ffaf7b"/>
-              </linearGradient>
-              <linearGradient id="cover" gradientUnits="userSpaceOnUse" x1="14.66%" y1="108.81%" x2="85.34%" y2="-8.81%">
-                <stop stop-color="#ffa69e"/>
-                <stop offset="1" stop-color="#7351d8"/>
-              </linearGradient>
-            <linearGradient id="anim">
-              <stop stop-color="#ec77ab"/>
-              <stop offset="1" stop-color="#4F46E5"/>
-            </linearGradient>
-            <linearGradient id="g1" x1="1" y1="1" x2="0">
-              <stop stop-color="#2d3436"/>
-              <stop offset=".74" stop-color="#000000"/>
-            </linearGradient>
-            </defs>
-
-            <rect x="0" y="0" width="100%" height="100%" fill="#111827" />
+            <rect x="0" y="0" width="100%" height="100%" fill="rgb(124, 158, 148)" />
              <filter id="shadow-1" x="-100%" y="-100%" width="300%" height="300%">
                <feGaussianBlur in="SourceAlpha" stdDeviation="10.4"/>
                <feOffset dx="0" dy="3" result="offsetblur"/>
@@ -193,7 +173,7 @@ pub fn inlined_tree_2() {
               width="298"
             >
               <g stroke-linecap="round" transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)">
-              <path d="M-2.19 -1.63 C8.29 53.64, -34.21 264.71, 62.09 331.05 C158.39 397.38, 490.59 385.91, 575.58 396.36" stroke="#fff" stroke-width="4.5" fill="none" stroke-dasharray="8 12"></path></g><g transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)"><path d="M544.61 406.42 C552.39 404.4, 562.6 396.92, 572.02 395.84" stroke="#fff" stroke-width="4.5" fill="none"></path></g><g transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)"><path d="M545.58 385.92 C553.02 389.43, 562.97 387.49, 572.02 395.84" stroke="#fff" stroke-width="4.5" fill="none"></path></g>
+              <path d="M-2.19 -1.63 C8.29 53.64, -34.21 264.71, 62.09 331.05 C158.39 397.38, 490.59 385.91, 575.58 396.36" stroke="#fff" stroke-width="4.5" fill="none" stroke-dasharray="8 12"></path></g><g transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)"><path d="M544.61 406.42 C552.39 404.4, 562.6 396.92, 572.02 395.84" stroke="rgb(255, 255, 255)" stroke-width="4.5" fill="none"></path></g><g transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)"><path d="M545.58 385.92 C553.02 389.43, 562.97 387.49, 572.02 395.84" stroke="rgb(255, 255, 255)" stroke-width="4.5" fill="none"></path></g>
             </svg>
 
             <text
@@ -209,7 +189,7 @@ pub fn inlined_tree_2() {
 
             <circle
               cx={960}
-              fill="#fff"
+              fill="rgb(255, 255, 255)"
               cy="500"
             />
 
@@ -245,7 +225,6 @@ pub fn inlined_tree_complex_path() {
                />
                <path
                  fill="none"
-                 stroke="#4F46E5"
                  stroke-width="6"
                  stroke-linecap="round"
                  stroke-linejoin="round"
@@ -305,10 +284,10 @@ pub fn svg_use() {
         "svg_use",
         svgr!(
           <svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <rect id="rect1" x="20" y="20" width="160" height="70" fill="green" />
+            <rect id="rect1" x="20" y="20" width="160" height="70" fill="rgb(0, 128, 0)" />
             <use id="use1" href="#rect1" x="0" y="90" />
 
-            <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black" />
+            <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="rgb(0, 0, 0)" />
         </svg>
         ),
     )
@@ -323,7 +302,7 @@ pub fn svg_use_recursive() {
              <use id="use1" href="#use2"/>
              <use id="use2" href="#use1"/>
 
-             <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+             <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="rgb(0, 0, 0)"/>
          </svg>
         ),
     )

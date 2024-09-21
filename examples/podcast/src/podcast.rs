@@ -127,13 +127,13 @@ impl Video for PodcastVideo<'_> {
                  <path fill="#fff" transform="matrix(-1 0 0 1 1257.75 110.456)" d="M0 0h350.203v350.203H0z" />
                </clipPath>
                <pattern id="goose" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_href("goose.jpeg").unwrap_or("")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image("goose.jpeg").expect("Missing goose image").href()}></image>
                </pattern>
                <pattern id="duck" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_href("duck.jpg").unwrap_or("")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image("duck.jpg").expect("Missing duck image").href()}></image>
                </pattern>
                <pattern id="guest" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image_href("guest.jpg").unwrap_or("")}></image>
+                 <image x="0%" y="0%" width="480" height="480" href={ctx.get_image("guest.jpg").expect("Missing guest image").href()}></image>
                </pattern>
              </defs>
 

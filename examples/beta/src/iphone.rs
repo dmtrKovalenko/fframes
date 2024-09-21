@@ -1,4 +1,4 @@
-use fframes::{animation, svgr, SampleSize, Scene, Svgr, VisualizeFrameInput};
+use fframes::{animation, media::ImageData, svgr, SampleSize, Scene, Svgr, VisualizeFrameInput};
 
 #[derive(Debug)]
 pub struct IphoneScene {
@@ -11,14 +11,14 @@ fn render_discord_message<'a>(
     y: usize,
     name: &'a str,
     content: &'a str,
-    image: Option<&str>,
+    image: Option<&ImageData>,
 ) -> Svgr<'a> {
     match image {
         None => Svgr::default(),
         Some(image) => {
             svgr!(
               <g>
-                <image x={x} y={y} width="80" height="80" href={image} />
+                <image x={x} y={y} width="80" height="80" href={image.href()} />
 
                 <text font-weight="500" x={x + 80} y={y + 34} fill="white" font-size="18">
                   {name}
@@ -73,7 +73,7 @@ impl Scene for IphoneScene {
                  fill="url(#pattern1)"
              />
               <image
-                 href={ctx.get_image_href("camera_ui.png").unwrap()}
+                 href={ctx.get_image("camera_ui.png").unwrap().href()}
                  width="370"
                  height="819"
                  rx="60"
@@ -82,7 +82,7 @@ impl Scene for IphoneScene {
               />
 
               <image
-                href={ctx.get_image_href("qr.png").unwrap()}
+                href={ctx.get_image("qr.png").unwrap().href()}
                 width="300"
                 height="300"
                 x="830"
@@ -129,7 +129,7 @@ impl Scene for IphoneScene {
               >
                 <rect x="790" y="154" width="370" height="819" fill="#292841" />
                 <image
-                   href={ctx.get_image_href("discord_ui.png").unwrap()}
+                   href={ctx.get_image("discord_ui.png").expect("Expects are not fine").href()}
                    width="370"
                    height="819"
                    rx="60"
@@ -141,9 +141,9 @@ impl Scene for IphoneScene {
                   {format!("{:02}:{:02}", self.hours, self.minutes)}
                 </text>
 
-                {render_discord_message(800, 370, "John Doe", "Hey, How I can export the .webm video?", ctx.get_image_href("john.png"))}
-                {render_discord_message(800, 450, "Dmitriy Kovalenko", "Just change out file extension to .webm", ctx.get_image_href("dmitriy.png"))}
-                {render_discord_message(800, 530, "Linus Torvalds", "https://github.com/torvalds", ctx.get_image_href("torvalds.png"))}
+                {render_discord_message(800, 370, "John Doe", "Hey, How I can export the .webm video?", ctx.get_image("john.png"))}
+                {render_discord_message(800, 450, "Dmitriy Kovalenko", "Just change out file extension to .webm", ctx.get_image("dmitriy.png"))}
+                {render_discord_message(800, 530, "Linus Torvalds", "https://github.com/torvalds", ctx.get_image("torvalds.png"))}
 
                 <g
                   transform-origin="bottom center"
@@ -160,12 +160,12 @@ impl Scene for IphoneScene {
                     )
                   }
                 >
-                  {render_discord_message(800, 620, "Me", "https://github.com/theawesome", ctx.get_image_href("me.png"))}
+                  {render_discord_message(800, 620, "Me", "https://github.com/theawesome", ctx.get_image("me.png"))}
                 </g>
               </g>
             </g>
 
-            <image href={ctx.get_image_href("iphone_frame.png").expect("Do not use expects in real codeo!")} x="30%" y="10%" width="800" />
+            <image href={ctx.get_image("iphone_frame.png").expect("Do not use expects in real code!").href()} x="30%" y="10%" width="800" />
 
             <rect
               x="916"

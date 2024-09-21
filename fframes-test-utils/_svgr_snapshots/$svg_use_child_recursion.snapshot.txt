@@ -1,42 +1,7 @@
 (Compile-time)
-Document [
-    Element {
-        tag_name: Some(svg)
-        attributes: [
-            Attribute { name: id, value: svg1 }
-            Attribute { name: viewBox, value: 0 0 200 200 }
-        ]
-        children: [
-            Element {
-                tag_name: Some(g)
-                attributes: [
-                    Attribute { name: id, value: g1 }
-                ]
-                children: [
-                    Element {
-                        tag_name: Some(use)
-                        attributes: [
-                            Attribute { name: href, value: #use1 }
-                            Attribute { name: id, value: use2 }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(use)
-                                attributes: [
-                                    Attribute { name: href, value: #g1 }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-            Element {
-                tag_name: Some(use)
-                attributes: [
-                    Attribute { name: href, value: #g1 }
-                    Attribute { name: id, value: use1 }
-                ]
-            }
-        ]
-    }
-]
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs/>
+    <g id="g1">
+        <g id="use2"/>
+    </g>
+</svg>

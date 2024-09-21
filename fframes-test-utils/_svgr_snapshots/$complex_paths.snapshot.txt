@@ -1,54 +1,12 @@
 (Compile-time)
-Document [
-    Element {
-        tag_name: Some(svg)
-        attributes: [
-            Attribute { name: width, value: 1920 }
-            Attribute { name: height, value: 1080 }
-        ]
-        children: [
-            Element {
-                tag_name: Some(g)
-                children: [
-                    Element {
-                        tag_name: Some(g)
-                        attributes: [
-                            Attribute { name: y, value: 540 }
-                            Attribute { name: transform-origin, value: center center }
-                            Attribute { name: transform, value: scale(2.7) translate(-218, 110) }
-                        ]
-                        children: [
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: fill, value: none }
-                                    Attribute { name: stroke, value: url(#anim) }
-                                    Attribute { name: stroke-width, value: 10 }
-                                    Attribute { name: stroke-linecap, value: round }
-                                    Attribute { name: stroke-linejoin, value: round }
-                                    Attribute { name: stroke-miterlimit, value: 10 }
-                                    Attribute { name: stroke-dasharray, value: 40.4579px, 796.447px }
-                                    Attribute { name: d, value: M505,55c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50S5,27.4,5,55 }
-                                ]
-                            }
-                            Element {
-                                tag_name: Some(path)
-                                attributes: [
-                                    Attribute { name: fill, value: none }
-                                    Attribute { name: stroke, value: #4F46E5 }
-                                    Attribute { name: stroke-width, value: 6 }
-                                    Attribute { name: stroke-linecap, value: round }
-                                    Attribute { name: stroke-linejoin, value: round }
-                                    Attribute { name: opacity, value: 0.4412 }
-                                    Attribute { name: stroke-dashoffset, value: -124 }
-                                    Attribute { name: stroke-dasharray, value: 127 45 }
-                                    Attribute { name: d, value: M549.7,46.6l-21.8,12.6 M531.9,25.8l-12.6,21.8 M504.2,18.3v25.1 M476.4,25.8L489,47.6 M458.7,46.6l21.8,12.6 }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
-    }
-]
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+    <defs/>
+    <g>
+        <g transform="matrix(2.7 0 0 2.7 -2220.6 -621)">
+            <path fill="none" stroke="none" visibility="hidden" d="M 505 55 C 505 27.4 482.6 5 455 5 C 427.4 5 405 27.4 405 55 C 405 27.4 382.59998 5 355 5 C 327.4 5 305 27.4 305 55 C 305 27.4 282.6 5 255 5 C 227.4 5 205 27.4 205 55 C 205 27.4 182.6 5 155 5 C 127.399994 5 105 27.4 105 55 C 105 27.4 82.6 5 55 5 C 27.4 5 5 27.4 5 55"/>
+            <g opacity="0.4412">
+                <path fill="none" stroke="none" visibility="hidden" d="M 549.7 46.6 L 527.9 59.2 M 531.9 25.8 L 519.3 47.6 M 504.20004 18.3 L 504.20004 43.4 M 476.4 25.8 L 489 47.6 M 458.7 46.6 L 480.5 59.2"/>
+            </g>
+        </g>
+    </g>
+</svg>
