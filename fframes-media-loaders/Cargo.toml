@@ -14,7 +14,7 @@ quote = { version = "1.0.9", optional = true }
 webvtt-parser.workspace=true
 bytemuck = { version = "1.13.1", features = ["derive"] }
 ttf-parser = "0.19.1"
-
+serde_json = "1.0.96"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ffmpeg-sys-fframes.workspace = true
 image = { version = "0.24.6", default-features = false, features = [

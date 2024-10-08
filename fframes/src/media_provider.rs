@@ -79,6 +79,7 @@ pub struct DynamicMediaProvider<'media> {
     pub audio: HashMap<String, AudioData<'media>>,
     pub images: HashMap<String, crate::media::ImageData>,
     pub subtitles: HashMap<String, crate::media::Subtitles<'media>>,
+    pub json: HashMap<String, crate::media::Json<'media>>,
     pub fontdata: Vec<RawFontData>,
 }
 
@@ -87,12 +88,14 @@ impl<'media> DynamicMediaProvider<'media> {
         audio: HashMap<String, AudioData<'media>>,
         images: HashMap<String, crate::media::ImageData>,
         subtitles: HashMap<String, crate::media::Subtitles<'media>>,
+        json: HashMap<String, crate::media::Json<'media>>,
         fonts_data: Vec<RawFontData>,
     ) -> Self {
         Self {
             audio,
             images,
             subtitles,
+            json,
             fontdata: fonts_data,
         }
     }

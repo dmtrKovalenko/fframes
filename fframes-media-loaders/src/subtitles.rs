@@ -116,6 +116,8 @@ impl<'a> FFramesSubtitles<'a> for OwnedVtt {
 #[cfg(not(target_arch = "wasm32"))]
 pub type Subtitles<'a> = Vtt<'a>;
 
+pub type Json<'a> = serde_json::Value;
+
 #[cfg(target_arch = "wasm32")]
 pub type Subtitles<'a> = OwnedVtt;
 

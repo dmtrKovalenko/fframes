@@ -51,6 +51,7 @@ impl MediaDirectory {
         let audio_hash = Mutex::new(HashMap::new());
         let subtitles_hash = Mutex::new(HashMap::new());
         let image_hash = Mutex::new(HashMap::new());
+        let json_hash = Mutex::new(HashMap::new());
         let fontdata = Mutex::new(Vec::new());
 
         // logger.init_media_processing(self.0.len())?;
@@ -95,6 +96,11 @@ impl MediaDirectory {
                                 data: Arc::new(bytes.to_owned()),
                             });
                         }
+                        "json" => {
+                            let json = serde_json::from_slice(bytes)
+                                .map_err(fframes::media::FFramesMediaError::from)?;
+                            json_hash.lock()?.insert(filename.to_owned(), json);
+                        }
                         "jpg" | "jpeg" | "png" => {
                             let image = decode_image(filename, bytes)
                                 .map_err(fframes::media::FFramesMediaError::from)?;
@@ -122,6 +128,7 @@ impl MediaDirectory {
             audio_hash.into_inner()?,
             image_hash.into_inner()?,
             subtitles_hash.into_inner()?,
+            json_hash.into_inner()?,
             fontdata.into_inner()?,
         );
 

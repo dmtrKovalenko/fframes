@@ -204,6 +204,7 @@ enum MediaVariant {
     Image,
     Font,
     Subtitles,
+    Json,
 }
 
 impl MediaVariant {
@@ -216,6 +217,7 @@ impl MediaVariant {
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
             "vtt" => Some(MediaVariant::Subtitles),
+            "json" => Some(MediaVariant::Json),
             _ if file_name.starts_with('.') => None,
             _ => panic!("Can not parse the media file {}. File type is not supported, please remove all the unsupported files from the static media folder", path.display()),
         }
@@ -242,6 +244,7 @@ impl MediaFile {
             MediaVariant::Font => {
                 quote! { &'static [u8] }
             }
+            MediaVariant::Json => quote! { #fframes_crate_ident::media::Json<'static> },
         };
 
         quote! {
@@ -303,6 +306,14 @@ impl MediaFile {
                     #fframes_crate_ident::media::Vtt::parse(
                         #file_str_literal
                     ).map_err(#fframes_crate_ident::media::FFramesMediaError::VttError)?
+                }
+            }
+            MediaVariant::Json => {
+                let file_str = std::fs::read_to_string(&self.path).unwrap();
+                let file_str_literal = Literal::string(&file_str);
+
+                quote! {
+                    serde_json::from_str(#file_str_literal).map_err(#fframes_crate_ident::media::FFramesMediaError::JsonError)?
                 }
             }
             MediaVariant::Image => {

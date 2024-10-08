@@ -5,6 +5,7 @@ pub enum FFramesMediaError {
     AudioDecodingError(String),
     FontError(ttf_parser::FaceParsingError),
     VttError(webvtt_parser::VttError),
+    JsonError(serde_json::Error),
     NulError(std::ffi::NulError),
 }
 
@@ -12,6 +13,12 @@ pub enum FFramesMediaError {
 impl From<image::ImageError> for FFramesMediaError {
     fn from(err: image::ImageError) -> Self {
         Self::ImageError(err)
+    }
+}
+
+impl From<serde_json::Error> for FFramesMediaError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::JsonError(err)
     }
 }
 
@@ -47,6 +54,7 @@ impl std::fmt::Debug for FFramesMediaError {
             Self::FontError(err) => write!(f, "FontError: {:?}", err),
             Self::VttError(err) => write!(f, "VttError: {:?}", err),
             Self::NulError(err) => write!(f, "{:?}", err),
+            Self::JsonError(err) => write!(f, "JsonError: {:?}", err),
         }
     }
 }
