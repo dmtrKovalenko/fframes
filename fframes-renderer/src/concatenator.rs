@@ -240,7 +240,6 @@ pub unsafe fn concat_video_files_with_audio(
 ) -> Result<(), RenderEncodingError> {
     let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
 
-
     fill_video_stream_from_files(&mut encoder, files)?;
     fill_audio_stream(&mut encoder, audio_map, ctx)?;
 

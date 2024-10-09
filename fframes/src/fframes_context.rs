@@ -3,8 +3,8 @@ use crate::{
     AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame, MediaProvider,
     ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
+use fframes_media_loaders::VideoMedia;
 use std::iter::FromIterator;
-use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub enum FFramesMode {
@@ -42,7 +42,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         self.media_source?.resolve_image(filename.as_ref())
     }
 
-    pub fn get_video_path(&self, filename: impl AsRef<str>) -> Option<&'media PathBuf> {
+    pub fn get_video(&self, filename: impl AsRef<str>) -> Option<&'media VideoMedia> {
         self.media_source?.resolve_video(filename.as_ref())
     }
 
@@ -55,7 +55,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
                     .filter(|&(range, _, _scene)| range.contains(&global_frame.index))
                     .map(|(range, _, scene)| {
                         scene.render_frame(
-                            Frame::clone_with_scene_offset(&global_frame, range.start),
+                            Frame::clone_with_scene_offset(global_frame, range.start),
                             self,
                         )
                     }),

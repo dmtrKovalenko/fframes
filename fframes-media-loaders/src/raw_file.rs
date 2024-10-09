@@ -12,7 +12,7 @@ impl RawMediaFile {
     pub fn read_bytes(&self) -> io::Result<Cow<[u8]>> {
         match self {
             RawMediaFile::Stream(path) => Ok(fs::read(path)?.into()),
-            RawMediaFile::Data(data) => Ok(Cow::Borrowed(&data)),
+            RawMediaFile::Data(data) => Ok(Cow::Borrowed(data)),
         }
     }
 }

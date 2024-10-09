@@ -9,12 +9,7 @@ fn compile_time_svg() {
     };
 
     let frame = video.render_frame(
-        fframes::Frame {
-            index: 264,
-            global_index: 264,
-            fps: crate::MarketingVideo::FPS,
-            breaks_lru_cache: None,
-        },
+        fframes::Frame::new(264, 264, crate::MarketingVideo::FPS),
         &fframes::FFramesContext {
             time_base: TimeBase {
                 fps: crate::MarketingVideo::FPS,

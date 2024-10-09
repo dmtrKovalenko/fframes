@@ -26,13 +26,12 @@ impl PreloadedAudioData<'_> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn decode_raw_file<'a>(
+    pub fn decode_raw_file(
         sample_rate: Option<u32>,
-        filename: &'a std::path::PathBuf,
-        buffer: &'a crate::RawMediaFile,
+        filename: &std::path::PathBuf,
     ) -> crate::error::Result<Self> {
         let (sample_rate, samples) =
-            unsafe { crate::audio_ffmpeg::decode_raw_file(buffer, filename, sample_rate) }?;
+            unsafe { crate::audio_ffmpeg::decode_raw_file(filename, sample_rate) }?;
 
         Ok(PreloadedAudioData {
             samples: Cow::Owned(samples),

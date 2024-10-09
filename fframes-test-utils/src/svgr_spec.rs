@@ -325,12 +325,7 @@ pub fn svg_use_child_recursion() {
 
 #[test]
 pub fn macro_animations() {
-    let frame = fframes::Frame {
-        global_index: 50,
-        fps: 50,
-        index: 75,
-        ..Default::default()
-    };
+    let frame = fframes::Frame::new(75, 50, 50);
 
     assert_compile_time_svgr_eq_runtime(
         "macro_animations",

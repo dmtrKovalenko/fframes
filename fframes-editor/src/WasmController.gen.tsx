@@ -90,7 +90,8 @@ export type staticAudio = {
 // tslint:disable-next-line:interface-over-type-literal
 export type t = {
   readonly add_audio_source: (_1:string, _2:number, _3:ReScriptJs_Js_Float32Array_t) => void; 
-  readonly add_image_source: (_1:string, _2:string, _3:ReScriptJs_Js_Undefined_t<string>) => void; 
+  readonly add_image_source: (_1:string, _2:string, _3:number, _4:number, _5:ReScriptJs_Js_Undefined_t<string>) => void; 
+  readonly add_video_source_placeholder: (_1:string, _2:string, _3:number, _4:number, _5:number) => void; 
   readonly add_subtitles_source: (_1:string, _2:string) => number; 
   readonly default: () => ReScriptJs_Js_Promise_t<initOut>; 
   readonly prepare: (_1:ReScriptJs_Js_Undefined_t<number>) => ReScriptJs_Js_Promise_t<videoMeta>; 

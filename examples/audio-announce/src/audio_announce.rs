@@ -1,7 +1,7 @@
 use crate::svg_waves::frequencies_to_path;
 use fframes::{
-    include_media_dir, AudioMap, FFramesContext, FFramesSyncedVideoFrame, Frame, Svgr, Video,
-    VisualizeFrameInput,
+    include_media_dir, media::ResizeVideoFrame, AudioMap, FFramesContext, FFramesSyncedVideoFrame,
+    Frame, FrameConvertOptions, Svgr, Video, VisualizeFrameInput,
 };
 
 include_media_dir!(pub struct AudioAnnounceMedia, "examples/audio-announce/media");
@@ -43,7 +43,7 @@ impl AudioAnnounce<'_> {
                     fframes::BreakLinesOpts {
                       width: 1400,
                       line_height: 1.2,
-                      x: "420",
+                      x: "450",
                       y: "170",
                       font_size: 120,
                       font_family: self.font.unwrap_or("JetBrains Mono"),
@@ -74,20 +74,14 @@ impl Video for AudioAnnounce<'_> {
     }
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr {
-        const AVATAR_SIZE: usize = 300;
+        const AVATAR_SIZE: u32 = 300;
         const AVATAR_X: usize = 80;
-        const AVATAR_Y: usize = 85;
+        const AVATAR_Y: usize = 100;
 
-        let video_frame = frame
-            .get_synced_video_frame(ctx, "video.mp4", 0)
-            .ok()
-            .flatten();
-
-        println!("Video frame: {:?}", video_frame.is_some());
-
+        let video_frame = frame.get_synced_video_frame(ctx, "video.mp4", 0);
         let visualisation = frame.visualize_audio_frame(VisualizeFrameInput {
             // safe to unwrap because used in the `audio` method
-            audio: ctx.get_audio("audio.wav").expect("audio.wav not found"),
+            audio: ctx.get_audio("video.mp4").expect("video.mp4 not found"),
             sample_size: fframes::SampleSize::S512,
             smooth_level: 4,
             window: Some(fframes::WindowFunction::Hann),
@@ -108,15 +102,26 @@ impl Video for AudioAnnounce<'_> {
              />
 
             {self.render_glowing_subtitles(frame, ctx)}
-             <image
-                 filter="url(#glow)"
-                 id="avatar"
-                 x={AVATAR_X}
-                 y={AVATAR_Y}
-                 width={AVATAR_SIZE}
-                 height={AVATAR_SIZE}
-                 href={video_frame.map(|frame| frame.into_image_data().href()).unwrap_or_else(|| self.media.avatar_png.href())}
-             />
+            {if let Some(video_frame) = video_frame {
+                fframes::svgr!(
+                    <image
+                     filter="url(#glow)"
+                     id="avatar"
+                     x={AVATAR_X}
+                     y={AVATAR_Y}
+                     width={AVATAR_SIZE}
+                     height={AVATAR_SIZE}
+                     href={video_frame.into_resized_image(&FrameConvertOptions {
+                         resize: ResizeVideoFrame {
+                            width: AVATAR_SIZE,
+                            height: AVATAR_SIZE,
+                         }
+                     }).unwrap().href()}
+                    />
+                )
+            } else {
+                Svgr::default()
+            }}
 
              <g opacity="0.5" stroke="#fff" stroke-width="6">
                  // Rendering actual waves paths. All these values are tuned imperatively

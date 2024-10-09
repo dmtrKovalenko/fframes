@@ -4,7 +4,7 @@ use std::{ops::DerefMut, sync::Arc};
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
-    video_data::{FFramesSyncedVideoFrame, WorkerLocalDecoders},
+    video_data::{FFramesSyncedVideoFrame, WorkerLocalVideoDecoders},
     BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
 };
 
@@ -20,7 +20,7 @@ pub struct Frame {
     /// FPS of the video. Always equals to the FPS constant.
     pub fps: usize,
     breaks_lru_cache: Option<BreaksLruCache>,
-    worker_local_decoders: WorkerLocalDecoders,
+    worker_local_video_decoders: WorkerLocalVideoDecoders,
 }
 
 pub struct AnimateRuntimeInput<'a, TValue: animation::Animatable> {
@@ -44,7 +44,7 @@ impl Frame {
             global_index,
             fps,
             breaks_lru_cache: None,
-            worker_local_decoders: WorkerLocalDecoders::new(),
+            worker_local_video_decoders: WorkerLocalVideoDecoders::new(),
         }
     }
 
@@ -57,14 +57,14 @@ impl Frame {
         global_index: usize,
         fps: usize,
         breaks_lru_cache: Option<BreaksLruCache>,
-        worker_local_decoders: WorkerLocalDecoders,
+        worker_local_decoders: WorkerLocalVideoDecoders,
     ) -> Self {
         Self {
             index,
             global_index,
             fps,
             breaks_lru_cache,
-            worker_local_decoders,
+            worker_local_video_decoders: worker_local_decoders,
         }
     }
 
@@ -76,7 +76,7 @@ impl Frame {
             global_index: frame.global_index + offset,
             fps: frame.fps,
             breaks_lru_cache: frame.breaks_lru_cache.clone(),
-            worker_local_decoders: frame.worker_local_decoders.clone(),
+            worker_local_video_decoders: frame.worker_local_video_decoders.clone(),
         }
     }
 
@@ -347,23 +347,24 @@ impl Frame {
         subtitles.get_cue_stack(milliseconds, overlap)
     }
 
-    pub fn get_synced_video_frame<'a>(
+    pub fn get_synced_video_frame(
         &self,
-        ctx: &crate::FFramesContext<'a, '_>,
+        ctx: &crate::FFramesContext<'_, '_>,
         file_name: impl AsRef<str>,
         start_from: usize,
-    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
+    ) -> Option<Arc<impl FFramesSyncedVideoFrame>> {
         if self.global_index < start_from {
-            return Ok(None);
+            return None;
         }
 
-        let video_path = if let Some(path) = ctx.get_video_path(file_name.as_ref()) {
-            path
-        } else {
-            return Ok(None);
-        };
+        let video = ctx.get_video(file_name.as_ref())?;
 
-        self.worker_local_decoders
-            .get_synced_frame(video_path, self.global_index - start_from, ctx)
+        self.worker_local_video_decoders
+            .get_synced_frame(video, self.global_index - start_from, ctx)
+            .map_err(|e| {
+                crate::log!("Error while decoding video frame: {:?}", e);
+            })
+            .ok()
+            .flatten()
     }
 }

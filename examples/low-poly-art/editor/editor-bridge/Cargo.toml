@@ -9,6 +9,6 @@ crate-type = ["cdylib", "rlib"]
 path = "./lib.rs"
 
 [dependencies]
-wasm-bindgen = "0.2.74"
+wasm-bindgen = "0.2.95"
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
 low-poly-art-example = { path = "../../", default-features=false }

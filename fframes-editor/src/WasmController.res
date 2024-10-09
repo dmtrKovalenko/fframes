@@ -57,7 +57,11 @@ type staticAudio = {
 @genType.as("WasmController")
 type t = {
   add_audio_source: (string, int, Js.Float32Array.t) => unit,
-  add_image_source: (string, string, Js.Undefined.t<string>) => unit,
+  /**
+   TODO: Add helper (~name: string, ~url: string, ~width: int, ~height: int, base64data: option<string>)
+  **/
+  add_image_source: (string, string, int, int, Js.Undefined.t<string>) => unit,
+  add_video_source_placeholder: (string, string, int, int, int) => unit,
   add_subtitles_source: (string, string) => int,
   default: unit => Js.Promise.t<initOut>,
   prepare: Js.Undefined.t<int> => Js.Promise.t<videoMeta>,

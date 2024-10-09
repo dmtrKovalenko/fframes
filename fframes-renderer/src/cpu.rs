@@ -1,7 +1,7 @@
 use crate::{render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError};
 use fframes::{
     usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
-    WorkerLocalDecoders,
+    WorkerLocalVideoDecoders,
 };
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
@@ -122,7 +122,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         &mut |encoder| {
                             let mut frame = EncoderFrame::make(&encoder.video_stream)?;
 
-                            let worker_local_decoders = WorkerLocalDecoders::new();
+                            let worker_local_decoders = WorkerLocalVideoDecoders::new();
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
                             let mut converter_cache =

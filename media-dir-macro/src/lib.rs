@@ -1,6 +1,6 @@
 mod parser;
 use crate::parser::IncludeMediaDirInput;
-use fframes_media_loaders::RawMediaFile;
+use fframes_media_loaders::PreloadedImageData;
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use quote::{quote, ToTokens};
@@ -70,7 +70,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         .iter()
         .filter_map(|MediaFile { variant, ident, filename, .. }| {
             matches!(variant, MediaVariant::Image).then_some(quote! {
-                image_data.insert(String::from(#filename), std::sync::Arc::clone(&self.#ident.image));
+                image_data.insert(String::from(#filename), std::sync::Arc::clone(&self.#ident.href()));
             })
         })
         .collect::<Vec<_>>();
@@ -148,10 +148,10 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         }
 
         impl #fframes_crate_ident::MediaProvider<'_> for #ident {
-            fn resolve_video(&self, _name: &str) -> Option<&std::path::PathBuf> {
+            fn resolve_video(&self, _name: &str) -> Option<&#fframes_crate_ident::media::VideoMedia> {
                 None
             }
-            
+
             fn resolve_audio(&self, name: &str) -> Option<&#fframes_crate_ident::AudioData> {
                 match name {
                     #(#audio_handle_tokens)*
@@ -266,16 +266,11 @@ impl MediaFile {
     fn inline_file(&self, fframes_crate_ident: &syn::Ident) -> proc_macro2::TokenStream {
         match self.variant {
             MediaVariant::Audio => {
-                let bytes = std::fs::read(&self.path).unwrap();
                 let fframes_media_loaders::PreloadedAudioData {
                     samples,
                     sample_rate,
-                } = fframes_media_loaders::PreloadedAudioData::decode_raw_file(
-                    None,
-                    &self.path,
-                    &RawMediaFile::Data(bytes),
-                )
-                .unwrap();
+                } = fframes_media_loaders::PreloadedAudioData::decode_raw_file(None, &self.path)
+                    .unwrap();
 
                 let bytes = bytemuck::cast_slice::<f32, u8>(&samples);
                 let literal = Literal::byte_string(bytes);
@@ -314,24 +309,31 @@ impl MediaFile {
                 let file_name = self.path.file_name().and_then(|f| f.to_str()).unwrap();
                 let file_bytes = std::fs::read(&self.path).unwrap();
 
-                let platform_specific_identifier = create_image_identifier_for_platform(
-                    fframes_crate_ident,
-                    file_name,
-                    &file_bytes,
-                );
+                let image_data =
+                    &fframes_media_loaders::decode_image(file_name, &file_bytes).unwrap();
+
+                let platform_specific_identifier =
+                    create_image_identifier_for_platform(image_data, fframes_crate_ident);
                 let platform_specific_identifier_wasm = create_image_identifier_for_platform_wasm(
                     fframes_crate_ident,
                     file_name,
                     &file_bytes,
                 );
 
+                let width = image_data.width;
+                let height = image_data.height;
+
                 quote! {
-                    #fframes_crate_ident::media::ImageData {
-                        filename: #file_name.to_owned(),
+                    {
                         #[cfg(not(target_arch = "wasm32"))]
-                        #platform_specific_identifier,
+                        let image_data = #platform_specific_identifier;
                         #[cfg(target_arch = "wasm32")]
-                        #platform_specific_identifier_wasm
+                        let image_data = #platform_specific_identifier_wasm;
+
+                        #fframes_crate_ident::media::ImageData::new_from_raw_data(image_data, String::from(#file_name), #fframes_crate_ident::media::ImageMetadata {
+                            width: #width,
+                            height: #height,
+                        })
                     }
                 }
             }
@@ -363,21 +365,18 @@ impl MediaFile {
 }
 
 fn create_image_identifier_for_platform(
-    fframes_crate_ident: &syn::Ident,
-    file_name: &str,
-    bytes: &[u8],
-) -> impl ToTokens {
-    let fframes_media_loaders::PreloadedImageData {
-        height,
-        width,
+    PreloadedImageData {
         data,
+        width,
+        height,
         id,
-    } = &fframes_media_loaders::decode_image(file_name, bytes).unwrap();
-
+    }: &PreloadedImageData,
+    fframes_crate_ident: &syn::Ident,
+) -> impl ToTokens {
     let bytes_literal = Literal::byte_string(data);
 
     quote! {
-    image: {
+    {
         // This is basically the u32 rgba images under the hood so we must align them correctly
         // they will be again casted via bytemuch to the u32
         static ALIGNED_LITERAL: &FFramesForceAlignTo<u32, [u8]> = &FFramesForceAlignTo {
@@ -399,7 +398,7 @@ fn create_image_identifier_for_platform(
 }
 
 fn create_image_identifier_for_platform_wasm(
-    _fframes_crate_ident: &syn::Ident,
+    fframes_crate_ident: &syn::Ident,
     file_name: &str,
     bytes: &[u8],
 ) -> impl ToTokens {
@@ -416,7 +415,7 @@ fn create_image_identifier_for_platform_wasm(
 
     let base64_web_png = format!("data:{mime_type};base64,{encoded}");
     quote! {
-        base64_data: std::borrow::Cow::Borrowed(#base64_web_png)
+        #fframes_crate_ident::media::Base64ImageData::BorrowedStatic(#base64_web_png)
     }
 }
 
@@ -525,11 +524,9 @@ fn read_file(path: &Path) -> Vec<u8> {
 fn verify_correct_algiment_of_the_file() {
     use bytemuck::cast_slice;
 
-    let bytes = include_bytes!("../../examples/marketing/media/marketing.mp3");
     let initial_slize: &[f32] = &fframes_media_loaders::PreloadedAudioData::decode_raw_file(
         Some(44100),
-        "marketing.mp3",
-        bytes,
+        &PathBuf::from("../examples/marketing/media/marketing.mp3"),
     )
     .unwrap()
     .samples;

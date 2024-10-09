@@ -99,6 +99,7 @@ type mediaResolveFnWithOptions = mediaResolverOptions => Js.Promise.t<forceTsRet
 external resolveSubtitles: mediaResolveFnWithOptions = "resolveSubtitles"
 @module("./MediaResolvers") external resolveFont: mediaResolveFnWithOptions = "resolveFont"
 @module("./MediaResolvers") external resolveImage: mediaResolveFnWithOptions = "resolveImage"
+@module("./MediaResolvers") external resolveVideo: mediaResolveFnWithOptions = "resolveVideo"
 
 @module("./MediaResolvers")
 external resolveStaticFonts: staticMediaResolver = "resolveStaticFonts"
@@ -157,6 +158,7 @@ let processDynamicMedia = (
       | Some("vtt") => Some(resolveSubtitles)
       | Some("ttf" | "otf") => Some(resolveFont)
       | Some("png" | "jpg" | "jpeg") => Some(resolveImage)
+      | Some("mp4" | "webm" | "mov" | "avi" | "mkv") => Some(resolveVideo)
       | _ => None
       }->Option.map(resolveFn =>
         resolveFn({

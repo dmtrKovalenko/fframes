@@ -81,13 +81,13 @@ function stringifyFontWeight(weight) {
           return "Medium";
         }
       } else if (weight !== 600) {
-        return "";
+        return "Unknown";
       } else {
         return "Semi Bold";
       }
     } else if (weight !== 800) {
       if (weight !== 900) {
-        return "";
+        return "Unknown";
       } else {
         return "Black";
       }
@@ -97,7 +97,7 @@ function stringifyFontWeight(weight) {
   } else if (weight >= 201) {
     if (weight !== 300) {
       if (weight !== 400) {
-        return "";
+        return "Unknown";
       } else {
         return "Regular";
       }
@@ -108,7 +108,7 @@ function stringifyFontWeight(weight) {
     if (weight >= 200) {
       return "Extra light";
     } else {
-      return "";
+      return "Unknown";
     }
   } else {
     return "Thin";

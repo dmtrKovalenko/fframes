@@ -30,11 +30,12 @@ members = [
 [workspace.dependencies]
 # If you are working locally on renderer, just clone https://github.com/dmtrKovalenko/svgr 
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
-svgr = { path = "../svgr/crates/svgr"}
-usvgr = { path = "../svgr/crates/usvgr"}
-# svgr = "0.43.1"
-# usvgr = "0.43.1"
+# svgr = { path = "../svgr/crates/svgr"}
+# usvgr = { path = "../svgr/crates/usvgr"}
+svgr = "0.43.1"
+usvgr = "0.43.1"
 ffmpeg-sys-fframes = { version = "7.0.3", features = ["build", "static", "build-lib-x264", "build-lib-x265", "build-license-gpl"] }
+wasm-bindgen = "0.2.95"
 
 # fframes internal deps 
 fframes-media-loaders = { path = "fframes-media-loaders", version = "1.0.0-beta.1" }

@@ -1,14 +1,53 @@
 WEBVTT
 
-00:00:00.000 --> 00:00:03.030
- Hey everyone on the WASM.IO! I hope you're enjoying
+00:00:00.880 --> 00:00:03.040
+ Yes, this is what you've been waiting for!
 
-00:00:03.030 --> 00:00:05.120
- the talk so far and let's just all admit
+00:00:03.040 --> 00:00:04.920
+ This is a proper video support
 
-00:00:05.120 --> 00:00:08.430
- that this animation looks gorgeous. Okay, now
+00:00:04.920 --> 00:00:07.720
+ that is already in fframes,
 
-00:00:08.430 --> 00:00:11.120
- passing the voice back to my future me.
+00:00:07.720 --> 00:00:09.680
+ few minutes from PR merge,
+
+00:00:09.680 --> 00:00:11.440
+ but you can see it works.
+
+00:00:11.440 --> 00:00:12.840
+ It already works!
+
+00:00:12.840 --> 00:00:14.560
+ It's crazy, it didn't work all this time,
+
+00:00:14.560 --> 00:00:16.240
+ but that's why we're in beta.
+
+00:00:16.240 --> 00:00:19.800
+ And now we are much closer to the public release.
+
+00:00:19.800 --> 00:00:23.040
+ This video that you see my face from
+
+00:00:23.040 --> 00:00:26.680
+ is decoded in runtime and passed as
+
+00:00:26.680 --> 00:00:28.320
+ a native SVG image.
+
+00:00:28.320 --> 00:00:32.200
+ So I can do any SVG manipulation if I want to.
+
+00:00:32.200 --> 00:00:36.320
+ And it just like works out of the box really, really fast.
+
+00:00:36.320 --> 00:00:40.200
+ Doesn't harm parallelization at all and works in GPU and CPU
+
+00:00:40.200 --> 00:00:43.360
+ all the modes and super, super useful.
+
+00:00:43.360 --> 00:00:46.800
+ Very excited about this feature and more to come.
 

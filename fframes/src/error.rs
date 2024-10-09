@@ -50,7 +50,6 @@ impl From<crate::media::FFramesMediaError> for FFramesError {
     }
 }
 impl<T> From<std::sync::PoisonError<T>> for FFramesError {
-
     fn from(_: std::sync::PoisonError<T>) -> Self {
         FFramesError::PoisonedLock
     }

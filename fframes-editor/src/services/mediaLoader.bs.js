@@ -62,6 +62,8 @@ var resolveFont = MediaResolvers.resolveFont;
 
 var resolveImage = MediaResolvers.resolveImage;
 
+var resolveVideo = MediaResolvers.resolveVideo;
+
 var resolveStaticFonts = MediaResolvers.resolveStaticFonts;
 
 var resolveStaticAudios = MediaResolvers.resolveStaticAudios;
@@ -129,6 +131,13 @@ function processDynamicMedia(imports, wasmController, options) {
                         case "wav" :
                             tmp = resolveAudio;
                             break;
+                        case "avi" :
+                        case "mkv" :
+                        case "mov" :
+                        case "mp4" :
+                        case "webm" :
+                            tmp = resolveVideo;
+                            break;
                         default:
                           tmp = undefined;
                       }
@@ -167,6 +176,7 @@ export {
   resolveSubtitles ,
   resolveFont ,
   resolveImage ,
+  resolveVideo ,
   resolveStaticFonts ,
   resolveStaticAudios ,
   resolveMedia ,

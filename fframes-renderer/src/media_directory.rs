@@ -1,6 +1,6 @@
 use crate::renderer_error::FFramesRendererResult;
 use fframes::{
-    media::{decode_image, RawMediaFile, Subtitles},
+    media::{decode_image, RawMediaFile, Subtitles, VideoMedia},
     DynamicMediaProvider, RawFontData,
 };
 use rayon::prelude::*;
@@ -42,7 +42,7 @@ impl MediaDirectory {
             match path.extension().and_then(OsStr::to_str) {
                 Some(
                     "jpg" | "jpeg" | "png" | "gif" | "vtt" | "mp3" | "wav" | "flac" | "aac" | "pcm"
-                    | "ogg" | "mp2" | "vtt",
+                    | "ogg" | "mp2",
                 ) => {
                     let bytes = fs::read(&path)?;
                     folder_content.push((path, RawMediaFile::Data(bytes)));
@@ -85,11 +85,10 @@ impl MediaDirectory {
                 {
                     // logger.log_media_processing_start(filename, &path);
                     match (extension, raw_file) {
-                        ("mp3" | "wav" | "flac" | "aac" | "pcm" | "ogg" | "mp2", raw_file) => {
+                        ("mp3" | "wav" | "flac" | "aac" | "pcm" | "ogg" | "mp2", _) => {
                             let audio_data = fframes::media::PreloadedAudioData::decode_raw_file(
                                 Some(SAMPLE_RATE),
-                                &path,
-                                raw_file,
+                                path,
                             )?;
 
                             audio_hash.lock()?.insert(
@@ -98,7 +97,7 @@ impl MediaDirectory {
                             );
                         }
                         ("vtt", RawMediaFile::Data(ref bytes)) => {
-                            let str_bytes = std::str::from_utf8(&bytes)?;
+                            let str_bytes = std::str::from_utf8(bytes)?;
 
                             subtitles_hash.lock()?.insert(
                                 filename.to_owned(),
@@ -114,29 +113,35 @@ impl MediaDirectory {
                             });
                         }
                         ("jpg" | "jpeg" | "png", RawMediaFile::Data(ref bytes)) => {
-                            let image = decode_image(filename, &bytes)
+                            let image = decode_image(filename, bytes)
                                 .map_err(fframes::media::FFramesMediaError::from)?;
+
+                            let metadata = fframes::media::ImageMetadata {
+                                width: image.width,
+                                height: image.height,
+                            };
 
                             image_hash.lock()?.insert(
                                 filename.to_owned(),
-                                fframes::media::ImageData {
-                                    image: Arc::new(image),
-                                    filename: filename.to_owned(),
-                                },
+                                fframes::media::ImageData::new_from_raw_data(
+                                    Arc::new(image),
+                                    filename.to_owned(),
+                                    metadata,
+                                ),
                             );
                         }
-                        (
-                            "mp4" | "webm" | "mkv" | "avi" | "mov" | "flv" | "wmv" | "m4v",
-                            raw_file,
-                        ) => {
-                            video_paths
-                                .lock()?
-                                .insert(filename.to_owned(), path.to_owned());
+                        ("mp4" | "webm" | "mkv" | "avi" | "mov" | "flv" | "wmv" | "m4v", _) => {
+                            video_paths.lock()?.insert(
+                                filename.to_owned(),
+                                VideoMedia {
+                                    path: path.to_owned(),
+                                    metadata: None,
+                                },
+                            );
 
                             let audio_data = fframes::media::PreloadedAudioData::decode_raw_file(
                                 Some(SAMPLE_RATE),
-                                &path,
-                                &raw_file,
+                                path,
                             )?;
 
                             audio_hash.lock()?.insert(

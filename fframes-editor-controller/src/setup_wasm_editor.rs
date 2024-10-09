@@ -21,8 +21,10 @@ macro_rules! setup_wasm_editor {
                 HashMap::new(),
                 HashMap::new(),
                 HashMap::new(),
+                HashMap::new(),
                 Vec::new()
             ));
+            static ref VIDEO_DECODERS: fframes::WorkerLocalVideoDecoders = fframes::WorkerLocalVideoDecoders::new();
         }
 
         #[wasm_bindgen]
@@ -71,7 +73,7 @@ macro_rules! setup_wasm_editor {
         pub fn add_subtitles_source(file: String, content: String) -> usize {
             use fframes::media::FFramesSubtitles;
 
-            let parsed_subtitle = Subtitles::parse(&content).unwrap();
+            let parsed_subtitle = fframes::media::Subtitles::parse(&content).unwrap();
             let phrases_count = (&parsed_subtitle).cues_count();
 
             let mut media_provider = MEDIA_PROVIDER
@@ -84,18 +86,36 @@ macro_rules! setup_wasm_editor {
         }
 
         #[wasm_bindgen]
-        pub fn add_image_source(file: String, url: String, base64_data: Option<String>) {
+        pub fn add_image_source(file: String, url: String, width: u32, height: u32, base64_data: Option<String>) {
             let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
+            let base64_data = fframes::media::Base64ImageData::new_owned(base64_data.unwrap_or_else(|| url.clone()));
 
             media_provider.images.insert(
                 file,
-                fframes::media::ImageData {
-                    // in wasm we might skip base64 loading but we always have url provided.
-                    // base64 is required for canvas preview render but the data is better
-                    base64_data: std::borrow::Cow::Owned(base64_data.unwrap_or(url.clone())),
-                    filename: url,
-                }
-            );
+                fframes::media::ImageData::new_from_raw_data(
+                    base64_data,
+                    url,
+                    fframes::media::ImageMetadata {
+                        width: width as u32,
+                        height: height as u32,
+                    })
+                );
+        }
+
+        #[wasm_bindgen]
+        pub fn add_video_source_placeholder(file: String, url:String, width: u32, height: u32, duration: f32) {
+            let mut media_provider = MEDIA_PROVIDER.lock().unwrap();
+            let metadata = fframes::media::GeneralVideoFileMetadata {
+                width: width as u32,
+                height: height as u32,
+                duration: duration as f64,
+                fps: 30.0 // hardcoding for user convenience
+            };
+
+            media_provider.videos.insert(file.clone(), fframes::media::VideoMedia {
+                metadata: Some(metadata),
+                path: std::path::PathBuf::from(url),
+            });
         }
 
         #[wasm_bindgen]
@@ -104,12 +124,13 @@ macro_rules! setup_wasm_editor {
             let time_base = TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering.");
 
             VIDEO.render_frame(
-                Frame {
-                    fps: time_base.fps,
-                    index: frame as usize,
-                    global_index: frame as usize,
-                    breaks_lru_cache: Some(BREAK_LINES_CACHE.clone()),
-                },
+                Frame::new_renderer(
+                    frame as usize,
+                    frame as usize,
+                    time_base.fps,
+                    Some(BREAK_LINES_CACHE.clone()),
+                    VIDEO_DECODERS.clone()
+                ),
                 &FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: FFramesMode::Editor,
@@ -127,12 +148,13 @@ macro_rules! setup_wasm_editor {
             let time_base = TIME_BASE.lock().unwrap().expect("TimeBase must be set up before rendering.");
 
             VIDEO.render_frame(
-                Frame {
-                    fps: time_base.fps,
-                    index: frame as usize,
-                    global_index: frame as usize,
-                    breaks_lru_cache: None.into(),
-                },
+                Frame::new_renderer(
+                    time_base.fps,
+                    frame as usize,
+                    time_base.fps as usize,
+                    Some(BREAK_LINES_CACHE.clone()),
+                    VIDEO_DECODERS.clone()
+                ),
                 &FFramesContext {
                     time_base,
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),

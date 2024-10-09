@@ -9,7 +9,6 @@ pub mod prelude {
     pub use console_error_panic_hook;
     pub use fframes;
     pub use fframes::lru;
-    pub use fframes::media::{ImageData, Subtitles};
     pub use fframes::serde;
     pub use fframes::ttf_parser;
     pub use fframes::{
