@@ -63,7 +63,7 @@ impl From<String> for Svgr<'_> {
             svg_tree: NestedSvgDocument::from_nodes(vec![
                 Some(NestedNodeData {
                     kind: usvgr::svgtree::NestedNodeKind::Text(
-                        usvgr::svgtree::roxmltree::StringStorage::new_owned(&*val)
+                        usvgr::svgtree::roxmltree::StringStorage::new_owned(val)
                     ),
                     attrs: vec![],
                     children: vec![],

@@ -19,6 +19,7 @@ pub enum FFramesError {
     ParserError(usvgr::Error),
     /// This error means that audio that were required to calculate the duration was not found
     RequiredAudioNotFound(String),
+    PoisonedLock,
     MediaError(crate::media::FFramesMediaError),
 }
 
@@ -37,6 +38,7 @@ impl fmt::Display for FFramesError {
                 FFramesError::ParserError(err) => format!("SVG parsing error: {err:?}"),
                 FFramesError::MediaError(err) => format!("Media parsing error: {err:?}"),
                 FFramesError::RequiredAudioNotFound(audio) => format!("The required audio for resolving video duration {audio} was not found."),
+                FFramesError::PoisonedLock => "Some lock was poisoned".to_owned(),
             }
         )
     }
@@ -45,6 +47,12 @@ impl fmt::Display for FFramesError {
 impl From<crate::media::FFramesMediaError> for FFramesError {
     fn from(err: crate::media::FFramesMediaError) -> Self {
         FFramesError::MediaError(err)
+    }
+}
+impl<T> From<std::sync::PoisonError<T>> for FFramesError {
+
+    fn from(_: std::sync::PoisonError<T>) -> Self {
+        FFramesError::PoisonedLock
     }
 }
 

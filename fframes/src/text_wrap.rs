@@ -181,8 +181,7 @@ impl WrappedTextStructure {
            {
             self.lines.iter().map(|line| {
                 svgr_macro::svgr!(
-                   <tspan x={x} y={y} dx={line.dx} dy={line.dy}>
-                    {line.words.join(" ")}
+                   <tspan x={x} y={y} dx={line.dx} dy={line.dy}> {line.words.join(" ")}
                    </tspan>
                 )
             }).collect::<Vec<_>>()

@@ -22,4 +22,5 @@ image = { version = "0.24.6", default-features = false, features = [
   "jpeg",
 ] }
 usvgr.workspace = true
+libc = "0.2.159"
 

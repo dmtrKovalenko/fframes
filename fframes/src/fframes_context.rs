@@ -4,6 +4,7 @@ use crate::{
     ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
 use std::iter::FromIterator;
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub enum FFramesMode {
@@ -41,6 +42,10 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         self.media_source?.resolve_image(filename.as_ref())
     }
 
+    pub fn get_video_path(&self, filename: impl AsRef<str>) -> Option<&'media PathBuf> {
+        self.media_source?.resolve_video(filename.as_ref())
+    }
+
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr<'a> {
         if let Some(scenes) = self.scenes.as_ref() {
             Svgr::from_iter(
@@ -50,12 +55,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
                     .filter(|&(range, _, _scene)| range.contains(&global_frame.index))
                     .map(|(range, _, scene)| {
                         scene.render_frame(
-                            Frame {
-                                fps: global_frame.fps,
-                                global_index: global_frame.index,
-                                index: global_frame.index - range.start,
-                                breaks_lru_cache: global_frame.breaks_lru_cache.clone(),
-                            },
+                            Frame::clone_with_scene_offset(&global_frame, range.start),
                             self,
                         )
                     }),

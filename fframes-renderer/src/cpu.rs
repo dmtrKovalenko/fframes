@@ -1,6 +1,7 @@
 use crate::{render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError};
 use fframes::{
     usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
+    WorkerLocalDecoders,
 };
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
@@ -121,6 +122,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         &mut |encoder| {
                             let mut frame = EncoderFrame::make(&encoder.video_stream)?;
 
+                            let worker_local_decoders = WorkerLocalDecoders::new();
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
                             let mut converter_cache =
@@ -140,13 +142,16 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                 .to_owned()
                                 .enumerate()
                                 .try_for_each(|(index, fr)| {
+                                    pixmap.fill(svgr::tiny_skia::Color::BLACK);
+
                                     let svg = video.render_frame(
-                                        Frame {
-                                            fps: TVideo::FPS,
-                                            index: fr,
-                                            global_index: fr,
-                                            breaks_lru_cache: break_lines_cache.clone(),
-                                        },
+                                        Frame::new_renderer(
+                                            fr,
+                                            fr,
+                                            TVideo::FPS,
+                                            break_lines_cache.clone(),
+                                            worker_local_decoders.clone(),
+                                        ),
                                         &ctx,
                                     );
 
@@ -155,6 +160,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         &mut converter_cache,
                                         font_db,
                                     )?;
+
                                     svgr::render(
                                         &rtree,
                                         svgr::tiny_skia::Transform::default(),

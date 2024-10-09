@@ -1,9 +1,10 @@
 use fframes_media_loaders::{FFramesSubtitles, FFramesSubtitlesCue};
-use std::ops::DerefMut;
+use std::{ops::DerefMut, sync::Arc};
 
 use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
+    video_data::{FFramesSyncedVideoFrame, WorkerLocalDecoders},
     BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
 };
 
@@ -18,7 +19,8 @@ pub struct Frame {
     pub global_index: usize,
     /// FPS of the video. Always equals to the FPS constant.
     pub fps: usize,
-    pub breaks_lru_cache: Option<BreaksLruCache>,
+    breaks_lru_cache: Option<BreaksLruCache>,
+    worker_local_decoders: WorkerLocalDecoders,
 }
 
 pub struct AnimateRuntimeInput<'a, TValue: animation::Animatable> {
@@ -36,6 +38,48 @@ pub struct AnimateRuntimeInput<'a, TValue: animation::Animatable> {
 }
 
 impl Frame {
+    pub fn new(index: usize, global_index: usize, fps: usize) -> Self {
+        Self {
+            index,
+            global_index,
+            fps,
+            breaks_lru_cache: None,
+            worker_local_decoders: WorkerLocalDecoders::new(),
+        }
+    }
+
+    /// This is an internal API used by the render to create frames in macros.
+    /// It is not meant for public usage and might or might not be changed in minor version.
+    ///
+    /// Use at your own risk.
+    pub fn new_renderer(
+        index: usize,
+        global_index: usize,
+        fps: usize,
+        breaks_lru_cache: Option<BreaksLruCache>,
+        worker_local_decoders: WorkerLocalDecoders,
+    ) -> Self {
+        Self {
+            index,
+            global_index,
+            fps,
+            breaks_lru_cache,
+            worker_local_decoders,
+        }
+    }
+
+    /// Clones a frame but subtracts offset from the relative index for the resulting frame.
+    /// Example: Scene frames are always shifting by the scene start frames.
+    pub fn clone_with_scene_offset(frame: &Frame, offset: usize) -> Self {
+        Self {
+            index: frame.index - offset,
+            global_index: frame.global_index + offset,
+            fps: frame.fps,
+            breaks_lru_cache: frame.breaks_lru_cache.clone(),
+            worker_local_decoders: frame.worker_local_decoders.clone(),
+        }
+    }
+
     /// Borrows the frame into the same one, but removes relative index in favor of global one.
     /// Can be useful for using global-videos API from the scene.
     pub fn into_global(self) -> Self {
@@ -301,5 +345,25 @@ impl Frame {
         let milliseconds = (self.get_current_second() * 1000.0) as u64;
 
         subtitles.get_cue_stack(milliseconds, overlap)
+    }
+
+    pub fn get_synced_video_frame<'a>(
+        &self,
+        ctx: &crate::FFramesContext<'a, '_>,
+        file_name: impl AsRef<str>,
+        start_from: usize,
+    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
+        if self.global_index < start_from {
+            return Ok(None);
+        }
+
+        let video_path = if let Some(path) = ctx.get_video_path(file_name.as_ref()) {
+            path
+        } else {
+            return Ok(None);
+        };
+
+        self.worker_local_decoders
+            .get_synced_frame(video_path, self.global_index - start_from, ctx)
     }
 }

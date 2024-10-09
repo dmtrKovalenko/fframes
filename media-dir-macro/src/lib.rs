@@ -1,5 +1,6 @@
 mod parser;
 use crate::parser::IncludeMediaDirInput;
+use fframes_media_loaders::RawMediaFile;
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use quote::{quote, ToTokens};
@@ -147,6 +148,10 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         }
 
         impl #fframes_crate_ident::MediaProvider<'_> for #ident {
+            fn resolve_video(&self, _name: &str) -> Option<&std::path::PathBuf> {
+                None
+            }
+            
             fn resolve_audio(&self, name: &str) -> Option<&#fframes_crate_ident::AudioData> {
                 match name {
                     #(#audio_handle_tokens)*
@@ -265,10 +270,10 @@ impl MediaFile {
                 let fframes_media_loaders::PreloadedAudioData {
                     samples,
                     sample_rate,
-                } = fframes_media_loaders::PreloadedAudioData::decode_buffer(
+                } = fframes_media_loaders::PreloadedAudioData::decode_raw_file(
                     None,
-                    &self.path.to_string_lossy(),
-                    &bytes,
+                    &self.path,
+                    &RawMediaFile::Data(bytes),
                 )
                 .unwrap();
 
@@ -521,7 +526,7 @@ fn verify_correct_algiment_of_the_file() {
     use bytemuck::cast_slice;
 
     let bytes = include_bytes!("../../examples/marketing/media/marketing.mp3");
-    let initial_slize: &[f32] = &fframes_media_loaders::PreloadedAudioData::decode_buffer(
+    let initial_slize: &[f32] = &fframes_media_loaders::PreloadedAudioData::decode_raw_file(
         Some(44100),
         "marketing.mp3",
         bytes,

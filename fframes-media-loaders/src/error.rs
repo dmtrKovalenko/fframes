@@ -1,7 +1,9 @@
 pub enum FFramesMediaError {
     #[cfg(not(target_arch = "wasm32"))]
     ImageError(image::ImageError),
+    LibAVAllocationError(&'static str),
     LibAVAudioDecodingError((i32, String)),
+    LibAVVideoDecodingError((i32, String)),
     AudioDecodingError(String),
     FontError(ttf_parser::FaceParsingError),
     VttError(webvtt_parser::VttError),
@@ -41,12 +43,16 @@ impl std::fmt::Debug for FFramesMediaError {
             Self::LibAVAudioDecodingError((code, msg)) => {
                 write!(f, "LibAVAudioDecodingError: {} - {}", code, msg,)
             }
+            Self::LibAVVideoDecodingError((code, msg)) => {
+                write!(f, "LibAVVideoDecodingError: {} - {}", code, msg,)
+            }
             Self::AudioDecodingError(msg) => write!(f, "AudioDecodingError: {}", msg),
             #[cfg(not(target_arch = "wasm32"))]
             Self::ImageError(err) => write!(f, "ImageError: {:?}", err),
             Self::FontError(err) => write!(f, "FontError: {:?}", err),
             Self::VttError(err) => write!(f, "VttError: {:?}", err),
             Self::NulError(err) => write!(f, "{:?}", err),
+            Self::LibAVAllocationError(what) => write!(f, "libav: Failed to allocate {}", what),
         }
     }
 }

@@ -20,6 +20,7 @@ pub mod error;
 
 #[cfg(test)]
 mod tests;
+mod video_data;
 
 pub use audio_data::*;
 pub use audio_map::*;
@@ -38,6 +39,7 @@ pub use svgr::*;
 pub use svgr_macro::*;
 pub use text_wrap::*;
 pub use video::*;
+pub use video_data::*;
 
 // reexported deps
 pub use fframes_media_dir_macro::*;

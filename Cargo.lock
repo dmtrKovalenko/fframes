@@ -843,6 +843,7 @@ dependencies = [
  "bytemuck",
  "ffmpeg-sys-fframes",
  "image 0.24.6",
+ "libc",
  "quote",
  "ttf-parser 0.19.1",
  "usvgr",
@@ -1503,9 +1504,9 @@ checksum = "03087c2bad5e1034e8cace5926dec053fb3790248370865f5117a7d0213354c8"
 
 [[package]]
 name = "libc"
-version = "0.2.154"
+version = "0.2.159"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
+checksum = "561d97a539a36e26a9a5fad1ea11a3039a67714694aaa379433e580854bc3dc5"
 
 [[package]]
 name = "libfuzzer-sys"
@@ -2638,8 +2639,6 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "svgr"
 version = "0.43.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "420a532dfe0bbb585c958b183f2ed7353e01d09da10f2537bbf5bb4fe723063d"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -2670,8 +2669,6 @@ dependencies = [
 [[package]]
 name = "svgrtypes"
 version = "0.43.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cc45083a0b845f989dc19533e61ee40b83e8617100f78c05420e24339ee1030"
 dependencies = [
  "kurbo 0.8.0",
  "proc-macro2",
@@ -2994,8 +2991,6 @@ checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 [[package]]
 name = "usvgr"
 version = "0.43.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be9fe194655b368dfd0bcdb6654ccde3974014df8d7ee543f505707649ea404e"
 dependencies = [
  "ahash 0.8.11",
  "base64",

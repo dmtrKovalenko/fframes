@@ -1,5 +1,8 @@
 use crate::svg_waves::frequencies_to_path;
-use fframes::{include_media_dir, AudioMap, FFramesContext, Frame, Video, VisualizeFrameInput};
+use fframes::{
+    include_media_dir, AudioMap, FFramesContext, FFramesSyncedVideoFrame, Frame, Svgr, Video,
+    VisualizeFrameInput,
+};
 
 include_media_dir!(pub struct AudioAnnounceMedia, "examples/audio-announce/media");
 
@@ -67,13 +70,20 @@ impl Video for AudioAnnounce<'_> {
 
     fn audio(&self) -> AudioMap {
         use fframes::AudioTimestamp::*;
-        AudioMap::from([("audio.wav", Second(0.)..Eof)])
+        AudioMap::from([("video.mp4", Second(0.)..Eof)])
     }
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr {
         const AVATAR_SIZE: usize = 300;
         const AVATAR_X: usize = 80;
         const AVATAR_Y: usize = 85;
+
+        let video_frame = frame
+            .get_synced_video_frame(ctx, "video.mp4", 0)
+            .ok()
+            .flatten();
+
+        println!("Video frame: {:?}", video_frame.is_some());
 
         let visualisation = frame.visualize_audio_frame(VisualizeFrameInput {
             // safe to unwrap because used in the `audio` method
@@ -89,24 +99,24 @@ impl Video for AudioAnnounce<'_> {
             width={Self::WIDTH}
             height={Self::HEIGHT}
           >
-            <image
-                x="0"
-                y="0"
-                width={Self::WIDTH}
-                height={Self::HEIGHT}
-                href={self.media.background_png.href()}
-            />
+             <image
+                 x="0"
+                 y="0"
+                 width={Self::WIDTH}
+                 height={Self::HEIGHT}
+                 href={self.media.background_png.href()}
+             />
 
             {self.render_glowing_subtitles(frame, ctx)}
-            <image
-                filter="url(#glow)"
-                id="avatar"
-                x={AVATAR_X}
-                y={AVATAR_Y}
-                width={AVATAR_SIZE}
-                height={AVATAR_SIZE}
-                href={self.media.avatar_png.href()}
-            />
+             <image
+                 filter="url(#glow)"
+                 id="avatar"
+                 x={AVATAR_X}
+                 y={AVATAR_Y}
+                 width={AVATAR_SIZE}
+                 height={AVATAR_SIZE}
+                 href={video_frame.map(|frame| frame.into_image_data().href()).unwrap_or_else(|| self.media.avatar_png.href())}
+             />
 
              <g opacity="0.5" stroke="#fff" stroke-width="6">
                  // Rendering actual waves paths. All these values are tuned imperatively

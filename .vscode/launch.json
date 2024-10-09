@@ -1,7 +1,4 @@
-  {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+{
   "version": "0.2.0",
   "configurations": [
     {
@@ -10,7 +7,9 @@
       "request": "launch",
       "program": "${workspaceFolder}/fframes-renderer/c_render_bin",
       "preLaunchTask": "cexample:build",
-      "args": ["out.webm"],
+      "args": [
+        "out.webm"
+      ],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -19,6 +18,14 @@
       "name": "Debug Hello World",
       "program": "${workspaceFolder}/target/debug/hello_world_example_bin",
       "cwd": "${workspaceFolder}/examples/hello-world",
+      "preLaunchTask": "cargo:build"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug audio announce",
+      "program": "${workspaceFolder}/target/debug/audio_announce_example_bin",
+      "cwd": "${workspaceFolder}/examples/audio-announce",
       "preLaunchTask": "cargo:build"
     }
   ]

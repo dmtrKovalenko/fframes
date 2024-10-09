@@ -1,5 +1,5 @@
 use crate::{error::Result, media, AudioData, FontSource};
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, path::PathBuf, sync::Arc};
 
 #[derive(Clone)]
 pub struct RawFontData {
@@ -20,6 +20,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     fn resolve_audio(&'a self, name: &str) -> Option<&'a AudioData>;
     fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData>;
     fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles>;
+    fn resolve_video(&'a self, name: &str) -> Option<&'a PathBuf>;
 
     /// Returns all the font data along with the original file name
     // fn populate_font_source(&'a self, font_source: &mut dyn FontSource) -> Result<Vec<RawFontData>>;
@@ -58,6 +59,10 @@ impl<'a> MediaProvider<'a> for () {
         _image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
     ) {
     }
+
+    fn resolve_video(&'a self, _name: &str) -> Option<&'a PathBuf> {
+        None
+    }
 }
 
 impl StaticMediaProvider<'_> for () {
@@ -79,6 +84,7 @@ pub struct DynamicMediaProvider<'media> {
     pub audio: HashMap<String, AudioData<'media>>,
     pub images: HashMap<String, crate::media::ImageData>,
     pub subtitles: HashMap<String, crate::media::Subtitles<'media>>,
+    pub videos: HashMap<String, PathBuf>,
     pub fontdata: Vec<RawFontData>,
 }
 
@@ -87,12 +93,14 @@ impl<'media> DynamicMediaProvider<'media> {
         audio: HashMap<String, AudioData<'media>>,
         images: HashMap<String, crate::media::ImageData>,
         subtitles: HashMap<String, crate::media::Subtitles<'media>>,
+        videos: HashMap<String, PathBuf>,
         fonts_data: Vec<RawFontData>,
     ) -> Self {
         Self {
             audio,
             images,
             subtitles,
+            videos,
             fontdata: fonts_data,
         }
     }
@@ -109,6 +117,10 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
 
     fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles> {
         self.subtitles.get(name)
+    }
+
+    fn resolve_video(&'a self, name: &str) -> Option<&'a PathBuf> {
+        self.videos.get(name)
     }
 
     fn populate_font_source(&'a self, font_source: &mut dyn FontSource) {
@@ -163,6 +175,12 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_subtitles(name))
+    }
+
+    fn resolve_video(&'a self, name: &str) -> Option<&'a PathBuf> {
+        self.0
+            .iter()
+            .find_map(|provider| provider.resolve_video(name))
     }
 
     fn populate_font_source(&'a self, font_source: &mut dyn FontSource) {
