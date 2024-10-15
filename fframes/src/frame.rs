@@ -352,6 +352,7 @@ impl Frame {
         ctx: &crate::FFramesContext<'_, '_>,
         file_name: impl AsRef<str>,
         start_from: usize,
+        loop_at: Option<usize>,
     ) -> Option<Arc<impl FFramesSyncedVideoFrame>> {
         if self.global_index < start_from {
             return None;
@@ -359,8 +360,13 @@ impl Frame {
 
         let video = ctx.get_video(file_name.as_ref())?;
 
+        let mut offset = self.global_index - start_from;
+        if let Some(loop_at) = loop_at {
+            offset = offset % loop_at;
+        }
+
         self.worker_local_video_decoders
-            .get_synced_frame(video, self.global_index - start_from, ctx)
+            .get_synced_frame(video, offset, ctx)
             .map_err(|e| {
                 crate::log!("Error while decoding video frame: {:?}", e);
             })

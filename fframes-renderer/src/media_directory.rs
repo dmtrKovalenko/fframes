@@ -139,15 +139,17 @@ impl MediaDirectory {
                                 },
                             );
 
-                            let audio_data = fframes::media::PreloadedAudioData::decode_raw_file(
-                                Some(SAMPLE_RATE),
-                                path,
-                            )?;
-
-                            audio_hash.lock()?.insert(
-                                filename.to_owned(),
-                                fframes::AudioData::Preloaded(audio_data),
-                            );
+                            if let Ok(audio_data) =
+                                fframes::media::PreloadedAudioData::decode_raw_file(
+                                    Some(SAMPLE_RATE),
+                                    path,
+                                )
+                            {
+                                audio_hash.lock()?.insert(
+                                    filename.to_owned(),
+                                    fframes::AudioData::Preloaded(audio_data),
+                                );
+                            }
                         }
                         ("DS_Store", _) => (),
                         _ => {

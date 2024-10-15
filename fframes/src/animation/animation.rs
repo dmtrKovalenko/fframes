@@ -82,6 +82,36 @@ impl Animatable for f32 {
     }
 }
 
+impl Animatable for (f32, f32) {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        (
+            self.0.apply_progress(&to.0, progress),
+            self.1.apply_progress(&to.1, progress),
+        )
+    }
+}
+
+impl Animatable for (f32, f32, f32) {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        (
+            self.0.apply_progress(&to.0, progress),
+            self.1.apply_progress(&to.1, progress),
+            self.2.apply_progress(&to.2, progress),
+        )
+    }
+}
+
+impl Animatable for (f32, f32, f32, f32) {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        (
+            self.0.apply_progress(&to.0, progress),
+            self.1.apply_progress(&to.1, progress),
+            self.2.apply_progress(&to.2, progress),
+            self.3.apply_progress(&to.3, progress),
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Tween<T: Animatable + Copy> {
     pub(crate) seconds_range: Range<f32>,
