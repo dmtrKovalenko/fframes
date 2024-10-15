@@ -100,13 +100,18 @@ pub fn resolve_timeline<
                 )?;
 
                 let (overlap_prev, overlap_next) = scene.overlap().to_frames(time_base.fps);
+                let start_frame = final_duration - overlap_prev;
+                let end_frame = final_duration + duration + overlap_next;
+
                 resolved_scenes.push((
-                    final_duration - overlap_prev..final_duration + duration + overlap_next,
+                    start_frame..end_frame,
                     SceneInfo {
                         index,
                         total_scenes_in_video: scenes_count,
                         duration_in_frames: duration + overlap_next,
                         is_last: index == scenes_count - 1,
+                        start_frame,
+                        end_frame,
                     },
                     *scene,
                 ));

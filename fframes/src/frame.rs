@@ -5,7 +5,7 @@ use crate::{
     animation, get_visualization,
     text_wrap::{text_wrap_impl, BreakLinesOpts},
     video_data::{FFramesSyncedVideoFrame, WorkerLocalVideoDecoders},
-    BreaksLruCache, VisualizeFrameInput, WrappedTextStructure,
+    BreaksLruCache, SyncVideoFrameInput, VisualizeFrameInput, WrappedTextStructure,
 };
 
 /// Contains all the temporal information about the current frame and the mutable links to the
@@ -347,26 +347,27 @@ impl Frame {
         subtitles.get_cue_stack(milliseconds, overlap)
     }
 
+    /// Returns a synced video frame of the video file media.
+    /// If the video file is not found or there is no frame or error during decoding returns None.
+    /// Video frame is decoded and timebase (fps) is synced with the target fframe's video frame.
+    ///
+    /// **Make sure this function is not working in the editor for now. Editor will automatically fallback to
+    /// `{your_video_file}.{your_extension}_fallback.{jpg|png}` image file for preview if it exists
     pub fn get_synced_video_frame(
         &self,
         ctx: &crate::FFramesContext<'_, '_>,
         file_name: impl AsRef<str>,
-        start_from: usize,
-        loop_at: Option<usize>,
+        input: &SyncVideoFrameInput,
     ) -> Option<Arc<impl FFramesSyncedVideoFrame>> {
-        if self.global_index < start_from {
+        if self.global_index < input.start_from {
             return None;
         }
 
         let video = ctx.get_video(file_name.as_ref())?;
 
-        let mut offset = self.global_index - start_from;
-        if let Some(loop_at) = loop_at {
-            offset = offset % loop_at;
-        }
-
+        let offset = self.global_index - input.start_from;
         self.worker_local_video_decoders
-            .get_synced_frame(video, offset, ctx)
+            .get_synced_frame(video, offset as i64, ctx, input)
             .map_err(|e| {
                 crate::log!("Error while decoding video frame: {:?}", e);
             })

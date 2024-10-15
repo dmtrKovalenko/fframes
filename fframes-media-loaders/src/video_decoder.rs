@@ -137,6 +137,8 @@ impl SwsScaler {
 }
 
 pub struct FFmpegDecoder {
+    /// loop shift in the custom_timeb_base frame values
+    pub loop_shift: i64,
     frame: Arc<FFmpegFrame>,
     fmt_ctx: *mut AVFormatContext,
     video_stream_info: VideoStreamInfo,
@@ -326,6 +328,7 @@ impl FFmpegDecoder {
             fmt_ctx,
             frame: FFmpegFrame::new(&video_stream_info)?.into(),
             video_stream_info,
+            loop_shift: 0,
             custom_time_base: AVRational {
                 num: 1,
                 den: target_fps as i32,
@@ -420,7 +423,7 @@ impl FFmpegDecoder {
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
         let target_pts = av_rescale_q(
-            offset,
+            offset - self.loop_shift,
             self.custom_time_base,
             self.video_stream_info.time_base,
         );

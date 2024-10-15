@@ -37,6 +37,10 @@ pub struct SceneInfo {
     pub total_scenes_in_video: usize,
     /// If `true` then this scene is defined last in the video.
     pub is_last: bool,
+    /// The start frame index of the scene
+    pub start_frame: usize,
+    /// The end frame index of the scene
+    pub end_frame: usize,
 }
 
 #[allow(unused_variables)]

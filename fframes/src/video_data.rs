@@ -38,6 +38,31 @@ pub trait FFramesSyncedVideoFrame {
     fn stream_duration_in_seconds(&self) -> f64;
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SyncVideoFrameInput {
+    /// The frame of the fframes' video to start from.
+    /// If not provided starts from the beginning of the fframes' video.
+    ///
+    /// It is possible to leverage the scene's offset to start video from the scene start:
+    ///
+    /// ```no_run
+    /// use fframes::{Frame, SyncVideoFrameInput};
+    ///
+    /// let scene_info = ctx.get_scene_info();
+    ///
+    /// fnrame.get_synced_video_frame(ctx, "video.mp4", SyncVideoFrameInput {
+    ///    start_from: scene_info.map(|info| info.start_frame),
+    ///    ..Default::default()
+    /// });
+    ///
+    /// ```
+    pub start_from: usize,
+    /// If `true` the video playback will be looped and will start from the beginning on the end.
+    /// Also if `true` the `get_synced_video_frame` API should never return None, only in case of
+    /// decoding errors, so in some cases it might be okay to panic if the frame is not available.
+    pub looping: bool,
+}
+
 /// This is used by the editor as a fallback for the static image
 #[derive(Debug, Clone)]
 pub struct WasmEditorVideoFrameFallback {
@@ -167,8 +192,9 @@ impl WorkerLocalVideoDecoders {
     pub(crate) fn get_synced_frame(
         &self,
         media_ref: &VideoMedia,
-        _offset: usize,
+        _offset: i64,
         ctx: &FFramesContext,
+        _options: &SyncVideoFrameInput,
     ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
         let filename = media_ref.path.file_name().unwrap().to_string_lossy();
         let video_filename = filename.as_ref();
@@ -192,8 +218,9 @@ impl WorkerLocalVideoDecoders {
     pub(crate) fn get_synced_frame(
         &self,
         VideoMedia { path, .. }: &VideoMedia,
-        offset: usize,
+        offset: i64,
         ctx: &FFramesContext,
+        options: &SyncVideoFrameInput,
     ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
         let has_decoder = {
             (*self.map)
@@ -206,7 +233,7 @@ impl WorkerLocalVideoDecoders {
                 let mut decoder =
                     fframes_media_loaders::FFmpegDecoder::new(path, ctx.time_base.fps)?;
                 if offset > 0 {
-                    decoder.seek_to_offset(offset as i64)?;
+                    decoder.seek_to_offset(offset)?;
                 }
 
                 decoder
@@ -216,17 +243,22 @@ impl WorkerLocalVideoDecoders {
                 .borrow_mut()
                 .insert(path.to_string_lossy().to_string(), decoder);
         }
-
         unsafe {
             let mut decoders = (*self.map).borrow_mut();
             let decoder = decoders.get_mut(path.to_string_lossy().as_ref()).unwrap();
 
-            let has_frame = decoder.decode_up_to(offset as i64)?;
+            let has_frame = decoder.decode_up_to(offset)?;
 
-            if has_frame {
-                Ok(Some(decoder.get_raw_frame()))
-            } else {
-                Ok(None)
+            match has_frame {
+                true => Ok(Some(decoder.get_raw_frame())),
+                false if options.looping => {
+                    decoder.seek_to_offset(0)?;
+                    decoder.decode_up_to(0)?;
+
+                    decoder.loop_shift += offset;
+                    Ok(Some(decoder.get_raw_frame()))
+                }
+                false => Ok(None),
             }
         }
     }
