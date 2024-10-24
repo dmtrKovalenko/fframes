@@ -45,10 +45,10 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub default_font: &'a str,
 }
 
-pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
+pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
     video: &'a TVideo,
     output: &'a str,
-    options: RenderOptions<'a, TBackend>,
+    options: &'a RenderOptions<'media, TBackend>,
 ) -> FFramesRendererResult<()> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let time_base = TimeBase {
@@ -149,7 +149,7 @@ pub fn render_frame<
 >(
     frame_index: usize,
     video: &'a TVideo,
-    options: RenderOptions<'a, TBackend>,
+    options: &RenderOptions<'media, TBackend>,
 ) -> FFramesRendererResult<Vec<u8>> {
     let time_base = TimeBase {
         fps: TVideo::FPS,

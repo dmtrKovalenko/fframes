@@ -3,7 +3,7 @@ use std::path::Path;
 use audio_announce_example::{AudioAnnounce, AudioAnnounceMedia};
 use clap::Parser;
 use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider};
-use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
+use fframes_renderer::{fframes_logger, render, AVPixelFormat, EncoderOptions, RenderOptions};
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -32,7 +32,7 @@ fn main() {
             font: args.font.as_deref(),
         },
         args.output.as_str(),
-        RenderOptions {
+        &RenderOptions {
             media: Some(&CombinedMediaProvider::from([
                 &media as &dyn MediaProvider,
                 &dynamic_media as &dyn MediaProvider,
@@ -40,14 +40,22 @@ fn main() {
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
-                preferred_audio_codec: args.audio_codec.as_deref(),
-                preferred_video_codec: args.video_codec.as_deref(),
-                codec_params: args
-                    .output
-                    .ends_with(".mp4")
-                    // These are optimizations params set for the libx264 or libx265 encoders and handled directly by them.
-                    .then_some(&[("crf", "18"), ("tune", "animation")]),
-                ..Default::default()
+            preferred_video_codec: Some("libx264"),
+            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P10LE,
+            video_bitrate: Some(8_000_000), // 8 Mbps
+            qmin: 0,
+            qmax: 69,
+            qcompress: 0.6,
+            max_qdiff: 4,
+            gop_size: 250,
+            codec_params: Some(&[
+                ("crf", "18"),
+                ("preset", "slow"),
+                ("tune", "film"),
+                ("x264-params", "aq-mode=3:aq-strength=0.8:deblock=1,1:psy-rd=1.0:psy-rdoq=2.0:rdoq-level=2:merange=32"),
+                ("bframes", "3"),
+            ]),
+            ..Default::default()
             },
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 ..Default::default()

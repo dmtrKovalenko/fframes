@@ -1,0 +1,17 @@
+[package]
+name = "conference-splash-screen-bridge-example"
+version = "1.0.0-beta.1"
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+edition = "2018"
+
+[package.metadata.wasm-pack.profile.profiling]
+wasm-opt = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "./lib.rs"
+
+[dependencies]
+wasm-bindgen = "0.2.74"
+fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
+conference-splash-screen-example = { path = "../../", default-features = false }

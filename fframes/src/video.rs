@@ -1,4 +1,5 @@
 use crate::audio_map::AudioMap;
+use crate::error::Result;
 use crate::{
     scenes::*, AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo,
     Svgr, TimeBase,
@@ -56,15 +57,57 @@ pub trait Video: Sync + Sized {
 }
 
 #[derive(Debug)]
-pub struct ResolvedScenesTimeline<'a>(
-    pub(crate) Vec<(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))>,
-);
+pub struct ResolvedScenesTimeline<'a> {
+    pub total_scenes_duration: usize,
+    pub(crate) timeline: Vec<(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))>,
+}
 
-impl<'a> ResolvedScenesTimeline<'_> {
-    pub fn iter(
+impl<'a> ResolvedScenesTimeline<'a> {
+    pub(crate) fn iter(
         &'a self,
     ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))> {
-        self.0.iter()
+        self.timeline.iter()
+    }
+
+    fn from_scenes(
+        time_base: &TimeBase,
+        scenes: &[SceneWithAudio<'a>],
+        resolve_audio_duration: &impl Fn(&str) -> super::error::Result<usize>,
+    ) -> Result<Self> {
+        let scenes_count = scenes.len();
+        let mut final_duration = 0;
+        let mut resolved_scenes = Vec::new();
+
+        for (index, SceneWithAudio { scene, audio_map }) in scenes.iter().enumerate() {
+            let duration = scene.duration().to_frames_async(
+                time_base.fps,
+                audio_map,
+                &resolve_audio_duration,
+            )?;
+
+            let (overlap_prev, overlap_next) = scene.overlap().to_frames(time_base.fps);
+            let start_frame = final_duration - overlap_prev;
+            let end_frame = final_duration + duration + overlap_next;
+            resolved_scenes.push((
+                final_duration - overlap_prev..final_duration + duration + overlap_next,
+                SceneInfo {
+                    index,
+                    start_frame,
+                    end_frame,
+                    total_scenes_in_video: scenes_count,
+                    duration_in_frames: duration + overlap_next,
+                    is_last: index == scenes_count - 1,
+                },
+                *scene,
+            ));
+
+            final_duration += duration;
+        }
+
+        Ok(ResolvedScenesTimeline {
+            total_scenes_duration: final_duration,
+            timeline: resolved_scenes,
+        })
     }
 }
 
@@ -84,55 +127,36 @@ pub fn resolve_timeline<
     time_base: &TimeBase,
     top_level_audio_map: &AudioMap,
     resolve_audio_duration: TFun,
-) -> crate::error::Result<ResolvedRenderingTimeline<'a, TAudioUnit>> {
-    let scenes_count = scenes.len();
-
+) -> Result<ResolvedRenderingTimeline<'a, TAudioUnit>> {
     let (duration, resolved_scenes) = match (scenes.0.as_deref(), duration) {
-        (Some(scenes_iter), Duration::Auto) => {
-            let mut final_duration = 0;
-            let mut resolved_scenes = Vec::new();
+        (None, Duration::Auto) => Err(crate::error::FFramesError::MissingDurationOrScenes),
+        (Some(scenes), Duration::Auto) => {
+            let timeline =
+                ResolvedScenesTimeline::from_scenes(time_base, scenes, &resolve_audio_duration)?;
 
-            for (index, SceneWithAudio { scene, audio_map }) in scenes_iter.iter().enumerate() {
-                let duration = scene.duration().to_frames_async(
-                    time_base.fps,
-                    audio_map,
-                    &resolve_audio_duration,
-                )?;
-
-                let (overlap_prev, overlap_next) = scene.overlap().to_frames(time_base.fps);
-                let start_frame = final_duration - overlap_prev;
-                let end_frame = final_duration + duration + overlap_next;
-
-                resolved_scenes.push((
-                    start_frame..end_frame,
-                    SceneInfo {
-                        index,
-                        total_scenes_in_video: scenes_count,
-                        duration_in_frames: duration + overlap_next,
-                        is_last: index == scenes_count - 1,
-                        start_frame,
-                        end_frame,
-                    },
-                    *scene,
-                ));
-
-                final_duration += duration;
-            }
-
-            Ok((
-                final_duration,
-                Some(ResolvedScenesTimeline(resolved_scenes)),
-            ))
+            Ok((timeline.total_scenes_duration, Some(timeline)))
         }
-        (None, duration) => Ok((
-            duration.to_frames_async(
+        // if both duration and scenes provided we use duration
+        (Some(scenes), duration) => {
+            let timeline =
+                ResolvedScenesTimeline::from_scenes(time_base, scenes, &resolve_audio_duration)?;
+            let total_duration = duration.to_frames_async(
                 time_base.fps,
                 top_level_audio_map,
                 &resolve_audio_duration,
-            )?,
-            None,
-        )),
-        _ => Err(crate::error::FFramesError::MissingDurationOrScenes),
+            )?;
+
+            Ok((total_duration, Some(timeline)))
+        }
+        (None, duration) => {
+            let total_duration = duration.to_frames_async(
+                time_base.fps,
+                top_level_audio_map,
+                &resolve_audio_duration,
+            )?;
+
+            Ok((total_duration, None))
+        }
     }?;
 
     let mut resolved_audio_map = top_level_audio_map.resolve_with_scenes::<TAudioUnit>(

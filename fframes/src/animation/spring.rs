@@ -62,7 +62,7 @@ impl SpringRuntime {
             if self.solve(&elapsed) == 1.0 {
                 not_animating_frames_count += 1;
 
-                if not_animating_frames_count >= 16 {
+                if not_animating_frames_count >= 128 {
                     break;
                 }
             } else {

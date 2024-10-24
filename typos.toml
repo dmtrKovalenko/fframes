@@ -1,7 +1,4 @@
 [files]
-extend-exclude = [
-   "*.snapshot.txt"
-]
+extend-exclude = ["*.snapshot.txt", "sessions.json"]
 [default.extend-words]
 hd = "hd"
-

@@ -11,7 +11,7 @@ mod media_provider;
 mod named_range;
 mod scenes;
 mod svgr;
-mod text_wrap;
+mod text;
 mod video;
 
 // Methods that we are not pub use ::* should be declared here:
@@ -37,7 +37,7 @@ pub use named_range::*;
 pub use scenes::*;
 pub use svgr::*;
 pub use svgr_macro::*;
-pub use text_wrap::*;
+pub use text::*;
 pub use video::*;
 pub use video_data::*;
 

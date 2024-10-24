@@ -51,7 +51,7 @@ fn main() {
             },
         },
         "out.mp4",
-        RenderOptions {
+        &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,

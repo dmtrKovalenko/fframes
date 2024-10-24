@@ -30,7 +30,7 @@ impl Video for GooseVideo<'_> {
     const HEIGHT: usize = 1920;
 
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Auto
+        fframes::Duration::FromAudio("thought.mp3")
     }
 
     fn audio(&self) -> AudioMap {

@@ -1,10 +1,11 @@
-use crate::{svgr, FontSource, FontStretch, FontStyle, Svgr};
+use crate::{svgr, FFramesContext, FontSource, FontStretch, FontStyle, FontVariant, Svgr};
 use lru::LruCache;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::{Arc, Mutex},
 };
+use usvgr::svgtree::SvgAttributeValue;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TextAlign {
@@ -14,7 +15,11 @@ pub enum TextAlign {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct BreakLinesOpts<'a> {
+pub struct BreakLinesOpts<
+    'a,
+    TX: Into<SvgAttributeValue<'a>> + Hash + Default,
+    TY: Into<SvgAttributeValue<'a>> + Hash + Default,
+> {
     pub width: usize,
     /// Similar to css `line-height` property where 1.0 is the line height of the selected font
     /// size. 1.1 is 10% larger than the font size which adds 10% of the font size as a margin
@@ -26,8 +31,8 @@ pub struct BreakLinesOpts<'a> {
     /// **Pro tip**: check resolved font family name in the editor media panel.
     pub font_family: &'a str,
     pub font_size: usize,
-    pub x: &'a str,
-    pub y: &'a str,
+    pub x: TX,
+    pub y: TY,
     pub align: TextAlign,
     pub font_weight: u16,
     pub fill: &'a str,
@@ -47,7 +52,11 @@ pub struct BreakLinesOpts<'a> {
     pub text_anchor: &'a str,
 }
 
-impl BreakLinesOpts<'_> {
+impl<'a, TX, TY> BreakLinesOpts<'a, TX, TY>
+where
+    TX: Into<SvgAttributeValue<'a>> + Hash + Default,
+    TY: Into<SvgAttributeValue<'a>> + Hash + Default,
+{
     pub(crate) fn hash_with_value(&self, value: &str) -> u64 {
         let mut s = DefaultHasher::new();
         value.hash(&mut s);
@@ -59,8 +68,8 @@ impl BreakLinesOpts<'_> {
     /// When using `frame.text_break_lines_structure` which returns the text structure
     /// use this function to create top level `text` element that applies all the options from the
     /// `BreakLinesOpts` to the `text` svg element.
-    pub fn create_text_svgr<'a>(&'a self, children: Svgr<'a>) -> Svgr<'a> {
-        let BreakLinesOpts {
+    pub fn create_text_svgr(self, children: Svgr<'a>) -> Svgr<'a> {
+        let BreakLinesOpts::<'a, TX, TY> {
             font_family,
             font_size,
             font_weight,
@@ -75,8 +84,8 @@ impl BreakLinesOpts<'_> {
 
         svgr!(
           <text
-            x={x}
-            y={y}
+            x={x.into()}
+            y={y.into()}
             fill={fill}
             font-size={font_size}
             font-family={font_family}
@@ -91,7 +100,11 @@ impl BreakLinesOpts<'_> {
     }
 }
 
-impl std::hash::Hash for BreakLinesOpts<'_> {
+impl<'a, TX, TY> std::hash::Hash for BreakLinesOpts<'a, TX, TY>
+where
+    TX: Into<SvgAttributeValue<'a>> + Hash + Default,
+    TY: Into<SvgAttributeValue<'a>> + Hash + Default,
+{
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.width.hash(state);
         self.line_height.to_bits().hash(state);
@@ -107,15 +120,19 @@ impl std::hash::Hash for BreakLinesOpts<'_> {
     }
 }
 
-impl Default for BreakLinesOpts<'_> {
+impl<'a, TX, TY> Default for BreakLinesOpts<'a, TX, TY>
+where
+    TX: Into<SvgAttributeValue<'a>> + Hash + Default,
+    TY: Into<SvgAttributeValue<'a>> + Hash + Default,
+{
     fn default() -> Self {
         Self {
             width: 0,
             line_height: 1.1,
             font_family: Default::default(),
             font_size: 16,
-            x: "",
-            y: "",
+            x: TX::default(),
+            y: TY::default(),
             fill: "",
             align: TextAlign::Left,
             font_style: Default::default(),
@@ -154,15 +171,16 @@ pub struct WrappedTextLine {
 #[derive(Debug, Clone, Default)]
 pub struct WrappedTextStructure {
     pub lines: Vec<WrappedTextLine>,
-    hash: u64,
+    pub(crate) line_height_in_px: f32,
+    pub(crate) hash: u64,
 }
 
 impl WrappedTextStructure {
-    pub fn new(lines: Vec<WrappedTextLine>, hash: u64) -> Self {
-        Self { lines, hash }
-    }
-
-    pub fn as_svgr<'a>(
+    pub fn as_svgr<
+        'a,
+        X: Into<SvgAttributeValue<'a>> + Hash + Default,
+        Y: Into<SvgAttributeValue<'a>> + Hash + Default,
+    >(
         &self,
         BreakLinesOpts {
             x,
@@ -174,38 +192,68 @@ impl WrappedTextStructure {
             dominant_baseline,
             text_anchor,
             ..
-        }: BreakLinesOpts<'a>,
+        }: BreakLinesOpts<'a, X, Y>,
     ) -> Svgr<'a> {
-        svgr_macro::svgr!(
-         <text id={self.hash} x={x} y={y} fill={fill} font-size={font_size} font-family={font_family} font-weight={font_weight} dominant-baseline={dominant_baseline} text-anchor={text_anchor}>
-           {
-            self.lines.iter().map(|line| {
-                svgr_macro::svgr!(
-                   <tspan x={x} y={y} dx={line.dx} dy={line.dy}> {line.words.join(" ")}
-                   </tspan>
-                )
-            }).collect::<Vec<_>>()
-           }
-        </text>
-        )
+        let svgr_x: SvgAttributeValue = x.into();
+        let svgr_y: SvgAttributeValue = y.into();
+
+        svgr_macro::svgr! {
+            <text
+                id={self.hash}
+                x={svgr_x.clone()}
+                y={svgr_y.clone()}
+                fill={fill}
+                font-size={font_size}
+                font-family={font_family}
+                font-weight={font_weight}
+                dominant-baseline={dominant_baseline}
+                text-anchor={text_anchor}
+            >
+                {Svgr::from_iter(
+                    self.lines.iter().map(|line| {
+                        svgr_macro::svgr! {
+                            <tspan
+                                x={svgr_x.clone()}
+                                y={svgr_y.clone()}
+                                dx={line.dx}
+                                dy={line.dy}
+                            >
+                                {line.words.join(" ")}
+                            </tspan>
+                        }
+                    })
+                )}
+            </text>
+        }
     }
 
     pub fn occupied_height(&self) -> usize {
         let lines = &self.lines;
 
-        if lines.len() < 2 {
+        if lines.is_empty() {
             return 0;
         }
 
-        let line_height = lines[1].dy - lines[0].dy;
-        (lines.len() - 1) * line_height
+        if lines.len() == 1 {
+            return self.line_height_in_px as usize;
+        }
+
+        lines.len() * self.line_height_in_px as usize
     }
 }
 
-pub(crate) fn text_wrap_impl<'a, 'b>(
+pub(crate) fn text_wrap_impl<
+    'a,
+    'b,
+    TX: Into<SvgAttributeValue<'a>> + Hash + Default,
+    TY: Into<SvgAttributeValue<'a>> + Hash + Default,
+>(
+    hash: u64,
     value: &'b str,
     font_source: &'a (dyn FontSource<'a> + 'a),
-    BreakLinesOpts {
+    options: BreakLinesOpts<'a, TX, TY>,
+) -> Option<WrappedTextStructure> {
+    let BreakLinesOpts {
         width,
         align,
         font_family,
@@ -215,20 +263,27 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
         font_stretch,
         line_height,
         ..
-    }: BreakLinesOpts,
-) -> Option<Vec<WrappedTextLine>> {
-    let font_face = font_source.resolve_font(font_family, font_weight, font_style, font_stretch)?;
+    } = options;
+
+    let font_face = if let Some(font_face) =
+        font_source.resolve_font(font_family, font_weight, font_style, font_stretch)
+    {
+        font_face
+    } else {
+        crate::log!("ERROR breaking lines: font is not resolved. Make sure that system fonts are not available for break_lines feature in editor.");
+        return None;
+    };
 
     let font_variant = font_face.font_variant(font_size)?;
     let space_width = match font_variant {
         crate::FontVariant::Monospaced(mono_width) => mono_width,
-        crate::FontVariant::Other => font_face.resolve_char_width(font_size, ' ')?,
+        crate::FontVariant::Variable => font_face.resolve_char_width(font_size, ' ')?,
     };
 
     let resolve_word_width = |word: &str| -> Option<usize> {
         let raw_width = match font_variant {
             crate::FontVariant::Monospaced(mono_width) => word.len() * mono_width,
-            crate::FontVariant::Other => word
+            crate::FontVariant::Variable => word
                 .chars()
                 .filter_map(|char| font_face.resolve_char_width(font_size, char))
                 .sum(),
@@ -238,6 +293,8 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
     };
 
     let mut structure = vec![(vec![], 0usize)];
+    let line_height_in_px = line_height * font_size as f32;
+
     for word in value.split_whitespace() {
         let word_width = resolve_word_width(word)?;
         let (last_line, last_line_width) = structure.last_mut()?;
@@ -255,24 +312,72 @@ pub(crate) fn text_wrap_impl<'a, 'b>(
         }
     }
 
-    Some(
-        structure
-            .into_iter()
-            .enumerate()
-            .map(|(index, (words, line_width))| {
-                let dx = match align {
-                    TextAlign::Left => 0,
-                    TextAlign::Center => (width - line_width) / 2,
-                    TextAlign::Right => width - line_width,
-                };
+    let lines = structure
+        .into_iter()
+        .enumerate()
+        .map(|(index, (words, line_width))| {
+            let dx = match align {
+                TextAlign::Left => 0,
+                TextAlign::Center => (width - line_width) / 2,
+                TextAlign::Right => width - line_width,
+            };
 
-                WrappedTextLine {
-                    words,
-                    width: line_width,
-                    dx,
-                    dy: (index as f32 * line_height * font_size as f32) as usize,
-                }
-            })
-            .collect(),
-    )
+            WrappedTextLine {
+                words,
+                width: line_width,
+                dx,
+                dy: (index as f32 * line_height_in_px) as usize,
+            }
+        })
+        .collect();
+
+    Some(WrappedTextStructure {
+        lines,
+        line_height_in_px,
+        hash,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct EstimateTextWidthOptions<'a> {
+    pub font_family: &'a str,
+    pub font_size: usize,
+    pub font_weight: u16,
+    pub font_style: FontStyle,
+    pub font_stretch: FontStretch,
+}
+
+/// Estimates the width of the text in pixels.
+/// Returns `None` if the font is not resolved.
+///
+/// **Important! font**
+pub fn estimate_text_width<'a>(
+    ctx: &FFramesContext<'a, '_>,
+    text: &'a str,
+    options: EstimateTextWidthOptions<'a>,
+) -> Option<usize> {
+    let EstimateTextWidthOptions {
+        font_family,
+        font_size,
+        font_weight,
+        font_style,
+        font_stretch,
+    } = options;
+
+    let font_face =
+        ctx.font_source?
+            .resolve_font(font_family, font_weight, font_style, font_stretch)?;
+
+    let font_variant = font_face.font_variant(font_size)?;
+
+    match font_variant {
+        FontVariant::Monospaced(mono_width) => Some(text.len() * mono_width),
+        FontVariant::Variable => {
+            let total_width = text
+                .chars()
+                .filter_map(|char| font_face.resolve_char_width(font_size, char))
+                .sum();
+            Some(total_width)
+        }
+    }
 }

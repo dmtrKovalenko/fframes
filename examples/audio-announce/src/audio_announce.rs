@@ -43,8 +43,8 @@ impl AudioAnnounce<'_> {
                     fframes::BreakLinesOpts {
                       width: 1400,
                       line_height: 1.2,
-                      x: "450",
-                      y: "170",
+                      x: 450,
+                      y: 170,
                       font_size: 120,
                       font_family: self.font.unwrap_or("JetBrains Mono"),
                       align: fframes::TextAlign::Left,

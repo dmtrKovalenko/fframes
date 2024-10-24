@@ -25,6 +25,8 @@ members = [
     "examples/low-poly-art/editor/editor-bridge",
     "examples/beta",
     "examples/beta/editor/editor-bridge",
+    "examples/conference-splash-screen",
+    "examples/conference-splash-screen/editor/editor-bridge",
 ]
 
 [workspace.dependencies]
@@ -34,7 +36,13 @@ members = [
 # usvgr = { path = "../svgr/crates/usvgr"}
 svgr = "0.43.1"
 usvgr = "0.43.1"
-ffmpeg-sys-fframes = { version = "7.1.0", features = ["build", "static"] }
+ffmpeg-sys-fframes = { package = "ffmpeg-sys-fframes", version = "7.0.3", features = [
+    "build",
+    "static",
+    "build-lib-x264",
+    "build-lib-x265",
+    "build-license-gpl",
+] }
 wasm-bindgen = "0.2.95"
 
 # fframes internal deps 
@@ -44,4 +52,3 @@ svgr-macro = { path = "svgr-macro", version = "1.0.0-beta.4" }
 fframes-media-dir-macro = { path = "media-dir-macro", version = "1.0.0-beta.4" }
 fframes = { path = "fframes", version = "1.0.0-beta.4" }
 webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.4" }
-

@@ -1,7 +1,7 @@
 use crate::error::{FFramesError, Result};
 use std::{fmt, iter::FromIterator};
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Svgr<'a> {
     #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
     pub value: String,

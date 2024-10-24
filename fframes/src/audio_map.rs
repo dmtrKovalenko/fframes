@@ -307,7 +307,6 @@ impl<'a> AudioMap<'a> {
         let scenes_resolved_map = scenes
             .map(|scenes| -> crate::error::Result<_> {
                 Ok(scenes
-                    .0
                     .iter()
                     .map(|(range, _, scene)| {
                         scene.audio().resolve(

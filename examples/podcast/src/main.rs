@@ -14,7 +14,7 @@ fn main() {
             guest_audio: "final.mp3",
         },
         "out.mp4",
-        RenderOptions {
+        &RenderOptions {
             media: Some(&media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {

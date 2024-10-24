@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub enum FontVariant {
     Monospaced(usize),
-    Other,
+    Variable,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
@@ -86,7 +87,7 @@ pub trait FontFace<'a>: Sync + Send + std::fmt::Debug {
                 self.resolve_char_width(font_size, 'm')?,
             ))
         } else {
-            Some(FontVariant::Other)
+            Some(FontVariant::Variable)
         }
     }
 }

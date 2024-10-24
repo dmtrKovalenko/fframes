@@ -24,15 +24,27 @@ function reducer(state, action) {
   if (action.TAG === /* InitMediaProcessing */0) {
     return {
             allMediaLoaded: state.allMediaLoaded,
-            mediaList: Belt_MapString.fromArray(Belt_Array.map(Object.keys(action._0), (function (relativePath) {
-                        return [
-                                Utils.Path.getFilename(relativePath),
-                                {
-                                  TAG: /* Loading */0,
-                                  _0: relativePath
-                                }
-                              ];
-                      })))
+            mediaList: Belt_MapString.merge(state.mediaList, Belt_MapString.fromArray(Belt_Array.map(Object.keys(action._0), (function (relativePath) {
+                            return [
+                                    Utils.Path.getFilename(relativePath),
+                                    {
+                                      TAG: /* Loading */0,
+                                      _0: relativePath
+                                    }
+                                  ];
+                          }))), (function (param, staticVal, dynamicVal) {
+                    if (staticVal !== undefined) {
+                      if (dynamicVal !== undefined) {
+                        return dynamicVal;
+                      } else {
+                        return staticVal;
+                      }
+                    } else if (dynamicVal !== undefined) {
+                      return dynamicVal;
+                    } else {
+                      return ;
+                    }
+                  }))
           };
   }
   var media = action._1;

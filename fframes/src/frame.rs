@@ -1,11 +1,12 @@
 use fframes_media_loaders::{FFramesSubtitles, FFramesSubtitlesCue};
 use std::{ops::DerefMut, sync::Arc};
+use usvgr::svgtree::SvgAttributeValue;
 
 use crate::{
     animation, get_visualization,
-    text_wrap::{text_wrap_impl, BreakLinesOpts},
+    text::{text_wrap_impl, BreakLinesOpts},
     video_data::{FFramesSyncedVideoFrame, WorkerLocalVideoDecoders},
-    BreaksLruCache, SyncVideoFrameInput, VisualizeFrameInput, WrappedTextStructure,
+    BreaksLruCache, Svgr, SyncVideoFrameInput, VisualizeFrameInput, WrappedTextStructure,
 };
 
 /// Contains all the temporal information about the current frame and the mutable links to the
@@ -163,7 +164,7 @@ impl Frame {
     ///   <rect
     ///     y={frame.animate(fframes::timeline!(
     ///         on 2.3, val 1400. => 770., Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 },
-    ///         on 4.8, val 770. => 1400., Easing::Spring { mass: 1.85, stiffness: 130.0,a damping: 16.0 }
+    ///         on 4.8, val 770. => 1400., Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 }
     ///     ))}
     ///   />
     /// );
@@ -214,20 +215,15 @@ impl Frame {
     /// This function is executed in runtime and create idiomatic svg <text> <tspan> text </tspan> </text> structure
     /// which wraps the text string into the lines.
     ///
-    /// It resolves individual character widths from provided font files automatically. **Important:
-    /// it won't work with system fonts in the editor, but would work with them in the renderer**.
+    /// It resolves individual character widths from provided font files automatically.
+    /// **Important: it won't work with system fonts in the editor, but would work with them in the renderer**.
     ///
-    /// Line wrap rules is the same as css have for standard (no break-word support) wrapping. If font can not be resolved returns `None`.
+    /// Line breaking rules are compatible with CSS line breaking rules with not support for word
+    /// break in any form.
+    /// If font can not be resolved returns `None`.
     ///
-    /// @example
     /// ```no_run
-    /// let frame = fframes::Frame {
-    ///   ..Default::default()
-    /// };
-    ///
-    /// let ctx: fframes::FFramesContext = todo!();
-    ///
-    /// let wrapped_text = frame.text_break_lines(&ctx, "Hello world", &fframes::BreakLinesOpts {
+    /// let options = &fframes::BreakLinesOpts {
     ///     // max width of the text content. Once line become wider it wraps.
     ///     width: 500,
     ///     // font family name resolved. Can be checked in the editor for resolved font file.
@@ -240,42 +236,27 @@ impl Frame {
     ///     ..Default::default()
     /// });
     ///
-    /// ```  
-    pub fn text_break_lines<'a>(
+    /// let wrapped_text = frame.text_break_lines(&ctx, "Hello world", options);
+    /// ```
+    ///
+    /// Output of this function can be converted to svgr using `WrappedTextStructure::as_svgr`
+    ///
+    /// ```no_run
+    /// svgr!(
+    ///    <g>
+    ///        {wrapped_text.as_svgr(options)}
+    ///    </g>
+    /// )
+    /// ```
+    pub fn text_break_lines_structure<
+        'a,
+        X: Into<SvgAttributeValue<'a>> + std::hash::Hash + Default,
+        Y: Into<SvgAttributeValue<'a>> + std::hash::Hash + Default,
+    >(
         &mut self,
         ctx: &crate::FFramesContext<'a, '_>,
         value: &str,
-        opts: BreakLinesOpts<'a>,
-    ) -> Option<crate::Svgr<'a>> {
-        let font_source = ctx.font_source?;
-        let hash = opts.hash_with_value(value);
-
-        if let Some(cache_mutex) = self.breaks_lru_cache.as_ref() {
-            cache_mutex
-                .0
-                .lock()
-                .ok()?
-                .deref_mut()
-                .get_or_insert(hash, || {
-                    text_wrap_impl(value, font_source, opts)
-                        .map(|lines| WrappedTextStructure::new(lines, hash))
-                })
-                .as_ref()
-                .map(|structure| structure.as_svgr(opts))
-        } else {
-            text_wrap_impl(value, ctx.font_source?, opts)
-                .map(|lines| WrappedTextStructure::new(lines, hash).as_svgr(opts))
-        }
-    }
-
-    /// Same as `text_break_lines` but returns inner lines structure instead of ready-to-render svgr.
-    /// It may be used to customize renderer of wrapped text lines. Every line contains `dx` and `dy` fields which must
-    /// be passed to `dx={line.dx} dy={line.dy}` attribute of the every line <tspan> element.
-    pub fn text_break_lines_structure<'a: 'b, 'b, 'media: 'a>(
-        &mut self,
-        ctx: &crate::FFramesContext<'a, 'media>,
-        value: &'b str,
-        opts: &BreakLinesOpts,
+        opts: BreakLinesOpts<'a, X, Y>,
     ) -> Option<WrappedTextStructure> {
         let font_source = ctx.font_source?;
         let hash = opts.hash_with_value(value);
@@ -286,15 +267,53 @@ impl Frame {
                 .lock()
                 .ok()?
                 .deref_mut()
-                .get_or_insert(hash, || {
-                    text_wrap_impl(value, font_source, *opts)
-                        .map(|lines| WrappedTextStructure::new(lines, hash))
-                })
+                .get_or_insert(hash, || text_wrap_impl(hash, value, font_source, opts))
                 .clone()
         } else {
-            text_wrap_impl(value, font_source, *opts)
-                .map(|lines| WrappedTextStructure::new(lines, hash))
+            text_wrap_impl(hash, value, font_source, opts)
         }
+    }
+
+    /// Wraps the text string into the lines according to the provided content area width.
+    /// Outputs the ready to use svgr text element. If font can not be resolved returns `None`.
+    ///
+    /// It resolves individual character widths from provided font files automatically.
+    /// **Important: it won't work with system fonts in the editor, but would work with them in the renderer**.
+    ///
+    /// ```no_run
+    /// svgr!(
+    ///   <g>
+    ///     {frame.text_break_lines(&ctx, "Hello world", &fframes::BreakLinesOpts {
+    ///         // max width of the text content. Once line become wider it wraps.
+    ///         width: 500,
+    ///         // resolved font family name (check preview media list)
+    ///         font_family: "Roboto",
+    ///         x: "100",
+    ///         y: "100",
+    ///         align: fframes::TextAlign::Center,
+    ///         ..Default::default()
+    ///     })}
+    ///   </g>
+    /// )
+    /// ```
+    ///
+    /// This method is an alias to `text_break_lines_structure` method with `as_svgr` call.
+    /// If you need more control or information about the text structure use
+    /// `text_break_lines_structure` method.
+    pub fn text_break_lines<
+        'a,
+        X: Into<SvgAttributeValue<'a>> + std::hash::Hash + Default + Copy,
+        Y: Into<SvgAttributeValue<'a>> + std::hash::Hash + Default + Copy,
+    >(
+        &mut self,
+        ctx: &crate::FFramesContext<'a, '_>,
+        value: &str,
+        opts: BreakLinesOpts<'a, X, Y>,
+    ) -> Option<Svgr<'a>> {
+        Some(
+            self.text_break_lines_structure(ctx, value, opts)?
+                .as_svgr(opts),
+        )
     }
 
     /// Returns a phrase that must be rendered by time in this frame.

@@ -24,7 +24,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia>;
 
     /// Returns all the font data along with the original file name
-    // fn populate_font_source(&'a self, font_source: &mut dyn FontSource) -> Result<Vec<RawFontData>>;
+    /// fn populate_font_source(&'a self, font_source: &mut dyn FontSource) -> Result<Vec<RawFontData>>;
     fn populate_font_source(&'a self, font_source: &mut dyn FontSource);
     #[cfg(not(target_arch = "wasm32"))]
     fn populate_image_source(

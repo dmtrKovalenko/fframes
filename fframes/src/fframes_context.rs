@@ -50,7 +50,6 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         if let Some(scenes) = self.scenes.as_ref() {
             Svgr::from_iter(
                 scenes
-                    .0
                     .iter()
                     .filter(|&(range, _, _scene)| range.contains(&global_frame.index))
                     .map(|(range, _, scene)| {
@@ -68,7 +67,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
     /// Finds the scene layout and duration information based on the layout of defined in `define_scenes` of the `Video`.
     pub fn get_scene_info<T: crate::Scene>(&self, scene: &T) -> Option<&crate::SceneInfo> {
         if let Some(scenes) = self.scenes.as_ref() {
-            scenes.0.iter().find_map(|(_, info, boxed_scene)| {
+            scenes.iter().find_map(|(_, info, boxed_scene)| {
                 #[allow(clippy::ptr_eq)]
                 let pointers_equal =
                     *boxed_scene as *const dyn crate::Scene as *const T == scene as *const T;

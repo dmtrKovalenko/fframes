@@ -54,10 +54,22 @@ module ObserverState = {
     switch action {
     | InitMediaProcessing(imports) => {
         ...state,
-        mediaList: imports
-        ->Js.Dict.keysToArray
-        ->Array.map(relativePath => (Utils.Path.getFilename(relativePath), Loading(relativePath)))
-        ->Map.String.fromArray,
+        mediaList: Map.String.merge(
+          state.mediaList,
+          imports
+          ->Js.Dict.keysToArray
+          ->Array.map(relativePath => (Utils.Path.getFilename(relativePath), Loading(relativePath)))
+          ->Map.String.fromArray,
+          (_, staticVal, dynamicVal) => {
+            switch (staticVal, dynamicVal) {
+            | (Some(val), None) => Some(val)
+            | (None, Some(val)) => Some(val)
+            // if we have same file in both folders prefer dynamic
+            | (Some(_), Some(dynamicValue)) => Some(dynamicValue)
+            | _ => None
+            }
+          },
+        ),
       }
     | MediaItemProcessed(name, media) => {
         ...state,

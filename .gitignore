@@ -18,3 +18,4 @@ e2e/frames/diff/*
 fframes-renderer/c_render_bin
 .idea
 fframes-editor/tw.css
+examples/**/output/

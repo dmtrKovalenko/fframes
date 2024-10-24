@@ -1,0 +1,31 @@
+[package]
+name = "conference-splash-screen-example"
+version = "1.0.0-beta.1"
+edition = "2021"
+
+[dependencies]
+fframes = { path = "../../fframes" }
+clap = { version = "4.3.4", features = ["derive"] }
+getrandom = { version = "0.2.15", features = ["js"] }
+serde = "1.0.210"
+serde_json = "1.0.132"
+rayon = "1.10.0"
+image = "0.25.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fframes_renderer = { path = "../../fframes-renderer" }
+
+[features]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "conference_splash_screen"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "conference_splash_screen_bin"
+path = "src/main.rs"
+required-features = ["renderer"]

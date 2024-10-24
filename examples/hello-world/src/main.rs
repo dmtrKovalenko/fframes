@@ -30,7 +30,7 @@ fn main() {
             slug: &args.slug,
         },
         args.output.as_str(),
-        RenderOptions {
+        &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,

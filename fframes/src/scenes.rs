@@ -83,11 +83,13 @@ impl<'a> From<Vec<&'a dyn Scene>> for Scenes<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct SceneWithAudio<'a> {
     pub audio_map: AudioMap<'a>,
     pub scene: &'a (dyn Scene + 'a),
 }
 
+#[derive(Debug)]
 pub struct ScenesWithAudio<'a>(pub(crate) Option<Vec<SceneWithAudio<'a>>>);
 
 impl<'a> ScenesWithAudio<'a> {

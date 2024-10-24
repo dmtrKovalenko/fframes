@@ -1,0 +1,114 @@
+[
+  {
+    "abstract": "Signals and fine-grained reactivity are two popular concepts in the JavaScript world, thanks to their simplicity, ergonomics and excellent performance. What are signals? What is their type? How can we use them in OCaml? Let's build a reactive UI library from scratch to find out! From simple callbacks, layers are added to support batching, resource cleanup and `let` syntax for composing effects. DOM interactions are implemented to allow predictable, minimal and efficient UI updates. Finally, helix is revealed, a library based on the presented reactivity principles. I review some examples and discuss how helix is used to implement real-world applications at Hyper and Tarides.",
+    "proposal_title": "Let Signals in OCaml",
+    "speaker_name": "Rizo Isrof",
+    "social_links": "https://github.com/rizo, https://x.com/rizo_isrof",
+    "avatar": "rizo.jpg"
+  },
+  {
+    "abstract": "We present the good and the bad of building a dataflow engine in OCaml. The engine underpins a complex ecological analysis of avoided deforestation projects in tropical moist rainforests. We will discuss: Onboarding experienced developers who are new to OCaml. - Building an operating system in OCaml to run Python/R code.Developing geospatial libraries and how this benefited from Outreachy internships and the compiler's backwards compatibility. Managing a transition from monadic, asynchronous libraries to direct-style code. This work is part of a multi-year collaboration between the departments of Computer Science, Ecology, Zoology and Geography at the University of Cambridge.",
+    "proposal_title": "Building Incremental and Reproducible Data Pipelines for Tackling Climate Change",
+    "speaker_name": "Patrick Ferris",
+    "social_links": null,
+    "avatar": "patrick.jpg"
+  },
+  {
+    "abstract": "In my decade-long journey as a software engineer, the most transformative experience came from an unexpected source: learning and using OCaml. I will share how this functional programming language reshaped my approach to problem-solving, coding practices, and overall mindset about programming. Beyond the technical skills, OCaml connected me with incredibly bright, kind, and talented mentors and peers who have become lifelong friends. This journey also paved the way for my success on Twitch, allowing me to share my passion and knowledge with a broader audience. Join me as I explore the personal and professional growth that OCaml facilitated and celebrate the community that made it possible.",
+    "proposal_title": "Maybe OCaml Was the Friends We Made Along the Way",
+    "speaker_name": "Dillon Mulroy",
+    "social_links": null,
+    "avatar": "dillon.jpg"
+  },
+  {
+    "abstract": "Each year the demo community run Tiny Code Xmas - using fantasy consoles like TIC-80 and PICO-8 to teach people to do retro graphics effects and size coding. But I didn't want to learn size coding, I wanted to learn OCaml! So for my first OCaml project I built a small fantasy console engine using OCaml, and implemented both Tiny Code Xmas and most of Genuary (generate art January) in it. In this talk I'll show why demo coding suits functional programming, look at how I built my first OCaml library, and show some examples of generative art using it.",
+    "proposal_title": "Learning OCaml with Tiny Code Xmas",
+    "speaker_name": "Michael Dales",
+    "social_links": "https://toot.mynameismwd.org/@michael",
+    "avatar": "michael.jpg"
+  },
+  {
+    "abstract": "In a first, OCaml 5.0 shipped with native support for parallelism and concurrency. This was a multi-year effort by the Multicore team and the OCaml development team that culminated in OCaml 5.0. The most challenging aspect was designing a multicore-capable garbage collector that remains backwards compatible in terms of features, performance, and latency. This is described in the paper 'Retrofitting Parallelism onto OCaml,' which appeared in ICFP 2020. In this talk, we will explore the ideas presented in the paper through doodle illustrations and zines.",
+    "proposal_title": "How the Multicore Garbage Collector works",
+    "speaker_name": "Sudha",
+    "social_links": null,
+    "avatar": "sudha.jpg"
+  },
+  {
+    "abstract": "This talk is a gentle introduction to the documenting part of the OCaml ecosystem. We will see how to use `odoc` to build nice documentation for your `dune`-based project, from a bare repository to a documentation with both API pages and documentation pages.",
+    "proposal_title": "Using odoc to Write Documentation",
+    "speaker_name": "Paul-Elliot d'Auriac",
+    "social_links": null,
+    "avatar": "paul-elliot.jpg"
+  },
+  {
+    "abstract": "OCaml is a great systems programming language. We use it since more than a decade to develop MirageOS unikernels: run OCaml as a virtual machine, no Linux kernel involved. Since OCaml is statically typed (and type safe), and memory safe, we use a single address space, and avoided a lot of complexity of general purpose operating systems. Security-wise this is excellent: less attack surface, fewer attack vectors. Also less resource-heavy than contemporary OS. The result are tiny unikernels (e.g. a firewall with ~3MB as the full virtual machine image) that only contain the code really needed. I'll present what MirageOS is today and where it is used, its future, and our learnings so far.",
+    "proposal_title": "MirageOS - Developing Operating Systems in OCaml",
+    "speaker_name": "Hannes Mehnert",
+    "social_links": null,
+    "avatar": "hannes.jpg"
+  },
+  {
+    "abstract": "Traditionally GADT's are used for lightweight tasks as the code complexity increases quite. I will be arguing that this is mostly a lack of common \"design patterns\" and maybe some tools. The talk will go through describing what you can fundamentally do with GADT's, how you should think about them and a general technique to mimic dependent types in OCaml, Hopefully by the end, a show case of a proposal for the Michelson interpreter.",
+    "proposal_title": "\"Easy\" GADT's by repeating yourself.",
+    "speaker_name": "Eduardo Rafael",
+    "social_links": "https://github.com/EduardoRFS, https://x.com/TheEduardoRFS",
+    "avatar": "eduardo.jpg"
+  },
+  {
+    "abstract": "Using [OCANNL](https://github.com/ahrefs/ocannl), we will build a toy feed forward network, we will train it, visualize its outputs. We will take a peek at the actual computation generated at various levels of abstraction: tensor node assignments, optimized C-language-like programs, translations to actual C (for CPUs, or CUDA but it is still work-in-progress). Lastly, we will parallelize training across multiple devices.",
+    "proposal_title": "OCANNL, the `neural_nets_lib`. Mysteries of NNs training unveiled in OCaml",
+    "speaker_name": "Lukasz Stafiniak",
+    "social_links": null,
+    "avatar": "lukasz.jpg"
+  },
+  {
+    "abstract": "I am the author of the https://github.com/dmtrKovalenko/odiff which claims to be and it is the fastest in the world (on my banchmarks lol) implementation of the pixel-by-pixel image comparison library which is written in OCaml (and a little bit of C). This is a story about standing the project. Why not to write it in C or Rust? How do we tune the garbage collector to avoid major collections at all? All this and much more like the hidden superpower of unboxed floats and some challenges about naked pointers and upgrading to OCaml v5 in my talk!",
+    "proposal_title": "The Story Behind the Fastest Image Comparison Library in the World Written in OCaml",
+    "speaker_name": "Dmitriy Kovalenko",
+    "social_links": "https://twitter.com/neogoose_btw,https://github.com/dmtrKovalenko/",
+    "avatar": "dmitriy.jpg"
+  },
+  {
+    "abstract": "Dune is a build system for OCaml projects. But what is a build system? \"It rebuilds just the necessary parts\" is a good start, but it can be useful to understand the underlying model and write dune files that are performant and simple. The building block of Dune is the rule: a rule reads dependencies and writes targets using an action (and it can be attached to aliases). In this talk, I will walk the audience through how \"dune build\" operates. I will explain the concepts of rules, dependencies, targets, actions, and aliases. Then we'll see how dune files are interpreted to determine the rules that apply to the project. And finally, how Dune determines how to build the required targets.",
+    "proposal_title": "The Dune Mental Model",
+    "speaker_name": "Etienne Millon",
+    "social_links": null,
+    "avatar": null
+  },
+  {
+    "abstract": "With four different kinds of variants and four different implementations of an object system, OCaml provides many options to design types to fit domain problems. However, it can be sometimes tempting to escalate type complexity, at the cost of code readability. It is therefore important to find a compromise between code complexity and type safety, in order to not let GADTs escape their scope. As a showcase, this talk proposes to review the use of advanced type features in the oldest OCaml project: the OCaml compiler",
+    "proposal_title": "Type engineering in OCaml, illustrated on the OCaml compiler",
+    "speaker_name": "Florian Angeletti",
+    "social_links": null,
+    "avatar": null
+  },
+  {
+    "abstract": "server-reason-react implements react-dom/server and some of React's internals in OCaml. Its purpose is to natively render HTML markup from the server for a Reason React application. This pushes the idea for universal code (sharing code between the browser and native) and this talk is the story of all of this, and what are the solutions we applied at Ahrefs.",
+    "proposal_title": "Universal React in OCaml",
+    "speaker_name": "David Sancho Moreno",
+    "social_links": null,
+    "avatar": "davesnx.jpg"
+  },
+  {
+    "abstract": "Melange is a new compiler for OCaml targeting JavaScript. Melange codebases integrate with the OCaml Platform: install from OPAM, build with Dune, preprocess with `ppxlib`, format with OCamlformat and publish with `dune-release`. Merlin, OCaml-LSP and `odoc` work out of the box. In this talk, I will tell you about the Melange success story and give a glimpse of what's coming in the near future.",
+    "proposal_title": "A 'Melange' of Tooling Coming Together",
+    "speaker_name": "Antonio Monteiro",
+    "social_links": null,
+    "avatar": "antonio.jpg"
+  },
+  {
+    "abstract": "In this talk Leandro Ostera, the PM of OCaml Build System team at Tarides shows the future of developer experience in dune. He will present the new features that are being developed and the roadmap for the next releases.",
+    "proposal_title": "The future of Dune",
+    "speaker_name": "Leandro Ostera",
+    "social_links": "https://github.com/leostera, https://twitter.com/leostera",
+    "avatar": "leandro.jpeg"
+  },
+  {
+    "abstract": "In this workshop we'll learn about Riot and how to build systems with it by using supervision trees, processes, and message passing. As an example application, we will build and deploy a small web application.",
+    "proposal_title": "Building Reliable Actor Systems with OCaml and Riot",
+    "speaker_name": "Leandro Ostera",
+    "social_links": "https://github.com/leostera, https://twitter.com/leostera",
+    "avatar": "leandro.jpeg"
+  }
+]

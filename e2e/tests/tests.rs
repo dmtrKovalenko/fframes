@@ -13,7 +13,7 @@ fn e2e_rendering() {
             slug: "This frame index:".to_owned(),
         },
         "out.mp4",
-        RenderOptions {
+        &RenderOptions {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 cache_capacity: 5,

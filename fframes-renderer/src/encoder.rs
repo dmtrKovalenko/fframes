@@ -78,8 +78,7 @@ pub struct EncoderOptions<'a> {
     ///
     /// You can pass this set of options like:
     /// ```rust
-    /// let encoder_options = fframes_renderer::EncoderOptions {
-    ///     codec_params: Some(&[("crf", "23"), ("tune", "animation"), ("preset", "ultrafast")]),
+    /// let encoder_options = fframes_renderer::EncoderOptions { codec_params: Some(&[("crf", "23"), ("tune", "animation"), ("preset", "ultrafast")]),
     ///     ..Default::default()
     /// };
     /// ```
