@@ -218,12 +218,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,
-        out: &str,
         video: &'a TVideo,
         usvg_options: &usvgr::Options,
         font_db: &usvgr::fontdb::Database,
         ctx: fframes::FFramesContext<'a, 'media>,
-    ) -> FFramesRendererResult<()> {
+    ) -> FFramesRendererResult<Vec<u8>> {
         let mut pixmap = svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32)
             .ok_or_else(|| FFramesRendererError::Internal("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
 
@@ -243,9 +242,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             &ctx,
         );
 
-        let buffer = pixmap.encode_png().unwrap();
-        std::fs::write(out, buffer)?;
-
-        Ok(())
+        Ok(pixmap.take())
     }
 }

@@ -13,12 +13,11 @@ pub trait FFramesRenderBackend {
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,
-        out: &str,
         video: &'a TVideo,
         usvg_options: &usvgr::Options,
         font_db: &usvgr::fontdb::Database,
         ctx: fframes::FFramesContext<'a, 'media>,
-    ) -> FFramesRendererResult<()>;
+    ) -> FFramesRendererResult<Vec<u8>>;
 
     fn render<'a, TVideo: Video + Sync + Sized>(
         &self,

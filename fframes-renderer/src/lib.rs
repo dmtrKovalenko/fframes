@@ -130,16 +130,27 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
 
 /// Renders a single frame into the output image file.
 /// Prints all the rendering warns and errors for the frame along with the svg file itself.
+/// Returns a byte representation specific to the render backend used.
+/// For CpuRenderBackend it is a RGBA image of the video size.
 ///
-/// Compiles only for debug target.
-//#[cfg(debug_assertions)]
-pub fn debug_frame<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
+/// Convert the RGBA output to image using `image` crate:
+///
+/// ```no_run
+///    let frame_buffer = fframes_renderer::render_frame(...)?;
+///    let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(VIDEO::WIDTH as u32, VIDEO::HEIGHT as u32, frame_buffer)?;
+///
+///    img_buffer.save(output_path)?;
+/// ```
+pub fn render_frame<
+    'a,
+    'media: 'a,
+    TBackend: FFramesRenderBackend,
+    TVideo: Video + Sync + Sized,
+>(
     frame_index: usize,
     video: &'a TVideo,
-    output_png: &'a str,
     options: RenderOptions<'a, TBackend>,
-) -> FFramesRendererResult<()> {
-    let logger = fframes_logger::make_logger(options.logger.clone());
+) -> FFramesRendererResult<Vec<u8>> {
     let time_base = TimeBase {
         fps: TVideo::FPS,
         sample_rate: options.encoder_options.sample_rate,
@@ -171,8 +182,6 @@ pub fn debug_frame<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video
             },
         )?;
 
-    logger.init_frames_rendering(timeline.duration_in_frames)?;
-
     let mut image_source = HashMap::new();
     let mut font_source = RendererFontSource {
         fontdb: fontdb::Database::new(),
@@ -202,7 +211,6 @@ pub fn debug_frame<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video
     let font_db = font_source.as_db_ref();
     options.render_backend.render_frame(
         fframes::Frame::new(frame_index, frame_index, TVideo::FPS),
-        output_png,
         video,
         &fframes::usvgr::Options {
             image_data: Some(&image_source),
@@ -211,7 +219,5 @@ pub fn debug_frame<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video
         },
         font_db,
         ctx,
-    )?;
-
-    Ok(())
+    )
 }
