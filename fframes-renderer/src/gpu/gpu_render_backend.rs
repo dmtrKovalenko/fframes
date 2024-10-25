@@ -403,8 +403,7 @@ impl FFramesRenderBackend for GpuRenderingBackend {
         Ok(())
     }
 
-    #[cfg(debug_assertions)]
-    fn debug_frame<TVideo: Video + Sync + Sized>(
+    fn render_frame<TVideo: Video + Sync + Sized>(
         &self,
         _frame: fframes::Frame,
         _out: &str,

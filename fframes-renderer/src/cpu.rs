@@ -17,6 +17,7 @@ use crate::{
     renderer_error::{FFramesRendererError, FFramesRendererResult},
 };
 
+#[derive(Debug, Clone)]
 pub struct CpuRenderingBackend {
     /// The number of **individual svg elements or groups** to cache. Pure CPU rendering is very slow
     /// for mostly any filter, shadows, or gradients so it is important to cache unchanged elements.
@@ -214,8 +215,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         Ok(())
     }
 
-    #[cfg(debug_assertions)]
-    fn debug_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
+    fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         &self,
         frame: fframes::Frame,
         out: &str,
