@@ -1,15 +1,15 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { Editor } from "fframes-editor/src/ui/Editor.gen";
-import { EditorContext } from "fframes-editor/src/EditorContext.gen";
+import { Editor } from "../src/ui/Editor.gen";
+import { EditorContext } from "../src/EditorContext.gen";
 import type {
   EditorOptions,
   WasmController,
   mediaFolder,
-} from "fframes-editor/src/WasmController.gen";
-import { processMedia } from "fframes-editor/src/services/mediaLoader.gen";
-import "fframes-editor/fonts/fonts.css";
-import "fframes-editor/tw.css";
+} from "../src/WasmController.gen";
+import { processMedia } from "../src/services/mediaLoader.gen";
+import "../fonts/fonts.css";
+import "../tw.css";
 
 let lastImports: mediaFolder | undefined = undefined;
 

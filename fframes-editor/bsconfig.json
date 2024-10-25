@@ -1,5 +1,5 @@
 {
-  "name": "fframes-editor",
+  "name": "@fframes/editor",
   "version": "0.0.1",
   "sources": {
     "dir": "src",

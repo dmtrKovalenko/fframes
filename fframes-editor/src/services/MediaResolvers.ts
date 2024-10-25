@@ -2,7 +2,7 @@ import {
     MediaResolver,
     StaticMediaResolver,
     resolveMedia,
-} from "fframes-editor/src/services/mediaLoader.gen";
+} from "../../src/services/mediaLoader.gen";
 import { fontInfo, generalVideoFileMetadata } from "src/WasmController.gen";
 
 const audioContext = new AudioContext();

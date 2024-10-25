@@ -135,9 +135,9 @@ pub fn render<'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
 ///
 /// Convert the RGBA output to image using `image` crate:
 ///
-/// ```no_run
+/// ```ignore
 ///    let frame_buffer = fframes_renderer::render_frame(...)?;
-///    let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(VIDEO::WIDTH as u32, VIDEO::HEIGHT as u32, frame_buffer)?;
+///    let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(your_video::WIDTH as u32, your_video::HEIGHT as u32, frame_buffer)?;
 ///
 ///    img_buffer.save(output_path)?;
 /// ```

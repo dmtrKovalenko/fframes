@@ -1,6 +1,7 @@
 {
-  "name": "fframes-editor",
-  "version": "0.0.1",
+  "name": "@fframes/editor",
+  "version": "1.0.0",
+  "public": true,
   "keywords": [
     "rescript"
   ],
@@ -10,7 +11,8 @@
   "types": "./src/fframes-editor.tsx",
   "scripts": {
     "build": "yarn rescript:build && yarn bundle:dev",
-    "bundle:dev": "node esbuild.mjs && tailwindcss -o tw.css",
+    "bundle:dev": "tailwindcss -o tw.css && node esbuild.mjs",
+    "build:prod": "tailwindcss -m -o tw.css && yarn rescript:build && node esbuild.mjs -r",
     "dev": "concurrently --raw 'rescript build -w' 'tailwindcss -o tw.css --watch' 'node esbuild.mjs --watch'",
     "postinstall": "ln -s -f ./src/shims ./src/services/shims",
     "rescript:build": "rescript build -with-deps",
@@ -36,6 +38,7 @@
     "use-debounce": "^8.0.1"
   },
   "devDependencies": {
+    "@types/node": "^22.7.9",
     "concurrently": "^7.3.0",
     "esbuild": "^0.14.3"
   }

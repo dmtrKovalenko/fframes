@@ -21,8 +21,36 @@ jobs:
         with:
           config: ./typos.toml
 
-  build:
+  build-rescript:
+    name: Build ReScript
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install frontend deps
+        run: |
+          npm install -g yarn
+          yarn install --frozen-lockfile --prefer-offline
+
+      # - name: Syncpack
+      #   working-directory: fframes-editor
+      #   run: yarn syncpack lint
+ 
+      - name: Build frontend
+        working-directory: fframes-editor
+        run: yarn build 
+
+  build-rust:
     name: Build and Test
+    if: github.event_name == 'pull_request'
     continue-on-error: true
     defaults:
       run:
@@ -53,40 +81,29 @@ jobs:
           brew install pkg-config ffmpeg x264 x265 opus nasm
           brew link x264 x265 --force
 
-      - name: Install yarn
-        run: |-
-          curl -fsSL --create-dirs -o $HOME/.local/bin/yarn \
-          https://github.com/yarnpkg/yarn/releases/download/v1.22.19/yarn-1.22.19.js
-          chmod +x $HOME/.local/bin/yarn
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
           components: rustfmt, clippy
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v1-rust"
-          cache-on-failure: true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "yarn"
+      - name: Install frontend deps
+        run: |
+          npm install -g yarn
+          yarn install --frozen-lockfile --prefer-offline
 
       - name: Install frontend deps
         run: |
           npm install -g yarn
           yarn install --frozen-lockfile --prefer-offline
 
-      - name: Syncpack
-        run: just syncpack
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v2-rust"
+          cache-on-failure: true
 
       - name: Build
-        run: just build
+        run: just clippy
 
       - name: Check format
         run: cargo fmt --check
@@ -95,9 +112,6 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
           just check-examples
-
-      - name: Clippy
-        run: just clippy
 
       - name: Test
         run: just test
@@ -113,6 +127,54 @@ jobs:
             e2e/frames/diff
             e2e/out.mp4
             */**/_svgr_snapshots/*
+
+  release:
+    name: Publish nightly release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install apt-deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev 
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          always-auth: true
+          node-version: "20"
+          egistry-url: 'https://registry.npmjs.org'
+          cache: "yarn"
+
+      - name: Install frontend deps
+        run: |
+          npm install -g yarn
+          yarn install --frozen-lockfile --prefer-offline
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v2-rust"
+          cache-on-failure: true
+
+      - name: Run Release Script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          git fetch --tags
+          bash release.sh "$(git describe --tags $(git rev-list --tags --max-count=1)).rc-$(git rev-parse --short HEAD)"
 
   # not now
   # check-windows-build: 

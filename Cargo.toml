@@ -38,10 +38,10 @@ ffmpeg-sys-fframes = { version = "7.1.0", features = ["build", "static"] }
 wasm-bindgen = "0.2.95"
 
 # fframes internal deps 
-fframes_renderer = { path = "fframes-renderer", version = "1.0.0-beta.1" }
-fframes-media-loaders = { path = "fframes-media-loaders", version = "1.0.0-beta.1" }
-svgr-macro = { path = "svgr-macro", version = "1.0.0-beta.1" }
-fframes-media-dir-macro = { path = "media-dir-macro", version = "1.0.0-beta.1" }
-fframes = { path = "fframes", version = "1.0.0-beta.1" }
-webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.1" }
+fframes_renderer = { path = "fframes-renderer", version = "1.0.0-beta.4" }
+fframes-media-loaders = { path = "fframes-media-loaders", version = "1.0.0-beta.4" }
+svgr-macro = { path = "svgr-macro", version = "1.0.0-beta.4" }
+fframes-media-dir-macro = { path = "media-dir-macro", version = "1.0.0-beta.4" }
+fframes = { path = "fframes", version = "1.0.0-beta.4" }
+webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.4" }
 

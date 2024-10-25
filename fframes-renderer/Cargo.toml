@@ -1,7 +1,7 @@
 [package]
 name = "fframes_renderer"
 description = "Renderer and encoder for fframes"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.4"
 edition = "2021"
 homepage = "https://fframes.studio"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]

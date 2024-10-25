@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! setup_wasm_editor {
     ($x:tt, $params:tt, $static_media:expr) => {
-        #[wasm_bindgen(module = "fframes-editor")]
+        #[wasm_bindgen(module = "@fframes/editor")]
         extern "C" {
             #[wasm_bindgen(catch)]
             async fn load_audio_wasm_callback(path: &str) -> Result<JsValue, JsValue>;

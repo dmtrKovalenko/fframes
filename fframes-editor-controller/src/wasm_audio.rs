@@ -7,7 +7,7 @@ use futures::future::join_all;
 use std::collections::{HashMap, HashSet};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
-#[wasm_bindgen(module = "fframes-editor")]
+#[wasm_bindgen(module = "@fframes/editor")]
 extern "C" {
     #[wasm_bindgen(catch)]
     async fn load_audio_wasm_callback(path: &str) -> Result<JsValue, JsValue>;

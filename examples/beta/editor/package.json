@@ -5,7 +5,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "fframes-editor": "*"
+    "@fframes/editor": "*"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
