@@ -11,7 +11,7 @@ homepage = "https://fframes.studio"
 
 [dependencies]
 quote = { version = "1.0.9", optional = true }
-webvtt-parser.workspace=true
+webvtt-parser.workspace = true
 bytemuck = { version = "1.13.1", features = ["derive"] }
 ttf-parser = "0.19.1"
 wasm-bindgen.workspace = true
@@ -25,3 +25,17 @@ image = { version = "0.24.6", default-features = false, features = [
 usvgr.workspace = true
 libc = "0.2.159"
 
+[features]
+h264 = ["ffmpeg-sys-fframes/build-lib-x264"]
+h265 = ["ffmpeg-sys-fframes/build-lib-x265"]
+videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]
+audiotoolbox = ["ffmpeg-sys-fframes/build-audiotoolbox"]
+aac = ["ffmpeg-sys-fframes/build-lib-aacplus"]
+mp3lame = ["ffmpeg-sys-fframes/build-lib-mp3lame"]
+opus = ["ffmpeg-sys-fframes/build-lib-opus"]
+vpx = ["ffmpeg-sys-fframes/build-lib-vpx"]
+
+# licensing stuff
+libav-agree-gpl = ["ffmpeg-sys-fframes/build-license-gpl"]
+libav-agree-nonfree = ["ffmpeg-sys-fframes/build-license-nonfree"]
+libav-agree-version3 = ["ffmpeg-sys-fframes/build-license-version3"]

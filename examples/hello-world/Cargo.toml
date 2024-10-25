@@ -9,7 +9,7 @@ clap = { version = "4.3.4", features = ["derive"] }
 getrandom = { version = "0.2.15", features = ["js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { path = "../../fframes-renderer" }
+fframes_renderer = { workspace = true, features = ["h264", "libav-agree-gpl"] }
 
 [features]
 default = ["renderer"]
