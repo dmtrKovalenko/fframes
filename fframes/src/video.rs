@@ -129,12 +129,11 @@ pub fn resolve_timeline<
     resolve_audio_duration: TFun,
 ) -> Result<ResolvedRenderingTimeline<'a, TAudioUnit>> {
     let (duration, resolved_scenes) = match (scenes.0.as_deref(), duration) {
-        (None, Duration::Auto) => Err(crate::error::FFramesError::MissingDurationOrScenes),
         (Some(scenes), Duration::Auto) => {
             let timeline =
                 ResolvedScenesTimeline::from_scenes(time_base, scenes, &resolve_audio_duration)?;
 
-            Ok((timeline.total_scenes_duration, Some(timeline)))
+            (timeline.total_scenes_duration, Some(timeline))
         }
         // if both duration and scenes provided we use duration
         (Some(scenes), duration) => {
@@ -146,7 +145,7 @@ pub fn resolve_timeline<
                 &resolve_audio_duration,
             )?;
 
-            Ok((total_duration, Some(timeline)))
+            (total_duration, Some(timeline))
         }
         (None, duration) => {
             let total_duration = duration.to_frames_async(
@@ -155,9 +154,9 @@ pub fn resolve_timeline<
                 &resolve_audio_duration,
             )?;
 
-            Ok((total_duration, None))
+            (total_duration, None)
         }
-    }?;
+    };
 
     let mut resolved_audio_map = top_level_audio_map.resolve_with_scenes::<TAudioUnit>(
         resolved_scenes.as_ref(),
