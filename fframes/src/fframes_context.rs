@@ -19,14 +19,38 @@ pub struct TimeBase {
     pub sample_rate: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct VideoSize {
+    pub width: usize,
+    pub height: usize,
+}
+
+impl VideoSize {
+    pub fn new_scaled(width: usize, height: usize, scale: f64) -> Self {
+        if scale == 1. {
+            return Self { width, height };
+        }
+
+        Self {
+            width: (width as f64 * scale) as usize,
+            height: (height as f64 * scale) as usize,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct FFramesContext<'a, 'media: 'a> {
+    /// Actual time base base of the video contains the FPS for video and sample rate for audio.
     pub time_base: TimeBase,
+    /// The video size might be overridden by the render options.
+    /// Use this field to get the most up-to-date video size, it is okay to use
+    /// the `Video::WIDTH` and `Video::HEIGHT` as well if you don't need to scale/downscale.
+    pub current_video_size: VideoSize,
     pub duration_in_frames: usize,
     pub mode: FFramesMode,
+    pub scenes: Option<&'a ResolvedScenesTimeline<'a>>,
     pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
-    pub scenes: Option<&'a ResolvedScenesTimeline<'a>>,
 }
 
 impl<'a, 'media: 'a> FFramesContext<'a, 'media> {

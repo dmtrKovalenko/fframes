@@ -1,4 +1,4 @@
-use fframes::{MediaProvider, TimeBase, Video};
+use fframes::{MediaProvider, TimeBase, Video, VideoSize};
 
 #[test]
 fn compile_time_svg() {
@@ -14,6 +14,10 @@ fn compile_time_svg() {
             time_base: TimeBase {
                 fps: crate::MarketingVideo::FPS,
                 sample_rate: 44100,
+            },
+            current_video_size: VideoSize {
+                width: crate::MarketingVideo::WIDTH,
+                height: crate::MarketingVideo::HEIGHT,
             },
             mode: fframes::FFramesMode::Renderer,
             media_source: Some(&marketing_media as &dyn MediaProvider),

@@ -13,7 +13,7 @@ pub mod prelude {
     pub use fframes::ttf_parser;
     pub use fframes::{
         AudioTimestamp, FFramesContext, FFramesMode, Frame, MediaProvider, StaticMediaProvider,
-        Video,
+        Video, VideoSize,
     };
     pub use js_sys;
     pub use lazy_static::lazy_static;

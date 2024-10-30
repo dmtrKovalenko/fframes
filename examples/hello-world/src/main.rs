@@ -38,10 +38,7 @@ fn main() {
                 preferred_audio_codec: args.audio_codec.as_deref(),
                 preferred_video_codec: args.video_codec.as_deref(),
                 tmp_files_directory: Some(&PathBuf::from("test_render")),
-                codec_params: args
-                    .output
-                    .ends_with(".mp4")
-                    // These are optimizations params set for the libx264 or libx265 encoders and handled directly by them.
+                codec_params: (args.output == "libx264" || args.output == "libx265")
                     .then_some(&[("crf", "18"), ("tune", "animation")]),
                 ..Default::default()
             },

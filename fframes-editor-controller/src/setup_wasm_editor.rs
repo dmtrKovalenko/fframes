@@ -133,6 +133,10 @@ macro_rules! setup_wasm_editor {
                 ),
                 &FFramesContext {
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
+                    current_video_size: VideoSize {
+                        width: $x::WIDTH,
+                        height: $x::HEIGHT,
+                    },
                     mode: FFramesMode::Editor,
                     time_base,
                     font_source: Some(FONTS.lock().unwrap().deref()),
@@ -157,6 +161,10 @@ macro_rules! setup_wasm_editor {
                 ),
                 &FFramesContext {
                     time_base,
+                    current_video_size: VideoSize {
+                        width: $x::WIDTH,
+                        height: $x::HEIGHT,
+                    },
                     duration_in_frames: *DURATION_IN_FRAMES.lock().unwrap(),
                     mode: FFramesMode::EditorTimelinePreview,
                     scenes:  SCENES.lock().unwrap().as_ref(),

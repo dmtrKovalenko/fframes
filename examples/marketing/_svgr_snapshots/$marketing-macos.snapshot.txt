@@ -117,7 +117,7 @@
             </feMerge>
         </filter>
         <clipPath id="clipPath1">
-            <path fill="#000000" stroke="none" d="M 1456 770 L 1856 770 L 1856 1170 L 1456 1170 Z"/>
+            <path fill="#000000" stroke="none" d="M 1456 769.9673 L 1856 769.9673 L 1856 1169.9673 L 1456 1169.9673 Z"/>
         </clipPath>
     </defs>
     <path fill="#111827" stroke="none" d="M 0 0 L 1920 0 L 1920 1080 L 0 1080 Z"/>
@@ -164,7 +164,7 @@
     </g>
     <image x="-1000" y="10" width="900" height="900" xlink:href="png"/>
     <g clip-path="url(#clipPath1)">
-        <g transform="matrix(0.33333334 0 0 0.33333334 1456 836.6666)">
+        <g transform="matrix(0.33333334 0 0 0.33333334 1456 836.63403)">
             <g id="Layer-1">
                 <g transform="matrix(1 0 0 1 597.344 637.02)">
                     <path fill="#a52b00" stroke="none" d="M 0 -279.559 C -121.238 -279.559 -231.39 -264.983 -312.939 -241.22998 L -312.939 -38.329 C -231.39 -14.575001 -121.238 0 0 0 C 138.76 0 262.987 -19.092 346.431 -49.186 L 346.431 -230.37 C 262.987 -260.465 138.76 -279.559 0 -279.559"/>
