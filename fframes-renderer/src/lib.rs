@@ -3,6 +3,7 @@ use crate::renderer_font_source::RendererFontSource;
 pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 use fframes::MediaProvider;
 use fframes::Video;
+use fframes::WorkerLocalVideoDecoders;
 use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
 use std::collections::HashMap;
 use usvgr::fontdb;
@@ -209,8 +210,9 @@ pub fn render_frame<
     };
 
     let font_db = font_source.as_db_ref();
+    let decoders = WorkerLocalVideoDecoders::new();
     options.render_backend.render_frame(
-        fframes::Frame::new(frame_index, frame_index, TVideo::FPS),
+        fframes::Frame::new_renderer(frame_index, frame_index, TVideo::FPS, None, decoders),
         video,
         &fframes::usvgr::Options {
             image_data: Some(&image_source),

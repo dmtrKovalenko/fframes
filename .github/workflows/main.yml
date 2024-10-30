@@ -79,18 +79,12 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config ffmpeg x264 x265 opus nasm
-          brew link x264 x265 --force
 
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-
-      - name: Install frontend deps
-        run: |
-          npm install -g yarn
-          yarn install --frozen-lockfile --prefer-offline
 
       - name: Install frontend deps
         run: |
