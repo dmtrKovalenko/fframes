@@ -114,9 +114,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                 unsafe {
                     Encoder::with_output(
-                        TVideo::WIDTH as i32,
-                        TVideo::HEIGHT as i32,
-                        TVideo::FPS as i32,
+                        ctx.width as i32,
+                        ctx.height as i32,
+                        ctx.fps as i32,
                         file.as_str(),
                         encoder_options,
                         &logger,
@@ -129,13 +129,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             let mut converter_cache =
                                 usvgr::Cache::new_with_text_cache(self.text_cache_capacity);
 
-                            let mut pixmap = svgr::tiny_skia::Pixmap::new(
-                                TVideo::WIDTH as u32,
-                                TVideo::HEIGHT as u32,
-                            )
-                            .ok_or_else(|| {
-                                RenderEncodingError::CantAllocate("pixmap".to_owned())
-                            })?;
+                            let mut pixmap =
+                                svgr::tiny_skia::Pixmap::new(ctx.width as u32, ctx.height as u32)
+                                    .ok_or_else(|| {
+                                    RenderEncodingError::CantAllocate("pixmap".to_owned())
+                                })?;
 
                             let svgr_ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
 
@@ -149,7 +147,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         Frame::new_renderer(
                                             fr,
                                             fr,
-                                            TVideo::FPS,
+                                            ctx.fps,
                                             break_lines_cache.clone(),
                                             worker_local_decoders.clone(),
                                         ),
@@ -223,7 +221,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         font_db: &usvgr::fontdb::Database,
         ctx: fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<Vec<u8>> {
-        let mut pixmap = svgr::tiny_skia::Pixmap::new(TVideo::WIDTH as u32, TVideo::HEIGHT as u32)
+        let mut pixmap = svgr::tiny_skia::Pixmap::new(ctx.width as u32, ctx.height as u32)
             .ok_or_else(|| FFramesRendererError::Internal("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
 
         let mut converter_cache = usvgr::Cache::default();

@@ -14,6 +14,9 @@ fn e2e_rendering() {
         },
         "out.mp4",
         &RenderOptions {
+            width: 854,
+            height: 480,
+            fps: 24,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
                 cache_capacity: 5,

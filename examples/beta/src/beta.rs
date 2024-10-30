@@ -52,10 +52,6 @@ impl Scene for HeadingScene {
 }
 
 impl Video for BetaVideo<'_> {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Auto
     }
@@ -88,12 +84,12 @@ impl Video for BetaVideo<'_> {
         svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
+            width={ctx.width}
+            height={ctx.height}
           >
             <image
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
+              width={ctx.width}
+              height={ctx.height}
               x="0"
               y="0"
               href={ctx.get_image("background.png").expect("Do not use .expect() om media in the real code").href()}

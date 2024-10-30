@@ -21,6 +21,7 @@ fn main() {
         },
         "out.mp4",
         &RenderOptions {
+            fps: 60,
             media: Some(&combined_media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {

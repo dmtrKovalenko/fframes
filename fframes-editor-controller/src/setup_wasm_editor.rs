@@ -32,7 +32,7 @@ macro_rules! setup_wasm_editor {
             console_error_panic_hook::set_once();
 
             let tb = fframes::TimeBase {
-                fps: fps.map(std::convert::TryInto::try_into).and_then(Result::ok).unwrap_or($x::FPS),
+                fps: fps.map(std::convert::TryInto::try_into).and_then(Result::ok).unwrap_or(60),
                 sample_rate: 44100,
             };
 
@@ -138,6 +138,9 @@ macro_rules! setup_wasm_editor {
                     font_source: Some(FONTS.lock().unwrap().deref()),
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_source: Some(MEDIA_PROVIDER.lock().unwrap().deref()),
+                    fps: 60,
+                    width: 1920,
+                    height: 1080,
                 },
             ).value
         }
@@ -162,6 +165,9 @@ macro_rules! setup_wasm_editor {
                     scenes:  SCENES.lock().unwrap().as_ref(),
                     media_source: Some(MEDIA_PROVIDER.lock().unwrap().deref()),
                     font_source: Some(FONTS.lock().unwrap().deref()),
+                    fps: 60,
+                    width: 1920,
+                    height: 1080,
                 },
             ).value
         }

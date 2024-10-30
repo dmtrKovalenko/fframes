@@ -19,10 +19,6 @@ pub struct PodcastVideo<'a> {
 }
 
 impl Video for PodcastVideo<'_> {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn audio(&self) -> AudioMap {
         AudioMap::from([(
             "final.mp3",

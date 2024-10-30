@@ -15,10 +15,6 @@ pub mod popuga;
 pub mod spektacled_owl;
 
 impl Video for LowPolyVideo<'_> {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Auto
     }
@@ -35,8 +31,8 @@ impl Video for LowPolyVideo<'_> {
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
+            width={ctx.width}
+            height={ctx.height}
           >
             <defs>
               <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
@@ -45,8 +41,8 @@ impl Video for LowPolyVideo<'_> {
             </defs>
 
             <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
+              width={ctx.width}
+              height={ctx.height}
               x="0"
               y="0"
               fill="#000"

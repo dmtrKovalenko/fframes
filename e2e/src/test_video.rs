@@ -7,10 +7,6 @@ pub struct TestVideo {
 }
 
 impl Video for TestVideo {
-    const FPS: usize = 24;
-    const WIDTH: usize = 854;
-    const HEIGHT: usize = 480;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(15.)
     }
@@ -19,18 +15,18 @@ impl Video for TestVideo {
         AudioMap::none()
     }
 
-    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> fframes::Svgr {
         const BACKGROUND_EASING: animation::Easing = animation::Easing::Linear(5.);
 
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
+            width={ctx.width}
+            height={ctx.height}
           >
             <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
+              width={ctx.width}
+              height={ctx.height}
               x="0"
               y="0"
               fill={

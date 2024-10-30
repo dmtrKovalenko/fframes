@@ -1,4 +1,6 @@
-use fframes::{AudioTimelineFrames, NamedRange, ResolvedAudioMap, ResolvedScenesTimeline};
+use fframes::{
+    AudioTimelineFrames, FFramesContext, NamedRange, ResolvedAudioMap, ResolvedScenesTimeline,
+};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[wasm_bindgen]
@@ -18,16 +20,17 @@ pub struct VideoMetadata {
 impl VideoMetadata {
     pub fn new<TVideo: fframes::Video>(
         duration: i32,
+        ctx: &FFramesContext,
         fps: usize,
         audio_map: Option<ResolvedAudioMap<AudioTimelineFrames>>,
         scenes: Option<&ResolvedScenesTimeline>,
     ) -> Self {
         Self {
-            width: TVideo::WIDTH as f64,
-            height: TVideo::HEIGHT as f64,
+            width: ctx.width as f64,
+            height: ctx.height as f64,
             duration,
-            fps: fps as f64,
-            original_fps: (fps != TVideo::FPS).then_some(TVideo::FPS as f64),
+            fps: ctx.fps as f64,
+            original_fps: (fps != ctx.fps).then_some(ctx.fps as f64),
             name: std::any::type_name::<TVideo>(),
             audio_map: audio_map.map(Into::into),
             scenes: scenes.map(Into::into),

@@ -8,9 +8,6 @@ use crate::{
 /// The base fframes video trait. It represents how to render a video for a struct which becomes an
 /// input of the video.
 pub trait Video: Sync + Sized {
-    const FPS: usize;
-    const WIDTH: usize;
-    const HEIGHT: usize;
     fn duration(&self) -> Duration;
     fn audio(&self) -> AudioMap;
 

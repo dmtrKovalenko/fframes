@@ -125,8 +125,8 @@ fn main() {
         // 330 is a frame that we want to use as a preview
         let preview_image = render_frame(330, &video, &options).unwrap();
         let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
-            ConferenceVideo::WIDTH as u32,
-            ConferenceVideo::HEIGHT as u32,
+            options.width as u32,
+            options.height as u32,
             preview_image,
         )
         .expect("Failed to parse the preview image buffer");

@@ -26,10 +26,13 @@ pub use fframes_logger::*;
 pub use media_directory::*;
 pub use render_backend::*;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 /// All the final render-specific options applies to the final video rendering pipeline
 /// including media resolution, logging, rendering backend, and encoding.
 pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
+    pub width: usize,
+    pub height: usize,
+    pub fps: usize,
     pub media: Option<&'a (dyn MediaProvider<'a>)>,
     pub logger: FFramesLoggerVariant,
     pub encoder_options: EncoderOptions<'a>,
@@ -45,6 +48,21 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub default_font: &'a str,
 }
 
+impl<'a, TBackend: FFramesRenderBackend + Default> Default for RenderOptions<'a, TBackend> {
+    fn default() -> Self {
+        Self {
+            width: 1920,
+            height: 1080,
+            fps: 30,
+            media: None,
+            logger: FFramesLoggerVariant::default(),
+            encoder_options: EncoderOptions::default(),
+            render_backend: TBackend::default(),
+            load_system_fonts: false,
+            default_font: "Times New Roman",
+        }
+    }
+}
 pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
     video: &'a TVideo,
     output: &'a str,
@@ -52,7 +70,7 @@ pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sy
 ) -> FFramesRendererResult<()> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let time_base = TimeBase {
-        fps: TVideo::FPS,
+        fps: options.fps,
         sample_rate: options.encoder_options.sample_rate,
     };
 
@@ -71,7 +89,7 @@ pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sy
                 .resolve_audio(name)
                 .and_then(|main_audio| match main_audio {
                     AudioData::Preloaded(data) => {
-                        Some(data.samples.len() * TVideo::FPS / data.sample_rate as usize)
+                        Some(data.samples.len() * options.fps / data.sample_rate as usize)
                     }
                     _ => None,
                 })
@@ -98,9 +116,12 @@ pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sy
     }
 
     let ctx = FFramesContext {
+        width: options.width,
+        height: options.height,
+        fps: options.fps,
         time_base: TimeBase {
             sample_rate: 44100,
-            fps: TVideo::FPS,
+            fps: options.fps,
         },
         mode: fframes::FFramesMode::Renderer,
         media_source: options.media,
@@ -152,7 +173,7 @@ pub fn render_frame<
     options: &RenderOptions<'media, TBackend>,
 ) -> FFramesRendererResult<Vec<u8>> {
     let time_base = TimeBase {
-        fps: TVideo::FPS,
+        fps: options.fps,
         sample_rate: options.encoder_options.sample_rate,
     };
 
@@ -172,7 +193,7 @@ pub fn render_frame<
                     .resolve_audio(name)
                     .and_then(|main_audio| match main_audio {
                         AudioData::Preloaded(data) => {
-                            Some(data.samples.len() * TVideo::FPS / data.sample_rate as usize)
+                            Some(data.samples.len() * options.fps / data.sample_rate as usize)
                         }
                         _ => None,
                     })
@@ -199,8 +220,11 @@ pub fn render_frame<
     let ctx = FFramesContext {
         time_base: TimeBase {
             sample_rate: 44100,
-            fps: TVideo::FPS,
+            fps: options.fps,
         },
+        width: options.width,
+        height: options.height,
+        fps: options.fps,
         mode: fframes::FFramesMode::Renderer,
         media_source: options.media,
         duration_in_frames: timeline.duration_in_frames,
@@ -210,7 +234,7 @@ pub fn render_frame<
 
     let font_db = font_source.as_db_ref();
     options.render_backend.render_frame(
-        fframes::Frame::new(frame_index, frame_index, TVideo::FPS),
+        fframes::Frame::new(frame_index, frame_index, options.fps),
         video,
         &fframes::usvgr::Options {
             image_data: Some(&image_source),

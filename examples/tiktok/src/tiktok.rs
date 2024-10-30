@@ -25,10 +25,6 @@ pub struct GooseVideo<'a> {
 }
 
 impl Video for GooseVideo<'_> {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1080;
-    const HEIGHT: usize = 1920;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::FromAudio("thought.mp3")
     }
@@ -65,7 +61,7 @@ impl Video for GooseVideo<'_> {
                          let height= (value * 2000.).clamp(30., 400.);
                          svgr!(
                              <rect
-                                 x={i * (BAR_SIZE + BAR_PADDING) + (Self::WIDTH - SPECTRUM_WIDTH) / 2}
+                                 x={i * (BAR_SIZE + BAR_PADDING) + (ctx.width - SPECTRUM_WIDTH) / 2}
                                  y={300. - height / 2. }
                                  width={BAR_SIZE}
                                  rx="15"

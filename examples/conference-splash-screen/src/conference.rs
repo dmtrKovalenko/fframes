@@ -11,10 +11,6 @@ pub struct ConferenceVideo<'a> {
 }
 
 impl Video for ConferenceVideo<'_> {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::FromAudio("track.mp3")
     }
@@ -35,8 +31,8 @@ impl Video for ConferenceVideo<'_> {
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
+            width={ctx.width}
+            height={ctx.height}
           >
             {ctx.render_scenes(&frame)}
           </svg>

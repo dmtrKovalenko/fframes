@@ -9,10 +9,6 @@ pub struct HelloWorldVideo<'a> {
 }
 
 impl Video for HelloWorldVideo<'_> {
-    const FPS: usize = 30;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(30.)
     }
@@ -21,19 +17,19 @@ impl Video for HelloWorldVideo<'_> {
         AudioMap::none()
     }
 
-    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> fframes::Svgr {
         const BACKGROUND_EASING: fframes::animation::Easing =
             fframes::animation::Easing::Linear(5.);
 
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
+            width={ctx.width}
+            height={ctx.height}
           >
             <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
+              width={ctx.width}
+              height={ctx.height}
               x="0"
               y="0"
               fill={

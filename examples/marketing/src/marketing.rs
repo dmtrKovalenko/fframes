@@ -209,10 +209,6 @@ const BAR_WIDTH_WITH_MARGIN: usize = BAR_SIZE + BAR_MARGIN;
 const SPECTRUM_LEN: usize = 1920 - BAR_WIDTH_WITH_MARGIN * PRETTY_SPECTRUM.len() - BAR_MARGIN;
 
 impl Video for MarketingVideo<'_> {
-    const FPS: usize = 60;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Auto
     }

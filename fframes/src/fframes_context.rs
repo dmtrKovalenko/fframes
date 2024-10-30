@@ -23,6 +23,9 @@ pub struct TimeBase {
 pub struct FFramesContext<'a, 'media: 'a> {
     pub time_base: TimeBase,
     pub duration_in_frames: usize,
+    pub width: usize,
+    pub height: usize,
+    pub fps: usize,
     pub mode: FFramesMode,
     pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,

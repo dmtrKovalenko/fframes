@@ -60,10 +60,6 @@ impl AudioAnnounce<'_> {
 }
 
 impl Video for AudioAnnounce<'_> {
-    const FPS: usize = 30;
-    const WIDTH: usize = 1920;
-    const HEIGHT: usize = 1080;
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(15.)
     }
@@ -98,14 +94,14 @@ impl Video for AudioAnnounce<'_> {
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
+            width={ctx.width}
+            height={ctx.height}
           >
              <image
                  x="0"
                  y="0"
-                 width={Self::WIDTH}
-                 height={Self::HEIGHT}
+                 width={ctx.width}
+                 height={ctx.height}
                  href={self.media.background_png.href()}
              />
 
