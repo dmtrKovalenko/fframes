@@ -94,6 +94,11 @@ impl FFramesLogger for CompactFFramesLogger {
 pub struct SilentLogger;
 
 impl FFramesLogger for SilentLogger {
+    fn success(&self, _output_path: &str, _temp_files_dir: Option<&str>) {}
+}
+
+pub struct QuietLogger;
+impl FFramesLogger for QuietLogger {
     fn success(&self, output_path: &str, _temp_files_dir: Option<&str>) {
         println!("Success. Your video {output_path}");
     }
@@ -108,8 +113,10 @@ impl Debug for dyn FFramesLogger {
 #[derive(Default, Debug, Clone)]
 /// Different options for logging rendering process.
 pub enum FFramesLoggerVariant {
-    /// Doesn't show progress of rendering, only the output. Slightly faster.
+    /// No output
     Silent,
+    /// Doesn't show progress of rendering, only the output. Slightly faster.
+    Quiet,
     /// Renders one progress bar showing rendering progress frame by frame
     #[default]
     Compact,
@@ -122,6 +129,7 @@ pub enum FFramesLoggerVariant {
 pub fn make_logger(variant: FFramesLoggerVariant) -> Arc<dyn FFramesLogger> {
     match variant {
         FFramesLoggerVariant::Silent => Arc::new(SilentLogger) as Arc<dyn FFramesLogger>,
+        FFramesLoggerVariant::Quiet => Arc::new(QuietLogger) as Arc<dyn FFramesLogger>,
         // TODO: Implement custom verbose debugging loggger
         FFramesLoggerVariant::Compact | FFramesLoggerVariant::Debug => {
             Arc::new(CompactFFramesLogger {
