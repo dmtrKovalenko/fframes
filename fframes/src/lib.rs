@@ -17,6 +17,7 @@ mod video;
 // Methods that we are not pub use ::* should be declared here:
 pub mod animation;
 pub mod error;
+pub mod stack;
 
 #[cfg(test)]
 mod tests;
