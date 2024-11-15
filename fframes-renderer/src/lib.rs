@@ -12,6 +12,8 @@ use std::path::PathBuf;
 
 #[cfg(feature = "cpu_renderer")]
 pub mod cpu;
+#[doc(hidden)]
+pub mod pix_fmt;
 
 pub mod concatenator;
 mod encoder;

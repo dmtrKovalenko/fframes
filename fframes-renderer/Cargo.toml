@@ -7,8 +7,11 @@ homepage = "https://fframes.studio"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 license = "MIT"
 
+[[bench]]
+name = "yuv420_conversion"
+harness = false
+
 [dependencies]
-svgr = { workspace = true, optional = true }
 rayon = "1.5.1"
 colored = "2"
 indicatif = "0.16.2"
@@ -21,9 +24,14 @@ memmap = "0.7.0"
 syn = { version = "1", features = ["full", "parsing", "extra-traits"] }
 uuid = { version = "1.8.0", features = ["v4"] }
 
+svgr = { workspace = true, optional = true }
 svgr-macro.workspace = true
 fframes.workspace = true
 ffmpeg-sys-fframes.workspace = true
+
+[dev-dependencies]
+criterion = "0.5"
+rand = "0.8"
 
 [build-dependencies]
 cc = "1.0"

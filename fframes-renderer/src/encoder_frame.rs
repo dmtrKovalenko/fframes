@@ -1,7 +1,6 @@
 use crate::ffmpeg_action;
 use crate::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use crate::stream;
-use ffmpeg_sys_fframes::AVPixelFormat;
 use ffmpeg_sys_fframes::*;
 
 #[derive(Clone)]
@@ -133,15 +132,6 @@ impl EncoderFrame {
         }
     }
 
-    #[inline(always)]
-    pub(crate) fn get_rgb(pixmap: &[u8], i: usize) -> (i32, i32, i32) {
-        let r = pixmap[4 * i] as i32;
-        let g = pixmap[4 * i + 1] as i32;
-        let b = pixmap[4 * i + 2] as i32;
-
-        (r, g, b)
-    }
-
     pub unsafe fn fill_from_audio_data(
         &mut self,
         frame_index: i64,
@@ -175,8 +165,9 @@ impl EncoderFrame {
     pub unsafe fn fill_from_rgba_pixmap(&mut self, rgba_pixels: &[u8]) -> *mut AVFrame {
         unsafe {
             if let Some(converter) = self.format_convertor.as_ref() {
-                // TODO avoid additional conversion to yuv and fill rgba24 directly from the pixmap
-                Self::fill_yuv420_from_rgba_pixmap(converter.tmp_frame, rgba_pixels);
+                // in case we don't use fframes conversion path we use a temporary frame which is set
+                // to the planar RGBA 8888 format and then use sws_scale to convert to the output fmt
+                (*converter.tmp_frame).data[0] = rgba_pixels.as_ptr() as *mut u8; // sws_scale doesn't do any mutations when converting from
                 converter.convert(self.av_frame)
             } else {
                 Self::fill_yuv420_from_rgba_pixmap(self.av_frame, rgba_pixels)
@@ -184,50 +175,29 @@ impl EncoderFrame {
         }
     }
 
-    /// We support only yuv420 format as for now so we can pretty efficiently convert the bitmap buffer.
-    /// yuv420 represented by y per each pixel and uv (cb and cr) per each 2x2 pixel block.
-    #[allow(clippy::precedence)]
     pub unsafe fn fill_yuv420_from_rgba_pixmap(
-        av_frame: *mut AVFrame,
+        frame: *mut AVFrame,
         rgba_pixels: &[u8],
     ) -> *mut AVFrame {
         unsafe {
-            let is_writable = av_frame_make_writable(av_frame);
+            let is_writable = av_frame_make_writable(frame);
             if is_writable < 0 {
                 panic!("Can not reuse frame allocations");
             }
 
-            let height = (*av_frame).height as usize;
-            let width = (*av_frame).width as usize;
+            crate::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated(
+                (*frame).width,
+                (*frame).height,
+                (*frame).linesize[0],
+                (*frame).linesize[1],
+                (*frame).linesize[2],
+                rgba_pixels,
+                (*frame).data[0],
+                (*frame).data[1],
+                (*frame).data[2],
+            );
 
-            // an important note that linesize here can be different from the width of an image so it is required to fill the buffer correctly.
-            let frame_size: usize = height * (*av_frame).linesize[0] as usize + width;
-
-            let y_pixels = std::slice::from_raw_parts_mut((*av_frame).data[0], frame_size);
-            let cb_pixels = std::slice::from_raw_parts_mut((*av_frame).data[1], frame_size / 2);
-            let cr_pixels = std::slice::from_raw_parts_mut((*av_frame).data[2], frame_size / 2);
-
-            for y in 0..height {
-                for x in 0..width {
-                    let (r, g, b) = EncoderFrame::get_rgb(rgba_pixels, y * width + x);
-
-                    // use a linesize to get the correct index for the pixel as it can differ for different dimensions.
-                    y_pixels[y * (*av_frame).linesize[0] as usize + x] =
-                        (16 + (66 * r + 129 * g + 25 * b) >> 8) as u8;
-
-                    if y % 2 == 0 && x % 2 == 0 {
-                        // the bounds are 1/4 of the image size
-                        let x = x / 2;
-                        let y = y / 2;
-
-                        cb_pixels[y * (*av_frame).linesize[1] as usize + x] =
-                            (128 + (-38 * r - 74 * g + 112 * b >> 8)) as u8;
-                        cr_pixels[y * (*av_frame).linesize[2] as usize + x] =
-                            (128 + (112 * r - 94 * g - 18 * b >> 8)) as u8;
-                    }
-                }
-            }
-            av_frame
+            frame
         }
     }
 }

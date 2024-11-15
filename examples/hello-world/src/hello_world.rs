@@ -25,11 +25,7 @@ impl Video for HelloWorldVideo<'_> {
 
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> fframes::Svgr {
         fframes::svgr!(
-           <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width={ctx.current_video_size.width}
-            height={ctx.current_video_size.height}
-          >
+           <svg>
             <rect
               width={ctx.current_video_size.width}
               height={ctx.current_video_size.height}
