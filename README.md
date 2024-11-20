@@ -6,7 +6,7 @@ FFrames will install and compile ffmpeg during the development as we rely on the
 
 for linux:
 ```sh
-sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev
+sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libclang-dev
 ```
 
 for macos:
@@ -20,7 +20,7 @@ Once everything is installed please install the just command runner and init the
 
 ```bash
   npm install --global yarn # the package manager for nodejs based editor
-  cargo install --locked just cargo-watch 
+  cargo install --locked just cargo-watch wasm-bindgen-cli wasm-pack
   just init-repo
 ```
 
