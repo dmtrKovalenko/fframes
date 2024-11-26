@@ -9,17 +9,18 @@ fn e2e_rendering() {
     println!("Running e2e rendering tests for {OS}-{ARCH}");
 
     render(
+        "out.mp4",
         &TestVideo {
             slug: "This frame index:".to_owned(),
         },
-        "out.mp4",
+        fframes_renderer::cpu::CpuRenderingBackend {
+            cache_capacity: 5,
+            concurrency: 1,
+            ..Default::default()
+        },
         &RenderOptions {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                cache_capacity: 5,
-                concurrency: 1,
-                ..Default::default()
-            },
+
             ..Default::default()
         },
     )

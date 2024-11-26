@@ -76,6 +76,16 @@ impl ImageData {
             base64_data: data.clone(),
         }
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn get_bytes(&self) -> &[u8] {
+        &self.image.data
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn get_bytes_mut(&mut self) -> &mut [u8] {
+        unimplemented!()
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -87,11 +97,7 @@ pub fn decode_image(
         image::load_from_memory(data).map_err(crate::error::FFramesMediaError::ImageError)?;
 
     Ok(usvgr::PreloadedImageData::new(
-        if filename.ends_with(".png") {
-            "png".to_owned()
-        } else {
-            "jpeg".to_owned()
-        },
+        filename.to_owned(),
         buffer.width(),
         buffer.height(),
         &buffer.to_rgba8().into_raw(),

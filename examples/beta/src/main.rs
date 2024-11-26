@@ -26,6 +26,7 @@ fn main() {
     ]);
 
     render(
+        "out.mp4",
         &BetaVideo {
             iphone_scene: beta_example::IphoneScene {
                 hours: 12,
@@ -50,14 +51,13 @@ fn main() {
                 }),
             },
         },
-        "out.mp4",
+        fframes_renderer::cpu::CpuRenderingBackend {
+            ..Default::default()
+        },
         &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                ..Default::default()
-            },
             encoder_options: EncoderOptions {
                 preferred_video_codec: Some("libx264"),
                 ..Default::default()

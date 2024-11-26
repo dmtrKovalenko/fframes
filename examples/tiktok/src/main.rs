@@ -6,15 +6,15 @@ fn main() {
     let media = GooseMedia::prepare().unwrap();
 
     render(
-        &GooseVideo { media: &media },
         "out.mp4",
+        &GooseVideo { media: &media },
+        fframes_renderer::cpu::CpuRenderingBackend {
+            cache_capacity: 10,
+            ..Default::default()
+        },
         &RenderOptions {
             media: Some(&media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                cache_capacity: 10,
-                ..Default::default()
-            },
             ..Default::default()
         },
     )

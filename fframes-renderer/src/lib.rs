@@ -1,4 +1,4 @@
-use crate::renderer_error::FFramesRendererResult;
+#![allow(clippy::missing_safety_doc)] // we have to implement a lot of ffi here
 use crate::renderer_font_source::RendererFontSource;
 use fframes::MediaProvider;
 use fframes::Video;
@@ -21,21 +21,21 @@ mod renderer_error;
 mod renderer_font_source;
 mod stream;
 
-pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions, MKBETAG, MKTAG};
+pub use encoder::*;
 pub use fframes_logger::*;
 pub use media_directory::*;
 pub use render_backend::*;
+pub use renderer_error::*;
 
 #[derive(Debug, Clone)]
 /// All the final render-specific options applies to the final video rendering pipeline
 /// including media resolution, logging, rendering backend, and encoding.
-pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
+pub struct RenderOptions<'a> {
     pub media: Option<&'a (dyn MediaProvider<'a>)>,
     pub logger: FFramesLoggerVariant,
     pub encoder_options: EncoderOptions<'a>,
     pub override_fps: Option<usize>,
     pub scale_resolution: f64,
-    pub render_backend: TBackend,
     /// If `true` locates and loads system font on MacOS, Windows and Linux OSes.
     /// It is anyway recommended to provide all the font as either statically and dynamically
     /// linked media.
@@ -49,7 +49,7 @@ pub struct RenderOptions<'a, TBackend: FFramesRenderBackend> {
     pub default_font: &'a str,
 }
 
-impl Default for RenderOptions<'_, cpu::CpuRenderingBackend> {
+impl Default for RenderOptions<'_> {
     fn default() -> Self {
         Self {
             media: None,
@@ -57,7 +57,6 @@ impl Default for RenderOptions<'_, cpu::CpuRenderingBackend> {
             logger: FFramesLoggerVariant::Compact,
             encoder_options: Default::default(),
             override_fps: None,
-            render_backend: cpu::CpuRenderingBackend::default(),
             load_system_fonts: false,
             default_font: "Arial",
         }
@@ -66,7 +65,7 @@ impl Default for RenderOptions<'_, cpu::CpuRenderingBackend> {
 
 fn create_context<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
     _video: &'a TVideo,
-    options: &'a RenderOptions<'media, impl FFramesRenderBackend>,
+    options: &'a RenderOptions<'media>,
     timeline: &'a fframes::ResolvedRenderingTimeline<'a, fframes::AudioTimelineSamples>,
     font_source: &'a RendererFontSource,
 ) -> FFramesContext<'a, 'media> {
@@ -93,10 +92,16 @@ fn create_context<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
 ///
 /// The `RenderOptions::encoder_options` field might be used to configure all the final
 /// video file properties like bitrate, quality, video and audio codecs options, etc.
-pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sync + Sized>(
-    video: &'a TVideo,
+pub fn render<
+    'a,
+    'media: 'a,
+    TBackend: FFramesRenderBackend,
+    TVideo: Video + Sync + Sized + Send,
+>(
     output: &'a str,
-    options: &'a RenderOptions<'media, TBackend>,
+    video: &'a TVideo,
+    render_backend: TBackend,
+    options: &'a RenderOptions<'media>,
 ) -> FFramesRendererResult<()> {
     let logger = fframes_logger::make_logger(options.logger.clone());
     let time_base = TimeBase {
@@ -148,7 +153,7 @@ pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sy
     let ctx = create_context(video, options, &timeline, &font_source);
     let font_db = font_source.as_db_ref();
 
-    options.render_backend.render(
+    render_backend.render(
         output,
         video,
         logger,
@@ -160,7 +165,7 @@ pub fn render<'a, 'media: 'a, TBackend: FFramesRenderBackend, TVideo: Video + Sy
         &options.encoder_options,
         font_db,
         &timeline,
-        ctx,
+        &ctx,
     )?;
 
     Ok(())
@@ -183,11 +188,12 @@ pub fn render_frame<
     'a,
     'media: 'a,
     TBackend: FFramesRenderBackend,
-    TVideo: Video + Sync + Sized,
+    TVideo: Video + Sync + Sized + Send,
 >(
     frame_index: usize,
     video: &'a TVideo,
-    options: &RenderOptions<'media, TBackend>,
+    render_backend: TBackend,
+    options: &RenderOptions<'media>,
 ) -> FFramesRendererResult<Vec<u8>> {
     let time_base = TimeBase {
         fps: TVideo::FPS,
@@ -237,7 +243,7 @@ pub fn render_frame<
     let font_db = font_source.as_db_ref();
     let decoders = WorkerLocalVideoDecoders::new();
 
-    options.render_backend.render_frame(
+    render_backend.render_frame(
         fframes::Frame::new_renderer(frame_index, frame_index, TVideo::FPS, None, decoders),
         video,
         &fframes::usvgr::Options {
@@ -248,4 +254,18 @@ pub fn render_frame<
         font_db,
         ctx,
     )
+}
+
+/// Convenient function that can be used by different backend implementation to
+/// save the reused about of threads for the rendering process.
+/// Allowing to override the default thread count using the `FFRAMES_NUN_THREADS` environment variable.
+pub fn get_thread_count() -> usize {
+    if let Some(threads) = std::env::var("FFRAMES_NUM_THREADS")
+        .ok()
+        .and_then(|threads| threads.parse().ok())
+    {
+        return threads;
+    }
+
+    rayon::max_num_threads()
 }

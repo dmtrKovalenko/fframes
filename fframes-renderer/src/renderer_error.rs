@@ -63,6 +63,8 @@ pub enum FFramesRendererError {
     Internal(String),
     InvalidOutput,
     Utf8Error(Utf8Error),
+    // specific for fframes_skia_render_backend
+    Skia(String),
 
     MediaError(fframes::media::FFramesMediaError),
     CoreError(fframes::error::FFramesError),
@@ -106,6 +108,7 @@ impl fmt::Debug for FFramesRendererError {
                 Self::InvalidOutput => "Invalid output file. Path does not exist or does not the valid file".to_owned(),
                 Self::Utf8Error(err) => format!("Failed to convert bytes to utf8 string: {err:?}"),
                 Self::MediaError(err) => format!("Media processing error: {err:?}"),
+                Self::Skia(err) => format!("Skia error: {err}"),
             }
         )
     }

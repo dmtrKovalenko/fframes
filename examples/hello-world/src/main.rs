@@ -26,12 +26,59 @@ fn main() {
     let args = Args::parse();
     let media = HelloWorldMedia::prepare().unwrap();
 
+    // let texture = {
+    //     let descriptor = TextureDescriptor::new();
+    //
+    //     descriptor.set_width(width as u64);
+    //     descriptor.set_height(height as u64);
+    //     descriptor.set_pixel_format(MTLPixelFormat::BGRA8Unorm); // Common format for graphics
+    //
+    //     // Set usage flags based on your needs
+    //     descriptor.set_usage(
+    //         MTLTextureUsage::RenderTarget      // For rendering to texture
+    //     | MTLTextureUsage::ShaderRead, // If you need to sample from it
+    //     );
+    //
+    //     // Create the texture using the device
+    //     device.new_texture(&descriptor)
+    // };
+    // let mut surface = unsafe {
+    //     let texture_info = mtl::TextureInfo::new(drawable.texture().as_ptr() as mtl::Handle);
+    //
+    //     let backend_render_target = backend_render_targets::make_mtl(
+    //         (drawable_width as i32, drawable_height as i32),
+    //         &texture_info,
+    //     );
+    //
+    //     gpu::surfaces::wrap_backend_render_target(
+    //         &mut context.skia,
+    //         &backend_render_target,
+    //         SurfaceOrigin::TopLeft,
+    //         ColorType::BGRA8888,
+    //         None,
+    //         None,
+    //     )
+    //     .unwrap()
+    // };
+
     render(
+        "out.mp4",
         &HelloWorldVideo {
             media: &media,
             slug: &args.slug,
         },
-        args.output.as_str(),
+        if let Some(concurrency) = args.concurrency {
+            fframes_renderer::cpu::CpuRenderingBackend {
+                concurrency,
+                cache_capacity: 5,
+                ..Default::default()
+            }
+        } else {
+            fframes_renderer::cpu::CpuRenderingBackend {
+                cache_capacity: 5,
+                ..Default::default()
+            }
+        },
         &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
@@ -52,18 +99,6 @@ fn main() {
                     ("tune", "animation"),
                 ]),
                 ..Default::default()
-            },
-            render_backend: if let Some(concurrency) = args.concurrency {
-                fframes_renderer::cpu::CpuRenderingBackend {
-                    concurrency,
-                    cache_capacity: 5,
-                    ..Default::default()
-                }
-            } else {
-                fframes_renderer::cpu::CpuRenderingBackend {
-                    cache_capacity: 5,
-                    ..Default::default()
-                }
             },
             ..Default::default()
         },

@@ -20,6 +20,9 @@ pub struct Stream {
     pub(crate) variant: StreamVariant,
 }
 
+unsafe impl Send for Stream {}
+unsafe impl Sync for Stream {}
+
 pub unsafe fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32 {
     if (*codec).supported_samplerates.is_null() {
         return sample_rate; // we are likely in some bad state here
@@ -58,11 +61,22 @@ unsafe fn is_pixel_format_supported(
 
 impl Stream {
     pub unsafe fn free(mut self) {
-        avcodec_free_context(&mut self.enc);
+        // in case encoder is not needed (remux) we won't allocate the encoder
+        if !self.enc.is_null() {
+            avcodec_send_frame(self.enc, std::ptr::null_mut());
+            avcodec_close(self.enc);
+            avcodec_free_context(&mut self.enc);
+        }
     }
 
     pub unsafe fn get_frames_in_stream(&self) -> i64 {
         (*self.st).nb_frames
+    }
+
+    pub fn set_encoder_threads_count(&self, count: usize) {
+        unsafe {
+            (*self.enc).thread_count = count as i32;
+        }
     }
 
     pub(crate) unsafe fn prepare_stream_codec(

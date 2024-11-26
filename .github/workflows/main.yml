@@ -80,21 +80,15 @@ jobs:
         run: |
           brew install pkg-config ffmpeg x264 x265 opus nasm
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with: 
+          cache: true
+          cache-key: "v3-rust"
 
       - name: Install frontend deps
         run: |
           npm install -g yarn
           yarn install --frozen-lockfile --prefer-offline
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v2-rust"
-          cache-on-failure: true
 
       - name: Build
         run: just clippy
