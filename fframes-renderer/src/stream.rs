@@ -13,12 +13,15 @@ pub enum StreamVariant {
     Audio(*mut SwrContext),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Stream {
     pub(crate) st: *mut AVStream,
     pub(crate) enc: *mut AVCodecContext,
     pub(crate) variant: StreamVariant,
 }
+
+unsafe impl Send for Stream {}
+unsafe impl Sync for Stream {}
 
 pub unsafe fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32 {
     if (*codec).supported_samplerates.is_null() {
@@ -57,12 +60,30 @@ unsafe fn is_pixel_format_supported(
 }
 
 impl Stream {
-    pub unsafe fn free(mut self) {
-        avcodec_free_context(&mut self.enc);
+    /// Can't implement this as a triat cause it needs to be called in specific order
+    pub fn free(&mut self) {
+        unsafe {
+            // in case encoder is not needed (remux) we won't allocate the encoder
+            if !self.enc.is_null() {
+                avcodec_send_frame(self.enc, std::ptr::null_mut());
+                avcodec_close(self.enc);
+                avcodec_free_context(&mut self.enc);
+
+                if let StreamVariant::Audio(mut swr_ctx) = self.variant {
+                    swr_free(&mut swr_ctx);
+                }
+            }
+        }
     }
 
     pub unsafe fn get_frames_in_stream(&self) -> i64 {
         (*self.st).nb_frames
+    }
+
+    pub fn set_encoder_threads_count(&self, count: usize) {
+        unsafe {
+            (*self.enc).thread_count = count as i32;
+        }
     }
 
     pub(crate) unsafe fn prepare_stream_codec(
@@ -174,6 +195,7 @@ impl Stream {
             options.codec_tag = tag as u32;
         }
 
+        av_dict_free(opts);
         Ok(Stream {
             st,
             enc: c,

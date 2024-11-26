@@ -96,12 +96,12 @@ fn main() {
             ]),
             ..Default::default()
         },
+        ..Default::default()
+    };
 
-        render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-            concurrency: 1,
-            cache_capacity: 40,
-            ..Default::default()
-        },
+    let backend = fframes_renderer::cpu::CpuRenderingBackend {
+        concurrency: 1,
+        cache_capacity: 40,
         ..Default::default()
     };
 
@@ -119,11 +119,16 @@ fn main() {
             },
         };
 
-        render(&video, &format!("output/{}.mp4", filename), &options)
-            .expect("Failed to render video");
+        render(
+            &format!("output/{}.mp4", filename),
+            &video,
+            backend,
+            &options,
+        )
+        .expect("Failed to render video");
 
         // 330 is a frame that we want to use as a preview
-        let preview_image = render_frame(330, &video, &options).unwrap();
+        let preview_image = render_frame(330, &video, backend, &options).unwrap();
         let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
             ConferenceVideo::WIDTH as u32,
             ConferenceVideo::HEIGHT as u32,

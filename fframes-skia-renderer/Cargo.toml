@@ -1,0 +1,32 @@
+[package]
+name = "fframes_skia_renderer"
+description = "Rendering backend for fframes using skia"
+version = "1.0.0-beta.6.rc-3.2"
+edition = "2021"
+license = "MIT"
+authors = ["Dmitriy Kovalenoko <dmtr.kovalenko@outlook.com>"]
+
+[lib]
+doctest = false
+
+[dependencies]
+skia-safe = { version = "0.80.2", package = "fframes-skia-safe", features = [
+    "svg",
+] }
+thingbuf = "0.1.6"
+fframes_renderer.workspace = true
+fframes.workspace = true
+ash = { version = "0.38.0", optional = true }
+metal-rs = { package = "metal", version = "0.30.0", optional = true }
+
+[features]
+default = ["gpu", "binary-cache"]
+binary-cache = ["skia-safe/binary-cache"]
+gpu = ["skia-safe/gpu"]
+metal = ["skia-safe/metal", "metal-rs"]
+vulkan = ["skia-safe/vulkan", "ash"]
+d3d = ["skia-safe/d3d"]
+gl = ["skia-safe/gl"]
+x11 = ["skia-safe/x11"]
+wayland = ["skia-safe/wayland"]
+egl = ["skia-safe/egl"]

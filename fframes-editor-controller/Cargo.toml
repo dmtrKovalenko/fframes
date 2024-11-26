@@ -11,7 +11,7 @@ homepage = "https://fframes.studio"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-fframes = { workspace = true, default-features = false }
+fframes = { workspace = true }
 lazy_static = "1.4.0"
 console_error_panic_hook = "0.1.7"
 wasm-bindgen-futures = "0.4.42"

@@ -15,20 +15,19 @@ fn main() {
     ]);
 
     render(
+        "out.mp4",
         &LowPolyVideo {
             media: &media,
             scene: &owl::Owl { media: &owl_media },
         },
-        "out.mp4",
+        fframes_renderer::cpu::CpuRenderingBackend {
+            // Don't need a lot of capacity because the whole sub-svg of animal scene will be cached
+            cache_capacity: 5,
+            ..Default::default()
+        },
         &RenderOptions {
             media: Some(&combined_media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                // Don't need a lot of capacity because the whole sub-svg of animal scene will be cached
-                cache_capacity: 5,
-                ..Default::default()
-            },
-
             ..Default::default()
         },
     )

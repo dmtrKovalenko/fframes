@@ -70,14 +70,16 @@ impl Drop for FrameFormatConvertor {
 
 #[derive(Clone)]
 pub struct EncoderFrame {
+    pub(crate) packet: *mut AVPacket,
     pub(crate) frame: *mut AVFrame,
     /// Used to store original yuv frame before converting it to the output pixel format.
     pub(crate) format_convertor: Option<FrameFormatConvertor>,
 }
 
 impl EncoderFrame {
-    pub unsafe fn make(stream: &stream::Stream) -> RenderEncodingResult<Self> {
+    pub unsafe fn new(stream: &stream::Stream) -> RenderEncodingResult<Self> {
         let frame = av_frame_alloc();
+        let packet = av_packet_alloc();
         let mut format_convertor = None;
 
         match stream.variant {
@@ -114,6 +116,7 @@ impl EncoderFrame {
 
         Ok(EncoderFrame {
             frame,
+            packet,
             format_convertor,
         })
     }
@@ -216,7 +219,14 @@ impl EncoderFrame {
 impl Drop for EncoderFrame {
     fn drop(&mut self) {
         unsafe {
-            av_frame_free(&mut self.frame);
+            if !self.frame.is_null() {
+                av_frame_unref(self.frame);
+                av_frame_free(&mut self.frame);
+            }
+            if !self.packet.is_null() {
+                av_packet_unref(self.packet);
+                av_packet_free(&mut self.packet);
+            }
         }
     }
 }

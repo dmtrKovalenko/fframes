@@ -1,7 +1,9 @@
-use crate::{render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError};
+use crate::{
+    get_thread_count, render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError,
+};
 use fframes::{
     usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
-    WorkerLocalVideoDecoders,
+    VideoDecodersWorker,
 };
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
@@ -17,7 +19,7 @@ use crate::{
     renderer_error::{FFramesRendererError, FFramesRendererResult},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CpuRenderingBackend {
     /// The number of **individual svg elements or groups** to cache. Pure CPU rendering is very slow
     /// for mostly any filter, shadows, or gradients so it is important to cache unchanged elements.
@@ -43,7 +45,7 @@ impl Default for CpuRenderingBackend {
         Self {
             cache_capacity: 20,
             text_cache_capacity: 10,
-            concurrency: rayon::current_num_threads(),
+            concurrency: get_thread_count(),
         }
     }
 }
@@ -74,16 +76,16 @@ impl CpuRenderingBackend {
 }
 
 impl FFramesRenderBackend for CpuRenderingBackend {
-    fn render<'a, TVideo: Video + Sync + Sized>(
-        &self,
+    fn render<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
+        self,
         output: &'a str,
         video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
-        usvg_options: &usvgr::Options,
-        encoder_options: &EncoderOptions<'a>,
-        font_db: &fontdb::Database,
-        timeline: &ResolvedRenderingTimeline<AudioTimelineSamples>,
-        ctx: fframes::FFramesContext<'a, '_>,
+        usvg_options: &'a usvgr::Options,
+        encoder_options: &'a EncoderOptions<'a>,
+        font_db: &'a fontdb::Database,
+        timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
+        ctx: &'a fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<()> {
         let extension = output
             .split('.')
@@ -114,6 +116,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                 unsafe {
                     Encoder::with_output(
+                        /* with audio */ false,
                         ctx.current_video_size.width as i32,
                         ctx.current_video_size.height as i32,
                         ctx.time_base.fps as i32,
@@ -121,9 +124,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         encoder_options,
                         &logger,
                         &mut |encoder| {
-                            let mut frame = EncoderFrame::make(&encoder.video_stream)?;
+                            let mut frame = EncoderFrame::new(&encoder.video_stream)?;
 
-                            let worker_local_decoders = WorkerLocalVideoDecoders::new();
+                            let worker_local_decoders = VideoDecodersWorker::new();
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
                             let mut converter_cache =
@@ -153,7 +156,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                             break_lines_cache.clone(),
                                             worker_local_decoders.clone(),
                                         ),
-                                        &ctx,
+                                        ctx,
                                     );
 
                                     let rtree = svg.into_svg_tree(
@@ -173,8 +176,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     logger.log_frame(index, thread_number);
                                     frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
 
-                                    let video_stream = encoder.video_stream;
-                                    encoder.send_frame(&video_stream, &frame)
+                                    encoder.send_frame(&encoder.video_stream, &frame)
                                 })?;
 
                             let frames_to_generate = chunk_range.end - chunk_range.start;
@@ -185,8 +187,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                 let intra_frames_to_add = frames_to_generate - submitted_frames;
 
                                 for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
-                                    let video_stream = encoder.video_stream;
-                                    encoder.send_frame(&video_stream, &frame)?;
+                                    encoder.send_frame(&encoder.video_stream, &frame)?;
                                 }
                             }
 
@@ -204,9 +205,10 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             concatenator::concat_video_files_with_audio(
                 files.as_slice(),
                 output,
+                self.concurrency as i32,
                 timeline.audio_map.as_ref(),
                 encoder_options,
-                &ctx,
+                ctx,
             )
             .map_err(FFramesRendererError::ConcatChunkError)?;
         }
@@ -216,7 +218,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
     }
 
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
-        &self,
+        self,
         frame: fframes::Frame,
         video: &'a TVideo,
         usvg_options: &usvgr::Options,

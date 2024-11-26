@@ -9,23 +9,25 @@ fn e2e_rendering() {
     println!("Running e2e rendering tests for {OS}-{ARCH}");
 
     render(
+        "out.mp4",
         &TestVideo {
             slug: "This frame index:".to_owned(),
         },
-        "out.mp4",
+        fframes_renderer::cpu::CpuRenderingBackend {
+            cache_capacity: 5,
+            concurrency: 1,
+            ..Default::default()
+        },
         &RenderOptions {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                cache_capacity: 5,
-                concurrency: 1,
-                ..Default::default()
-            },
+
             ..Default::default()
         },
     )
     .unwrap();
 
-    let base_frames_path = std::env::current_dir().unwrap().join("frames");
+    let current_dir = std::env::current_dir().unwrap();
+    let base_frames_path = current_dir.join("frames");
 
     let frames_base_dir = base_frames_path.join("base").join(format!("{OS}-{ARCH}"));
     let frames_results_dir = base_frames_path.join("results");
@@ -66,12 +68,8 @@ fn e2e_rendering() {
         })
         .collect::<Vec<_>>();
 
-    let odiff_path = std::fs::canonicalize(
-        std::env::current_dir()
-            .unwrap()
-            .join("../node_modules/odiff-bin/bin/odiff"),
-    )
-    .unwrap();
+    let odiff_path = std::fs::canonicalize(current_dir.join("../node_modules/odiff-bin/bin/odiff"))
+        .expect("Failed to find odiff binary. Did you forget to install node deps?");
 
     let failed_count = frames_entries
         .into_par_iter()
@@ -88,7 +86,7 @@ fn e2e_rendering() {
                     result_frame.to_str().unwrap(),
                     diff_path.to_str().unwrap(),
                     "-t",
-                    "0.7",
+                    "0.4",
                 ])
                 .output()
                 .expect("failed to get a diff");

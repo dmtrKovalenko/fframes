@@ -13,3 +13,8 @@ wasm-bindgen = "0.2.95"
 fframes.workspace = true
 fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
 podcast-example = { path = "../../", default-features = false }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+'cfg(wasm_bindgen_unstable_test_coverage)',
+] }

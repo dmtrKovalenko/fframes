@@ -14,6 +14,10 @@ pub enum AudioTimestamp<'a> {
     Frame(usize),
     /// A second within a video timeline.
     Second(f32),
+    Time {
+        minutes: f32,
+        seconds: f32,
+    },
     /// Represents a flat duration of audio file. It is different from `Eof` in a way that it will always be decoded as a whole duration of audio file.
     /// So in case of range like `Second(10)..DurationOfAudio("audio20seconds.mp3")`, where audio20seconds's duration is 20 seconds, audio will be played only **10 seconds**.
     /// Because `DurationOfAudio` will always be resolved to 20 seconds.
@@ -108,6 +112,7 @@ impl AudioTimestamp<'_> {
             }
             AudioTimestamp::Frame(_) => None,
             AudioTimestamp::Second(_) => None,
+            AudioTimestamp::Time { .. } => None,
         }
     }
 
@@ -127,6 +132,10 @@ impl AudioTimestamp<'_> {
             AudioTimestamp::DurationOfAudio(filename) => {
                 resolve_audio_duration_in_frames(filename)?
             }
+            AudioTimestamp::Time {
+                minutes: minute,
+                seconds: second,
+            } => ((*minute * 60.0 + *second) * tb.fps as f32) as usize,
             AudioTimestamp::__Add(add) => {
                 let (a, b) = &**add;
                 a.to_frames(filename, tb, eof_offset, resolve_audio_duration_in_frames)?

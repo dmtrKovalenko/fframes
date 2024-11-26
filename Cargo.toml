@@ -9,6 +9,7 @@ members = [
     "fframes-editor-controller",
     "fframes-test-utils",
     "fframes-media-loaders",
+    "fframes-skia-renderer",
     "media-dir-macro",
     # Examples 
     "examples/podcast",
@@ -29,13 +30,15 @@ members = [
     "examples/beta/editor/editor-bridge",
     "examples/conference-splash-screen",
     "examples/conference-splash-screen/editor/editor-bridge",
+    # maybe clean this up?
+    # "fframes-lyon-renderer",
 ]
 
 [workspace.dependencies]
 # If you are working locally on renderer, just clone https://github.com/dmtrKovalenko/svgr 
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
-# svgr = { path = "../svgr/crates/svgr"}
-# usvgr = { path = "../svgr/crates/usvgr"}
+# svgr = { path = "../svgr/crates/svgr" }
+# usvgr = { path = "../svgr/crates/usvgr" }
 svgr = "0.43.1"
 usvgr = "0.43.1"
 ffmpeg-sys-fframes = { package = "ffmpeg-sys-fframes", version = "7.1.1", features = [
@@ -51,3 +54,4 @@ svgr-macro = { path = "svgr-macro", version = "1.0.0-beta.6.rc-3.2" }
 fframes-media-dir-macro = { path = "media-dir-macro", version = "1.0.0-beta.6.rc-3.2" }
 fframes = { path = "fframes", version = "1.0.0-beta.6.rc-3.2" }
 webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.6.rc-3.2" }
+fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.0.0-beta.6.rc-3.2" }

@@ -24,7 +24,7 @@ macro_rules! setup_wasm_editor {
                 HashMap::new(),
                 Vec::new()
             ));
-            static ref VIDEO_DECODERS: fframes::WorkerLocalVideoDecoders = fframes::WorkerLocalVideoDecoders::new();
+            static ref VIDEO_DECODERS: fframes::VideoDecodersWorker = fframes::VideoDecodersWorker::new();
         }
 
         #[wasm_bindgen]

@@ -27,11 +27,23 @@ fn main() {
     let media = HelloWorldMedia::prepare().unwrap();
 
     render(
+        "out.mp4",
         &HelloWorldVideo {
             media: &media,
             slug: &args.slug,
         },
-        args.output.as_str(),
+        if let Some(concurrency) = args.concurrency {
+            fframes_renderer::cpu::CpuRenderingBackend {
+                concurrency,
+                cache_capacity: 5,
+                ..Default::default()
+            }
+        } else {
+            fframes_renderer::cpu::CpuRenderingBackend {
+                cache_capacity: 5,
+                ..Default::default()
+            }
+        },
         &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
@@ -52,18 +64,6 @@ fn main() {
                     ("tune", "animation"),
                 ]),
                 ..Default::default()
-            },
-            render_backend: if let Some(concurrency) = args.concurrency {
-                fframes_renderer::cpu::CpuRenderingBackend {
-                    concurrency,
-                    cache_capacity: 5,
-                    ..Default::default()
-                }
-            } else {
-                fframes_renderer::cpu::CpuRenderingBackend {
-                    cache_capacity: 5,
-                    ..Default::default()
-                }
             },
             ..Default::default()
         },

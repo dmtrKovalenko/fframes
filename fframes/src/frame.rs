@@ -5,7 +5,7 @@ use usvgr::svgtree::SvgAttributeValue;
 use crate::{
     animation, get_visualization,
     text::{text_wrap_impl, BreakLinesOpts},
-    video_data::{FFramesSyncedVideoFrame, WorkerLocalVideoDecoders},
+    video_data::{FFramesSyncedVideoFrame, VideoDecodersWorker},
     BreaksLruCache, Svgr, SyncVideoFrameInput, VisualizeFrameInput, WrappedTextStructure,
 };
 
@@ -21,7 +21,7 @@ pub struct Frame {
     /// FPS of the video. Always equals to the FPS constant.
     pub fps: usize,
     breaks_lru_cache: Option<BreaksLruCache>,
-    worker_local_video_decoders: WorkerLocalVideoDecoders,
+    worker_local_video_decoders: VideoDecodersWorker,
 }
 
 pub struct AnimateRuntimeInput<'a, TValue: animation::Animatable> {
@@ -45,7 +45,7 @@ impl Frame {
             global_index,
             fps,
             breaks_lru_cache: None,
-            worker_local_video_decoders: WorkerLocalVideoDecoders::new(),
+            worker_local_video_decoders: VideoDecodersWorker::new(),
         }
     }
 
@@ -58,7 +58,7 @@ impl Frame {
         global_index: usize,
         fps: usize,
         breaks_lru_cache: Option<BreaksLruCache>,
-        worker_local_decoders: WorkerLocalVideoDecoders,
+        worker_local_decoders: VideoDecodersWorker,
     ) -> Self {
         Self {
             index,

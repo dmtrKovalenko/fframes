@@ -2,14 +2,16 @@ use crate::error::Result;
 use crate::video_types::FrameConvertOptions;
 use crate::{FFramesMediaError, ResizeVideoFrame};
 use ffmpeg_sys_fframes::*;
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::ffi::CString;
+use std::mem::size_of;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use usvgr::PreloadedImageData;
+
+pub const FFRAMES_VIDEO_PATH_TAG: &str = "___fframes_internal_video_frame_pts___";
 
 #[derive(Debug, Clone, Copy)]
 struct VideoStreamInfo {
@@ -81,7 +83,7 @@ impl SwsScaler {
         linesize
     }
 
-    fn new(video_stream_info: &VideoStreamInfo) -> Result<Self> {
+    fn new(video_stream_info: VideoStreamInfo) -> Result<Self> {
         let frame_data_len =
             video_stream_info.width as usize * video_stream_info.height as usize * PIX_FMT_SIZE;
 
@@ -93,7 +95,7 @@ impl SwsScaler {
             width: video_stream_info.width as u32,
             sws_ctx: unsafe {
                 SwsScaler::init_sws_context(
-                    video_stream_info,
+                    &video_stream_info,
                     video_stream_info.width,
                     video_stream_info.height,
                 )?
@@ -104,7 +106,7 @@ impl SwsScaler {
                     height: video_stream_info.height as u32,
                 },
             },
-            video_stream_info: *video_stream_info,
+            video_stream_info,
         })
     }
 
@@ -131,11 +133,11 @@ impl SwsScaler {
             }
         }
 
-        // safe to unwrap because of the is_none check above
         Ok(self.sws_ctx)
     }
 }
 
+#[derive(Debug)]
 pub struct FFmpegDecoder {
     pub current_loop: i64,
     frame: Arc<FFmpegFrame>,
@@ -146,20 +148,23 @@ pub struct FFmpegDecoder {
     duration_in_frames: i64,
 }
 
+unsafe impl Send for FFmpegDecoder {}
+unsafe impl Sync for FFmpegDecoder {}
+
 #[derive(Debug)]
 pub struct FFmpegFrame {
+    resource_name: String,
     av_frame: *mut AVFrame,
-    data_vec: Rc<UnsafeCell<Vec<u8>>>,
-    sws_scaler: RefCell<SwsScaler>,
+    // This is not a safe operation but it gives a dramatic performance improvement
+    // for the updating the underlying datavec. So we are relying on the constraint that
+    // the decoder can operate (thus write the datavec) only within the frame, but
+    // the frame can be sent and read outside the decoder
+    data_vec: Arc<UnsafeCell<Vec<u8>>>, // Changed back to UnsafeCell
+    sws_scaler: Mutex<SwsScaler>,
 }
 
-impl Drop for FFmpegFrame {
-    fn drop(&mut self) {
-        unsafe {
-            av_frame_free(&mut self.av_frame);
-        }
-    }
-}
+unsafe impl Send for FFmpegFrame {}
+unsafe impl Sync for FFmpegFrame {}
 
 impl FFmpegFrame {
     fn alloc_data_vec(ctx: &SwsScaler) -> Vec<u8> {
@@ -169,8 +174,8 @@ impl FFmpegFrame {
         data_vec
     }
 
-    unsafe fn new(video_stream_info: &VideoStreamInfo) -> Result<Self> {
-        let av_frame = unsafe { av_frame_alloc() };
+    unsafe fn new(resource_name: String, video_stream_info: VideoStreamInfo) -> Result<Self> {
+        let av_frame = av_frame_alloc();
         if av_frame.is_null() {
             return Err(FFramesMediaError::LibAVAllocationError("frame"));
         }
@@ -178,43 +183,36 @@ impl FFmpegFrame {
         let sws_ctx = SwsScaler::new(video_stream_info)?;
         Ok(FFmpegFrame {
             av_frame,
-            data_vec: Rc::new(UnsafeCell::new(Self::alloc_data_vec(&sws_ctx))),
-            sws_scaler: std::cell::RefCell::new(sws_ctx),
+            resource_name,
+            #[allow(clippy::arc_with_non_send_sync)]
+            data_vec: Arc::new(UnsafeCell::new(Self::alloc_data_vec(&sws_ctx))),
+            sws_scaler: Mutex::new(sws_ctx),
         })
     }
 
-    /// Reinitializes the sws context and the data vector if the options have changed
+    /// Reallocates the sws convertor and frame data vector if the options have changed
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// Generally safe but uses libav functions
     pub unsafe fn reinit_sws_context(&self, options: &FrameConvertOptions) -> Result<()> {
-        self.sws_scaler
-            .borrow_mut()
-            .maybe_reinit_conversion_context(options)?;
+        let mut scaler = self.sws_scaler.lock().unwrap();
+        scaler.maybe_reinit_conversion_context(options)?;
 
-        let current_len = self.data_vec.get().as_mut().map(|v| v.len());
-        let new_len = self.sws_scaler.borrow().frame_data_len;
+        let new_len = scaler.frame_data_len;
+        let data_vec = &mut *self.data_vec.get();
 
-        let realloc_vec = || {
-            self.data_vec
-                .get()
-                .replace(Self::alloc_data_vec(&self.sws_scaler.borrow()));
-        };
-
-        match (current_len, new_len) {
-            (None, _) => realloc_vec(),
-            (Some(new_len), datalen) if new_len != datalen => realloc_vec(),
-            _ => {}
+        if data_vec.len() != new_len {
+            *data_vec = Self::alloc_data_vec(&scaler);
         }
 
         Ok(())
     }
 
     pub fn get_width(&self) -> u32 {
-        self.sws_scaler.borrow().width
+        self.sws_scaler.lock().unwrap().width
     }
 
     pub fn get_height(&self) -> u32 {
-        self.sws_scaler.borrow().height
+        self.sws_scaler.lock().unwrap().height
     }
 
     /// Returns fframe image constructed from the underlying ffmpeg's frame
@@ -223,8 +221,8 @@ impl FFmpegFrame {
     /// In addition it is manually transmutes the pointer owned by the decoder to the fframes
     /// images so it should not be used outside of the rendering worker.
     pub unsafe fn get_image(&self) -> Arc<PreloadedImageData> {
-        let scaler = self.sws_scaler.borrow();
-        // Convert the frame to RGBA
+        let scaler = self.sws_scaler.lock().unwrap();
+
         sws_scale(
             scaler.sws_ctx,
             (*self.av_frame).data.as_ptr() as *const *const u8,
@@ -243,7 +241,7 @@ impl FFmpegFrame {
         data_vec.set_len(scaler.frame_data_len);
 
         Arc::new(PreloadedImageData::new_blended(
-            format!("<<frame_{}>>", (*self.av_frame).pts),
+            format!("{}{FFRAMES_VIDEO_PATH_TAG}.png", self.resource_name),
             scaler.width,
             scaler.height,
             // Possible unsafety here because we assume that the frame vec is allocated
@@ -257,7 +255,7 @@ impl FFmpegFrame {
     /// # Safety
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn timestamp_seconds(&self) -> f64 {
-        let video_stream_info = self.sws_scaler.borrow().video_stream_info;
+        let video_stream_info = &self.sws_scaler.lock().unwrap().video_stream_info;
         (*self.av_frame).pts as f64 * av_q2d(video_stream_info.time_base)
     }
 
@@ -265,33 +263,36 @@ impl FFmpegFrame {
     /// # Safety
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn get_stream_duration_in_frames(&self) -> f64 {
-        let video_stream_info = self.sws_scaler.borrow().video_stream_info;
+        let video_stream_info = &self.sws_scaler.lock().unwrap().video_stream_info;
         video_stream_info.duration as f64 * av_q2d(video_stream_info.time_base)
     }
 
     /// Returns the fps value of the stream
     /// Remember that the fps value is always a guess based on the stream timestamps
     pub fn get_stream_fps(&self) -> f64 {
-        let video_stream_info = self.sws_scaler.borrow().video_stream_info;
+        let video_stream_info = &self.sws_scaler.lock().unwrap().video_stream_info;
         video_stream_info.frame_rate.num as f64 / video_stream_info.frame_rate.den as f64
     }
 }
 
 impl FFmpegDecoder {
     pub fn get_raw_frame(&self) -> Arc<FFmpegFrame> {
-        self.frame.clone()
+        Arc::clone(&self.frame)
     }
 
-    /// Creates new libav based video decoder pointing to the file at the given path
+    /// Creates a new decoder for the video file at the specified path
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
-    pub unsafe fn new(src_filename: &Path, target_fps: usize) -> Result<Self> {
-        let src_filename_c = CString::new(src_filename.as_os_str().as_bytes())?;
+    /// Generally safe but uses libav functions
+    pub unsafe fn new(path: &Path, target_fps: usize) -> Result<Self> {
+        let filename = path
+            .file_name()
+            .ok_or_else(|| FFramesMediaError::MediaDirectoryProvided)?;
+        let full_path_cstr = CString::new(path.as_os_str().as_bytes())?;
 
         let mut fmt_ctx: *mut AVFormatContext = ptr::null_mut();
         let ret = avformat_open_input(
             &mut fmt_ctx,
-            src_filename_c.as_ptr(),
+            full_path_cstr.as_ptr(),
             ptr::null_mut(),
             ptr::null_mut(),
         );
@@ -323,11 +324,9 @@ impl FFmpegDecoder {
             return Err(FFramesMediaError::LibAVAllocationError("packet"));
         }
 
-        let custom_time_base = {
-            AVRational {
-                num: 1,
-                den: target_fps as i32,
-            }
+        let custom_time_base = AVRational {
+            num: 1,
+            den: target_fps as i32,
         };
 
         let duration_in_frames = av_rescale_q(
@@ -339,7 +338,10 @@ impl FFmpegDecoder {
         Ok(FFmpegDecoder {
             pkt,
             fmt_ctx,
-            frame: FFmpegFrame::new(&video_stream_info)?.into(),
+            frame: Arc::new(FFmpegFrame::new(
+                filename.to_string_lossy().to_string(),
+                video_stream_info,
+            )?),
             video_stream_info,
             custom_time_base,
             duration_in_frames,
@@ -404,9 +406,9 @@ impl FFmpegDecoder {
         })
     }
 
-    /// Seeks the video context to the closes keyframe of the offset in target timebase frame
+    /// Seeks to the specified offset in the video stream (to the nearest keyframe)
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// Generally safe but uses libav functions
     pub unsafe fn seek_to_offset(&mut self, offset: i64) -> Result<()> {
         let offset = self
             .duration_in_frames
@@ -438,9 +440,9 @@ impl FFmpegDecoder {
         Ok(())
     }
 
-    /// Adjusts the offset to the correct frame in the video stream
+    /// Moves offset to the start of the video if need to loop
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// Generally safe but uses libav functions
     pub unsafe fn adjust_offset_for_looping(&mut self, offset: i64) -> Result<i64> {
         if offset < self.duration_in_frames {
             return Ok(offset);
@@ -458,9 +460,9 @@ impl FFmpegDecoder {
         Ok(new_offset)
     }
 
-    /// Decodes the video stream up the to target offset in the custom time base
+    /// Decodes the video stream up to the specified offset
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// Generally safe but uses libav functions
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
         let target_pts = av_rescale_q(
             offset,
@@ -488,7 +490,6 @@ impl FFmpegDecoder {
                     )));
                 }
 
-                // now we need to decode all frames in the packet in the lookup for the target frame
                 loop {
                     let ret = avcodec_receive_frame(
                         self.video_stream_info.codec_ctx,
@@ -501,8 +502,6 @@ impl FFmpegDecoder {
                             }
                         }
                         val if val == AVERROR(EAGAIN) => {
-                            // We've processed all available output from the current packet
-                            // Break the inner loop to read the next packet
                             break;
                         }
                         _ => {

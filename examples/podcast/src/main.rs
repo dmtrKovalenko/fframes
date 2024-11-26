@@ -1,3 +1,4 @@
+use fframes_renderer::EncoderOptions;
 pub use fframes_renderer::{fframes_logger, render, RenderOptions};
 use podcast_example::PodcastVideo;
 use std::path::Path;
@@ -7,17 +8,18 @@ fn main() {
     let media = media_folder.process_media_source().unwrap();
 
     render(
+        "out.mp4",
         &PodcastVideo {
             goose_audio: "final.mp3",
             duck_audio: "final.mp3",
             guest_audio: "final.mp3",
         },
-        "out.mp4",
+        fframes_renderer::cpu::CpuRenderingBackend::default(),
         &RenderOptions {
             media: Some(&media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            render_backend: fframes_renderer::cpu::CpuRenderingBackend {
-                cache_capacity: 0,
+            encoder_options: EncoderOptions {
+                preferred_video_codec: Some("libx264"),
                 ..Default::default()
             },
             ..Default::default()

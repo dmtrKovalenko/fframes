@@ -1,4 +1,4 @@
-use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
+use crate::stream::Stream;
 use crate::{
     ffmpeg_action,
     renderer_error::{self, RenderEncodingError},
@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
 };
 
+pub use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 pub use ffmpeg_sys_fframes::{AVPixelFormat, AVSampleFormat, MKBETAG, MKTAG};
 
 #[inline(always)]
@@ -141,23 +142,58 @@ impl Default for EncoderOptions<'_> {
 }
 
 pub struct Encoder {
-    pub(crate) video_stream: stream::Stream,
-    pub(crate) audio_stream: Option<stream::Stream>,
-    pub(crate) b_frames_count: i32,
+    pub video_stream: stream::Stream,
+    pub audio_stream: Option<stream::Stream>,
     pub(crate) oc: *mut AVFormatContext,
 }
 
+impl Drop for Encoder {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.oc.is_null() {
+                // Flush any remaining packets first
+                if !self.video_stream.enc.is_null() {
+                    avcodec_flush_buffers(self.video_stream.enc);
+                }
+
+                match self.audio_stream {
+                    Some(ref audio_stream) if audio_stream.enc.is_null() => {
+                        avcodec_flush_buffers(audio_stream.enc);
+                    }
+                    _ => {}
+                }
+
+                av_write_trailer(self.oc);
+                self.video_stream.free();
+
+                if let Some(mut audio_stream) = self.audio_stream.take() {
+                    audio_stream.free();
+                }
+
+                if !(*self.oc).metadata.is_null() {
+                    av_dict_free(&mut (*self.oc).metadata);
+                }
+
+                if !(*self.oc).pb.is_null() {
+                    avio_closep(&mut (*self.oc).pb);
+                }
+
+                avformat_free_context(self.oc);
+            }
+        }
+    }
+}
+
 impl Encoder {
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn with_output<T, F: FnMut(&mut Encoder) -> RenderEncodingResult<T>>(
+    pub unsafe fn new(
+        with_audio: bool,
         width: i32,
         height: i32,
         fps: i32,
         filename: &str,
         encoder_options: &EncoderOptions,
         logger: &Arc<dyn FFramesLogger>,
-        inner_fn: &mut F,
-    ) -> RenderEncodingResult<T> {
+    ) -> RenderEncodingResult<Self> {
         av_log_set_level(logger.get_libav_log_level());
 
         let c_filename = CString::new(filename).map_err(RenderEncodingError::CStringError)?;
@@ -174,14 +210,6 @@ impl Encoder {
         );
 
         let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
-
-        let mut encoder = Encoder {
-            b_frames_count: 0,
-            video_stream,
-            oc,
-            audio_stream: None,
-        };
-
         if logger.should_dump_format_info() {
             av_dump_format(oc, 0, c_filename.as_ptr(), 1);
         }
@@ -191,33 +219,48 @@ impl Encoder {
             RenderEncodingError::CantOpenFile(filename.to_owned())
         );
 
+        let audio_stream = with_audio
+            .then(|| Stream::make_audio(encoder_options.sample_rate as i32, oc, encoder_options))
+            .transpose()?;
+
         avformat_write_header(oc, std::ptr::null_mut());
 
-        let res = inner_fn(&mut encoder);
+        Ok(Encoder {
+            oc,
+            video_stream,
+            audio_stream,
+        })
+    }
 
-        avcodec_send_frame(video_stream.enc, std::ptr::null_mut());
-        if let Some(audio_stream) = encoder.audio_stream {
-            avcodec_send_frame(audio_stream.enc, std::ptr::null_mut());
-        }
+    #[allow(clippy::too_many_arguments)]
+    pub unsafe fn with_output<T, F: FnMut(&mut Encoder) -> RenderEncodingResult<T>>(
+        with_audio: bool,
+        width: i32,
+        height: i32,
+        fps: i32,
+        filename: &str,
+        encoder_options: &EncoderOptions,
+        logger: &Arc<dyn FFramesLogger>,
+        inner_fn: &mut F,
+    ) -> RenderEncodingResult<T> {
+        let mut encoder = Encoder::new(
+            with_audio,
+            width,
+            height,
+            fps,
+            filename,
+            encoder_options,
+            logger,
+        )?;
 
-        av_write_trailer(oc);
-        video_stream.free();
-
-        if let Some(audio_stream) = encoder.audio_stream {
-            avcodec_close(audio_stream.enc);
-            audio_stream.free();
-        }
-
-        avio_closep(&mut (*oc).pb);
-        avformat_free_context(oc);
-
-        res
+        inner_fn(&mut encoder)
+        // Encoder::drop() will be called here
     }
 
     pub unsafe fn send_customizable_frame_packet<F: Fn(*mut AVPacket) -> i32>(
-        &mut self,
+        &self,
         stream: &stream::Stream,
-        EncoderFrame { frame, .. }: &EncoderFrame,
+        EncoderFrame { frame, packet, .. }: &EncoderFrame,
         customize_frame: F,
     ) -> RenderEncodingResult<()> {
         let avcodec_send_frame = avcodec_send_frame(stream.enc, *frame);
@@ -231,17 +274,15 @@ impl Encoder {
             ));
         }
 
-        let packet = av_packet_alloc();
         while status >= 0 {
-            status = avcodec_receive_packet(stream.enc, packet);
+            status = avcodec_receive_packet(stream.enc, *packet);
 
             match status {
                 status if status == AVERROR_EOF => break,
                 status if status == FFMPEG_AVERROR(EAGAIN) => {
-                    self.b_frames_count += 1;
                     break;
                 }
-                _ => status = customize_frame(packet),
+                _ => status = customize_frame(*packet),
             }
         }
 
@@ -249,7 +290,7 @@ impl Encoder {
     }
 
     pub unsafe fn send_frame(
-        &mut self,
+        &self,
         stream: &stream::Stream,
         frame: &EncoderFrame,
     ) -> RenderEncodingResult<()> {

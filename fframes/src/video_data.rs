@@ -1,12 +1,16 @@
 use crate::{media::GeneralVideoFileMetadata, media::ImageData, FFramesContext};
 use fframes_media_loaders::VideoMedia;
-pub use fframes_media_loaders::{FrameConvertOptions, ResizeVideoFrame};
 use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
-use fframes_media_loaders::ImageMetadata;
+use crate::error::Result;
 #[cfg(not(target_arch = "wasm32"))]
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use fframes_media_loaders::FFmpegFrame;
+#[cfg(not(target_arch = "wasm32"))]
+use fframes_media_loaders::ImageMetadata;
+pub use fframes_media_loaders::{FrameConvertOptions, ResizeVideoFrame};
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashMap;
 
 pub trait FFramesSyncedVideoFrame {
     /// Gets the original image from the frame
@@ -161,29 +165,28 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrame {
 }
 
 #[derive(Clone)]
-/// Cheap to clone set of video decoers per render worker
-pub struct WorkerLocalVideoDecoders {
+pub struct VideoDecodersWorker {
     #[cfg(not(target_arch = "wasm32"))]
-    map: Rc<RefCell<HashMap<String, fframes_media_loaders::FFmpegDecoder>>>,
+    map: Arc<std::sync::RwLock<HashMap<String, fframes_media_loaders::FFmpegDecoder>>>,
 }
 
-impl std::fmt::Debug for WorkerLocalVideoDecoders {
+impl std::fmt::Debug for VideoDecodersWorker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WorkerLocalDecoders").finish()
     }
 }
 
-impl Default for WorkerLocalVideoDecoders {
+impl Default for VideoDecodersWorker {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl WorkerLocalVideoDecoders {
+impl VideoDecodersWorker {
     pub fn new() -> Self {
-        WorkerLocalVideoDecoders {
+        VideoDecodersWorker {
             #[cfg(not(target_arch = "wasm32"))]
-            map: Rc::new(RefCell::new(HashMap::new())),
+            map: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 
@@ -214,20 +217,39 @@ impl WorkerLocalVideoDecoders {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    pub fn get_latest_frame_of_decoder(&self, filename: &str) -> Result<Option<Arc<FFmpegFrame>>> {
+        let frame = self
+            .map
+            .read()
+            .unwrap()
+            .get(filename)
+            .map(|decoder| decoder.get_raw_frame());
+
+        Ok(frame)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn get_synced_frame(
         &self,
         VideoMedia { path, .. }: &VideoMedia,
         mut offset: i64,
         ctx: &FFramesContext,
         options: &SyncVideoFrameInput,
-    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
-        let has_decoder = {
-            (*self.map)
-                .borrow()
-                .contains_key(path.to_string_lossy().as_ref())
-        };
+    ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
+        use crate::error::FFramesError;
+        use fframes_media_loaders::FFramesMediaError;
 
-        if !has_decoder {
+        let resource_name = path
+            .file_name()
+            .ok_or_else(|| FFramesError::MediaError(FFramesMediaError::MediaDirectoryProvided))?
+            .to_string_lossy()
+            .to_string();
+
+        // Use read lock to check for decoder existence
+        let needs_new_decoder = !self.map.read()?.contains_key(&resource_name);
+
+        // Create new decoder if needed
+        if needs_new_decoder {
             let decoder = unsafe {
                 let mut decoder =
                     fframes_media_loaders::FFmpegDecoder::new(path, ctx.time_base.fps)?;
@@ -239,14 +261,14 @@ impl WorkerLocalVideoDecoders {
                 decoder
             };
 
-            (*self.map)
-                .borrow_mut()
-                .insert(path.to_string_lossy().to_string(), decoder);
+            // Use write lock only when inserting
+            self.map.write()?.insert(resource_name.clone(), decoder);
         }
 
         unsafe {
-            let mut decoders = (*self.map).borrow_mut();
-            let decoder = decoders.get_mut(path.to_string_lossy().as_ref()).unwrap();
+            // Use write lock for modifying decoder state
+            let mut map_guard = self.map.write().unwrap();
+            let decoder = map_guard.get_mut(&resource_name).unwrap();
 
             if options.looping {
                 offset = decoder.adjust_offset_for_looping(offset)?;
@@ -267,3 +289,7 @@ impl WorkerLocalVideoDecoders {
         }
     }
 }
+
+// These implementations are already thread-safe due to RwLock
+unsafe impl Send for VideoDecodersWorker {}
+unsafe impl Sync for VideoDecodersWorker {}

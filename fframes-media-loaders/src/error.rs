@@ -8,6 +8,7 @@ pub enum FFramesMediaError {
     FontError(ttf_parser::FaceParsingError),
     VttError(webvtt_parser::VttError),
     NulError(std::ffi::NulError),
+    MediaDirectoryProvided,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -53,6 +54,7 @@ impl std::fmt::Debug for FFramesMediaError {
             Self::VttError(err) => write!(f, "VttError: {:?}", err),
             Self::NulError(err) => write!(f, "{:?}", err),
             Self::LibAVAllocationError(what) => write!(f, "libav: Failed to allocate {}", what),
+            Self::MediaDirectoryProvided => write!(f, "Can not open directory as a media file. Use a separate media source for directories."),
         }
     }
 }

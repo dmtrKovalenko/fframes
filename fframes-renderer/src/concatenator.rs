@@ -12,6 +12,36 @@ use crate::{
     EncoderOptions,
 };
 
+pub struct AvPacketAutoFree {
+    av_packet: *mut AVPacket,
+}
+
+impl AvPacketAutoFree {
+    pub fn new() -> Self {
+        unsafe {
+            AvPacketAutoFree {
+                av_packet: av_packet_alloc(),
+            }
+        }
+    }
+
+    pub fn get(&mut self) -> *mut AVPacket {
+        self.av_packet
+    }
+
+    pub fn deref_mut(&mut self) -> &mut AVPacket {
+        unsafe { &mut *self.av_packet }
+    }
+}
+
+impl Drop for AvPacketAutoFree {
+    fn drop(&mut self) {
+        unsafe {
+            av_packet_free(&mut self.av_packet);
+        }
+    }
+}
+
 unsafe fn open_file_stream(
     filename: &str,
     input_format_ctx: &mut *mut AVFormatContext,
@@ -92,7 +122,6 @@ unsafe fn create_encoder_copy_from_file(
         },
         audio_stream: Some(audio_stream),
         oc: output_format_ctx,
-        b_frames_count: 0,
     };
 
     avcodec_parameters_copy(
@@ -102,7 +131,6 @@ unsafe fn create_encoder_copy_from_file(
     (*encoder.video_stream.st).time_base = (*input_video_stream).time_base;
 
     avformat_close_input(&mut input_format_ctx);
-
     avio_open(
         &mut (*output_format_ctx).pb,
         output_file.as_ptr(),
@@ -141,110 +169,105 @@ unsafe fn validate_non_monotous_dts(
     Ok(())
 }
 
-unsafe fn fill_video_stream_from_files(
-    encoder: &mut Encoder,
-    files: &[String],
-) -> Result<(), RenderEncodingError> {
-    let mut start_time = 0;
-    let mut last_mux_dts: Option<i64> = None;
+impl Encoder {
+    pub unsafe fn fill_audio_stream(
+        &self,
+        audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
+        ctx: &FFramesContext,
+    ) -> Result<(), RenderEncodingError> {
+        if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
+            let stream_duration_in_samples =
+                AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
 
-    let packet = av_packet_alloc();
+            let mut audio_frame = EncoderFrame::new(audio_stream)?;
+            let mut audio_frame_pts = 0usize;
+            let frame_size = (*audio_stream.enc).frame_size as usize;
 
-    for file in files.iter() {
-        let mut input_format_ctx = std::ptr::null_mut();
+            while audio_frame_pts <= stream_duration_in_samples.as_usize() {
+                let audio_data = ctx.get_mixed_audio_data_in_fltp(
+                    audio_map,
+                    AudioTimelineSamples::from_usize(audio_frame_pts),
+                    frame_size,
+                );
 
-        let input_video_stream =
-            open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
+                audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
+                self.send_frame(audio_stream, &audio_frame)?;
 
-        let start_file_ts = av_rescale_q(
-            start_time,
-            AV_TIME_BASE_Q,
-            (*encoder.video_stream.st).time_base,
-        );
-
-        loop {
-            let res = av_read_frame(input_format_ctx, packet);
-            if res < 0 {
-                break;
+                audio_frame_pts += frame_size;
             }
-
-            (*packet).flags |= AV_PKT_FLAG_KEY;
-
-            (*packet).pts += start_file_ts;
-            (*packet).dts += start_file_ts;
-
-            if let Some(last_mux_dts) = last_mux_dts.as_mut() {
-                validate_non_monotous_dts(packet, last_mux_dts, encoder.oc)?;
-            }
-
-            last_mux_dts = Some((*packet).dts);
-
-            av_packet_rescale_ts(
-                packet,
-                (*input_video_stream).time_base,
-                (*encoder.video_stream.st).time_base,
-            );
-            av_interleaved_write_frame(encoder.oc, packet);
         }
 
-        start_time += (*input_format_ctx).duration;
-        avformat_close_input(&mut input_format_ctx);
+        Ok(())
     }
 
-    Ok(())
-}
+    unsafe fn fill_video_stream_from_files(
+        &self,
+        files: &[String],
+    ) -> Result<(), RenderEncodingError> {
+        let mut start_time = 0;
+        let mut last_mux_dts: Option<i64> = None;
+        let mut packet = AvPacketAutoFree::new();
 
-pub unsafe fn fill_audio_stream(
-    encoder: &mut Encoder,
-    audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
-    ctx: &FFramesContext,
-) -> Result<(), RenderEncodingError> {
-    if let (Some(audio_map), Some(audio_stream)) = (audio_map, encoder.audio_stream) {
-        let stream_duration_in_samples =
-            AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
+        for file in files.iter() {
+            let mut input_format_ctx = std::ptr::null_mut();
 
-        let mut audio_frame =
-            EncoderFrame::make(&encoder.audio_stream.ok_or_else(|| {
-                RenderEncodingError::Internal("Missing audio_stream".to_owned())
-            })?)?;
+            let input_video_stream =
+                open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
-        let mut audio_frame_pts = 0usize;
-        let frame_size = (*audio_stream.enc).frame_size as usize;
-
-        while audio_frame_pts <= stream_duration_in_samples.as_usize() {
-            let audio_data = ctx.get_mixed_audio_data_in_fltp(
-                audio_map,
-                AudioTimelineSamples::from_usize(audio_frame_pts),
-                frame_size,
+            let start_file_ts = av_rescale_q(
+                start_time,
+                AV_TIME_BASE_Q,
+                (*self.video_stream.st).time_base,
             );
 
-            audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
-            encoder.send_frame(&audio_stream, &audio_frame)?;
+            loop {
+                let res = av_read_frame(input_format_ctx, packet.get());
+                if res < 0 {
+                    break;
+                }
 
-            audio_frame_pts += frame_size;
+                packet.deref_mut().flags |= AV_PKT_FLAG_KEY;
+
+                packet.deref_mut().pts += start_file_ts;
+                packet.deref_mut().dts += start_file_ts;
+
+                if let Some(last_mux_dts) = last_mux_dts.as_mut() {
+                    validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
+                }
+
+                last_mux_dts = Some((*packet.get()).dts);
+
+                av_packet_rescale_ts(
+                    packet.get(),
+                    (*input_video_stream).time_base,
+                    (*self.video_stream.st).time_base,
+                );
+                av_interleaved_write_frame(self.oc, packet.get());
+            }
+
+            start_time += (*input_format_ctx).duration;
+            avformat_close_input(&mut input_format_ctx);
         }
 
-        avcodec_send_frame(audio_stream.enc, std::ptr::null_mut());
-        audio_stream.free();
+        Ok(())
     }
-
-    Ok(())
 }
 
-pub unsafe fn concat_video_files_with_audio(
+pub(crate) unsafe fn concat_video_files_with_audio(
     files: &[String],
     output: &str,
+    concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     encoder_options: &EncoderOptions,
     ctx: &FFramesContext,
 ) -> Result<(), RenderEncodingError> {
-    let mut encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
+    let encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
 
-    fill_video_stream_from_files(&mut encoder, files)?;
-    fill_audio_stream(&mut encoder, audio_map, ctx)?;
-
-    av_write_trailer(encoder.oc);
-    avio_close((*encoder.oc).pb);
+    encoder.fill_video_stream_from_files(files)?;
+    if let Some(audio_stream) = &encoder.audio_stream {
+        (*audio_stream.enc).thread_count = concurrency;
+        encoder.fill_audio_stream(audio_map, ctx)?;
+    }
 
     Ok(())
 }

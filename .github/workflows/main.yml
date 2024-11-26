@@ -32,7 +32,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 23
           cache: "yarn"
 
       - name: Install frontend deps
@@ -73,34 +73,43 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev 
+          sudo apt-get install -y g++-16 llvm ninja-build libgl1 libgl1-mesa-dev libgles2-mesa-dev libssl-dev libfontconfig1-dev mesa-common-dev libwayland-dev yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev
+
+      - name: Install Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.0
+        with:
+         vulkan-query-version: 1.3.204.0
+         vulkan-components: Vulkan-Headers, Vulkan-Loader
+         vulkan-use-cache: true
 
       - name: Install brew deps 
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config ffmpeg x264 x265 opus nasm
 
-      - uses: actions-rs/toolchain@v1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
+          always-auth: true
+          node-version: 23
+          egistry-url: 'https://registry.npmjs.org'
+          cache: "yarn"
 
       - name: Install frontend deps
         run: |
           npm install -g yarn
           yarn install --frozen-lockfile --prefer-offline
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v2-rust"
-          cache-on-failure: true
-
-      - name: Build
-        run: just clippy
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with: 
+          cache: true
+          cache-key: "v3-rust"
 
       - name: Check format
         run: cargo fmt --check
+
+      - name: Build
+        run: just clippy
 
       - name: Check examples wasm build
         run: |
@@ -141,7 +150,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           always-auth: true
-          node-version: "20"
+          node-version: 23
           egistry-url: 'https://registry.npmjs.org'
           cache: "yarn"
 
@@ -154,11 +163,10 @@ jobs:
         with:
           toolchain: stable
           override: true
-          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v2-rust"
+          prefix-key: "v3-rust"
           cache-on-failure: true
 
       - name: Run Release Script
