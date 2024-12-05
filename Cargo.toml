@@ -38,12 +38,9 @@ members = [
 # usvgr = { path = "../svgr/crates/usvgr"}
 svgr = "0.43.1"
 usvgr = "0.43.1"
-ffmpeg-sys-fframes = { package = "ffmpeg-sys-fframes", version = "7.1.1", features = [
+ffmpeg-sys-fframes = { path = "../rust-ffmpeg-sys", version = "7.1.1", features = [
     "build",
     "static",
-    "build-lib-x264",
-    "build-lib-x265",
-    "build-license-gpl",
 ] }
 wasm-bindgen = "0.2.95"
 
