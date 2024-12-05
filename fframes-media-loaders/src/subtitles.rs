@@ -68,7 +68,7 @@ impl FFramesSubtitlesCue<'_> for OwnedVttCue {
     }
 }
 
-impl<'a> FFramesSubtitles<'a> for OwnedVtt {
+impl FFramesSubtitles<'_> for OwnedVtt {
     type Cue = OwnedVttCue;
 
     fn cues_count(&self) -> usize {

@@ -23,7 +23,7 @@ impl Scene for BetaExamples<'_> {
         &'a self,
         frame: fframes::Frame,
         ctx: &fframes::FFramesContext<'a, '_>,
-    ) -> fframes::Svgr {
+    ) -> fframes::Svgr<'a> {
         const VIDEO_SCALE: f32 = 0.62;
         const VIDEO_OFFSET_Y: i32 = 320;
         const VIDEO_OFFSET_X: f32 = (1920. - (1920. * VIDEO_SCALE)) / 2.;

@@ -2,7 +2,7 @@
 name = "fframes-editor-controller"
 description = "Helper wasm module that provies fframes bindings for the web WASM editor"
 license = "MIT"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2021"
 homepage = "https://fframes.studio"

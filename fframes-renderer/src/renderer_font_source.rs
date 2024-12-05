@@ -54,7 +54,7 @@ impl<'a> fframes::FontSource<'a> for RendererFontSource {
         font_weight: u16,
         font_style: FontStyle,
         font_stretch: FontStretch,
-    ) -> Option<Box<dyn FontFace + 'a>> {
+    ) -> Option<Box<dyn FontFace<'a> + 'a>> {
         let font_id = self.fontdb.query(&Query {
             families: &[Family::Name(font_name)],
             weight: Weight(font_weight),

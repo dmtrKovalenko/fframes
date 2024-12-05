@@ -1,7 +1,7 @@
 use beta_example::{BetaExamples, BetaVideo};
 use fframes::{lazy_static::lazy_static, CombinedMediaProvider};
 use fframes::{MediaProvider, StaticMediaProvider};
-use fframes_renderer::{fframes_logger, render, RenderOptions};
+use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use marketing_example::{MarketingMedia, MarketingVideo};
 use podcast_example::PodcastVideo;
@@ -56,6 +56,10 @@ fn main() {
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             render_backend: fframes_renderer::cpu::CpuRenderingBackend {
+                ..Default::default()
+            },
+            encoder_options: EncoderOptions {
+                preferred_video_codec: Some("libx264"),
                 ..Default::default()
             },
             default_font: "Inter",

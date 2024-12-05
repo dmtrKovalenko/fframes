@@ -49,7 +49,7 @@ impl Default for CpuRenderingBackend {
 }
 
 fn divide_round_up(a: usize, b: usize) -> usize {
-    (a + (b - 1)) / b
+    a.div_ceil(b)
 }
 
 impl CpuRenderingBackend {

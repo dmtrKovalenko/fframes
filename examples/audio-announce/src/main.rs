@@ -1,9 +1,8 @@
-use std::path::Path;
-
 use audio_announce_example::{AudioAnnounce, AudioAnnounceMedia};
 use clap::Parser;
 use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider};
-use fframes_renderer::{fframes_logger, render, AVPixelFormat, EncoderOptions, RenderOptions};
+use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
+use std::path::Path;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -41,8 +40,6 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
             preferred_video_codec: Some("libx264"),
-            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P10LE,
-            video_bitrate: Some(8_000_000), // 8 Mbps
             qmin: 0,
             qmax: 69,
             qcompress: 0.6,

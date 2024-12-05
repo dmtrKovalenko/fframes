@@ -1,6 +1,6 @@
 [package]
 name = "podcast-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 edition = "2021"
 
 [dependencies]
@@ -8,7 +8,7 @@ fframes.workspace = true
 libm = "0.2.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer.workspace = true
+fframes_renderer = { workspace = true, features=["h265", "libav-agree-gpl"] }
 
 [features]
 default = ["renderer"]

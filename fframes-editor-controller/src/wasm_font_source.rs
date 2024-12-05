@@ -119,7 +119,7 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
         font_weight: u16,
         font_style: FontStyle,
         font_stretch: FontStretch,
-    ) -> Option<Box<dyn fframes::FontFace + 'a>> {
+    ) -> Option<Box<dyn fframes::FontFace<'a> + 'a>> {
         let font = self.data.get(&FaceInfo {
             name: font_name.to_owned(),
             stretch: font_stretch,

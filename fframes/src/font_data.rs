@@ -101,5 +101,5 @@ pub trait FontSource<'a>: Sync + Send + std::fmt::Debug {
         font_weight: u16,
         font_style: FontStyle,
         font_stretch: FontStretch,
-    ) -> Option<Box<dyn FontFace + 'a>>;
+    ) -> Option<Box<dyn FontFace<'a> + 'a>>;
 }

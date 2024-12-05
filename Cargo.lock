@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "audio-announce-editor-bridge-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "audio-announce-example",
  "fframes-editor-controller",
@@ -163,11 +163,11 @@ dependencies = [
 
 [[package]]
 name = "audio-announce-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "clap 4.5.21",
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.6.rc-2.1",
+ "fframes",
+ "fframes_renderer",
  "getrandom",
 ]
 
@@ -208,7 +208,7 @@ checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
 name = "beta-editor-bridge"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "beta-example",
  "fframes-editor-controller",
@@ -221,10 +221,10 @@ dependencies = [
 
 [[package]]
 name = "beta-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.6.rc-2.1",
+ "fframes",
+ "fframes_renderer",
  "getrandom",
  "hello-world-example",
  "lazy_static",
@@ -232,7 +232,7 @@ dependencies = [
  "marketing-example",
  "podcast-example",
  "rand",
- "svgr-macro 1.0.0-beta.4-rc.b2a532d",
+ "svgr-macro",
  "tiktok-example",
 ]
 
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "conference-splash-screen-bridge-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "conference-splash-screen-example",
  "fframes-editor-controller",
@@ -502,11 +502,11 @@ dependencies = [
 
 [[package]]
 name = "conference-splash-screen-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "clap 4.5.21",
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.6.rc-2.1",
+ "fframes",
+ "fframes_renderer",
  "getrandom",
  "image 0.25.5",
  "rayon",
@@ -691,17 +691,17 @@ checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
 
 [[package]]
 name = "e2e-tests"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.6.rc-2.1",
+ "fframes",
+ "fframes_renderer",
  "lazy_static",
  "rayon",
 ]
 
 [[package]]
 name = "editor-bridge"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "fframes-editor-controller",
  "marketing-example",
@@ -781,10 +781,10 @@ dependencies = [
 
 [[package]]
 name = "fframes"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes-media-dir-macro 1.0.0-beta.4-rc.b2a532d",
- "fframes-media-loaders 1.0.0-beta.4-rc.b2a532d",
+ "fframes-media-dir-macro",
+ "fframes-media-loaders",
  "futures",
  "konst",
  "lazy_static",
@@ -796,31 +796,7 @@ dependencies = [
  "rangemap",
  "roxmltree 0.14.1",
  "serde",
- "svgr-macro 1.0.0-beta.4-rc.b2a532d",
- "ttf-parser 0.18.1",
- "usvgr",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "fframes"
-version = "1.0.0-beta.4-rc.b2a532d"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa6dbeca5437a6e368cbdc0d50547d0da166deb22e1ae930d95c859e67a1a8e8"
-dependencies = [
- "fframes-media-dir-macro 1.0.0-beta.4-rc.b2a532d",
- "fframes-media-loaders 1.0.0-beta.4-rc.b2a532d",
- "konst",
- "lazy_static",
- "libm",
- "lru 0.9.0",
- "microfft",
- "num",
- "parking_lot 0.12.3",
- "rangemap",
- "roxmltree 0.14.1",
- "serde",
- "svgr-macro 1.0.0-beta.4-rc.b2a532d",
+ "svgr-macro",
  "ttf-parser 0.18.1",
  "usvgr",
  "wasm-bindgen",
@@ -828,10 +804,10 @@ dependencies = [
 
 [[package]]
 name = "fframes-editor-controller"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "console_error_panic_hook",
- "fframes 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
  "futures",
  "getrandom",
  "js-sys",
@@ -843,26 +819,11 @@ dependencies = [
 
 [[package]]
 name = "fframes-media-dir-macro"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "base64",
  "bytemuck",
- "fframes-media-loaders 1.0.0-beta.4-rc.b2a532d",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "fframes-media-dir-macro"
-version = "1.0.0-beta.4-rc.b2a532d"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4224219d027e6074f87e804986b6bf4e59a0f82a652f9f8ca4a2cc640ffbe043"
-dependencies = [
- "base64",
- "bytemuck",
- "fframes-media-loaders 1.0.0-beta.4-rc.b2a532d",
+ "fframes-media-loaders",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
@@ -871,7 +832,7 @@ dependencies = [
 
 [[package]]
 name = "fframes-media-loaders"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "bytemuck",
  "ffmpeg-sys-fframes",
@@ -881,34 +842,18 @@ dependencies = [
  "ttf-parser 0.19.2",
  "usvgr",
  "wasm-bindgen",
- "webvtt-parser 1.0.0-beta.4-rc.b2a532d",
-]
-
-[[package]]
-name = "fframes-media-loaders"
-version = "1.0.0-beta.4-rc.b2a532d"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6934f03437f387a118cab37375255f6678c3fc2fb8907789418a7d17ad05e500"
-dependencies = [
- "bytemuck",
- "ffmpeg-sys-fframes",
- "image 0.24.9",
- "libc",
- "ttf-parser 0.19.2",
- "usvgr",
- "wasm-bindgen",
- "webvtt-parser 1.0.0-beta.4-rc.b2a532d",
+ "webvtt-parser",
 ]
 
 [[package]]
 name = "fframes_renderer"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "bytemuck",
  "cc",
  "colored",
  "ffmpeg-sys-fframes",
- "fframes 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
  "futures",
  "image 0.25.5",
  "indicatif",
@@ -918,34 +863,7 @@ dependencies = [
  "once_cell",
  "rayon",
  "svgr",
- "svgr-macro 1.0.0-beta.4-rc.b2a532d",
- "syn 1.0.109",
- "usvgr",
- "uuid 1.11.0",
- "wgpu",
-]
-
-[[package]]
-name = "fframes_renderer"
-version = "1.0.0-beta.4-rc.b2a532d"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f728d9862e4a8f2975076ca095f9fa77a1d7ea279f49703af9ce9f190cf20793"
-dependencies = [
- "bytemuck",
- "cc",
- "colored",
- "ffmpeg-sys-fframes",
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "futures",
- "image 0.25.5",
- "indicatif",
- "lazy_static",
- "lyon",
- "memmap",
- "once_cell",
- "rayon",
- "svgr",
- "svgr-macro 1.0.0-beta.4-rc.b2a532d",
+ "svgr-macro",
  "syn 1.0.109",
  "usvgr",
  "uuid 1.11.0",
@@ -954,9 +872,9 @@ dependencies = [
 
 [[package]]
 name = "fframes_test_utils"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
  "futures",
 ]
 
@@ -1277,7 +1195,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello-word-bridge-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "fframes-editor-controller",
  "hello-world-example",
@@ -1286,11 +1204,11 @@ dependencies = [
 
 [[package]]
 name = "hello-world-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "clap 4.5.21",
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
+ "fframes_renderer",
  "getrandom",
 ]
 
@@ -1629,7 +1547,7 @@ dependencies = [
 
 [[package]]
 name = "low-poly-art-bridge"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "fframes-editor-controller",
  "low-poly-art-example",
@@ -1638,10 +1556,10 @@ dependencies = [
 
 [[package]]
 name = "low-poly-art-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.6.rc-2.1",
+ "fframes",
+ "fframes_renderer",
  "fframes_test_utils",
  "getrandom",
  "libm",
@@ -1727,10 +1645,10 @@ dependencies = [
 
 [[package]]
 name = "marketing-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.6.rc-2.1",
+ "fframes",
+ "fframes_renderer",
  "fframes_test_utils",
  "futures",
  "getrandom",
@@ -2114,9 +2032,9 @@ dependencies = [
 
 [[package]]
 name = "podcast-editor-bridge"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
  "fframes-editor-controller",
  "podcast-example",
  "wasm-bindgen",
@@ -2124,10 +2042,10 @@ dependencies = [
 
 [[package]]
 name = "podcast-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
+ "fframes_renderer",
  "libm",
 ]
 
@@ -2656,25 +2574,9 @@ dependencies = [
 
 [[package]]
 name = "svgr-macro"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "criterion",
- "lazy_static",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "rust-fuzzy-search",
- "syn 1.0.109",
- "usvgr",
- "uuid 0.8.2",
-]
-
-[[package]]
-name = "svgr-macro"
-version = "1.0.0-beta.4-rc.b2a532d"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6f218ea2b9a498d1873208844b422b35ac9237c3bf67e19d5be99a6e45d3bcf"
-dependencies = [
  "lazy_static",
  "proc-macro-crate",
  "proc-macro2",
@@ -2801,7 +2703,7 @@ dependencies = [
 
 [[package]]
 name = "tiktok-editor-bridge"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "fframes-editor-controller",
  "tiktok-example",
@@ -2810,19 +2712,19 @@ dependencies = [
 
 [[package]]
 name = "tiktok-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
- "fframes_renderer 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
+ "fframes_renderer",
  "libm",
  "tiktok-media",
 ]
 
 [[package]]
 name = "tiktok-media"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
- "fframes 1.0.0-beta.4-rc.b2a532d",
+ "fframes",
 ]
 
 [[package]]
@@ -3168,17 +3070,7 @@ dependencies = [
 
 [[package]]
 name = "webvtt-parser"
-version = "1.0.0-beta.6.rc-2.1"
-dependencies = [
- "nom",
- "nom_locate",
-]
-
-[[package]]
-name = "webvtt-parser"
-version = "1.0.0-beta.4-rc.b2a532d"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d13d3379d2a589cb97e9c03ed14223d4e5306b2455fdd397e287ec841f6419"
+version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "nom",
  "nom_locate",

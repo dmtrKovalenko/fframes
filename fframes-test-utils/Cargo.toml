@@ -1,6 +1,6 @@
 [package]
 name = "fframes_test_utils"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 edition = "2021"
 
 [lib]

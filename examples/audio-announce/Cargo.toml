@@ -1,6 +1,6 @@
 [package]
 name = "audio-announce-example"
-version = "1.0.0-beta.6.rc-2.1"
+version = "1.0.0-beta.6.rc-3.2"
 edition = "2021"
 
 [dependencies]
@@ -10,7 +10,7 @@ clap = { version = "4.3.4", features = ["derive"] }
 getrandom = { version = "0.2.15", features = ["js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { path = "../../fframes-renderer" }
+fframes_renderer = { path = "../../fframes-renderer", features=["h264", "libav-agree-gpl"] }
 
 [features]
 default = ["renderer"]
