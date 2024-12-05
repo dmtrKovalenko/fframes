@@ -28,7 +28,7 @@ pub struct Parser<'a> {
     animation_attributes: Rc<RefCell<Vec<TokenStream>>>,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Create a new parser with the given config
     pub fn new(config: ParserOptions, fframes_crate_ident: &Ident) -> Parser {
         Parser {

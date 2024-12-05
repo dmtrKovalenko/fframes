@@ -73,7 +73,7 @@ impl Video for AudioAnnounce<'_> {
         AudioMap::from([("video.mp4", Second(0.)..Eof)])
     }
 
-    fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr {
+    fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr<'a> {
         const AVATAR_SIZE: u32 = 300;
         const AVATAR_X: usize = 80;
         const AVATAR_Y: usize = 100;

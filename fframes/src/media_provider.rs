@@ -18,9 +18,9 @@ impl Debug for RawFontData {
 }
 
 pub trait MediaProvider<'a>: Send + Sync + Debug {
-    fn resolve_audio(&'a self, name: &str) -> Option<&'a AudioData>;
+    fn resolve_audio(&'a self, name: &str) -> Option<&'a AudioData<'a>>;
     fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData>;
-    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles>;
+    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles<'a>>;
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia>;
 
     /// Returns all the font data along with the original file name
@@ -35,7 +35,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
 
 pub trait StaticMediaProvider<'a>: std::fmt::Debug + Sized + MediaProvider<'a> {
     fn prepare() -> Result<Self>;
-    fn get_all_audio_data(&'a self) -> Option<Vec<(&'a AudioData, &'a str)>>;
+    fn get_all_audio_data(&'a self) -> Option<Vec<(&'a AudioData<'a>, &'a str)>>;
     fn get_all_font_data(&'a self) -> Option<Vec<(&'a [u8], &'a str)>>;
 }
 
@@ -48,7 +48,7 @@ impl<'a> MediaProvider<'a> for () {
         None
     }
 
-    fn resolve_subtitles(&'a self, _name: &str) -> Option<&'a media::Subtitles> {
+    fn resolve_subtitles(&'a self, _name: &str) -> Option<&'a media::Subtitles<'a>> {
         None
     }
 
@@ -116,7 +116,7 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
         self.images.get(name)
     }
 
-    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles> {
+    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles<'a>> {
         self.subtitles.get(name)
     }
 
@@ -141,8 +141,9 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
     }
 }
 
+/// Combines several allocated media providers into one.
+/// Allows to combine static and dynamic media providers.
 #[derive(Debug)]
-/// Represents unlimited amount of media source for the video
 pub struct CombinedMediaProvider<'a, const N: usize>([&'a (dyn MediaProvider<'a> + 'a); N]);
 
 impl<'a, T: MediaProvider<'a>> From<&'a T> for CombinedMediaProvider<'a, 1> {

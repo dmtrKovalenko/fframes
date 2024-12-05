@@ -65,7 +65,7 @@ pub struct ResolvedScenesTimeline<'a> {
 impl<'a> ResolvedScenesTimeline<'a> {
     pub(crate) fn iter(
         &'a self,
-    ) -> impl Iterator<Item = &(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))> {
+    ) -> impl Iterator<Item = &'a (std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))> {
         self.timeline.iter()
     }
 

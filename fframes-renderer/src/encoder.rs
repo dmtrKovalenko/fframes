@@ -95,7 +95,7 @@ pub struct EncoderOptions<'a> {
     pub codec_params: Option<&'a [(&'a str, &'a str)]>,
 }
 
-impl<'a> Default for EncoderOptions<'a> {
+impl Default for EncoderOptions<'_> {
     fn default() -> Self {
         Self {
             audio_bitrate: None,
@@ -112,7 +112,7 @@ impl<'a> Default for EncoderOptions<'a> {
             preferred_audio_codec: None,
             preferred_video_codec: None,
             qcompress: 0.6,
-            qmax: 40,
+            qmax: 60,
             qmin: 15,
             sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
             sample_rate: 44100,
