@@ -1,6 +1,6 @@
 [package]
 name = "editor-bridge"
-version = "1.0.0-beta.6"
+version = "1.0.0-beta.6.rc-2.1"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2018"
 
