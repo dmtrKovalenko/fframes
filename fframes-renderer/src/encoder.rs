@@ -1,6 +1,10 @@
 use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
+use crate::{
+    ffmpeg_action,
+    renderer_error::{self, RenderEncodingError},
+    stream, FFramesLogger,
+};
 use ffmpeg_sys_fframes::*;
-pub use ffmpeg_sys_fframes::{AVPixelFormat, AVSampleFormat};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -8,11 +12,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    ffmpeg_action,
-    renderer_error::{self, RenderEncodingError},
-    stream, FFramesLogger,
-};
+pub use ffmpeg_sys_fframes::{AVPixelFormat, AVSampleFormat, MKBETAG, MKTAG};
 
 #[inline(always)]
 #[allow(non_snake_case)]
@@ -93,6 +93,22 @@ pub struct EncoderOptions<'a> {
     /// ### So it is very important to validate the function parameters before usage
     /// ### because segfaults **won't be caught** by fframes.
     pub codec_params: Option<&'a [(&'a str, &'a str)]>,
+    /// Tag used to identify video stream in the output file.
+    /// to create a tag use the `MKTAG!` macro:
+    ///
+    /// ```rust
+    /// use fframes_renderer::MKTAG;
+    /// let video_tag = MKTAG!('h', 'v', 'c', '1');
+    /// ```
+    pub video_tag: Option<isize>,
+    /// Tag used to identify audio stream in the output file
+    /// to create a tag use the `MKTAG!` macro:
+    ///
+    /// ```rust
+    /// use fframes_renderer::MKTAG;
+    /// let video_tag = MKTAG!('h', 'v', 'c', '1');
+    /// ```
+    pub audio_tag: Option<isize>,
 }
 
 impl Default for EncoderOptions<'_> {
@@ -118,6 +134,8 @@ impl Default for EncoderOptions<'_> {
             sample_rate: 44100,
             tmp_files_directory: None,
             video_bitrate: None,
+            video_tag: None,
+            audio_tag: None,
         }
     }
 }

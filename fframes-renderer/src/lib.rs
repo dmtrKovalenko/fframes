@@ -1,6 +1,5 @@
 use crate::renderer_error::FFramesRendererResult;
 use crate::renderer_font_source::RendererFontSource;
-pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 use fframes::MediaProvider;
 use fframes::Video;
 use fframes::VideoSize;
@@ -22,6 +21,7 @@ mod renderer_error;
 mod renderer_font_source;
 mod stream;
 
+pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions, MKBETAG, MKTAG};
 pub use fframes_logger::*;
 pub use media_directory::*;
 pub use render_backend::*;

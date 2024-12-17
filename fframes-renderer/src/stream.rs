@@ -166,6 +166,10 @@ impl Stream {
         ffmpeg_loggable_action!(avcodec_open2(c, codec, opts));
         ffmpeg_loggable_action!(avcodec_parameters_from_context((*st).codecpar, c));
 
+        if let Some((tag, options)) = encoder_options.audio_tag.zip((*st).codecpar.as_mut()) {
+            options.codec_tag = tag as u32;
+        }
+
         Ok(Stream {
             st,
             enc: c,
@@ -200,6 +204,9 @@ impl Stream {
         };
 
         (*c).ch_layout = MONO_CH_LAYOUT;
+        if let Some((tag, options)) = encoder_options.audio_tag.zip((*st).codecpar.as_mut()) {
+            options.codec_tag = tag as u32;
+        }
 
         // TODO pass user options
         let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();

@@ -40,11 +40,9 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
             preferred_video_codec: Some("libx264"),
-            qmin: 0,
-            qmax: 69,
             qcompress: 0.6,
             max_qdiff: 4,
-            gop_size: 250,
+            gop_size: 13,
             codec_params: Some(&[
                 ("crf", "18"),
                 ("preset", "slow"),

@@ -18,6 +18,8 @@ struct Args {
     concurrency: Option<usize>,
     #[clap(long, default_value = "Hello Renderer!")]
     slug: String,
+    #[clap(short, long)]
+    verbose: bool,
 }
 
 fn main() {
@@ -33,13 +35,22 @@ fn main() {
         &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
-            logger: fframes_logger::FFramesLoggerVariant::Compact,
+            logger: if args.verbose {
+                fframes_logger::FFramesLoggerVariant::Debug
+            } else {
+                fframes_logger::FFramesLoggerVariant::Compact
+            },
             encoder_options: EncoderOptions {
                 preferred_audio_codec: args.audio_codec.as_deref(),
                 preferred_video_codec: args.video_codec.as_deref(),
                 tmp_files_directory: Some(&PathBuf::from("test_render")),
-                codec_params: (args.output == "libx264" || args.output == "libx265")
-                    .then_some(&[("crf", "18"), ("tune", "animation")]),
+                codec_params: (args.video_codec.as_deref() == Some("libx264")
+                    || args.video_codec.as_deref() == Some("libx265"))
+                .then_some(&[
+                    ("crf", "23"),
+                    ("preset", "ultrafast"),
+                    ("tune", "animation"),
+                ]),
                 ..Default::default()
             },
             render_backend: if let Some(concurrency) = args.concurrency {
