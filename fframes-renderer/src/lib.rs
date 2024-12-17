@@ -1,6 +1,5 @@
 use crate::renderer_error::FFramesRendererResult;
 use crate::renderer_font_source::RendererFontSource;
-pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions};
 use fframes::MediaProvider;
 use fframes::Video;
 use fframes::VideoSize;
@@ -25,6 +24,7 @@ mod stream;
 pub use fframes_logger::*;
 pub use media_directory::*;
 pub use render_backend::*;
+pub use encoder::{AVPixelFormat, AVSampleFormat, EncoderOptions, MKBETAG, MKTAG};
 
 #[derive(Debug, Clone)]
 /// All the final render-specific options applies to the final video rendering pipeline
