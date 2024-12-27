@@ -1,0 +1,16 @@
+[package]
+name = "fframes-lyon-renderer"
+description = "POC pure rust svg rendering backend based on lyon and wgpu"
+version = "0.1.0-alpha.1"
+edition = "2021"
+license = "MIT"
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+
+[lib]
+
+[dependencies]
+bytemuck = "1.21.0"
+fframes_renderer.workspace = true
+fframes.workspace = true
+lyon = "1.0.1"
+wgpu = "23.0.1"

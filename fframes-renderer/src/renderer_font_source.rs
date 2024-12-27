@@ -1,6 +1,6 @@
+use fframes::usvgr::fontdb::{self, Family, Query, Weight};
 use fframes::{self, FontFace, FontStretch, FontStyle};
 use std::sync::Arc;
-use usvgr::fontdb::{self, Family, Query, Weight};
 
 pub(crate) struct RendererFont<'a> {
     pub(crate) index: u32,

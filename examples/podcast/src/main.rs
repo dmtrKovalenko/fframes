@@ -17,10 +17,10 @@ fn main() {
             guest_audio: "final.mp3",
         },
         // make sure that this will only work for macos and ios
-        // for other platforms create a supported GPU context and surface 
+        // for other platforms create a supported GPU context and surface
         SkiaFFramesRenderer::new_metal(PodcastVideo::WIDTH, PodcastVideo::HEIGHT)
             .expect("Failed to create metal renderer"),
-        // or try a cpu editor:
+        // or try a cpu editor 
         // fframes_renderer::cpu::CpuRenderingBackend::default(),
         &RenderOptions {
             media: Some(&media),

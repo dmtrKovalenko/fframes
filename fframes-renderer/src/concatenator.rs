@@ -236,12 +236,12 @@ pub(crate) unsafe fn concat_video_files_with_audio(
     ctx: &FFramesContext,
 ) -> Result<(), RenderEncodingError> {
     let encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
-    if let Some(audio_stream) = encoder.audio_stream {
-        (*audio_stream.enc).thread_count = concurrency
-    }
 
     encoder.fill_video_stream_from_files(files)?;
-    encoder.fill_audio_stream(audio_map, ctx)?;
+    if let Some(audio_stream) = encoder.audio_stream {
+        (*audio_stream.enc).thread_count = concurrency;
+        encoder.fill_audio_stream(audio_map, ctx)?;
+    }
 
     Ok(())
 }

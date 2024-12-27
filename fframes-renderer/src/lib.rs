@@ -1,13 +1,14 @@
 #![allow(clippy::missing_safety_doc)] // we have to implement a lot of ffi here
 use crate::renderer_font_source::RendererFontSource;
+use fframes::usvgr::fontdb;
 use fframes::MediaProvider;
 use fframes::Video;
 use fframes::VideoSize;
 use fframes::WorkerLocalVideoDecoders;
 use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
 use std::collections::HashMap;
-use usvgr::fontdb;
 
+#[cfg(feature = "cpu_renderer")]
 pub mod cpu;
 
 mod concatenator;
