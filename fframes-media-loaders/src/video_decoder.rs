@@ -408,6 +408,8 @@ impl FFmpegDecoder {
             timestamp,
             AVSEEK_FLAG_BACKWARD,
         );
+
+        (*self.frame.av_frame).pts = -1;
         if ret < 0 {
             return Err(FFramesMediaError::LibAVAudioDecodingError((
                 ret,
