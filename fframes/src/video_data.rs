@@ -232,10 +232,17 @@ impl WorkerLocalVideoDecoders {
             let decoder = unsafe {
                 let mut decoder =
                     fframes_media_loaders::FFmpegDecoder::new(path, ctx.time_base.fps)?;
-                if offset > 0 {
-                    decoder.seek_to_offset(offset)?;
-                }
 
+                decoder.seek_to_offset(0)?;
+                decoder.end_of_video_index = 0;
+                loop {
+                    let has_frame = decoder.decode_up_to(decoder.end_of_video_index)?;
+                    if !has_frame {
+                        break;
+                    }
+                    decoder.end_of_video_index += 1;
+                }
+                decoder.seek_to_offset(0)?;
                 decoder
             };
 
@@ -247,17 +254,17 @@ impl WorkerLocalVideoDecoders {
             let mut decoders = (*self.map).borrow_mut();
             let decoder = decoders.get_mut(path.to_string_lossy().as_ref()).unwrap();
 
-            let has_frame = decoder.decode_up_to(offset)?;
+            let mut target_offset = offset;
+            if options.looping {
+                target_offset = offset % decoder.end_of_video_index;
+                if target_offset == 0 {
+                    decoder.seek_to_offset(0)?;
+                }
+            }
 
+            let has_frame = decoder.decode_up_to(target_offset)?;
             match has_frame {
                 true => Ok(Some(decoder.get_raw_frame())),
-                false if options.looping => {
-                    decoder.seek_to_offset(0)?;
-                    decoder.decode_up_to(0)?;
-
-                    decoder.loop_shift += offset;
-                    Ok(Some(decoder.get_raw_frame()))
-                }
                 false => Ok(None),
             }
         }
