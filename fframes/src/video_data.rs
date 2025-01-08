@@ -234,15 +234,11 @@ impl WorkerLocalVideoDecoders {
                     fframes_media_loaders::FFmpegDecoder::new(path, ctx.time_base.fps)?;
 
                 decoder.seek_to_offset(0)?;
-                decoder.end_of_video_index = 0;
-                loop {
-                    let has_frame = decoder.decode_up_to(decoder.end_of_video_index)?;
-                    if !has_frame {
-                        break;
-                    }
-                    decoder.end_of_video_index += 1;
+                if options.looping {
+                    let frame = decoder.get_raw_frame();
+                    decoder.end_of_video_index =
+                        (frame.stream_duration_in_seconds() * frame.stream_fps()) as i64;
                 }
-                decoder.seek_to_offset(0)?;
                 decoder
             };
 
