@@ -236,8 +236,42 @@ impl WorkerLocalVideoDecoders {
                 decoder.seek_to_offset(0)?;
                 if options.looping {
                     let frame = decoder.get_raw_frame();
-                    decoder.end_of_video_index =
-                        (frame.stream_duration_in_seconds() * frame.stream_fps()) as i64;
+                    let output_video_length_in_seconds =
+                        (ctx.duration_in_frames / ctx.time_base.fps) as f64;
+                    // looping with frame decoding is expensive, so skip if the video is longer than the output video
+
+                    if frame.stream_duration_in_seconds() < output_video_length_in_seconds {
+                        // use a guess to avoid decoding through large videos
+                        let end_of_video_index_guess =
+                            (frame.stream_duration_in_seconds() * ctx.time_base.fps as f64) as i64;
+
+                        decoder.end_of_video_index = end_of_video_index_guess;
+                        loop {
+                            decoder.seek_to_offset(decoder.end_of_video_index)?;
+                            let has_frame = decoder.decode_up_to(decoder.end_of_video_index)?;
+                            if !has_frame {
+                                break;
+                            }
+                            decoder.end_of_video_index += 1;
+                        }
+                        if end_of_video_index_guess == decoder.end_of_video_index {
+                            // now scroll back to make sure we have the correct end_of_video_index
+                            let mut rollback = decoder.end_of_video_index - 1;
+                            loop {
+                                decoder.seek_to_offset(rollback)?;
+                                let has_frame = decoder.decode_up_to(rollback)?;
+                                if has_frame {
+                                    decoder.end_of_video_index = rollback + 1;
+                                    break;
+                                }
+                                rollback -= 1;
+                            }
+                        }
+
+                        decoder.seek_to_offset(0)?;
+                    } else {
+                        decoder.end_of_video_index = ctx.duration_in_frames as i64;
+                    }
                 }
                 decoder
             };
