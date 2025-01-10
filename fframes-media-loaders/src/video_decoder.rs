@@ -137,12 +137,13 @@ impl SwsScaler {
 }
 
 pub struct FFmpegDecoder {
-    pub end_of_video_index: i64,
+    pub current_loop: i64,
     frame: Arc<FFmpegFrame>,
     fmt_ctx: *mut AVFormatContext,
     video_stream_info: VideoStreamInfo,
     pkt: *mut AVPacket,
     custom_time_base: AVRational,
+    duration_in_frames: i64,
 }
 
 #[derive(Debug)]
@@ -322,16 +323,27 @@ impl FFmpegDecoder {
             return Err(FFramesMediaError::LibAVAllocationError("packet"));
         }
 
+        let custom_time_base = {
+            AVRational {
+                num: 1,
+                den: target_fps as i32,
+            }
+        };
+
+        let duration_in_frames = av_rescale_q(
+            video_stream_info.duration,
+            video_stream_info.time_base,
+            custom_time_base,
+        );
+
         Ok(FFmpegDecoder {
             pkt,
             fmt_ctx,
             frame: FFmpegFrame::new(&video_stream_info)?.into(),
             video_stream_info,
-            end_of_video_index: 0,
-            custom_time_base: AVRational {
-                num: 1,
-                den: target_fps as i32,
-            },
+            custom_time_base,
+            duration_in_frames,
+            current_loop: 0,
         })
     }
 
@@ -396,11 +408,16 @@ impl FFmpegDecoder {
     /// # Safety
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn seek_to_offset(&mut self, offset: i64) -> Result<()> {
+        let offset = self
+            .duration_in_frames
+            .checked_rem(offset)
+            .unwrap_or(offset);
         let timestamp = av_rescale_q(
             offset,
             self.custom_time_base,
             self.video_stream_info.time_base,
         );
+
         let ret = av_seek_frame(
             self.fmt_ctx,
             self.video_stream_info.stream_index,
@@ -408,15 +425,37 @@ impl FFmpegDecoder {
             AVSEEK_FLAG_BACKWARD,
         );
 
-        (*self.frame.av_frame).pts = -1;
         if ret < 0 {
             return Err(FFramesMediaError::LibAVAudioDecodingError((
                 ret,
                 "Error seeking to offset".to_string(),
             )));
         }
+
+        (*self.frame.av_frame).pts = -1;
         avcodec_flush_buffers(self.video_stream_info.codec_ctx);
+
         Ok(())
+    }
+
+    /// Adjusts the offset to the correct frame in the video stream
+    /// # Safety
+    /// This is a libav based function which involes C ffi cals
+    pub unsafe fn adjust_offset_for_looping(&mut self, offset: i64) -> Result<i64> {
+        if offset < self.duration_in_frames {
+            return Ok(offset);
+        }
+
+        let new_loop_index = offset / self.duration_in_frames;
+        let new_offset = offset % self.duration_in_frames;
+        if new_loop_index == self.current_loop {
+            return Ok(new_offset);
+        }
+
+        self.current_loop = new_loop_index;
+        self.seek_to_offset(new_offset)?;
+
+        Ok(new_offset)
     }
 
     /// Decodes the video stream up the to target offset in the custom time base

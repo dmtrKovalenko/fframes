@@ -39,3 +39,8 @@ vpx = ["ffmpeg-sys-fframes/build-lib-vpx"]
 libav-agree-gpl = ["ffmpeg-sys-fframes/build-license-gpl"]
 libav-agree-nonfree = ["ffmpeg-sys-fframes/build-license-nonfree"]
 libav-agree-version3 = ["ffmpeg-sys-fframes/build-license-version3"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(wasm_bindgen_unstable_test_coverage)',
+] }

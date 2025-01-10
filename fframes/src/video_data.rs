@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use fframes_media_loaders::ImageMetadata;
-
 #[cfg(not(target_arch = "wasm32"))]
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -218,7 +217,7 @@ impl WorkerLocalVideoDecoders {
     pub(crate) fn get_synced_frame(
         &self,
         VideoMedia { path, .. }: &VideoMedia,
-        offset: i64,
+        mut offset: i64,
         ctx: &FFramesContext,
         options: &SyncVideoFrameInput,
     ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
@@ -233,16 +232,10 @@ impl WorkerLocalVideoDecoders {
                 let mut decoder =
                     fframes_media_loaders::FFmpegDecoder::new(path, ctx.time_base.fps)?;
 
-                decoder.seek_to_offset(0)?;
-                decoder.end_of_video_index = 0;
-                loop {
-                    let has_frame = decoder.decode_up_to(decoder.end_of_video_index)?;
-                    if !has_frame {
-                        break;
-                    }
-                    decoder.end_of_video_index += 1;
+                if offset > 0 {
+                    decoder.seek_to_offset(offset)?;
                 }
-                decoder.seek_to_offset(0)?;
+
                 decoder
             };
 
@@ -250,21 +243,25 @@ impl WorkerLocalVideoDecoders {
                 .borrow_mut()
                 .insert(path.to_string_lossy().to_string(), decoder);
         }
+
         unsafe {
             let mut decoders = (*self.map).borrow_mut();
             let decoder = decoders.get_mut(path.to_string_lossy().as_ref()).unwrap();
 
-            let mut target_offset = offset;
             if options.looping {
-                target_offset = offset % decoder.end_of_video_index;
-                if target_offset == 0 {
-                    decoder.seek_to_offset(0)?;
-                }
+                offset = decoder.adjust_offset_for_looping(offset)?;
             }
 
-            let has_frame = decoder.decode_up_to(target_offset)?;
+            let has_frame = decoder.decode_up_to(offset)?;
             match has_frame {
                 true => Ok(Some(decoder.get_raw_frame())),
+                false if options.looping => {
+                    decoder.seek_to_offset(0)?;
+                    let has_first_frame = decoder.decode_up_to(0)?;
+
+                    decoder.current_loop += 1;
+                    Ok(has_first_frame.then_some(decoder.get_raw_frame()))
+                }
                 false => Ok(None),
             }
         }

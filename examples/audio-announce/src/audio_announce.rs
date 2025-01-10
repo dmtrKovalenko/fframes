@@ -65,7 +65,7 @@ impl Video for AudioAnnounce<'_> {
     const HEIGHT: usize = 1080;
 
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Seconds(15.)
+        fframes::Duration::Auto
     }
 
     fn audio(&self) -> AudioMap {

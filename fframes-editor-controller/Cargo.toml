@@ -21,3 +21,8 @@ futures = "0.3.30"
 serde-wasm-bindgen = "0.6.5"
 # This is only needed for the wasm32 target for uuid
 getrandom = { version = "0.2.15", features = ["js"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(wasm_bindgen_unstable_test_coverage)',
+] }

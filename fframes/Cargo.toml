@@ -48,3 +48,8 @@ media-vpx = ["fframes-media-loaders/vpx"]
 media-libav-agree-gpl = ["fframes-media-loaders/libav-agree-gpl"]
 media-libav-agree-nonfree = ["fframes-media-loaders/libav-agree-nonfree"]
 media-libav-agree-version3 = ["fframes-media-loaders/libav-agree-version3"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(wasm_bindgen_unstable_test_coverage)',
+] }
