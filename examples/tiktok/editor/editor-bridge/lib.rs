@@ -9,4 +9,4 @@ lazy_static! {
     static ref MEDIA: GooseMedia = GooseMedia::prepare().unwrap();
 }
 
-setup_wasm_editor!(GooseVideo, { media: &MEDIA }, *MEDIA);
+setup_wasm_editor!(GooseVideo, GooseVideo { media: &MEDIA }, *MEDIA);

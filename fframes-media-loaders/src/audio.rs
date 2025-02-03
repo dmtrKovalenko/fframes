@@ -30,8 +30,10 @@ impl PreloadedAudioData<'_> {
         sample_rate: Option<u32>,
         filename: &std::path::PathBuf,
     ) -> crate::error::Result<Self> {
-        let (sample_rate, samples) =
-            unsafe { crate::audio_ffmpeg::decode_raw_file(filename, sample_rate) }?;
+        use crate::audio_decoder::AudioDecoder;
+
+        let mut decoder = AudioDecoder::new(filename, sample_rate)?;
+        let (sample_rate, samples) = decoder.decode_all_samples()?;
 
         Ok(PreloadedAudioData {
             samples: Cow::Owned(samples),

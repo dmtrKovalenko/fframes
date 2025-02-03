@@ -1,4 +1,4 @@
-use crate::renderer_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use crate::skia_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use fframes_renderer::FFramesRendererResult;
 use skia_safe::gpu;
 

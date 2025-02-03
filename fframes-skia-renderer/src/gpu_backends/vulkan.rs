@@ -1,8 +1,9 @@
-use crate::renderer_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use crate::skia_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use ash::vk::{self, Handle};
 use ash::{Entry, Instance};
 use fframes_renderer::{FFramesRendererError, FFramesRendererResult};
 use skia_safe::gpu;
+use skia_safe::gpu::ganesh::context_options::*;
 use skia_safe::gpu::ganesh::vk::backend_render_targets;
 use skia_safe::ColorType;
 use std::ffi::{c_void, CStr, CString};
@@ -183,7 +184,7 @@ impl SkiaVulkanCtx {
                 .mip_levels(1)
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
-                .tiling(vk::ImageTiling::OPTIMAL)
+                .tiling(vk::ImageTiling::LINEAR)
                 .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -269,10 +270,33 @@ impl SkiaFFramesRenderer {
             )
         };
 
-        let mut gpu_context = gpu::direct_contexts::make_vulkan(&backend_context, None)
-            .ok_or_else(|| {
-                FFramesRendererError::Skia("Failed to create GPU context".to_string())
-            })?;
+        let mut gpu_context_opts = gpu::ContextOptions::new();
+
+        gpu_context_opts.glyph_cache_texture_maximum_bytes = 64 * 1024 * 1024;
+        // Cache configuration
+        gpu_context_opts.glyph_cache_texture_maximum_bytes = 64 * 1024 * 1024; // 64MB
+        gpu_context_opts.allow_multiple_glyph_cache_textures = Enable::Yes;
+        gpu_context_opts.buffer_map_threshold = 4096;
+        gpu_context_opts.minimum_staging_buffer_size = 1_048_576;
+
+        // Path rendering optimizations
+        gpu_context_opts.allow_path_mask_caching = true;
+        gpu_context_opts.disable_distance_field_paths = false;
+        gpu_context_opts.disable_coverage_counting_paths = true;
+
+        // Shader configuration
+        gpu_context_opts.runtime_program_cache_size = 256;
+        gpu_context_opts.shader_cache_strategy = ShaderCacheStrategy::BackendBinary;
+        gpu_context_opts.reduced_shader_variations = false;
+
+        // Batch processing
+        gpu_context_opts.reduce_ops_task_splitting = Enable::Yes;
+
+        let mut gpu_context =
+            gpu::direct_contexts::make_vulkan(&backend_context, Some(&gpu_context_opts))
+                .ok_or_else(|| {
+                    FFramesRendererError::Skia("Failed to create GPU context".to_string())
+                })?;
 
         let surface = unsafe {
             let image_info = gpu::vk::ImageInfo::new(

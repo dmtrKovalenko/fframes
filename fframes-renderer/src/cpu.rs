@@ -1,12 +1,13 @@
 use crate::{
     get_thread_count, render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError,
+    RenderEncodingResult,
 };
 use fframes::{
     usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
     VideoDecodersWorker,
 };
 use rayon::prelude::*;
-use std::{ops::Range, sync::Arc};
+use std::{path::Path, sync::Arc};
 use svgr::SvgrCache;
 use usvgr::fontdb;
 use uuid::Uuid;
@@ -50,35 +51,10 @@ impl Default for CpuRenderingBackend {
     }
 }
 
-fn divide_round_up(a: usize, b: usize) -> usize {
-    a.div_ceil(b)
-}
-
-impl CpuRenderingBackend {
-    fn split_video_chunks(&self, duration_in_frames: usize) -> Vec<Range<usize>> {
-        let chunk_size = divide_round_up(duration_in_frames, self.concurrency);
-        let mut chunks = vec![];
-        let mut prev_chunk = 0;
-
-        while prev_chunk < duration_in_frames {
-            if duration_in_frames - prev_chunk > chunk_size {
-                chunks.push(prev_chunk..prev_chunk + chunk_size);
-                prev_chunk += chunk_size;
-            } else {
-                let last_chunk = duration_in_frames - prev_chunk;
-                chunks.push(prev_chunk..prev_chunk + last_chunk);
-                prev_chunk += last_chunk;
-            }
-        }
-
-        chunks
-    }
-}
-
 impl FFramesRenderBackend for CpuRenderingBackend {
     fn render<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         self,
-        output: &'a str,
+        output: impl AsRef<Path>,
         video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &'a usvgr::Options,
@@ -87,9 +63,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: &'a fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<()> {
+        let output = output.as_ref();
         let extension = output
-            .split('.')
-            .last()
+            .extension()
             .ok_or(FFramesRendererError::InvalidOutput)?;
 
         let session = Uuid::new_v4();
@@ -100,19 +76,15 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             std::fs::create_dir(directory)?;
         }
 
-        let concurrent_chunks = self.split_video_chunks(ctx.duration_in_frames);
-
-        let files = concurrent_chunks
+        let files = encoder_options
+            .split_video_chunks(ctx.duration_in_frames, self.concurrency)
             .par_iter()
             .enumerate()
             .map(|(thread_number, chunk_range)| {
-                let file = directory
-                    .join(format!("{thread_number}.{extension}"))
-                    .into_os_string()
-                    .into_string()
-                    .map_err(|_| {
-                        FFramesRendererError::Internal("Can not convert path to string".to_owned())
-                    })?;
+                let file = directory.join(format!(
+                    "{thread_number}.{}",
+                    extension.to_string_lossy().as_ref(),
+                ));
 
                 unsafe {
                     Encoder::with_output(
@@ -120,13 +92,13 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         ctx.current_video_size.width as i32,
                         ctx.current_video_size.height as i32,
                         ctx.time_base.fps as i32,
-                        file.as_str(),
+                        &file,
                         encoder_options,
                         &logger,
                         &mut |encoder| {
                             let mut frame = EncoderFrame::new(&encoder.video_stream)?;
 
-                            let worker_local_decoders = VideoDecodersWorker::new();
+                            let worker_local_decoders = VideoDecodersWorker::new(1);
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
                             let mut converter_cache =
@@ -141,15 +113,12 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             })?;
 
                             let svgr_ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
-
-                            chunk_range
-                                .to_owned()
-                                .enumerate()
-                                .try_for_each(|(index, fr)| {
+                            chunk_range.to_owned().enumerate().try_for_each(
+                                |(index, fr)| -> RenderEncodingResult<()> {
                                     pixmap.fill(svgr::tiny_skia::Color::BLACK);
 
                                     let svg = video.render_frame(
-                                        Frame::new_renderer(
+                                        Frame::__internal_make_for_renderer(
                                             fr,
                                             fr,
                                             ctx.time_base.fps,
@@ -173,23 +142,22 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         &svgr_ctx,
                                     );
 
-                                    logger.log_frame(index, thread_number);
-                                    frame.fill_from_rgba_pixmap(index as i64, pixmap.data());
-
-                                    encoder.send_frame(&encoder.video_stream, &frame)
-                                })?;
-
-                            let frames_to_generate = chunk_range.end - chunk_range.start;
-                            let submitted_frames =
-                                encoder.video_stream.get_frames_in_stream() as usize;
-
-                            if submitted_frames < frames_to_generate {
-                                let intra_frames_to_add = frames_to_generate - submitted_frames;
-
-                                for _ in chunk_range.end..chunk_range.end + intra_frames_to_add {
+                                    frame.fill_from_rgba_pixmap(pixmap.data());
+                                    // we use frame indexes as pts which if fine because the av_packet_rescale_ts will
+                                    // automatically convert it to the correct timebase
+                                    frame.set_pts(fr as i64);
                                     encoder.send_frame(&encoder.video_stream, &frame)?;
-                                }
-                            }
+                                    logger.log_frame(index, thread_number);
+
+                                    Ok(())
+                                },
+                            )?;
+
+                            encoder.submit_leftover_b_frames(
+                                &frame,
+                                &encoder.video_stream,
+                                chunk_range.end - chunk_range.start,
+                            )?;
 
                             Ok(())
                         },
@@ -213,7 +181,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             .map_err(FFramesRendererError::ConcatChunkError)?;
         }
 
-        logger.success(output, directory.to_str());
+        logger.success(output, Some(directory));
         Ok(())
     }
 

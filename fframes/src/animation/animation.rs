@@ -64,6 +64,7 @@ pub enum Easing {
 
 #[derive(Clone, Copy, Debug)]
 pub struct KeyFrame<'a, T: Animatable> {
+    /// Start time of the keyframe in seconds
     pub start: f32,
     pub to: T,
     pub from: T,
@@ -126,15 +127,14 @@ pub struct KeyFramesAnimation<T: Animatable + Copy> {
 }
 
 impl<T: Animatable + Copy> KeyFramesAnimation<T> {
-    pub fn new(tweens: Vec<KeyFrame<T>>) -> Self {
-        let mut sorted_tweens = tweens;
-        sorted_tweens.sort_by(|a, b| {
+    pub fn new(mut tweens: Vec<KeyFrame<T>>) -> Self {
+        tweens.sort_unstable_by(|a, b| {
             a.start
                 .partial_cmp(&b.start)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let mut keyframes = sorted_tweens
+        let mut keyframes = tweens
             .iter()
             .enumerate()
             .flat_map(|(i, tween)| {
@@ -146,7 +146,7 @@ impl<T: Animatable + Copy> KeyFramesAnimation<T> {
                     animation_runtime,
                 };
 
-                match sorted_tweens.get(i + 1) {
+                match tweens.get(i + 1) {
                     None => vec![keyframe],
                     Some(next_tween) if next_tween.start <= keyframe.seconds_range.end => {
                         vec![keyframe]
@@ -168,13 +168,13 @@ impl<T: Animatable + Copy> KeyFramesAnimation<T> {
             })
             .collect::<Vec<_>>();
 
-        if sorted_tweens[0].start > 0. {
-            let seconds_range = 0f32..sorted_tweens[0].start;
+        if tweens[0].start > 0. {
+            let seconds_range = 0f32..tweens[0].start;
             keyframes.insert(
                 0,
                 Tween {
-                    from: sorted_tweens[0].from,
-                    to: sorted_tweens[0].from,
+                    from: tweens[0].from,
+                    to: tweens[0].from,
                     animation_runtime: AnimationRuntime::Static(
                         seconds_range.end - seconds_range.start,
                     ),

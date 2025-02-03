@@ -4,7 +4,11 @@ use core::fmt::Debug;
 use ffmpeg_sys_fframes::AV_LOG_FATAL;
 use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
-use std::{ffi::c_int, path::Path, sync::Arc};
+use std::{
+    ffi::c_int,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 #[allow(unused_variables)]
 pub trait FFramesLogger: Sync + Send {
@@ -28,7 +32,7 @@ pub trait FFramesLogger: Sync + Send {
         false
     }
 
-    fn success(&self, output_path: &str, temp_files_dir: Option<&str>);
+    fn success(&self, output_path: &Path, temp_files_dir: Option<&PathBuf>);
 }
 
 pub struct CompactFFramesLogger {
@@ -46,13 +50,14 @@ impl FFramesLogger for CompactFFramesLogger {
         Ok(())
     }
 
-    fn success(&self, output_path: &str, temp_files_dir: Option<&str>) {
+    fn success(&self, output_path: &Path, temp_files_dir: Option<&PathBuf>) {
         println!(
-            "{} Watch your video: \n$ {ffplay} {output_path}\n\n{temp_files_slug}",
+            "{} Watch your video: \n$ {} {}\n\n{}",
             "Success!".green().bold(),
-            ffplay = "ffplay".bold(),
-            temp_files_slug = temp_files_dir
-                .map(|path| format!("Generated files {path}\n"))
+            "ffplay".bold(),
+            output_path.display(),
+            temp_files_dir
+                .map(|path| format!("Generated files {}\n", path.display()))
                 .unwrap_or_default()
         );
     }
@@ -94,13 +99,13 @@ impl FFramesLogger for CompactFFramesLogger {
 pub struct SilentLogger;
 
 impl FFramesLogger for SilentLogger {
-    fn success(&self, _output_path: &str, _temp_files_dir: Option<&str>) {}
+    fn success(&self, _output_path: &Path, _temp_files_dir: Option<&PathBuf>) {}
 }
 
 pub struct QuietLogger;
 impl FFramesLogger for QuietLogger {
-    fn success(&self, output_path: &str, _temp_files_dir: Option<&str>) {
-        println!("Success. Your video {output_path}");
+    fn success(&self, output_path: &Path, _temp_files_dir: Option<&PathBuf>) {
+        println!("Success. Your video {}", output_path.display());
     }
 }
 

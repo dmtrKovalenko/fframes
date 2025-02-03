@@ -1,7 +1,7 @@
+use crate::SkiaPipelineConfig;
 use fframes::{
-    media::FFRAMES_VIDEO_PATH_TAG, usvgr::PreloadedImageData, FFramesContext, VideoDecodersWorker,
+    media::decode_video_resource, usvgr::PreloadedImageData, FFramesContext, VideoDecodersWorker,
 };
-
 use skia_safe::{
     image_asset::{create_image_frame_data, CustomImageAsset, ImageSizeFit},
     images::raster_from_data,
@@ -16,7 +16,7 @@ pub(crate) struct SkiaFFramesProvider {
 }
 
 impl SkiaFFramesProvider {
-    pub fn new(ctx: &FFramesContext) -> Self {
+    pub fn new(pipeline_config: &SkiaPipelineConfig, ctx: &FFramesContext) -> Self {
         // This is that we do to satisfy the lifetime requirements of the
         // skia, as we always guarantee that fframes context will be living the whole lifetime
         // of the render functions be executed but there is not way to pass prove that for skia
@@ -26,7 +26,8 @@ impl SkiaFFramesProvider {
             ctx: unsafe {
                 std::mem::transmute::<&FFramesContext, &FFramesContext<'static, 'static>>(ctx)
             },
-            worker_local_decoders: VideoDecodersWorker::new(),
+            // this is an additional safety, keeping the buffer in quue is relatively cheap
+            worker_local_decoders: VideoDecodersWorker::new(pipeline_config.buffer_queue_size * 2),
         }
     }
 }
@@ -41,18 +42,14 @@ impl ResourceProvider for SkiaFFramesProvider {
         resource_name: &str,
         _resource_id: &str,
     ) -> Option<ImageAsset> {
-        let image =
-            if let Some((resource_name, _)) = resource_name.split_once(FFRAMES_VIDEO_PATH_TAG) {
-                unsafe {
-                    self.worker_local_decoders
-                        .get_latest_frame_of_decoder(resource_name)
-                        .ok()
-                        .flatten()?
-                        .get_image()
-                }
-            } else {
-                self.ctx.media_source?.resolve_image(resource_name)?.href()
-            };
+        let image = if let Some((resource_name, pts)) = decode_video_resource(resource_name) {
+            self.worker_local_decoders
+                .get_buffered_frame_image(pts, resource_name)
+                .ok()
+                .flatten()?
+        } else {
+            self.ctx.media_source?.resolve_image(resource_name)?.href()
+        };
 
         let skia_image = FFramesSkiaImage::new(&image)?;
         ImageAsset::from_custom_image_asset(skia_image)

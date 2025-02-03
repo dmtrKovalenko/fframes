@@ -5,8 +5,6 @@ use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::error::Result;
 #[cfg(not(target_arch = "wasm32"))]
-use fframes_media_loaders::FFmpegFrame;
-#[cfg(not(target_arch = "wasm32"))]
 use fframes_media_loaders::ImageMetadata;
 pub use fframes_media_loaders::{FrameConvertOptions, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
@@ -35,6 +33,8 @@ pub trait FFramesSyncedVideoFrame {
     fn width(&self) -> u32;
     /// Get the frame index of the origin video
     fn timestamp_seconds(&self) -> f64;
+    /// Returns the native frame timestamp in the decoders' timebase
+    fn timestamp(&self) -> i64;
     /// Get the FPS of the origin video
     fn stream_fps(&self) -> f64;
     /// Get the duration of the origin video in frames
@@ -96,6 +96,12 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
         )
     }
 
+    fn timestamp(&self) -> i64 {
+        unimplemented!(
+            "Timestamp seconds are not supported in the editor. Please mock this data for editing."
+        )
+    }
+
     fn stream_fps(&self) -> f64 {
         self.video_metadata.fps
     }
@@ -106,9 +112,9 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrame {
+impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
     fn into_image(&self) -> ImageData {
-        let image_data = unsafe { self.get_image() };
+        let image_data = unsafe { self.scale_and_return_latest_frame() };
 
         let filename = image_data.id.clone();
         ImageData::new_from_raw_data(
@@ -129,7 +135,7 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrame {
                 })
                 .ok()?;
 
-            self.get_image()
+            self.scale_and_return_latest_frame()
         };
 
         let filename = image_data.id.clone();
@@ -155,6 +161,10 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrame {
         unsafe { self.timestamp_seconds() }
     }
 
+    fn timestamp(&self) -> i64 {
+        unsafe { self.get_pts() }
+    }
+
     fn stream_duration_in_seconds(&self) -> f64 {
         unsafe { self.get_stream_duration_in_frames() }
     }
@@ -165,7 +175,9 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrame {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct VideoDecodersWorker {
+    buffer_size: usize,
     #[cfg(not(target_arch = "wasm32"))]
     map: Arc<std::sync::RwLock<HashMap<String, fframes_media_loaders::FFmpegDecoder>>>,
 }
@@ -178,13 +190,14 @@ impl std::fmt::Debug for VideoDecodersWorker {
 
 impl Default for VideoDecodersWorker {
     fn default() -> Self {
-        Self::new()
+        Self::new(1)
     }
 }
 
 impl VideoDecodersWorker {
-    pub fn new() -> Self {
+    pub fn new(buffer_size: usize) -> Self {
         VideoDecodersWorker {
+            buffer_size,
             #[cfg(not(target_arch = "wasm32"))]
             map: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
@@ -217,13 +230,17 @@ impl VideoDecodersWorker {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn get_latest_frame_of_decoder(&self, filename: &str) -> Result<Option<Arc<FFmpegFrame>>> {
+    pub fn get_buffered_frame_image(
+        &self,
+        pts: i64,
+        filename: &str,
+    ) -> Result<Option<Arc<usvgr::PreloadedImageData>>> {
         let frame = self
             .map
             .read()
             .unwrap()
             .get(filename)
-            .map(|decoder| decoder.get_raw_frame());
+            .and_then(|decoder| decoder.get_decoded_image_in_buf(pts));
 
         Ok(frame)
     }
@@ -245,14 +262,19 @@ impl VideoDecodersWorker {
             .to_string_lossy()
             .to_string();
 
-        // Use read lock to check for decoder existence
-        let needs_new_decoder = !self.map.read()?.contains_key(&resource_name);
+        // It is important to lock it for the whole duration of he function to
+        // avoid any parallel encoder creation.
+        let mut map_guard = self.map.write()?;
+        let needs_new_decoder = !map_guard.contains_key(&resource_name);
 
         // Create new decoder if needed
         if needs_new_decoder {
             let decoder = unsafe {
-                let mut decoder =
-                    fframes_media_loaders::FFmpegDecoder::new(path, ctx.time_base.fps)?;
+                let mut decoder = fframes_media_loaders::FFmpegDecoder::new(
+                    path,
+                    ctx.time_base.fps,
+                    self.buffer_size,
+                )?;
 
                 if offset > 0 {
                     decoder.seek_to_offset(offset)?;
@@ -261,13 +283,11 @@ impl VideoDecodersWorker {
                 decoder
             };
 
-            // Use write lock only when inserting
-            self.map.write()?.insert(resource_name.clone(), decoder);
+            map_guard.insert(resource_name.clone(), decoder);
         }
 
         unsafe {
             // Use write lock for modifying decoder state
-            let mut map_guard = self.map.write().unwrap();
             let decoder = map_guard.get_mut(&resource_name).unwrap();
 
             if options.looping {

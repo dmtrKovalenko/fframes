@@ -1,0 +1,31 @@
+[package]
+name = "teej_podcast_example"
+version = "1.0.0-beta.6.rc-3.2"
+edition = "2021"
+
+[dependencies]
+fframes.workspace = true
+clap = { version = "4.3.4", features = ["derive"] }
+# This is only needed for the wasm32 target for uuid
+getrandom = { version = "0.2.15", features = ["js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fframes_renderer = { path = "../../fframes-renderer", features = [
+	"h264",
+	"libav-agree-gpl",
+] }
+fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+
+[features]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree"]
+
+[lib]
+name = "teej_podcast_example"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "teej_podcast_example_bin"
+path = "src/main.rs"
+required-features = ["renderer"]

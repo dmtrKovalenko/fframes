@@ -10,4 +10,11 @@ lazy_static! {
     static ref MEDIA: HelloWorldMedia = HelloWorldMedia::prepare().unwrap();
 }
 
-setup_wasm_editor!(HelloWorldVideo, { media: &MEDIA, slug: "World!" }, *MEDIA);
+setup_wasm_editor!(
+    HelloWorldVideo,
+    HelloWorldVideo {
+        media: &MEDIA,
+        slug: "World!"
+    },
+    *MEDIA
+);

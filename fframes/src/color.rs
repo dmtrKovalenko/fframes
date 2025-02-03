@@ -56,13 +56,43 @@ pub const fn char_to_digit(char: char, radix: u32) -> u32 {
 }
 
 impl Color {
-    /// Creates a new color from a hex string. #RGB and #RRGGBB formats are supported.
-    /// Works as constant so avialabel for **const variables** and does not do parsing in runtime.
+    pub const BLACK: Color = Color { r: 0, g: 0, b: 0 };
+    pub const WHITE: Color = Color {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
+
+    /// Creates new color from hex number
+    pub const fn hex_num(num: u32) -> Self {
+        if num <= 0xfff {
+            // Handle 3-digit hex
+            let r = ((num >> 8) & 0xF) as u8;
+            let g = ((num >> 4) & 0xF) as u8;
+            let b = (num & 0xF) as u8;
+            Color {
+                r: (r * 16 + r),
+                g: (g * 16 + g),
+                b: (b * 16 + b),
+            }
+        } else {
+            // Handle 6-digit hex
+            Color {
+                r: ((num >> 16) & 0xFF) as u8,
+                g: ((num >> 8) & 0xFF) as u8,
+                b: (num & 0xFF) as u8,
+            }
+        }
+    }
+
+    /// Creates a new color from a hex string. Supports both #RGB and #RRGGBB formats.
+    /// Works as a constant, so it's available for **const variables** and avoids runtime parsing.
+    /// If parsing fails, it fallbacks to the solid black color.
     pub const fn hex(hex_str: &str) -> Self {
         let buffer = hex_str.as_bytes();
 
         if buffer[0] != HASH {
-            panic!("hex color must start with #");
+            return Color::BLACK;
         }
 
         match buffer.len() {
@@ -91,7 +121,7 @@ impl Color {
                     b: (b * 16 + b1),
                 }
             }
-            _ => panic!("Only #RGB or #RRGGBB hex formats are supported"),
+            _ => Color::BLACK,
         }
     }
 
@@ -154,5 +184,13 @@ mod test {
         assert_eq!(Color::hex("#ff00ff"), Color::rgb(255, 0, 255));
         assert_eq!(Color::hex("#ef4444"), Color::rgb(239, 68, 68));
         assert_eq!(Color::hex("#1c1917"), Color::rgb(28, 25, 23));
+    }
+
+    #[test]
+    pub fn hex_num_parsing() {
+        assert_eq!(Color::hex_num(0xf0f), Color::rgb(255, 0, 255));
+        assert_eq!(Color::hex_num(0xff00ff), Color::rgb(255, 0, 255));
+        assert_eq!(Color::hex_num(0xef4444), Color::rgb(239, 68, 68));
+        assert_eq!(Color::hex_num(0x1c1917), Color::rgb(28, 25, 23));
     }
 }

@@ -45,15 +45,16 @@ impl Frame {
             global_index,
             fps,
             breaks_lru_cache: None,
-            worker_local_video_decoders: VideoDecodersWorker::new(),
+            worker_local_video_decoders: VideoDecodersWorker::default(),
         }
     }
 
-    /// This is an internal API used by the render to create frames in macros.
-    /// It is not meant for public usage and might or might not be changed in minor version.
+    /// This is an internal API used by the render to create frames during the rendering phase.
+    /// It is not meant for public usage and might or might have breaking changes in any minor
+    /// version change..
     ///
     /// Use at your own risk.
-    pub fn new_renderer(
+    pub fn __internal_make_for_renderer(
         index: usize,
         global_index: usize,
         fps: usize,

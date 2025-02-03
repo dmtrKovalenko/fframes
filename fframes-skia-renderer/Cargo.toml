@@ -18,6 +18,7 @@ fframes_renderer.workspace = true
 fframes.workspace = true
 ash = { version = "0.38.0", optional = true }
 metal-rs = { package = "metal", version = "0.30.0", optional = true }
+uuid = "1.12.1"
 
 [features]
 default = ["gpu", "binary-cache"]
@@ -30,3 +31,5 @@ gl = ["skia-safe/gl"]
 x11 = ["skia-safe/x11"]
 wayland = ["skia-safe/wayland"]
 egl = ["skia-safe/egl"]
+# activate this feature to measure perforamnce and debug skia
+debug = []

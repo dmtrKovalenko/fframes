@@ -5,6 +5,8 @@ use crate::{
     stream, FFramesLogger,
 };
 use ffmpeg_sys_fframes::*;
+use std::ops::Range;
+use std::path::Path;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -112,6 +114,42 @@ pub struct EncoderOptions<'a> {
     pub audio_tag: Option<isize>,
 }
 
+impl EncoderOptions<'_> {
+    /// Split video for concurrent rendering taking into account the GOP size
+    /// to make sure that individual chunks are never less than 2xGOP size.
+    pub fn split_video_chunks(
+        &self,
+        duration_in_frames: usize,
+        concurrency: usize,
+    ) -> Vec<Range<usize>> {
+        let gop_size = self.gop_size as usize;
+        let min_chunk = 2 * gop_size;
+
+        if duration_in_frames < min_chunk {
+            return vec![0..duration_in_frames];
+        }
+
+        let max_possible_chunks = duration_in_frames / min_chunk;
+        let actual_chunks = concurrency.min(max_possible_chunks).max(1);
+        let chunk_size = duration_in_frames.div_ceil(actual_chunks);
+
+        let mut chunks = vec![];
+        let mut prev_chunk = 0;
+
+        while prev_chunk < duration_in_frames {
+            let remaining = duration_in_frames - prev_chunk;
+            if remaining > chunk_size {
+                chunks.push(prev_chunk..prev_chunk + chunk_size);
+                prev_chunk += chunk_size;
+            } else {
+                chunks.push(prev_chunk..prev_chunk + remaining);
+                prev_chunk += remaining;
+            }
+        }
+        chunks
+    }
+}
+
 impl Default for EncoderOptions<'_> {
     fn default() -> Self {
         Self {
@@ -190,13 +228,14 @@ impl Encoder {
         width: i32,
         height: i32,
         fps: i32,
-        filename: &str,
+        filename: &Path,
         encoder_options: &EncoderOptions,
         logger: &Arc<dyn FFramesLogger>,
     ) -> RenderEncodingResult<Self> {
         av_log_set_level(logger.get_libav_log_level());
 
-        let c_filename = CString::new(filename).map_err(RenderEncodingError::CStringError)?;
+        let c_filename = CString::new(filename.to_string_lossy().as_ref())
+            .map_err(RenderEncodingError::CStringError)?;
         let mut oc: *mut AVFormatContext = std::ptr::null_mut();
 
         ffmpeg_action!(
@@ -238,7 +277,7 @@ impl Encoder {
         width: i32,
         height: i32,
         fps: i32,
-        filename: &str,
+        filename: &Path,
         encoder_options: &EncoderOptions,
         logger: &Arc<dyn FFramesLogger>,
         inner_fn: &mut F,
@@ -260,7 +299,11 @@ impl Encoder {
     pub unsafe fn send_customizable_frame_packet<F: Fn(*mut AVPacket) -> i32>(
         &self,
         stream: &stream::Stream,
-        EncoderFrame { frame, packet, .. }: &EncoderFrame,
+        EncoderFrame {
+            av_frame: frame,
+            packet,
+            ..
+        }: &EncoderFrame,
         customize_frame: F,
     ) -> RenderEncodingResult<()> {
         let avcodec_send_frame = avcodec_send_frame(stream.enc, *frame);
@@ -302,6 +345,23 @@ impl Encoder {
             (*packet).stream_index = (*stream.st).index;
             av_interleaved_write_frame(oc, packet)
         })
+    }
+
+    pub unsafe fn submit_leftover_b_frames(
+        &self,
+        frame: &EncoderFrame,
+        stream: &stream::Stream,
+        expected_frames_in_stream: usize,
+    ) -> RenderEncodingResult<()> {
+        let submitted_frames = self.video_stream.get_frames_in_stream() as usize;
+
+        if submitted_frames < expected_frames_in_stream {
+            for _ in 0..expected_frames_in_stream - submitted_frames {
+                self.send_frame(stream, frame)?;
+            }
+        }
+
+        Ok(())
     }
 }
 

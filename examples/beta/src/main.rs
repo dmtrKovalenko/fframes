@@ -1,7 +1,9 @@
 use beta_example::{BetaExamples, BetaVideo};
-use fframes::{lazy_static::lazy_static, CombinedMediaProvider};
+use fframes::{lazy_static::lazy_static, CombinedMediaProvider, Video};
 use fframes::{MediaProvider, StaticMediaProvider};
 use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
+use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
+use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use marketing_example::{MarketingMedia, MarketingVideo};
 use podcast_example::PodcastVideo;
@@ -25,6 +27,7 @@ fn main() {
         &fs_media as &dyn MediaProvider,
     ]);
 
+    let vulkan_ctx = SkiaVulkanCtx::new(BetaVideo::WIDTH, BetaVideo::HEIGHT).unwrap();
     render(
         "out.mp4",
         &BetaVideo {
@@ -51,9 +54,14 @@ fn main() {
                 }),
             },
         },
-        fframes_renderer::cpu::CpuRenderingBackend {
-            ..Default::default()
-        },
+        SkiaFFramesRenderer::new_vulkan(
+            &vulkan_ctx,
+            SkiaPipelineConfig {
+                buffer_queue_size: 10,
+                ..Default::default()
+            },
+        )
+        .expect("Failed to create metal renderer"),
         &RenderOptions {
             media: Some(&media),
             load_system_fonts: true,

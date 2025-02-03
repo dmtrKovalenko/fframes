@@ -1,6 +1,9 @@
 use ffmpeg_sys_fframes::*;
 use fframes::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
-use std::ffi::CString;
+use std::{
+    ffi::CString,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     encoder::Encoder,
@@ -16,6 +19,12 @@ pub struct AvPacketAutoFree {
     av_packet: *mut AVPacket,
 }
 
+impl Default for AvPacketAutoFree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AvPacketAutoFree {
     pub fn new() -> Self {
         unsafe {
@@ -29,7 +38,7 @@ impl AvPacketAutoFree {
         self.av_packet
     }
 
-    pub fn deref_mut(&mut self) -> &mut AVPacket {
+    pub fn get_mut(&mut self) -> &mut AVPacket {
         unsafe { &mut *self.av_packet }
     }
 }
@@ -43,11 +52,12 @@ impl Drop for AvPacketAutoFree {
 }
 
 unsafe fn open_file_stream(
-    filename: &str,
+    filename: &Path,
     input_format_ctx: &mut *mut AVFormatContext,
     codec_type: AVMediaType,
 ) -> RenderEncodingResult<*mut AVStream> {
-    let input_file = CString::new(filename).map_err(RenderEncodingError::CStringError)?;
+    let input_file = CString::new(filename.to_string_lossy().as_ref())
+        .map_err(RenderEncodingError::CStringError)?;
 
     ffmpeg_action!(
         avformat_open_input(
@@ -89,8 +99,8 @@ unsafe fn open_file_stream(
 }
 
 unsafe fn create_encoder_copy_from_file(
-    file: &str,
-    output: &str,
+    file: &Path,
+    output: &Path,
     encoder_options: &EncoderOptions,
 ) -> Result<Encoder, RenderEncodingError> {
     let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
@@ -99,7 +109,8 @@ unsafe fn create_encoder_copy_from_file(
     let input_video_stream =
         open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
-    let output_file = CString::new(output).map_err(RenderEncodingError::CStringError)?;
+    let output_file = CString::new(output.to_string_lossy().as_ref())
+        .map_err(RenderEncodingError::CStringError)?;
     avformat_alloc_output_context2(
         &mut output_format_ctx,
         std::ptr::null_mut(),
@@ -202,9 +213,8 @@ impl Encoder {
 
     unsafe fn fill_video_stream_from_files(
         &self,
-        files: &[String],
+        files: &[PathBuf],
     ) -> Result<(), RenderEncodingError> {
-        let mut start_time = 0;
         let mut last_mux_dts: Option<i64> = None;
         let mut packet = AvPacketAutoFree::new();
 
@@ -214,22 +224,13 @@ impl Encoder {
             let input_video_stream =
                 open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
-            let start_file_ts = av_rescale_q(
-                start_time,
-                AV_TIME_BASE_Q,
-                (*self.video_stream.st).time_base,
-            );
-
             loop {
                 let res = av_read_frame(input_format_ctx, packet.get());
                 if res < 0 {
                     break;
                 }
 
-                packet.deref_mut().flags |= AV_PKT_FLAG_KEY;
-
-                packet.deref_mut().pts += start_file_ts;
-                packet.deref_mut().dts += start_file_ts;
+                packet.get_mut().flags |= AV_PKT_FLAG_KEY;
 
                 if let Some(last_mux_dts) = last_mux_dts.as_mut() {
                     validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
@@ -245,7 +246,6 @@ impl Encoder {
                 av_interleaved_write_frame(self.oc, packet.get());
             }
 
-            start_time += (*input_format_ctx).duration;
             avformat_close_input(&mut input_format_ctx);
         }
 
@@ -253,15 +253,15 @@ impl Encoder {
     }
 }
 
-pub(crate) unsafe fn concat_video_files_with_audio(
-    files: &[String],
-    output: &str,
+pub unsafe fn concat_video_files_with_audio(
+    files: &[PathBuf],
+    output: &Path,
     concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     encoder_options: &EncoderOptions,
     ctx: &FFramesContext,
 ) -> Result<(), RenderEncodingError> {
-    let encoder = create_encoder_copy_from_file(files[0].as_str(), output, encoder_options)?;
+    let encoder = create_encoder_copy_from_file(&files[0], output, encoder_options)?;
 
     encoder.fill_video_stream_from_files(files)?;
     if let Some(audio_stream) = &encoder.audio_stream {

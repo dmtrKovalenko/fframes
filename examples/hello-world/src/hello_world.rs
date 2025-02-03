@@ -48,7 +48,7 @@ impl Video for HelloWorldVideo<'_> {
               }
             />
 
-            <text font-family="DM Sans" x="100" y="300" font-size="150">
+            <text font-family="DM Sans Medium" x="100" y="300" font-size="150">
               "Hello " {self.slug}
             </text>
 

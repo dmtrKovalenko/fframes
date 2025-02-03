@@ -16,7 +16,7 @@ struct Args {
     audio_codec: Option<String>,
     #[clap(short, long)]
     concurrency: Option<usize>,
-    #[clap(long, default_value = "Hello Renderer!")]
+    #[clap(long, default_value = "Renderer!")]
     slug: String,
     #[clap(short, long)]
     verbose: bool,

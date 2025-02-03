@@ -120,7 +120,7 @@ fn main() {
         };
 
         render(
-            &format!("output/{}.mp4", filename),
+            format!("output/{}.mp4", filename),
             &video,
             backend,
             &options,

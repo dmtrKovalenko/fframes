@@ -2,7 +2,7 @@ use crate::{
     encoder::EncoderOptions, fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult,
 };
 use fframes::{usvgr, AudioTimelineSamples, ResolvedRenderingTimeline, Video};
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 use usvgr::fontdb;
 
 // TODO: feature flag this
@@ -21,7 +21,7 @@ pub trait FFramesRenderBackend {
 
     fn render<'a, 'media: 'a, TVideo: Video + Sync + Sized + Send>(
         self,
-        output: &'a str,
+        output: impl AsRef<Path>,
         video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &'a usvgr::Options,

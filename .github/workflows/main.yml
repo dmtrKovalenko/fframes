@@ -92,7 +92,6 @@ jobs:
         with:
           always-auth: true
           node-version: 23
-          egistry-url: 'https://registry.npmjs.org'
           cache: "yarn"
 
       - name: Install frontend deps
@@ -102,8 +101,12 @@ jobs:
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with: 
-          cache: true
-          cache-key: "v3-rust"
+          cache: false
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v3-rust"
+          cache-on-failure: true
 
       - name: Check format
         run: cargo fmt --check
@@ -120,7 +123,7 @@ jobs:
         run: just test
 
       - name: Upload visual regression results and diff
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: results
@@ -151,7 +154,6 @@ jobs:
         with:
           always-auth: true
           node-version: 23
-          egistry-url: 'https://registry.npmjs.org'
           cache: "yarn"
 
       - name: Install frontend deps
@@ -159,15 +161,11 @@ jobs:
           npm install -g yarn
           yarn install --frozen-lockfile --prefer-offline
 
-      - uses: actions-rs/toolchain@v1
-        with:
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with: 
           toolchain: stable
-          override: true
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v3-rust"
-          cache-on-failure: true
+          cache: true
+          cache-key: "v3-rust"
 
       - name: Run Release Script
         env:

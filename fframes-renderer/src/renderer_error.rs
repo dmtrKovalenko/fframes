@@ -1,14 +1,14 @@
 use colored::Colorize;
 use ffmpeg_sys_fframes::AVPixelFormat;
-use std::{error::Error, fmt, str::Utf8Error, sync::PoisonError};
+use std::{error::Error, fmt, path::PathBuf, str::Utf8Error, sync::PoisonError};
 
 /// Thread or Chunk level error which can happen during parallelized rendering
 pub enum RenderEncodingError {
-    MissingVideoStreamInFile(String),
-    CantOpenFile(String),
+    MissingVideoStreamInFile(PathBuf),
+    CantOpenFile(PathBuf),
     CantAllocate(String),
     CantWriteFrame(String),
-    UnknownExtension(String),
+    UnknownExtension(PathBuf),
     FFmpegError(i32, String),
     InvalidPixFmt(AVPixelFormat),
     Internal(String),
@@ -27,17 +27,17 @@ impl fmt::Display for RenderEncodingError {
             "{}",
             match self {
                 Self::MissingVideoStreamInFile(file) =>
-                    format!("Missing video stream in file {file}"),
-                Self::CantOpenFile(file) => format!("Missing video stream in file {}", file.cyan()),
+                    format!("Missing video stream in file {}", file.to_string_lossy().as_ref().cyan()),
+                Self::CantOpenFile(file) => format!("Missing video stream in file {}", file.to_string_lossy().as_ref().cyan()),
+                Self::UnknownExtension(file) => format!(
+                    "Can not deduce file format of output file {} from extension.",
+                    file.to_string_lossy().as_ref().cyan().bold()
+                ),
                 Self::CantAllocate(what) => format!("Can not allocate {what}"),
                 Self::FFmpegError(code, description) =>
                     format!("libav error {code}: {description}"),
                 Self::CantWriteFrame(file) =>
                     format!("Can not write frame to file {}", file.cyan()),
-                Self::UnknownExtension(file) => format!(
-                    "Can not deduce file format of output file {} from extension.",
-                    file.cyan().bold()
-                ),
                 Self::Internal(message) => message.to_owned(),
                 Self::CannotLocateCodec => "Couldn't locate audio or video codec neither from render_options nor from the output file extension. Make sure that extension is a valid video file and you have installed appropriate codecs for this specific container. E.g. in order to output the .webm extension you should have vp9 and opus codecs installed".to_owned(),
                 Self::InvalidArgument(argument) => format!("Argument {argument} that was provided is not valid or not supported for the current codec."),
@@ -95,7 +95,7 @@ impl fmt::Debug for FFramesRendererError {
                 Self::ConcatChunkError(error)=>  format!(
                     "Concatenation of rendered video chunks failed failed.\nReason: {error}",
                 ),
-                Self::IOError(err) => format!("{}\n{err}", "Can't load or process media".bold()),
+                Self::IOError(err) => format!("{}\n{err}", "FS error:".bold()),
                 Self::MissingRequiredMedia(required_media) => format!(
                     "Missing required media {}. Verify that you provided correct media_dir.",
                     required_media.magenta().bold()

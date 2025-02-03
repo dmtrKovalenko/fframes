@@ -226,6 +226,7 @@ version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "fframes",
  "fframes_renderer",
+ "fframes_skia_renderer",
  "getrandom",
  "hello-world-example",
  "lazy_static",
@@ -787,6 +788,7 @@ dependencies = [
  "bytemuck",
  "ffmpeg-sys-fframes",
  "image 0.24.9",
+ "itoa",
  "libc",
  "quote",
  "ttf-parser 0.19.2",
@@ -846,7 +848,7 @@ dependencies = [
  "svgr",
  "svgr-macro",
  "syn 1.0.109",
- "uuid 1.11.0",
+ "uuid 1.12.1",
 ]
 
 [[package]]
@@ -859,6 +861,7 @@ dependencies = [
  "fframes_renderer",
  "metal",
  "thingbuf",
+ "uuid 1.12.1",
 ]
 
 [[package]]
@@ -1285,9 +1288,9 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "1.0.13"
+version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "540654e97a3f4470a492cd30ff187bc95d89557a903a2bbf112e2fae98104ef2"
+checksum = "d75a2a4b1b190afb6f5425f10f6a8f959d2ea0b9c2b1d79553551850539e4674"
 
 [[package]]
 name = "jobserver"
@@ -2467,6 +2470,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
+name = "teej-podcast-example-bridge"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "fframes-editor-controller",
+ "teej_podcast_example",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "teej_podcast_example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "clap 4.5.21",
+ "fframes",
+ "fframes_renderer",
+ "fframes_skia_renderer",
+ "getrandom",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2752,9 +2775,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.11.0"
+version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
+checksum = "b3758f5e68192bb96cc8f9b7e2c2cfdabb435499a28499a42f8f984092adad4b"
 dependencies = [
  "getrandom",
 ]

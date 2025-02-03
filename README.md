@@ -13,7 +13,7 @@ sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev lib
 
 for arch based distros:
 ```sh
-sudo pacman -S yasm nasm ffmpeg x264 x265 opus clang
+sudo pacman -S ninja yasm nasm ffmpeg x264 x265 opus clang
 ```
 
 #### MacOS:

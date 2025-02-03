@@ -1,8 +1,8 @@
 clippy *ARGS:
-  cargo clippy {{ARGS}} -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match
+  cargo clippy {{ARGS}} -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match -A clippy::single-range-in-vec-init
 
 clippy-fix *ARGS:
-  cargo clippy {{ARGS}} --fix -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match
+  @just clippy --fix {{ARGS}}
 
 syncpack:
   yarn syncpack lint
@@ -24,8 +24,8 @@ watch-editor:
   cd fframes-editor && yarn dev
 
 run example:
-  cd examples/{{example}}/editor && yarn dev &
-  cd examples/{{example}}/editor/editor-bridge && cargo watch -i ../../../../.gitignore -s "wasm-pack build --mode no-install --target web --dev"
+  cd examples/{{example}}/editor/editor-bridge && cargo watch -i ../../../../.gitignore -s "wasm-pack build  --target web --dev" &
+  cd examples/{{example}}/editor && yarn dev
 
 render example *ARGS:
   cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}
@@ -40,7 +40,7 @@ check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown
 
 check-examples:
-  just check-wasm hello-world & just check-wasm podcast & just check-wasm tiktok & just check-wasm beta & just check-wasm low-poly-art
+  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg

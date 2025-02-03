@@ -10,7 +10,11 @@ lazy_static! {
     static ref SCENE: owl::Owl<'static> = owl::Owl { media: &OWL_MEDIA };
 }
 
-setup_wasm_editor!(LowPolyVideo, {
-    media: &MEDIA,
-    scene: &*SCENE,
-}, *OWL_MEDIA);
+setup_wasm_editor!(
+    LowPolyVideo,
+    LowPolyVideo {
+        media: &MEDIA,
+        scene: &*SCENE,
+    },
+    *OWL_MEDIA
+);

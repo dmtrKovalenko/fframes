@@ -1,0 +1,19 @@
+[package]
+name = "teej-podcast-example-bridge"
+version = "1.0.0-beta.6.rc-3.2"
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "./lib.rs"
+
+[dependencies]
+wasm-bindgen = "0.2.95"
+fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
+teej_podcast_example = { path = "../../", default-features = false }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+	'cfg(wasm_bindgen_unstable_test_coverage)',
+] }

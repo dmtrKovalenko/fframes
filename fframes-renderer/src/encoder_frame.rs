@@ -71,12 +71,16 @@ impl Drop for FrameFormatConvertor {
 #[derive(Clone)]
 pub struct EncoderFrame {
     pub(crate) packet: *mut AVPacket,
-    pub(crate) frame: *mut AVFrame,
+    pub(crate) av_frame: *mut AVFrame,
     /// Used to store original yuv frame before converting it to the output pixel format.
     pub(crate) format_convertor: Option<FrameFormatConvertor>,
 }
 
 impl EncoderFrame {
+    pub unsafe fn set_pts(&mut self, pts: impl Into<i64>) {
+        (*self.av_frame).pts = pts.into();
+    }
+
     pub unsafe fn new(stream: &stream::Stream) -> RenderEncodingResult<Self> {
         let frame = av_frame_alloc();
         let packet = av_packet_alloc();
@@ -115,7 +119,7 @@ impl EncoderFrame {
         );
 
         Ok(EncoderFrame {
-            frame,
+            av_frame: frame,
             packet,
             format_convertor,
         })
@@ -135,14 +139,14 @@ impl EncoderFrame {
         frame_index: i64,
         audio_data: Vec<f32>,
     ) -> *mut AVFrame {
-        let is_writable = av_frame_make_writable(self.frame);
+        let is_writable = av_frame_make_writable(self.av_frame);
         if is_writable < 0 {
             panic!("Can not reuse frame allocations");
         }
 
-        (*self.frame).pts = frame_index;
+        (*self.av_frame).pts = frame_index;
         if audio_data.is_empty() {
-            return self.frame;
+            return self.av_frame;
         }
 
         let mut fltp_audio_data = audio_data
@@ -150,21 +154,18 @@ impl EncoderFrame {
             .flat_map(|data| data.to_le_bytes())
             .collect::<Vec<u8>>();
 
-        (*self.frame).data[0] = fltp_audio_data.as_mut_ptr();
+        (*self.av_frame).data[0] = fltp_audio_data.as_mut_ptr();
 
-        self.frame
+        self.av_frame
     }
 
-    pub unsafe fn fill_from_rgba_pixmap(
-        &mut self,
-        frame_index: i64,
-        rgba_pixels: &[u8],
-    ) -> *mut AVFrame {
+    pub unsafe fn fill_from_rgba_pixmap(&mut self, rgba_pixels: &[u8]) -> *mut AVFrame {
         if let Some(converter) = self.format_convertor.as_ref() {
-            Self::fill_yuv420_from_rgba_pixmap(converter.tmp_frame, frame_index, rgba_pixels);
-            converter.convert(self.frame)
+            // TODO avoid additional conversion to yuv and fill rgba24 directly from the pixmap
+            Self::fill_yuv420_from_rgba_pixmap(converter.tmp_frame, rgba_pixels);
+            converter.convert(self.av_frame)
         } else {
-            Self::fill_yuv420_from_rgba_pixmap(self.frame, frame_index, rgba_pixels)
+            Self::fill_yuv420_from_rgba_pixmap(self.av_frame, rgba_pixels)
         }
     }
 
@@ -173,7 +174,6 @@ impl EncoderFrame {
     #[allow(clippy::precedence)]
     pub unsafe fn fill_yuv420_from_rgba_pixmap(
         av_frame: *mut AVFrame,
-        frame_index: i64,
         rgba_pixels: &[u8],
     ) -> *mut AVFrame {
         let is_writable = av_frame_make_writable(av_frame);
@@ -211,7 +211,6 @@ impl EncoderFrame {
                 }
             }
         }
-        (*av_frame).pts = frame_index;
         av_frame
     }
 }
@@ -219,9 +218,9 @@ impl EncoderFrame {
 impl Drop for EncoderFrame {
     fn drop(&mut self) {
         unsafe {
-            if !self.frame.is_null() {
-                av_frame_unref(self.frame);
-                av_frame_free(&mut self.frame);
+            if !self.av_frame.is_null() {
+                av_frame_unref(self.av_frame);
+                av_frame_free(&mut self.av_frame);
             }
             if !self.packet.is_null() {
                 av_packet_unref(self.packet);

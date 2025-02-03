@@ -10,4 +10,11 @@ lazy_static! {
     static ref MEDIA: AudioAnnounceMedia = AudioAnnounceMedia::prepare().unwrap();
 }
 
-setup_wasm_editor!(AudioAnnounce, { media: &MEDIA, font: None }, *MEDIA);
+setup_wasm_editor!(
+    AudioAnnounce,
+    AudioAnnounce {
+        media: &MEDIA,
+        font: None
+    },
+    *MEDIA
+);

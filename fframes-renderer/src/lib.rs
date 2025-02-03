@@ -7,11 +7,13 @@ use fframes::VideoDecodersWorker;
 use fframes::VideoSize;
 use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
 use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
 
 #[cfg(feature = "cpu_renderer")]
 pub mod cpu;
 
-mod concatenator;
+pub mod concatenator;
 mod encoder;
 mod encoder_frame;
 mod ffmpeg_helper;
@@ -25,6 +27,7 @@ mod stream;
 pub use encoder::*;
 pub use fframes_logger::*;
 pub use media_directory::*;
+pub use rayon;
 pub use render_backend::*;
 pub use renderer_error::*;
 
@@ -99,7 +102,7 @@ pub fn render<
     TBackend: FFramesRenderBackend,
     TVideo: Video + Sync + Sized + Send,
 >(
-    output: &'a str,
+    output: impl AsRef<Path>,
     video: &'a TVideo,
     render_backend: TBackend,
     options: &'a RenderOptions<'media>,
@@ -110,6 +113,7 @@ pub fn render<
         sample_rate: options.encoder_options.sample_rate,
     };
 
+    let output = PathBuf::from(output.as_ref());
     let scenes = video.define_scenes();
     let timeline = fframes::resolve_timeline(
         &video.duration(),
@@ -155,7 +159,7 @@ pub fn render<
     let font_db = font_source.as_db_ref();
 
     render_backend.render(
-        output,
+        &output,
         video,
         logger,
         &fframes::usvgr::Options {
@@ -242,10 +246,16 @@ pub fn render_frame<
 
     let ctx = create_context(video, options, &timeline, &font_source);
     let font_db = font_source.as_db_ref();
-    let decoders = VideoDecodersWorker::new();
+    let decoders = VideoDecodersWorker::new(1);
 
     render_backend.render_frame(
-        fframes::Frame::new_renderer(frame_index, frame_index, TVideo::FPS, None, decoders),
+        fframes::Frame::__internal_make_for_renderer(
+            frame_index,
+            frame_index,
+            TVideo::FPS,
+            None,
+            decoders,
+        ),
         video,
         &fframes::usvgr::Options {
             image_data: Some(&image_source),

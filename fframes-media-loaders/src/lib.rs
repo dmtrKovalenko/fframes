@@ -16,7 +16,7 @@ pub use subtitles::*;
 pub use video_types::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod audio_ffmpeg;
+mod audio_decoder;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod video_decoder;

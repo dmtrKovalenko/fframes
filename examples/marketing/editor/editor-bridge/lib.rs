@@ -7,7 +7,11 @@ lazy_static! {
         MarketingMedia::prepare().expect("Failed to create static media");
 }
 
-setup_wasm_editor!(MarketingVideo, {
-  media: &MEDIA,
-  audio_track: "marketing.mp3"
-}, *MEDIA);
+setup_wasm_editor!(
+    MarketingVideo,
+    MarketingVideo {
+        media: &MEDIA,
+        audio_track: "marketing.mp3"
+    },
+    *MEDIA
+);

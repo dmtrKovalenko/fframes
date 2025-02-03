@@ -1,0 +1,15 @@
+{
+  "name": "teej-podcast-example",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@fframes/editor": "*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^4.3.2",
+    "vite": "^5.4.2"
+  }
+}

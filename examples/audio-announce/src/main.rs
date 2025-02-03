@@ -4,7 +4,7 @@ use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video};
 use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -35,11 +35,17 @@ fn main() {
             media: &media,
             font: args.font.as_deref(),
         },
+        // Render it with CPU to see the difference
+        // fframes_renderer::cpu::CpuRenderingBackend {
+        //     ..Default::default()
+        // },
         SkiaFFramesRenderer::new_vulkan(
             &vulkan_ctx,
             SkiaPipelineConfig {
-                buffer_queue_size: 2,
-                encoder_threads: 1,
+                buffer_queue_size: 10,
+                concurrency_policy:
+                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(3),
+                ..Default::default()
             },
         )
         .expect("Failed to create metal renderer"),
@@ -56,20 +62,17 @@ fn main() {
                 qmax: 69,
                 qcompress: 0.6,
                 max_qdiff: 4,
-                gop_size: 250,
+                gop_size: 60,
+                tmp_files_directory: Some(&PathBuf::from("test_render")),
                 codec_params: Some(&[
-                    ("crf", "18"),
-                    ("preset", "slow"),
+                    ("crf", "25"),
+                    ("preset", "slower"),
                     ("tune", "film"),
-                    (
-                        "x264-params",
-                        "aq-mode=3:aq-strength=0.8:deblock=1,1:psy-rd=1.0:psy-rdoq=2.0:rdoq-level=2:merange=32"
-                    ),
                     ("bframes", "3"),
                 ]),
                 ..Default::default()
             },
-                ..Default::default()
+            ..Default::default()
         },
     )
     .unwrap();
