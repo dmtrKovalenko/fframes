@@ -2,7 +2,6 @@
 name = "podcast-example"
 version = "1.0.0-beta.6.rc-3.2"
 edition = "2021"
-build = "build.rs"
 
 [dependencies]
 fframes.workspace = true

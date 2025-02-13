@@ -174,7 +174,7 @@ jobs:
           NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           git fetch --tags
-          bash release.sh "$(git describe --tags $(git rev-list --tags --max-count=1)).rc-$(git rev-list --count $(git describe --tags --abbrev=0)..HEAD)"  
+          bash release.sh "$(git describe --tags $(git rev-list --tags --max-count=1)).rc-$(printf "%02d" $(git rev-list --count $(git describe --tags --abbrev=0)..HEAD))"  
 
   # not now
   # check-windows-build: 

@@ -21,3 +21,4 @@ cd ../media-dir-macro && cargo publish --allow-dirty --no-verify
 cd ../fframes && cargo publish --allow-dirty --no-verify
 cd ../fframes-editor-controller && cargo publish --allow-dirty --no-verify
 cd ../fframes-renderer && cargo publish --allow-dirty --no-verify
+cd ../fframes-skia-renderer && cargo publish --allow-dirty --no-verify

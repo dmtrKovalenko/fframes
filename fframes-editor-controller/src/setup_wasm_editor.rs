@@ -192,7 +192,7 @@ macro_rules! setup_wasm_editor {
             VIDEO
                 .render_frame(
                     Frame::__internal_make_for_renderer(
-                        time_base.fps,
+                        frame as usize,
                         frame as usize,
                         time_base.fps as usize,
                         Some(BREAK_LINES_CACHE.clone()),
