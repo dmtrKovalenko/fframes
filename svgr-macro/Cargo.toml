@@ -12,15 +12,12 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1"
 quote = "1.0.23"
-syn = { version = "1", features = ["full", "parsing", "extra-traits"] }
-uuid = { version = "0.8", features = ["v4"] }
+syn = { version = "2.0.98", features = ["full", "parsing", "extra-traits"] }
+uuid = { version = "1.13.2", features = ["v4"] }
 usvgr = { workspace = true, features = ["proc-macro"] }
-proc-macro-crate = "1.2.1"
+proc-macro-crate = "3.2.0"
 lazy_static = "1.4.0"
 rust-fuzzy-search = "0.1.0"
-
-[dev-dependencies]
-criterion = "0.3"
 
 [features]
 compile-time-svgtree = []

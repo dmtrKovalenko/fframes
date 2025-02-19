@@ -204,11 +204,11 @@ fn detailed_attribute_error(attribute: &str, span: Span) -> syn::Error {
             _ => {
                 let fuzzy_match = rust_fuzzy_search::fuzzy_search_best_n(attribute, &ATTRIBUTE_NAMES_LIST, 1);
                 let suggestion = match fuzzy_match.first() {
-                    Some((suggestion, value)) if *value > 0.6 => format!("Did you mean `{suggestion}`?"),
+                    Some((suggestion, value)) if *value > 0.6 => format!(" Did you mean `{suggestion}`?"),
                     _ => "".to_owned()
                 };
 
-                format!("{attribute} attribute is not supported or not valid for this element.\n{suggestion}")
+                format!("{attribute} attribute is not supported or not valid for this element.{suggestion}")
             },
         },
     )

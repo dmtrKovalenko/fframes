@@ -18,7 +18,11 @@ fn main() {
             media: Some(&media),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-
+            encoder_options: fframes_renderer::EncoderOptions {
+                preferred_video_codec: Some("libx265"),
+                sample_rate: 44100,
+                ..Default::default()
+            },
             ..Default::default()
         },
     )

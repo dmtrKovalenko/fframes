@@ -1,12 +1,11 @@
-use std::{cell::RefCell, rc::Rc};
-
 use proc_macro2::{Span, TokenStream, TokenTree};
+use std::{cell::RefCell, rc::Rc};
 use syn::{
     braced,
     ext::IdentExt,
-    parse::{discouraged::Speculative, Parse, ParseStream, Parser as _, Peek},
+    parse::{discouraged::Speculative, Parse, ParseStream, Peek},
     punctuated::Punctuated,
-    token::{Brace, Colon, Colon2},
+    token::{Brace, Colon, PathSep},
     Block, Error, Expr, ExprBlock, ExprLit, ExprPath, Ident, Path, PathArguments, PathSegment,
     Result, Stmt, Token,
 };
@@ -15,7 +14,6 @@ use crate::{node::*, punctuation::*};
 
 type TransformBlockFn = dyn Fn(ParseStream) -> Result<Option<TokenStream>>;
 
-/// Configures the `Parser` behavior
 #[derive(Default)]
 pub struct ParserOptions {
     number_of_top_level_nodes: Option<usize>,
@@ -29,7 +27,6 @@ pub struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    /// Create a new parser with the given config
     pub fn new(config: ParserOptions, fframes_crate_ident: &Ident) -> Parser {
         Parser {
             config,
@@ -38,22 +35,23 @@ impl Parser<'_> {
         }
     }
 
-    /// Parse a given `syn::ParseStream`
     pub fn parse(&self, input: ParseStream) -> Result<(Vec<Node>, Vec<TokenStream>)> {
         let mut nodes = vec![];
         let mut top_level_nodes = 0;
-        while !input.cursor().eof() {
+        while !input.is_empty() {
             let parsed_nodes = &mut self.node(input)?;
-
             nodes.append(parsed_nodes);
             top_level_nodes += 1;
         }
 
         if let Some(number_of_top_level_nodes) = &self.config.number_of_top_level_nodes {
             if &top_level_nodes != number_of_top_level_nodes {
-                return Err(input.error(format!(
-                    "saw {top_level_nodes} top level nodes but exactly {number_of_top_level_nodes} are required",
-                )));
+                return Err(Error::new(
+                    input.span(),
+                    format!(
+                        "saw {top_level_nodes} top level nodes but exactly {number_of_top_level_nodes} are required",
+                    ),
+                ));
             }
         }
 
@@ -106,45 +104,35 @@ impl Parser<'_> {
                 Error::new(Span::call_site(), "transform_block is not configured")
             })?;
 
-        input.step(|cursor| {
-            if let Some((tree, next)) = cursor.token_tree() {
-                match tree {
-                    TokenTree::Group(block_group) => {
-                        let block_span = block_group.span();
-                        let parser = move |block_content: ParseStream| match transform_block(
-                            block_content,
-                        ) {
-                            Ok(transformed_tokens) => match transformed_tokens {
-                                Some(tokens) => {
-                                    let parser = move |input: ParseStream| {
-                                        Ok(self.block_content_to_block(input, block_span))
-                                    };
-                                    parser.parse2(tokens)?
-                                }
-                                None => self.block_content_to_block(block_content, block_span),
-                            },
-                            Err(error) => Err(error),
-                        };
-                        Ok((parser.parse2(block_group.stream())?, next))
-                    }
-                    _ => Err(cursor.error("unexpected: no Group in TokenTree found")),
-                }
-            } else {
-                Err(cursor.error("unexpected: no TokenTree found"))
-            }
-        })
-    }
+        let content;
+        let brace_token = braced!(content in input);
 
-    fn block_content_to_block(&self, input: ParseStream, span: Span) -> Result<Expr> {
-        Ok(ExprBlock {
-            attrs: vec![],
-            label: None,
-            block: Block {
-                brace_token: Brace { span },
-                stmts: Block::parse_within(input)?,
-            },
+        match transform_block(&content)? {
+            Some(tokens) => {
+                let block_span = brace_token.span;
+                syn::parse2(tokens).map(|parsed: Block| {
+                    Expr::Block(ExprBlock {
+                        attrs: vec![],
+                        label: None,
+                        block: Block {
+                            brace_token: Brace { span: block_span },
+                            stmts: parsed.stmts,
+                        },
+                    })
+                })
+            }
+            None => Ok(Expr::Block(ExprBlock {
+                attrs: vec![],
+                label: None,
+                block: Block {
+                    brace_token,
+                    stmts: content
+                        .parse_terminated(Stmt::parse, Token![;])?
+                        .into_iter()
+                        .collect(),
+                },
+            })),
         }
-        .into())
     }
 
     fn process_block(&self, statements: &[Stmt]) -> Option<Vec<Stmt>> {
@@ -152,7 +140,7 @@ impl Parser<'_> {
         use Stmt::*;
 
         let first_statement = (statements.len() == 1).then(|| &statements[0]);
-        if let Some(Expr(syn::Expr::MethodCall(method_call))) = first_statement {
+        if let Some(Expr(syn::Expr::MethodCall(method_call), _)) = first_statement {
             if method_call.method == "animate" && method_call.args.len() == 1 {
                 match &method_call.args[0] {
                     syn::Expr::Macro(macro_expr)
@@ -169,7 +157,7 @@ impl Parser<'_> {
                             ident: Ident::new(
                                 &format!(
                                     "ANIMATION_{}",
-                                    uuid::Uuid::new_v4().to_simple().to_string().to_uppercase()
+                                    uuid::Uuid::new_v4().simple().to_string().to_uppercase()
                                 ),
                                 Span::call_site(),
                             ),
@@ -218,7 +206,6 @@ impl Parser<'_> {
                             .map(|_| {
                                 syn::Expr::Reference(syn::ExprReference {
                                     and_token: Default::default(),
-                                    raw: Default::default(),
                                     attrs: Default::default(),
                                     mutability: None,
                                     expr: Box::new(identifier.clone()),
@@ -226,9 +213,10 @@ impl Parser<'_> {
                             })
                             .collect();
 
-                        return Some(vec![syn::Stmt::Expr(syn::Expr::MethodCall(
-                            processed_method_call,
-                        ))]);
+                        return Some(vec![syn::Stmt::Expr(
+                            syn::Expr::MethodCall(processed_method_call),
+                            None,
+                        )]);
                     }
                     _ => (),
                 }
@@ -256,30 +244,6 @@ impl Parser<'_> {
         input.advance_to(&fork);
 
         Ok((block.into(), NodeType::Block))
-    }
-
-    fn block_attribute_expr(&self, input: ParseStream) -> Result<(Expr, NodeType)> {
-        let fork = input.fork();
-
-        let content;
-        let brace_token = braced!(content in fork);
-        let statements = Block::parse_within(&content)?;
-        let statements = self
-            .process_block(statements.as_slice())
-            .unwrap_or(statements);
-
-        let block = ExprBlock {
-            attrs: vec![],
-            label: None,
-            block: Block {
-                brace_token,
-                stmts: statements,
-            },
-        };
-
-        input.advance_to(&fork);
-
-        Ok((block.into(), NodeType::Attribute))
     }
 
     fn element(&self, input: ParseStream) -> Result<Node> {
@@ -339,7 +303,7 @@ impl Parser<'_> {
         input.parse::<Token![<]>()?;
         let tag_name = self.node_name(input)?;
 
-        let mut attributes = TokenStream::new();
+        let mut attribute_tokens = TokenStream::new();
         let self_closing = loop {
             if let Ok(self_closing) = self.tag_open_end(input) {
                 break self_closing;
@@ -350,13 +314,15 @@ impl Parser<'_> {
             }
 
             let next: TokenTree = input.parse()?;
-            attributes.extend(Some(next));
+            attribute_tokens.extend(Some(next));
         };
 
-        let attributes = if !attributes.is_empty() {
-            let tag_name = &tag_name;
-            let parser = move |input: ParseStream| self.attributes(input, tag_name);
-            parser.parse2(attributes)?
+        let attributes = if !attribute_tokens.is_empty() {
+            // Create a new parse stream from the collected tokens
+            syn::parse::Parser::parse2(
+                |input: ParseStream| self.attributes(input, &tag_name),
+                attribute_tokens,
+            )?
         } else {
             vec![]
         };
@@ -394,12 +360,29 @@ impl Parser<'_> {
         Ok(nodes)
     }
 
-    fn attribute(&self, input: ParseStream, _tag_name: &NodeName) -> Result<Node> {
-        let fork = &input.fork();
+    fn block_attribute_expr(&self, input: ParseStream) -> Result<(Expr, NodeType)> {
+        let content;
+        let brace_token = braced!(content in input);
+        let statements = Block::parse_within(&content)?;
+        let statements = self
+            .process_block(statements.as_slice())
+            .unwrap_or(statements);
 
-        if fork.peek(Brace) {
-            let (value, node_type) = self.block_expr(fork)?;
-            input.advance_to(fork);
+        let expr = Expr::Block(ExprBlock {
+            attrs: vec![],
+            label: None,
+            block: Block {
+                brace_token,
+                stmts: statements,
+            },
+        });
+
+        Ok((expr, NodeType::Attribute))
+    }
+
+    fn attribute(&self, input: ParseStream, _tag_name: &NodeName) -> Result<Node> {
+        if input.peek(Brace) {
+            let (value, node_type) = self.block_attribute_expr(input)?;
 
             Ok(Node {
                 name: None,
@@ -409,19 +392,19 @@ impl Parser<'_> {
                 children: vec![],
             })
         } else {
-            let name = self.node_name(fork)?;
+            let name = self.node_name(input)?;
 
-            let res = fork
+            let res = input
                 .parse::<Option<Token![=]>>()?
                 .map(|_eq| {
-                    if fork.is_empty() {
+                    if input.is_empty() {
                         return Err(Error::new(name.span(), "missing attribute value"));
                     }
 
-                    if fork.peek(Brace) {
-                        Ok(self.block_attribute_expr(fork)?)
+                    if input.peek(Brace) {
+                        Ok(self.block_attribute_expr(input)?)
                     } else {
-                        Ok((fork.parse()?, NodeType::Attribute))
+                        Ok((input.parse()?, NodeType::Attribute))
                     }
                 })
                 .transpose()?;
@@ -432,7 +415,6 @@ impl Parser<'_> {
                 (None, NodeType::Attribute)
             };
 
-            input.advance_to(fork);
             Ok(Node {
                 name: Some(name),
                 value,
@@ -444,18 +426,20 @@ impl Parser<'_> {
     }
 
     fn node_name(&self, input: ParseStream) -> Result<NodeName> {
-        if input.peek2(Colon2) {
-            self.node_name_punctuated_ident::<Colon2, fn(_) -> Colon2, PathSegment>(input, Colon2)
-                .map(|segments| {
-                    NodeName::Path(ExprPath {
-                        attrs: vec![],
-                        qself: None,
-                        path: Path {
-                            leading_colon: None,
-                            segments,
-                        },
-                    })
+        if input.peek2(PathSep) {
+            self.node_name_punctuated_ident::<PathSep, fn(_) -> PathSep, PathSegment>(
+                input, PathSep,
+            )
+            .map(|segments| {
+                NodeName::Path(ExprPath {
+                    attrs: vec![],
+                    qself: None,
+                    path: Path {
+                        leading_colon: None,
+                        segments,
+                    },
                 })
+            })
         } else if input.peek2(Colon) {
             self.node_name_punctuated_ident::<Colon, fn(_) -> Colon, Ident>(input, Colon)
                 .map(NodeName::Colon)

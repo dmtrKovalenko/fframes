@@ -9,11 +9,11 @@ fframes.workspace = true
 getrandom = { version = "0.2.15", features = ["js"] }
 
 [dev-dependencies]
-fframes_test_utils = {path="../../fframes-test-utils"}
+fframes_test_utils = { path = "../../fframes-test-utils" }
 futures = "0.3.17"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer ={path="../../fframes-renderer"}
+fframes_renderer ={path="../../fframes-renderer", features=["h265", "libav-agree-gpl"]}
 
 [features]
 default=["renderer"]
