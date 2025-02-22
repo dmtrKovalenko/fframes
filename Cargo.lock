@@ -297,9 +297,9 @@ checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
 name = "bytemuck"
-version = "1.20.0"
+version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b37c88a63ffd85d15b406896cc343916d7cf57838a847b3a6f2ca5d39a5695a"
+checksum = "ef657dfab802224e671f5818e9a4935f9b1957ed18e58292690cc39e7a4092a3"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1812,9 +1812,9 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quote"
-version = "1.0.37"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5b9d34b8991d19d98081b46eacdd8eb58c6f2b201139f7c5f643cc155a633af"
+checksum = "0e4dccaaaf89514f546c693ddc140f729f958c247918a13380cccc6078391acc"
 dependencies = [
  "proc-macro2",
 ]
@@ -2212,9 +2212,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "svgr"
-version = "0.43.3"
+version = "0.43.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a184b71a7b1cc7c77dbcf228c5e61d6d0c724974812ec29faa0ee3beea22d6d5"
+checksum = "bb38ac829e669231b59d5ec3d3c7e889baa588f51194b5eefa00850eda9d65c0"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -2243,9 +2243,9 @@ dependencies = [
 
 [[package]]
 name = "svgrtypes"
-version = "0.43.3"
+version = "0.43.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4eef7ffbc10b8f9d6c5ddaaa4aed192389273d87f442e7ad4e17561e93a8369"
+checksum = "82427de0f42e13713a0f844a3a22c7fdd851ce174cb984f99fd71c9ed56bb0d1"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -2541,9 +2541,9 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 
 [[package]]
 name = "usvgr"
-version = "0.43.3"
+version = "0.43.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f79318dae045438f051b4ea01800c7198feaddd3cde8b2d29b8dc2cffa428c3"
+checksum = "82d0d0091cf9adfc892df08fad6b4c05c690778f76d32586d33b367b37833dee"
 dependencies = [
  "ahash",
  "base64 0.21.7",

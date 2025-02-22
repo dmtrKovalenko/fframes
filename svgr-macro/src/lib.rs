@@ -93,8 +93,7 @@ pub fn svgr(tokens: TokenStream) -> TokenStream {
             Ok(quote! {{
                  use #fframes_crate_ident::usvgr::svgtree::macro_prelude::*;
 
-                 #fframes_crate_ident::lazy_static::lazy_static! { #(#animations)*
-                 }
+                 #fframes_crate_ident::lazy_static::lazy_static! { #(#animations)* }
 
                  #[allow(unused_braces)]
                  #[allow(clippy::approx_constant)]

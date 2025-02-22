@@ -113,9 +113,7 @@ impl MediaDirectory {
                             });
                         }
                         ("jpg" | "jpeg" | "png", RawMediaFile::Data(ref bytes)) => {
-                            let image = decode_image(filename, bytes)
-                                .map_err(fframes::media::FFramesMediaError::from)?;
-
+                            let image = decode_image(filename, bytes)?;
                             let metadata = fframes::media::ImageMetadata {
                                 width: image.width,
                                 height: image.height,

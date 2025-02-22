@@ -44,11 +44,14 @@ fn maybe_value<T: ToTokens>(
     let inlined_value: Option<String> = value.resolve_str();
     let runtime_value: Option<syn::ExprBlock> = value.resolve_block();
 
-    Ok(match (inlined_value, runtime_value) {
-        (Some(value), _) => MaybeParsedValue::Value(get_value(value.as_str())?),
-        (None, Some(block)) => MaybeParsedValue::Expression(create_expression(block)),
-        _ => unreachable!(),
-    })
+    match (inlined_value, runtime_value) {
+        (Some(value), _) => Ok(MaybeParsedValue::Value(get_value(value.as_str())?)),
+        (None, Some(block)) => Ok(MaybeParsedValue::Expression(create_expression(block))),
+        _ => Err(syn::Error::new(
+            Span::call_site(),
+            "Attribute must be either a string or a block",
+        )),
+    }
 }
 
 #[derive(Debug)]
@@ -59,8 +62,17 @@ struct MaybeAttribute {
 
 fn inline_attribute_value(value: &str) -> TokenStream {
     if let Ok(float) = f32::from_str(value) {
-        quote! {
-            SvgAttributeValue::Float(#float, StringStorage::Borrowed(#value))
+        // This is required to suppress rust analyzer errors which is not expecting the -
+        // token before the float lieterals coming from the proc macro generated code.
+        if float.is_sign_negative() {
+            let float = float.abs();
+            quote! {
+                SvgAttributeValue::Float(- #float, StringStorage::Borrowed(#value))
+            }
+        } else {
+            quote! {
+                SvgAttributeValue::Float(#float, StringStorage::Borrowed(#value))
+            }
         }
     } else if let Ok(color) = svgtree::svgrtypes::Color::from_str(value) {
         quote! {

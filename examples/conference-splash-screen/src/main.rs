@@ -76,7 +76,7 @@ fn main() {
         load_system_fonts: true,
         logger: fframes_logger::FFramesLoggerVariant::Compact,
         encoder_options: EncoderOptions {
-            preferred_video_codec: Some("libx264"),
+            preferred_video_codec: Some("libx265"),
             qmin: 0,
             qmax: 69,
             qcompress: 0.6,
