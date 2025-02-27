@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fframes::{animation, svgr, Scene, Video};
+use fframes::{Scene, Video, animation, svgr};
 use hello_world_example::HelloWorldVideo;
 use marketing_example::MarketingVideo;
 use podcast_example::PodcastVideo;

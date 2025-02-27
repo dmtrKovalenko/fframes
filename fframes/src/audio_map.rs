@@ -1,4 +1,4 @@
-use crate::{error, FFramesContext, ResolvedScenesTimeline, ScenesWithAudio, TimeBase};
+use crate::{FFramesContext, ResolvedScenesTimeline, ScenesWithAudio, TimeBase, error};
 use std::{
     iter::FromIterator,
     ops::{Add, Range, Sub},

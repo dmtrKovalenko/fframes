@@ -1,6 +1,6 @@
 use fframes::{
-    svgr, AudioMap, AudioTimestamp, FFramesContext, Frame, SampleSize, Svgr, Video,
-    VisualizeFrameInput,
+    AudioMap, AudioTimestamp, FFramesContext, Frame, SampleSize, Svgr, Video, VisualizeFrameInput,
+    svgr,
 };
 
 #[derive(Debug)]

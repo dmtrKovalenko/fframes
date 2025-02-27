@@ -11,11 +11,11 @@ impl SkiaFFramesRenderer {
         width: usize,
         height: usize,
     ) -> FFramesRendererResult<Self> {
-        use metal_rs::{foreign_types::ForeignType, MTLStorageMode, MTLTextureUsage};
         use metal_rs::{Device, MTLPixelFormat, TextureDescriptor};
+        use metal_rs::{MTLStorageMode, MTLTextureUsage, foreign_types::ForeignType};
         use skia_safe::{
-            gpu::{backend_render_targets, mtl, SurfaceOrigin},
             ColorType,
+            gpu::{SurfaceOrigin, backend_render_targets, mtl},
         };
 
         let device = Device::system_default().ok_or_else(|| {

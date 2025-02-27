@@ -48,7 +48,7 @@ ffmpeg-sys-fframes = { package = "ffmpeg-sys-fframes", version = "7.1.1", featur
     "build",
     "static",
 ] }
-wasm-bindgen = "0.2.95"
+wasm-bindgen = "0.2.100"
 
 # fframes internal deps 
 fframes_renderer = { path = "fframes-renderer", version = "1.0.0-beta.6.rc-3.2" }

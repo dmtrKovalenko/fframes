@@ -2,7 +2,7 @@
 name = "tiktok-media"
 version = "1.0.0-beta.6.rc-3.2"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

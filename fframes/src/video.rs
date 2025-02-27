@@ -1,8 +1,8 @@
 use crate::audio_map::AudioMap;
 use crate::error::Result;
 use crate::{
-    scenes::*, AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo,
-    Svgr, TimeBase,
+    AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo, Svgr,
+    TimeBase, scenes::*,
 };
 
 /// The base fframes video trait. It represents how to render a video for a struct which becomes an

@@ -1,7 +1,7 @@
 use crate::renderer_error::FFramesRendererResult;
 use fframes::{
-    media::{decode_image, RawMediaFile, Subtitles, VideoMedia},
     DynamicMediaProvider, RawFontData,
+    media::{RawMediaFile, Subtitles, VideoMedia, decode_image},
 };
 use rayon::prelude::*;
 use std::{
@@ -96,7 +96,7 @@ impl MediaDirectory {
                                 fframes::AudioData::Preloaded(audio_data),
                             );
                         }
-                        ("vtt", RawMediaFile::Data(ref bytes)) => {
+                        ("vtt", RawMediaFile::Data(bytes)) => {
                             let str_bytes = std::str::from_utf8(bytes)?;
 
                             subtitles_hash.lock()?.insert(
@@ -112,7 +112,7 @@ impl MediaDirectory {
                                 data: Arc::new(bytes),
                             });
                         }
-                        ("jpg" | "jpeg" | "png", RawMediaFile::Data(ref bytes)) => {
+                        ("jpg" | "jpeg" | "png", RawMediaFile::Data(bytes)) => {
                             let image = decode_image(filename, bytes)?;
                             let metadata = fframes::media::ImageMetadata {
                                 width: image.width,

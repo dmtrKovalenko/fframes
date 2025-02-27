@@ -1,4 +1,4 @@
-use fframes::{include_media_dir, AudioMap, Color, FFramesContext, Frame, Video};
+use fframes::{AudioMap, Color, FFramesContext, Frame, Video, include_media_dir};
 
 include_media_dir!(pub struct HelloWorldMedia, "examples/hello-world/media");
 

@@ -2,7 +2,7 @@
 name = "fframes-lyon-renderer"
 description = "POC pure rust svg rendering backend based on lyon and wgpu"
 version = "0.1.0-alpha.1"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 

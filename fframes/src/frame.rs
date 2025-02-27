@@ -3,10 +3,10 @@ use std::{ops::DerefMut, sync::Arc};
 use usvgr::svgtree::SvgAttributeValue;
 
 use crate::{
-    animation, get_visualization,
-    text::{text_wrap_impl, BreakLinesOpts},
-    video_data::{FFramesSyncedVideoFrame, VideoDecodersWorker},
     BreaksLruCache, Svgr, SyncVideoFrameInput, VisualizeFrameInput, WrappedTextStructure,
+    animation, get_visualization,
+    text::{BreakLinesOpts, text_wrap_impl},
+    video_data::{FFramesSyncedVideoFrame, VideoDecodersWorker},
 };
 
 /// Contains all the temporal information about the current frame and the mutable links to the
@@ -378,7 +378,7 @@ impl Frame {
         ctx: &crate::FFramesContext<'_, '_>,
         file_name: impl AsRef<str>,
         input: &SyncVideoFrameInput,
-    ) -> Option<Arc<impl FFramesSyncedVideoFrame>> {
+    ) -> Option<Arc<impl FFramesSyncedVideoFrame + 'static>> {
         if self.global_index < input.start_from {
             return None;
         }

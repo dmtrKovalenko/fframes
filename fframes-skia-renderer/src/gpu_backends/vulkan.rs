@@ -2,11 +2,11 @@ use crate::skia_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use ash::vk::{self, Handle};
 use ash::{Entry, Instance};
 use fframes_renderer::{FFramesRendererError, FFramesRendererResult};
+use skia_safe::ColorType;
 use skia_safe::gpu;
 use skia_safe::gpu::ganesh::context_options::*;
 use skia_safe::gpu::ganesh::vk::backend_render_targets;
-use skia_safe::ColorType;
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{CStr, CString, c_void};
 use std::os::raw::c_char;
 
 pub fn vulkan_version() -> FFramesRendererResult<Option<(usize, usize, usize)>> {
@@ -34,7 +34,7 @@ unsafe fn find_memory_type_index(
     requirements: vk::MemoryRequirements,
     properties: vk::MemoryPropertyFlags,
 ) -> Option<u32> {
-    let mem_properties = instance.get_physical_device_memory_properties(physical_device);
+    let mem_properties = unsafe { instance.get_physical_device_memory_properties(physical_device) };
 
     (0..mem_properties.memory_type_count).find(|i| {
         let suitable = (requirements.memory_type_bits & (1 << i)) != 0;

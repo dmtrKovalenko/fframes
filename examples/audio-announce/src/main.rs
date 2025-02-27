@@ -1,7 +1,7 @@
 use audio_announce_example::{AudioAnnounce, AudioAnnounceMedia};
 use clap::Parser;
 use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video};
-use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
+use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use std::path::{Path, PathBuf};

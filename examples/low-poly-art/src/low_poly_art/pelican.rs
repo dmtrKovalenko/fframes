@@ -1,7 +1,7 @@
 use fframes;
-use fframes::svgr;
 use fframes::Scene;
 use fframes::Svgr;
+use fframes::svgr;
 
 #[derive(Debug)]
 pub(crate) struct Pelican {}

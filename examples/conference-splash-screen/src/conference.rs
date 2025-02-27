@@ -1,5 +1,5 @@
 use crate::sponsor_screen::SponsorScene;
-use crate::{media::ConferenceMedia, SpeakerScene};
+use crate::{SpeakerScene, media::ConferenceMedia};
 use fframes::{AudioMap, FFramesContext, Frame, Scene, Svgr};
 pub use fframes::{Color, Video};
 

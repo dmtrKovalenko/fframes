@@ -5,13 +5,13 @@ pub mod log {
     #[wasm_bindgen]
     extern "C" {
         #[wasm_bindgen(js_namespace = console)]
-        pub fn log(s: &str);
+        pub fn console_log(s: &str);
     }
 
     #[macro_export]
     macro_rules! log {
-    ( $( $t:tt )* ) => {
-        $crate::log(&format_args!($($t)*).to_string())
+    ($($t:tt)*) => {
+        $crate::console_log(&format_args!($($t)*).to_string())
     }
 }
 }

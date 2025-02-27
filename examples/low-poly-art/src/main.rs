@@ -1,6 +1,6 @@
 use fframes::{CombinedMediaProvider, MediaProvider};
-pub use fframes_renderer::{fframes_logger, render, RenderOptions};
-use low_poly_art_example::{owl, LowPolyMedia, LowPolyVideo};
+pub use fframes_renderer::{RenderOptions, fframes_logger, render};
+use low_poly_art_example::{LowPolyMedia, LowPolyVideo, owl};
 
 /// Make sure that this example will compile very slowly but the rendering will be (relatively) fast.
 /// This is because fframes inlines and parses all the svg at compile time and skipping mostly all

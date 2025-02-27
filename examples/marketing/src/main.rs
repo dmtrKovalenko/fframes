@@ -1,5 +1,5 @@
 use fframes::StaticMediaProvider;
-pub use fframes_renderer::{fframes_logger, render, RenderOptions};
+pub use fframes_renderer::{RenderOptions, fframes_logger, render};
 use marketing_example::{MarketingMedia, MarketingVideo};
 
 fn main() {

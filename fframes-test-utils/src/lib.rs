@@ -5,7 +5,7 @@ use std::{
     io::{self, BufRead, Read},
 };
 
-use fframes::{usvgr, Svgr};
+use fframes::{Svgr, usvgr};
 
 pub use futures;
 
@@ -68,9 +68,15 @@ pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
             std::fs::write(diff_path, prefixed_snapshot).unwrap();
 
             if cfg!(feature = "compile-time-svgtree") {
-                panic!("Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", diff_path.display())
+                panic!(
+                    "Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.",
+                    diff_path.display()
+                )
             } else {
-                panic!("Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.", diff_path.display())
+                panic!(
+                    "Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.",
+                    diff_path.display()
+                )
             }
         }
     }

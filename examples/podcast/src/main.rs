@@ -1,5 +1,5 @@
 use fframes_renderer::EncoderOptions;
-pub use fframes_renderer::{fframes_logger, render, RenderOptions};
+pub use fframes_renderer::{RenderOptions, fframes_logger, render};
 use podcast_example::PodcastVideo;
 use std::path::Path;
 

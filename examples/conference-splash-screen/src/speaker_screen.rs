@@ -1,7 +1,7 @@
 use crate::ConferenceMedia;
 use fframes::{
-    self, animation, EstimateTextWidthOptions, FFramesContext, FontStretch, FontStyle, Frame,
-    Scene, Svgr,
+    self, EstimateTextWidthOptions, FFramesContext, FontStretch, FontStyle, Frame, Scene, Svgr,
+    animation,
 };
 
 #[derive(Debug, Clone)]

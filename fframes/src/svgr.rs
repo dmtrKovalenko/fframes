@@ -40,7 +40,9 @@ impl<'a> Svgr<'a> {
 
     #[cfg(any(not(feature = "compile-time-svgtree"), target_arch = "wasm32"))]
     pub fn as_subtree(self) -> Vec<Option<usvgr::svgtree::NestedNodeData<'a>>> {
-        unimplemented!("Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly.")
+        unimplemented!(
+            "Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly."
+        )
     }
 }
 

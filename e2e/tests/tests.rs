@@ -1,5 +1,5 @@
 use e2e_test_video::test_video::TestVideo;
-pub use fframes_renderer::{fframes_logger, render, RenderOptions};
+pub use fframes_renderer::{RenderOptions, fframes_logger, render};
 use rayon::prelude::*;
 use std::env::consts::{ARCH, OS};
 use std::{fs, process::Command};
@@ -59,11 +59,7 @@ fn e2e_rendering() {
         .filter_map(|path_buf| {
             path_buf.ok().and_then(|path_buf| {
                 let path = path_buf.path();
-                if path.is_dir() {
-                    None
-                } else {
-                    Some(path)
-                }
+                if path.is_dir() { None } else { Some(path) }
             })
         })
         .collect::<Vec<_>>();
@@ -91,11 +87,7 @@ fn e2e_rendering() {
                 .output()
                 .expect("failed to get a diff");
 
-            if diff_result.status.success() {
-                0
-            } else {
-                1
-            }
+            if diff_result.status.success() { 0 } else { 1 }
         })
         .sum::<u32>();
 

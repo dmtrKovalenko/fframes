@@ -1,6 +1,6 @@
 use clap::Parser;
 use fframes::StaticMediaProvider;
-use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
+use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use std::path::PathBuf;
 

@@ -1,8 +1,8 @@
 use conference_splash_screen::{ConferenceMedia, ConferenceVideo, SpeakerScene, SponsorScene};
 use fframes::{
-    lazy_static::lazy_static, CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video,
+    CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video, lazy_static::lazy_static,
 };
-use fframes_renderer::{fframes_logger, render, render_frame, EncoderOptions, RenderOptions};
+use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render, render_frame};
 use image::{ImageBuffer, Rgba};
 use serde::{Deserialize, Serialize};
 use std::{

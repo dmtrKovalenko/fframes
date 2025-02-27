@@ -3,12 +3,12 @@ use crate::parser::IncludeMediaDirInput;
 use fframes_media_loaders::PreloadedImageData;
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use std::{
     error::Error,
     path::{Path, PathBuf},
 };
-use syn::{parse_macro_input, Ident};
+use syn::{Ident, parse_macro_input};
 
 /// Embed the contents of a directory in your crate.
 #[proc_macro]
@@ -213,16 +213,16 @@ enum MediaVariant {
 
 impl MediaVariant {
     fn from_extension(file_name: &str, path: &Path) -> Option<Self> {
-        match path
-            .extension() ?
-            .to_str()?
-        {
+        match path.extension()?.to_str()? {
             "mp3" => Some(MediaVariant::Audio),
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
             "vtt" => Some(MediaVariant::Subtitles),
             _ if file_name.starts_with('.') => None,
-            _ => panic!("Can not parse the media file {}. File type is not supported, please remove all the unsupported files from the static media folder", path.display()),
+            _ => panic!(
+                "Can not parse the media file {}. File type is not supported, please remove all the unsupported files from the static media folder",
+                path.display()
+            ),
         }
     }
 }

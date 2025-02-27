@@ -1,8 +1,8 @@
 use crate::stream::Stream;
 use crate::{
-    ffmpeg_action,
+    FFramesLogger, ffmpeg_action,
     renderer_error::{self, RenderEncodingError},
-    stream, FFramesLogger,
+    stream,
 };
 use ffmpeg_sys_fframes::*;
 use std::ops::Range;
@@ -232,43 +232,47 @@ impl Encoder {
         encoder_options: &EncoderOptions,
         logger: &Arc<dyn FFramesLogger>,
     ) -> RenderEncodingResult<Self> {
-        av_log_set_level(logger.get_libav_log_level());
+        unsafe {
+            av_log_set_level(logger.get_libav_log_level());
 
-        let c_filename = CString::new(filename.to_string_lossy().as_ref())
-            .map_err(RenderEncodingError::CStringError)?;
-        let mut oc: *mut AVFormatContext = std::ptr::null_mut();
+            let c_filename = CString::new(filename.to_string_lossy().as_ref())
+                .map_err(RenderEncodingError::CStringError)?;
+            let mut oc: *mut AVFormatContext = std::ptr::null_mut();
 
-        ffmpeg_action!(
-            avformat_alloc_output_context2(
-                &mut oc,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                c_filename.as_ptr(),
-            ),
-            RenderEncodingError::UnknownExtension(filename.to_owned())
-        );
+            ffmpeg_action!(
+                avformat_alloc_output_context2(
+                    &mut oc,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    c_filename.as_ptr(),
+                ),
+                RenderEncodingError::UnknownExtension(filename.to_owned())
+            );
 
-        let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
-        if logger.should_dump_format_info() {
-            av_dump_format(oc, 0, c_filename.as_ptr(), 1);
+            let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
+            if logger.should_dump_format_info() {
+                av_dump_format(oc, 0, c_filename.as_ptr(), 1);
+            }
+
+            ffmpeg_action!(
+                avio_open(&mut (*oc).pb, c_filename.as_ptr(), 2),
+                RenderEncodingError::CantOpenFile(filename.to_owned())
+            );
+
+            let audio_stream = with_audio
+                .then(|| {
+                    Stream::make_audio(encoder_options.sample_rate as i32, oc, encoder_options)
+                })
+                .transpose()?;
+
+            avformat_write_header(oc, std::ptr::null_mut());
+
+            Ok(Encoder {
+                oc,
+                video_stream,
+                audio_stream,
+            })
         }
-
-        ffmpeg_action!(
-            avio_open(&mut (*oc).pb, c_filename.as_ptr(), 2),
-            RenderEncodingError::CantOpenFile(filename.to_owned())
-        );
-
-        let audio_stream = with_audio
-            .then(|| Stream::make_audio(encoder_options.sample_rate as i32, oc, encoder_options))
-            .transpose()?;
-
-        avformat_write_header(oc, std::ptr::null_mut());
-
-        Ok(Encoder {
-            oc,
-            video_stream,
-            audio_stream,
-        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -282,18 +286,20 @@ impl Encoder {
         logger: &Arc<dyn FFramesLogger>,
         inner_fn: &mut F,
     ) -> RenderEncodingResult<T> {
-        let mut encoder = Encoder::new(
-            with_audio,
-            width,
-            height,
-            fps,
-            filename,
-            encoder_options,
-            logger,
-        )?;
+        unsafe {
+            let mut encoder = Encoder::new(
+                with_audio,
+                width,
+                height,
+                fps,
+                filename,
+                encoder_options,
+                logger,
+            )?;
 
-        inner_fn(&mut encoder)
-        // Encoder::drop() will be called here
+            inner_fn(&mut encoder)
+            // Encoder::drop() will be called here
+        }
     }
 
     pub unsafe fn send_customizable_frame_packet<F: Fn(*mut AVPacket) -> i32>(
@@ -306,30 +312,32 @@ impl Encoder {
         }: &EncoderFrame,
         customize_frame: F,
     ) -> RenderEncodingResult<()> {
-        let avcodec_send_frame = avcodec_send_frame(stream.enc, *frame);
-        let mut status = avcodec_send_frame;
+        unsafe {
+            let avcodec_send_frame = avcodec_send_frame(stream.enc, *frame);
+            let mut status = avcodec_send_frame;
 
-        if status < 0 {
-            let error_description = av_error_to_string(status);
+            if status < 0 {
+                let error_description = av_error_to_string(status);
 
-            return Err(renderer_error::RenderEncodingError::CantWriteFrame(
-                error_description,
-            ));
-        }
-
-        while status >= 0 {
-            status = avcodec_receive_packet(stream.enc, *packet);
-
-            match status {
-                status if status == AVERROR_EOF => break,
-                status if status == FFMPEG_AVERROR(EAGAIN) => {
-                    break;
-                }
-                _ => status = customize_frame(*packet),
+                return Err(renderer_error::RenderEncodingError::CantWriteFrame(
+                    error_description,
+                ));
             }
-        }
 
-        Ok(())
+            while status >= 0 {
+                status = avcodec_receive_packet(stream.enc, *packet);
+
+                match status {
+                    status if status == AVERROR_EOF => break,
+                    status if status == FFMPEG_AVERROR(EAGAIN) => {
+                        break;
+                    }
+                    _ => status = customize_frame(*packet),
+                }
+            }
+
+            Ok(())
+        }
     }
 
     pub unsafe fn send_frame(
@@ -337,14 +345,16 @@ impl Encoder {
         stream: &stream::Stream,
         frame: &EncoderFrame,
     ) -> RenderEncodingResult<()> {
-        let oc = self.oc;
+        unsafe {
+            let oc = self.oc;
 
-        self.send_customizable_frame_packet(stream, frame, |packet| {
-            av_packet_rescale_ts(packet, (*stream.enc).time_base, (*stream.st).time_base);
+            self.send_customizable_frame_packet(stream, frame, |packet| {
+                av_packet_rescale_ts(packet, (*stream.enc).time_base, (*stream.st).time_base);
 
-            (*packet).stream_index = (*stream.st).index;
-            av_interleaved_write_frame(oc, packet)
-        })
+                (*packet).stream_index = (*stream.st).index;
+                av_interleaved_write_frame(oc, packet)
+            })
+        }
     }
 
     pub unsafe fn submit_leftover_b_frames(
@@ -353,15 +363,17 @@ impl Encoder {
         stream: &stream::Stream,
         expected_frames_in_stream: usize,
     ) -> RenderEncodingResult<()> {
-        let submitted_frames = self.video_stream.get_frames_in_stream() as usize;
+        unsafe {
+            let submitted_frames = self.video_stream.get_frames_in_stream() as usize;
 
-        if submitted_frames < expected_frames_in_stream {
-            for _ in 0..expected_frames_in_stream - submitted_frames {
-                self.send_frame(stream, frame)?;
+            if submitted_frames < expected_frames_in_stream {
+                for _ in 0..expected_frames_in_stream - submitted_frames {
+                    self.send_frame(stream, frame)?;
+                }
             }
-        }
 
-        Ok(())
+            Ok(())
+        }
     }
 }
 

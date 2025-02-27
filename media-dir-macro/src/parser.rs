@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use syn::{
+    LitStr, Result,
     parse::{Parse, ParseStream},
     token::{Comma, Struct},
-    LitStr, Result,
 };
 
 #[derive(Debug)]

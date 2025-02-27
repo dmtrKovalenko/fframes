@@ -1,9 +1,9 @@
 use fframes::{
-    ttf_parser::{self},
     FontStretch, FontStyle,
+    ttf_parser::{self},
 };
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, fframes::serde::Serialize)]
 #[serde(crate = "fframes::serde")] // https://github.com/serde-rs/serde/issues/1465
@@ -136,7 +136,9 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
     }
 
     fn add_font(&mut self, _filename: String, _font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
-        unimplemented!("Adding fonts for wasm font source must be done through WasmFontSource::insert_font api")
+        unimplemented!(
+            "Adding fonts for wasm font source must be done through WasmFontSource::insert_font api"
+        )
     }
 }
 

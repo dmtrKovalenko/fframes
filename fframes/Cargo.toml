@@ -1,7 +1,7 @@
 [package]
 name = "fframes"
 version = "1.0.0-beta.6.rc-3.2"
-edition = "2021"
+edition = "2024"
 authors = ["Dmitriy Kovalenoko <dmtr.kovalenko@outlook.com>"]
 license = "MIT"
 description = "A video generation framework"
@@ -33,7 +33,7 @@ futures = "0.3.24"
 doctest = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.95"
+wasm-bindgen = "0.2.100"
 
 [features]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]

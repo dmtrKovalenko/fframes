@@ -1,4 +1,4 @@
-use crate::{error::Result, media, AudioData, FontSource};
+use crate::{AudioData, FontSource, error::Result, media};
 use fframes_media_loaders::VideoMedia;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 

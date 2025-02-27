@@ -6,13 +6,13 @@ use crate::skia_pipeline::Pipeline;
 pub use crate::skia_pipeline::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
 use crate::{resource_provider::SkiaFFramesProvider, skia_pipeline};
 use fframes::{
-    usvgr::{self, WriteOptions},
     AudioTimelineSamples, ResolvedRenderingTimeline, Video,
+    usvgr::{self, WriteOptions},
 };
 use fframes_renderer::{
-    concatenator, FFramesRenderBackend, FFramesRendererError, FFramesRendererResult,
+    FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, concatenator,
 };
-use skia_safe::{gpu, surfaces::raster_n32_premul, svg::Dom, Surface};
+use skia_safe::{Surface, gpu, surfaces::raster_n32_premul, svg::Dom};
 use uuid::Uuid;
 
 pub(crate) struct SkiaContext {

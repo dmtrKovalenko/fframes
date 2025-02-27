@@ -1,4 +1,4 @@
-use crate::{media::GeneralVideoFileMetadata, media::ImageData, FFramesContext};
+use crate::{FFramesContext, media::GeneralVideoFileMetadata, media::ImageData};
 use fframes_media_loaders::VideoMedia;
 use std::sync::Arc;
 
@@ -210,7 +210,7 @@ impl VideoDecodersWorker {
         _offset: i64,
         ctx: &FFramesContext,
         _options: &SyncVideoFrameInput,
-    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
+    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
         let filename = media_ref.path.file_name().unwrap().to_string_lossy();
         let video_filename = filename.as_ref();
 
@@ -252,7 +252,7 @@ impl VideoDecodersWorker {
         mut offset: i64,
         ctx: &FFramesContext,
         options: &SyncVideoFrameInput,
-    ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame>>> {
+    ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
         use crate::error::FFramesError;
         use fframes_media_loaders::FFramesMediaError;
 

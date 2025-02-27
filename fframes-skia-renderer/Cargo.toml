@@ -2,7 +2,7 @@
 name = "fframes_skia_renderer"
 description = "Rendering backend for fframes using skia"
 version = "1.0.0-beta.6.rc-3.2"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 authors = ["Dmitriy Kovalenoko <dmtr.kovalenko@outlook.com>"]
 

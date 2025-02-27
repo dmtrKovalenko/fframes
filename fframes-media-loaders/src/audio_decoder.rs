@@ -1,5 +1,5 @@
-use crate::error::Result;
 use crate::FFramesMediaError;
+use crate::error::Result;
 use ffmpeg_sys_fframes::*;
 use std::ffi::CString;
 use std::path::Path;
@@ -189,63 +189,65 @@ impl AudioDecoder {
     }
 
     unsafe fn decode_packet(&mut self, samples: &mut Vec<f32>) -> Result<()> {
-        let mut ret;
+        unsafe {
+            let mut ret;
 
-        ret = avcodec_send_packet(self.decoding_ctx, self.avpkt);
-        if ret < 0 {
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Error submitting packet to decoder".to_string(),
-            )));
-        }
-
-        while ret >= 0 {
-            ret = avcodec_receive_frame(self.decoding_ctx, self.frame);
-
-            match ret {
-                AVERROR_EOF => {
-                    return Ok(());
-                }
-                ret if ret == FFMPEG_AVERROR(EAGAIN) => {
-                    return Ok(());
-                }
-                ret if ret < 0 => {
-                    return Err(FFramesMediaError::LibAVAudioDecodingError((
-                        ret,
-                        "Error during decoding".to_string(),
-                    )));
-                }
-                _ => (),
-            };
-
-            let nb_samples = av_rescale_rnd(
-                swr_get_delay(self.swr_ctx, (*self.decoding_ctx).sample_rate.into())
-                    + (*self.frame).nb_samples as i64,
-                self.out_sample_rate as i64,
-                (*self.decoding_ctx).sample_rate.into(),
-                AVRounding::AV_ROUND_UP,
-            );
-
-            let current_length = samples.len();
-            samples.reserve(nb_samples as usize);
-            let ret = swr_convert(
-                self.swr_ctx,
-                [samples.as_mut_ptr().add(current_length)].as_ptr() as *mut *mut _,
-                nb_samples as i32,
-                (*self.frame).data.as_mut_ptr() as *mut _ as *mut *const u8,
-                (*self.frame).nb_samples,
-            );
-            samples.set_len(current_length + nb_samples as usize);
-
+            ret = avcodec_send_packet(self.decoding_ctx, self.avpkt);
             if ret < 0 {
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
-                    "Error while resampling".to_string(),
+                    "Error submitting packet to decoder".to_string(),
                 )));
             }
-        }
 
-        Ok(())
+            while ret >= 0 {
+                ret = avcodec_receive_frame(self.decoding_ctx, self.frame);
+
+                match ret {
+                    AVERROR_EOF => {
+                        return Ok(());
+                    }
+                    ret if ret == FFMPEG_AVERROR(EAGAIN) => {
+                        return Ok(());
+                    }
+                    ret if ret < 0 => {
+                        return Err(FFramesMediaError::LibAVAudioDecodingError((
+                            ret,
+                            "Error during decoding".to_string(),
+                        )));
+                    }
+                    _ => (),
+                };
+
+                let nb_samples = av_rescale_rnd(
+                    swr_get_delay(self.swr_ctx, (*self.decoding_ctx).sample_rate.into())
+                        + (*self.frame).nb_samples as i64,
+                    self.out_sample_rate as i64,
+                    (*self.decoding_ctx).sample_rate.into(),
+                    AVRounding::AV_ROUND_UP,
+                );
+
+                let current_length = samples.len();
+                samples.reserve(nb_samples as usize);
+                let ret = swr_convert(
+                    self.swr_ctx,
+                    [samples.as_mut_ptr().add(current_length)].as_ptr() as *mut *mut _,
+                    nb_samples as i32,
+                    (*self.frame).data.as_mut_ptr() as *mut _ as *mut *const u8,
+                    (*self.frame).nb_samples,
+                );
+                samples.set_len(current_length + nb_samples as usize);
+
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error while resampling".to_string(),
+                    )));
+                }
+            }
+
+            Ok(())
+        }
     }
 
     pub fn decode_all_samples(&mut self) -> Result<(u32, Vec<f32>)> {

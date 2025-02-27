@@ -1,7 +1,7 @@
 use fframes::lazy_static::lazy_static;
 use fframes::{
-    animation, center_spectrum_low_frequencies, svgr, AudioMap, FFramesContext, Frame, SampleSize,
-    Svgr, Video, VisualizeFrameInput,
+    AudioMap, FFramesContext, Frame, SampleSize, Svgr, Video, VisualizeFrameInput, animation,
+    center_spectrum_low_frequencies, svgr,
 };
 pub use tiktok_media::GooseMedia;
 

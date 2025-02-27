@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use fframes::{include_media_dir, AudioMap, Scene, Svgr};
+use fframes::{AudioMap, Scene, Svgr, include_media_dir};
 pub use fframes::{FFramesContext, Frame, Video};
 
 include_media_dir!(pub struct LowPolyMedia, "examples/low-poly-art/media");

@@ -1,7 +1,7 @@
 use crate::{
     encoder::EncoderOptions, fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult,
 };
-use fframes::{usvgr, AudioTimelineSamples, ResolvedRenderingTimeline, Video};
+use fframes::{AudioTimelineSamples, ResolvedRenderingTimeline, Video, usvgr};
 use std::{path::Path, sync::Arc};
 use usvgr::fontdb;
 

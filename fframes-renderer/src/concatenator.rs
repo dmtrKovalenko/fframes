@@ -6,13 +6,13 @@ use std::{
 };
 
 use crate::{
+    EncoderOptions,
     encoder::Encoder,
     encoder_frame::EncoderFrame,
     ffmpeg_action,
     renderer_error::{RenderEncodingError, RenderEncodingResult},
     stream::Stream,
     stream::StreamVariant,
-    EncoderOptions,
 };
 
 pub struct AvPacketAutoFree {
@@ -56,45 +56,47 @@ unsafe fn open_file_stream(
     input_format_ctx: &mut *mut AVFormatContext,
     codec_type: AVMediaType,
 ) -> RenderEncodingResult<*mut AVStream> {
-    let input_file = CString::new(filename.to_string_lossy().as_ref())
-        .map_err(RenderEncodingError::CStringError)?;
+    unsafe {
+        let input_file = CString::new(filename.to_string_lossy().as_ref())
+            .map_err(RenderEncodingError::CStringError)?;
 
-    ffmpeg_action!(
-        avformat_open_input(
-            input_format_ctx,
-            input_file.as_ptr(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        ),
-        RenderEncodingError::CantOpenFile(filename.to_owned())
-    );
+        ffmpeg_action!(
+            avformat_open_input(
+                input_format_ctx,
+                input_file.as_ptr(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            ),
+            RenderEncodingError::CantOpenFile(filename.to_owned())
+        );
 
-    ffmpeg_action!(
-        avformat_find_stream_info(*input_format_ctx, std::ptr::null_mut()),
-        RenderEncodingError::CantOpenFile(filename.to_owned())
-    );
+        ffmpeg_action!(
+            avformat_find_stream_info(*input_format_ctx, std::ptr::null_mut()),
+            RenderEncodingError::CantOpenFile(filename.to_owned())
+        );
 
-    let streams = std::slice::from_raw_parts_mut(
-        (*(*input_format_ctx)).streams,
-        (*(*input_format_ctx)).nb_streams as usize,
-    );
+        let streams = std::slice::from_raw_parts_mut(
+            (*(*input_format_ctx)).streams,
+            (*(*input_format_ctx)).nb_streams as usize,
+        );
 
-    let mut input_stream = std::ptr::null_mut();
-    for stream in streams {
-        let codec = (*stream.to_owned()).codecpar;
+        let mut input_stream = std::ptr::null_mut();
+        for stream in streams {
+            let codec = (*stream.to_owned()).codecpar;
 
-        if (*codec).codec_type == codec_type {
-            input_stream = *stream;
-            break;
+            if (*codec).codec_type == codec_type {
+                input_stream = *stream;
+                break;
+            }
         }
-    }
 
-    if input_stream.is_null() {
-        Err(RenderEncodingError::MissingVideoStreamInFile(
-            filename.to_owned(),
-        ))
-    } else {
-        Ok(input_stream)
+        if input_stream.is_null() {
+            Err(RenderEncodingError::MissingVideoStreamInFile(
+                filename.to_owned(),
+            ))
+        } else {
+            Ok(input_stream)
+        }
     }
 }
 
@@ -103,54 +105,56 @@ unsafe fn create_encoder_copy_from_file(
     output: &Path,
     encoder_options: &EncoderOptions,
 ) -> Result<Encoder, RenderEncodingError> {
-    let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
-    let mut output_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
+    unsafe {
+        let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
+        let mut output_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
 
-    let input_video_stream =
-        open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
+        let input_video_stream =
+            open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
-    let output_file = CString::new(output.to_string_lossy().as_ref())
-        .map_err(RenderEncodingError::CStringError)?;
-    avformat_alloc_output_context2(
-        &mut output_format_ctx,
-        std::ptr::null_mut(),
-        std::ptr::null_mut(),
-        output_file.as_ptr(),
-    );
+        let output_file = CString::new(output.to_string_lossy().as_ref())
+            .map_err(RenderEncodingError::CStringError)?;
+        avformat_alloc_output_context2(
+            &mut output_format_ctx,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            output_file.as_ptr(),
+        );
 
-    let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
-    let audio_stream = Stream::make_audio(
-        encoder_options.sample_rate as i32,
-        output_format_ctx,
-        encoder_options,
-    )?;
+        let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
+        let audio_stream = Stream::make_audio(
+            encoder_options.sample_rate as i32,
+            output_format_ctx,
+            encoder_options,
+        )?;
 
-    let encoder = Encoder {
-        video_stream: Stream {
-            st: output_video_stream,
-            enc: std::ptr::null_mut(),
-            variant: StreamVariant::Video,
-        },
-        audio_stream: Some(audio_stream),
-        oc: output_format_ctx,
-    };
+        let encoder = Encoder {
+            video_stream: Stream {
+                st: output_video_stream,
+                enc: std::ptr::null_mut(),
+                variant: StreamVariant::Video,
+            },
+            audio_stream: Some(audio_stream),
+            oc: output_format_ctx,
+        };
 
-    avcodec_parameters_copy(
-        (*output_video_stream).codecpar,
-        (*input_video_stream).codecpar,
-    );
-    (*encoder.video_stream.st).time_base = (*input_video_stream).time_base;
+        avcodec_parameters_copy(
+            (*output_video_stream).codecpar,
+            (*input_video_stream).codecpar,
+        );
+        (*encoder.video_stream.st).time_base = (*input_video_stream).time_base;
 
-    avformat_close_input(&mut input_format_ctx);
-    avio_open(
-        &mut (*output_format_ctx).pb,
-        output_file.as_ptr(),
-        AVIO_FLAG_WRITE,
-    );
+        avformat_close_input(&mut input_format_ctx);
+        avio_open(
+            &mut (*output_format_ctx).pb,
+            output_file.as_ptr(),
+            AVIO_FLAG_WRITE,
+        );
 
-    avformat_write_header(encoder.oc, std::ptr::null_mut());
+        avformat_write_header(encoder.oc, std::ptr::null_mut());
 
-    Ok(encoder)
+        Ok(encoder)
+    }
 }
 
 // This function is replicating the logic of validating non-monotous dts from ffmpeg
@@ -163,21 +167,23 @@ unsafe fn validate_non_monotous_dts(
     last_mux_dts: &mut i64,
     av_format_context: *mut AVFormatContext,
 ) -> Result<(), RenderEncodingError> {
-    let max: i64 = *last_mux_dts
-        + match (*(*av_format_context).oformat).flags & AVFMT_TS_NONSTRICT == 0 {
-            true => 1,
-            false => 0,
-        };
+    unsafe {
+        let max: i64 = *last_mux_dts
+            + match (*(*av_format_context).oformat).flags & AVFMT_TS_NONSTRICT == 0 {
+                true => 1,
+                false => 0,
+            };
 
-    if (*packet).dts < max {
-        if (*packet).pts >= (*packet).dts {
-            (*packet).pts = (*packet).pts.max(max);
+        if (*packet).dts < max {
+            if (*packet).pts >= (*packet).dts {
+                (*packet).pts = (*packet).pts.max(max);
+            }
+
+            (*packet).dts = max;
         }
 
-        (*packet).dts = max;
+        Ok(())
     }
-
-    Ok(())
 }
 
 impl Encoder {
@@ -186,70 +192,74 @@ impl Encoder {
         audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
         ctx: &FFramesContext,
     ) -> Result<(), RenderEncodingError> {
-        if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
-            let stream_duration_in_samples =
-                AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
+        unsafe {
+            if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
+                let stream_duration_in_samples =
+                    AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
 
-            let mut audio_frame = EncoderFrame::new(audio_stream)?;
-            let mut audio_frame_pts = 0usize;
-            let frame_size = (*audio_stream.enc).frame_size as usize;
+                let mut audio_frame = EncoderFrame::new(audio_stream)?;
+                let mut audio_frame_pts = 0usize;
+                let frame_size = (*audio_stream.enc).frame_size as usize;
 
-            while audio_frame_pts <= stream_duration_in_samples.as_usize() {
-                let audio_data = ctx.get_mixed_audio_data_in_fltp(
-                    audio_map,
-                    AudioTimelineSamples::from_usize(audio_frame_pts),
-                    frame_size,
-                );
+                while audio_frame_pts <= stream_duration_in_samples.as_usize() {
+                    let audio_data = ctx.get_mixed_audio_data_in_fltp(
+                        audio_map,
+                        AudioTimelineSamples::from_usize(audio_frame_pts),
+                        frame_size,
+                    );
 
-                audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
-                self.send_frame(audio_stream, &audio_frame)?;
+                    audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
+                    self.send_frame(audio_stream, &audio_frame)?;
 
-                audio_frame_pts += frame_size;
+                    audio_frame_pts += frame_size;
+                }
             }
-        }
 
-        Ok(())
+            Ok(())
+        }
     }
 
     unsafe fn fill_video_stream_from_files(
         &self,
         files: &[PathBuf],
     ) -> Result<(), RenderEncodingError> {
-        let mut last_mux_dts: Option<i64> = None;
-        let mut packet = AvPacketAutoFree::new();
+        unsafe {
+            let mut last_mux_dts: Option<i64> = None;
+            let mut packet = AvPacketAutoFree::new();
 
-        for file in files.iter() {
-            let mut input_format_ctx = std::ptr::null_mut();
+            for file in files.iter() {
+                let mut input_format_ctx = std::ptr::null_mut();
 
-            let input_video_stream =
-                open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
+                let input_video_stream =
+                    open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
 
-            loop {
-                let res = av_read_frame(input_format_ctx, packet.get());
-                if res < 0 {
-                    break;
+                loop {
+                    let res = av_read_frame(input_format_ctx, packet.get());
+                    if res < 0 {
+                        break;
+                    }
+
+                    packet.get_mut().flags |= AV_PKT_FLAG_KEY;
+
+                    if let Some(last_mux_dts) = last_mux_dts.as_mut() {
+                        validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
+                    }
+
+                    last_mux_dts = Some((*packet.get()).dts);
+
+                    av_packet_rescale_ts(
+                        packet.get(),
+                        (*input_video_stream).time_base,
+                        (*self.video_stream.st).time_base,
+                    );
+                    av_interleaved_write_frame(self.oc, packet.get());
                 }
 
-                packet.get_mut().flags |= AV_PKT_FLAG_KEY;
-
-                if let Some(last_mux_dts) = last_mux_dts.as_mut() {
-                    validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
-                }
-
-                last_mux_dts = Some((*packet.get()).dts);
-
-                av_packet_rescale_ts(
-                    packet.get(),
-                    (*input_video_stream).time_base,
-                    (*self.video_stream.st).time_base,
-                );
-                av_interleaved_write_frame(self.oc, packet.get());
+                avformat_close_input(&mut input_format_ctx);
             }
 
-            avformat_close_input(&mut input_format_ctx);
+            Ok(())
         }
-
-        Ok(())
     }
 }
 
@@ -261,13 +271,15 @@ pub unsafe fn concat_video_files_with_audio(
     encoder_options: &EncoderOptions,
     ctx: &FFramesContext,
 ) -> Result<(), RenderEncodingError> {
-    let encoder = create_encoder_copy_from_file(&files[0], output, encoder_options)?;
+    unsafe {
+        let encoder = create_encoder_copy_from_file(&files[0], output, encoder_options)?;
 
-    encoder.fill_video_stream_from_files(files)?;
-    if let Some(audio_stream) = &encoder.audio_stream {
-        (*audio_stream.enc).thread_count = concurrency;
-        encoder.fill_audio_stream(audio_map, ctx)?;
+        encoder.fill_video_stream_from_files(files)?;
+        if let Some(audio_stream) = &encoder.audio_stream {
+            (*audio_stream.enc).thread_count = concurrency;
+            encoder.fill_audio_stream(audio_map, ctx)?;
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }

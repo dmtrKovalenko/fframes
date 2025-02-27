@@ -1,20 +1,20 @@
 use fframes::usvgr::WriteOptions;
 use fframes::{
-    usvgr, AudioTimelineSamples, BreaksLruCache, FFramesContext, ResolvedRenderingTimeline, Video,
+    AudioTimelineSamples, BreaksLruCache, FFramesContext, ResolvedRenderingTimeline, Video, usvgr,
 };
-use fframes_renderer::{get_thread_count, EncoderOptions};
 use fframes_renderer::{
     Encoder, EncoderFrame, FFramesLogger, FFramesRendererError, FFramesRendererResult,
     RenderEncodingResult,
 };
+use fframes_renderer::{EncoderOptions, get_thread_count};
 use skia_safe::svg::Dom;
 use skia_safe::{ConditionallySend, Sendable};
 use std::ops::Range;
 use std::path::Path;
+use std::sync::Arc;
 #[cfg(feature = "debug")]
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{self, Receiver, SyncSender};
-use std::sync::Arc;
 use std::thread;
 #[cfg(feature = "debug")]
 use std::time::Instant;
@@ -332,39 +332,41 @@ unsafe fn spawn_video_encoder<'a, 'media: 'a>(
     frames_to_render: usize,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> RenderEncodingResult<()> {
-    let mut frame = EncoderFrame::new(&encoder.video_stream)?;
+    unsafe {
+        let mut frame = EncoderFrame::new(&encoder.video_stream)?;
 
-    while let Some(request) = {
-        #[cfg(feature = "debug")]
-        let wait_start = Instant::now();
-        let result = render_receiver.recv();
-        #[cfg(feature = "debug")]
-        {
-            metrics
-                .channel_wait_time
-                .fetch_add(wait_start.elapsed().as_micros() as u64, Ordering::Release);
+        while let Some(request) = {
+            #[cfg(feature = "debug")]
+            let wait_start = Instant::now();
+            let result = render_receiver.recv();
+            #[cfg(feature = "debug")]
+            {
+                metrics
+                    .channel_wait_time
+                    .fetch_add(wait_start.elapsed().as_micros() as u64, Ordering::Release);
+            }
+
+            result
+        } {
+            #[cfg(feature = "debug")]
+            let start = Instant::now();
+
+            frame.set_pts(request.frame_index as i64);
+            frame.fill_from_rgba_pixmap(&request.pixels);
+            encoder.send_frame(&encoder.video_stream, &frame)?;
+
+            #[cfg(feature = "debug")]
+            {
+                let duration = start.elapsed();
+                metrics
+                    .total_time
+                    .fetch_add(duration.as_micros() as u64, Ordering::Relaxed);
+                metrics.items_processed.fetch_add(1, Ordering::Relaxed);
+            }
         }
 
-        result
-    } {
-        #[cfg(feature = "debug")]
-        let start = Instant::now();
+        encoder.submit_leftover_b_frames(&frame, &encoder.video_stream, frames_to_render)?;
 
-        frame.set_pts(request.frame_index as i64);
-        frame.fill_from_rgba_pixmap(&request.pixels);
-        encoder.send_frame(&encoder.video_stream, &frame)?;
-
-        #[cfg(feature = "debug")]
-        {
-            let duration = start.elapsed();
-            metrics
-                .total_time
-                .fetch_add(duration.as_micros() as u64, Ordering::Relaxed);
-            metrics.items_processed.fetch_add(1, Ordering::Relaxed);
-        }
+        Ok(())
     }
-
-    encoder.submit_leftover_b_frames(&frame, &encoder.video_stream, frames_to_render)?;
-
-    Ok(())
 }

@@ -2,8 +2,8 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::sync::mpsc::SyncSender;
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Mutex,
+    atomic::{AtomicUsize, Ordering},
 };
 
 use fframes_renderer::{FFramesRendererError, FFramesRendererResult};

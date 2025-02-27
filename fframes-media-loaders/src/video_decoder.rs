@@ -73,29 +73,32 @@ impl SwsScaler {
         target_width: i32,
         target_height: i32,
     ) -> Result<*mut SwsContext> {
-        let flags = if video_stream_info.width > target_width
-            || video_stream_info.height > target_height
-        {
-            SWS_BICUBIC // Downscaling
-        } else if video_stream_info.width < target_width || video_stream_info.height < target_height
-        {
-            SWS_BILINEAR // Upscaling
-        } else {
-            0 // No scaling needed
-        };
+        unsafe {
+            let flags = if video_stream_info.width > target_width
+                || video_stream_info.height > target_height
+            {
+                SWS_BICUBIC // Downscaling
+            } else if video_stream_info.width < target_width
+                || video_stream_info.height < target_height
+            {
+                SWS_BILINEAR // Upscaling
+            } else {
+                0 // No scaling needed
+            };
 
-        Ok(sws_getContext(
-            video_stream_info.width,
-            video_stream_info.height,
-            video_stream_info.pixel_format,
-            target_width,
-            target_height,
-            AVPixelFormat::AV_PIX_FMT_RGBA,
-            flags,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
-        ))
+            Ok(sws_getContext(
+                video_stream_info.width,
+                video_stream_info.height,
+                video_stream_info.pixel_format,
+                target_width,
+                target_height,
+                AVPixelFormat::AV_PIX_FMT_RGBA,
+                flags,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+            ))
+        }
     }
 
     fn calculate_linesize(width: i32) -> [i32; 7] {
@@ -221,7 +224,7 @@ impl FFmpegFrameBuf {
         video_stream_info: VideoStreamInfo,
         buf_size: usize,
     ) -> Result<Self> {
-        let av_frame = av_frame_alloc();
+        let av_frame = unsafe { av_frame_alloc() };
         if av_frame.is_null() {
             return Err(FFramesMediaError::LibAVAllocationError("frame"));
         }
@@ -237,44 +240,48 @@ impl FFmpegFrameBuf {
     }
 
     unsafe fn write_new_frame(&self) -> Option<&'static mut ScaledFrameImage> {
-        let queue = self.data_buf.get().as_mut()?;
-        let scaler = self.sws_scaler.get().as_ref()?;
-        let latest_pts = (*self.latest_av_frame).pts;
+        unsafe {
+            let queue = self.data_buf.get().as_mut()?;
+            let scaler = self.sws_scaler.get().as_ref()?;
+            let latest_pts = (*self.latest_av_frame).pts;
 
-        // fast path for the cpu renderer which will always have capacity 1
-        if queue.capacity() == 1 && queue.len() == 1 {
-            return queue.get_mut(0);
-        }
-
-        if queue.len() == queue.capacity() {
-            let mut last_buffer = queue.pop_front()?;
-
-            if last_buffer.data.len() != scaler.frame_data_len {
-                last_buffer.data.set_len(scaler.frame_data_len);
+            // fast path for the cpu renderer which will always have capacity 1
+            if queue.capacity() == 1 && queue.len() == 1 {
+                return queue.get_mut(0);
             }
 
-            last_buffer.pts = latest_pts;
-            queue.push_back(last_buffer);
-        } else {
-            queue.push_back(ScaledFrameImage {
-                pts: latest_pts,
-                data: Self::alloc_data_vec(scaler),
-            });
-        }
+            if queue.len() == queue.capacity() {
+                let mut last_buffer = queue.pop_front()?;
 
-        queue.get_mut(queue.len() - 1)
+                if last_buffer.data.len() != scaler.frame_data_len {
+                    last_buffer.data.set_len(scaler.frame_data_len);
+                }
+
+                last_buffer.pts = latest_pts;
+                queue.push_back(last_buffer);
+            } else {
+                queue.push_back(ScaledFrameImage {
+                    pts: latest_pts,
+                    data: Self::alloc_data_vec(scaler),
+                });
+            }
+
+            queue.get_mut(queue.len() - 1)
+        }
     }
 
     /// Reallocates the sws convertor and frame data vector if the options have changed
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn reinit_sws_context(&self, options: &FrameConvertOptions) -> Result<()> {
-        let scaler = self.sws_scaler.get().as_mut().ok_or_else(|| {
-            FFramesMediaError::LibAVAudioDecodingError((
-                0,
-                "Failed precondition: SwsScaler is not allocated".to_string(),
-            ))
-        })?;
+        let scaler = unsafe {
+            self.sws_scaler.get().as_mut().ok_or_else(|| {
+                FFramesMediaError::LibAVAudioDecodingError((
+                    0,
+                    "Failed precondition: SwsScaler is not allocated".to_string(),
+                ))
+            })?
+        };
         scaler.maybe_reinit_conversion_context(options)?;
 
         Ok(())
@@ -298,75 +305,77 @@ impl FFmpegFrameBuf {
     /// In addition it is manually transmutes the pointer owned by the decoder to the fframes
     /// images so it should not be used outside of the rendering worker.
     pub unsafe fn scale_and_return_latest_frame(&self) -> Arc<PreloadedImageData> {
-        let scaler = self.sws_scaler.get().as_ref().unwrap();
-        match self.data_buf.get().as_ref().and_then(|q| q.back()) {
-            Some(image) if image.pts == (*self.latest_av_frame).pts => {
-                return Arc::new(PreloadedImageData::new_blended(
-                    encode_video_resource(&self.resource_name, image.pts),
-                    self.get_width(),
-                    self.get_height(),
-                    &image.data,
-                ));
+        unsafe {
+            let scaler = self.sws_scaler.get().as_ref().unwrap();
+            match self.data_buf.get().as_ref().and_then(|q| q.back()) {
+                Some(image) if image.pts == (*self.latest_av_frame).pts => {
+                    return Arc::new(PreloadedImageData::new_blended(
+                        encode_video_resource(&self.resource_name, image.pts),
+                        self.get_width(),
+                        self.get_height(),
+                        &image.data,
+                    ));
+                }
+                _ => {}
             }
-            _ => {}
+
+            let image = self.write_new_frame().unwrap();
+            sws_scale(
+                scaler.sws_ctx,
+                (*self.latest_av_frame).data.as_ptr() as *const *const u8,
+                (*self.latest_av_frame).linesize.as_ptr(),
+                0,
+                scaler.video_stream_info.height,
+                &image.data.as_mut_ptr(),
+                scaler.linesize.as_ptr(),
+            );
+
+            Arc::new(PreloadedImageData::new_blended(
+                encode_video_resource(&self.resource_name, image.pts),
+                scaler.width,
+                scaler.height,
+                // Possible unsafety here because we assume that the frame vec is allocated
+                // (and it actually is) till the end of the rendering worker lifetime and the data
+                // inside a datavec is always valid.
+                &image.data,
+            ))
         }
-
-        let image = self.write_new_frame().unwrap();
-        sws_scale(
-            scaler.sws_ctx,
-            (*self.latest_av_frame).data.as_ptr() as *const *const u8,
-            (*self.latest_av_frame).linesize.as_ptr(),
-            0,
-            scaler.video_stream_info.height,
-            &image.data.as_mut_ptr(),
-            scaler.linesize.as_ptr(),
-        );
-
-        Arc::new(PreloadedImageData::new_blended(
-            encode_video_resource(&self.resource_name, image.pts),
-            scaler.width,
-            scaler.height,
-            // Possible unsafety here because we assume that the frame vec is allocated
-            // (and it actually is) till the end of the rendering worker lifetime and the data
-            // inside a datavec is always valid.
-            &image.data,
-        ))
     }
 
     /// Returns the timestamp of the frame in the native frame timebase
     /// # Safety
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn get_pts(&self) -> i64 {
-        (*self.latest_av_frame).pts
+        unsafe { (*self.latest_av_frame).pts }
     }
 
     /// Returns the timestamp of the frame in seconds
     /// # Safety
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn timestamp_seconds(&self) -> f64 {
-        let video_stream_info = unsafe { &self.sws_scaler.get().as_ref() }
-            .unwrap()
-            .video_stream_info;
-        (*self.latest_av_frame).pts as f64 * av_q2d(video_stream_info.time_base)
+        unsafe {
+            let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
+            (*self.latest_av_frame).pts as f64 * av_q2d(video_stream_info.time_base)
+        }
     }
 
     /// Returns the duration of the stream in frames
     /// # Safety
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn get_stream_duration_in_frames(&self) -> f64 {
-        let video_stream_info = unsafe { &self.sws_scaler.get().as_ref() }
-            .unwrap()
-            .video_stream_info;
-        video_stream_info.duration as f64 * av_q2d(video_stream_info.time_base)
+        unsafe {
+            let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
+            video_stream_info.duration as f64 * av_q2d(video_stream_info.time_base)
+        }
     }
 
     /// Returns the fps value of the stream
     /// Remember that the fps value is always a guess based on the stream timestamps
     pub fn get_stream_fps(&self) -> f64 {
-        let video_stream_info = unsafe { &self.sws_scaler.get().as_ref() }
-            .unwrap()
-            .video_stream_info;
-        video_stream_info.frame_rate.num as f64 / video_stream_info.frame_rate.den as f64
+        unsafe {
+            let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
+            video_stream_info.frame_rate.num as f64 / video_stream_info.frame_rate.den as f64
+        }
     }
 }
 
@@ -391,156 +400,162 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn new(path: &Path, target_fps: usize, buffer_size: usize) -> Result<Self> {
-        let filename = path
-            .file_name()
-            .ok_or_else(|| FFramesMediaError::MediaDirectoryProvided)?;
-        let full_path_cstr = CString::new(path.as_os_str().as_bytes())?;
+        unsafe {
+            let filename = path
+                .file_name()
+                .ok_or_else(|| FFramesMediaError::MediaDirectoryProvided)?;
+            let full_path_cstr = CString::new(path.as_os_str().as_bytes())?;
 
-        let mut fmt_ctx: *mut AVFormatContext = ptr::null_mut();
-        let ret = avformat_open_input(
-            &mut fmt_ctx,
-            full_path_cstr.as_ptr(),
-            ptr::null_mut(),
-            ptr::null_mut(),
-        );
+            let mut fmt_ctx: *mut AVFormatContext = ptr::null_mut();
+            let ret = avformat_open_input(
+                &mut fmt_ctx,
+                full_path_cstr.as_ptr(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+            );
 
-        if ret < 0 {
-            if !fmt_ctx.is_null() {
-                avformat_close_input(&mut fmt_ctx);
+            if ret < 0 {
+                if !fmt_ctx.is_null() {
+                    avformat_close_input(&mut fmt_ctx);
+                }
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Could not open input file".to_string(),
+                )));
             }
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Could not open input file".to_string(),
-            )));
-        }
 
-        let ret = avformat_find_stream_info(fmt_ctx, ptr::null_mut());
-        if ret < 0 {
-            avformat_close_input(&mut fmt_ctx);
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Could not find stream information".to_string(),
-            )));
-        }
+            let ret = avformat_find_stream_info(fmt_ctx, ptr::null_mut());
+            if ret < 0 {
+                avformat_close_input(&mut fmt_ctx);
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Could not find stream information".to_string(),
+                )));
+            }
 
-        let video_stream_info = Self::open_codec_context(fmt_ctx)?;
-        let pkt = av_packet_alloc();
-        if pkt.is_null() {
-            avformat_close_input(&mut fmt_ctx);
-            return Err(FFramesMediaError::LibAVAllocationError("packet"));
-        }
+            let video_stream_info = Self::open_codec_context(fmt_ctx)?;
+            let pkt = av_packet_alloc();
+            if pkt.is_null() {
+                avformat_close_input(&mut fmt_ctx);
+                return Err(FFramesMediaError::LibAVAllocationError("packet"));
+            }
 
-        let custom_time_base = AVRational {
-            num: 1,
-            den: target_fps as i32,
-        };
+            let custom_time_base = AVRational {
+                num: 1,
+                den: target_fps as i32,
+            };
 
-        let duration_in_frames = av_rescale_q(
-            video_stream_info.duration,
-            video_stream_info.time_base,
-            custom_time_base,
-        );
+            let duration_in_frames = av_rescale_q(
+                video_stream_info.duration,
+                video_stream_info.time_base,
+                custom_time_base,
+            );
 
-        Ok(FFmpegDecoder {
-            pkt,
-            fmt_ctx,
-            frame_buf: Arc::new(FFmpegFrameBuf::new(
-                filename.to_string_lossy().to_string(),
+            Ok(FFmpegDecoder {
+                pkt,
+                fmt_ctx,
+                frame_buf: Arc::new(FFmpegFrameBuf::new(
+                    filename.to_string_lossy().to_string(),
+                    video_stream_info,
+                    buffer_size,
+                )?),
                 video_stream_info,
-                buffer_size,
-            )?),
-            video_stream_info,
-            custom_time_base,
-            duration_in_frames,
-            current_loop: 0,
-        })
+                custom_time_base,
+                duration_in_frames,
+                current_loop: 0,
+            })
+        }
     }
 
     unsafe fn open_codec_context(fmt_ctx: *mut AVFormatContext) -> Result<VideoStreamInfo> {
-        let ret = av_find_best_stream(
-            fmt_ctx,
-            AVMediaType::AVMEDIA_TYPE_VIDEO,
-            -1,
-            -1,
-            ptr::null_mut(),
-            0,
-        );
-        if ret < 0 {
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Could not find video stream information".to_string(),
-            )));
-        }
-        let video_stream_idx = ret;
+        unsafe {
+            let ret = av_find_best_stream(
+                fmt_ctx,
+                AVMediaType::AVMEDIA_TYPE_VIDEO,
+                -1,
+                -1,
+                ptr::null_mut(),
+                0,
+            );
+            if ret < 0 {
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Could not find video stream information".to_string(),
+                )));
+            }
+            let video_stream_idx = ret;
 
-        let stream = *(*fmt_ctx).streams.offset(video_stream_idx as isize);
-        let dec = avcodec_find_decoder((*(*stream).codecpar).codec_id);
-        if dec.is_null() {
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Could not find decoder".to_string(),
-            )));
-        }
+            let stream = *(*fmt_ctx).streams.offset(video_stream_idx as isize);
+            let dec = avcodec_find_decoder((*(*stream).codecpar).codec_id);
+            if dec.is_null() {
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Could not find decoder".to_string(),
+                )));
+            }
 
-        let video_dec_ctx = avcodec_alloc_context3(dec);
-        if video_dec_ctx.is_null() {
-            return Err(FFramesMediaError::LibAVAllocationError("avcocdec_context"));
-        }
+            let video_dec_ctx = avcodec_alloc_context3(dec);
+            if video_dec_ctx.is_null() {
+                return Err(FFramesMediaError::LibAVAllocationError("avcocdec_context"));
+            }
 
-        if avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar) < 0 {
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Failed to copy video codec parameters to decoder context".to_string(),
-            )));
-        }
+            if avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar) < 0 {
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Failed to copy video codec parameters to decoder context".to_string(),
+                )));
+            }
 
-        if avcodec_open2(video_dec_ctx, dec, ptr::null_mut()) < 0 {
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Failed to open video codec".to_string(),
-            )));
-        }
+            if avcodec_open2(video_dec_ctx, dec, ptr::null_mut()) < 0 {
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Failed to open video codec".to_string(),
+                )));
+            }
 
-        Ok(VideoStreamInfo {
-            stream_index: video_stream_idx,
-            codec_ctx: video_dec_ctx,
-            width: (*video_dec_ctx).width,
-            height: (*video_dec_ctx).height,
-            pixel_format: (*video_dec_ctx).pix_fmt,
-            time_base: (*stream).time_base,
-            duration: (*stream).duration,
-            frame_rate: (*stream).r_frame_rate,
-        })
+            Ok(VideoStreamInfo {
+                stream_index: video_stream_idx,
+                codec_ctx: video_dec_ctx,
+                width: (*video_dec_ctx).width,
+                height: (*video_dec_ctx).height,
+                pixel_format: (*video_dec_ctx).pix_fmt,
+                time_base: (*stream).time_base,
+                duration: (*stream).duration,
+                frame_rate: (*stream).r_frame_rate,
+            })
+        }
     }
 
     /// Seeks to the specified offset in the video stream (to the nearest keyframe)
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn seek_to_offset(&mut self, offset: i64) -> Result<()> {
-        let timestamp = av_rescale_q(
-            offset,
-            self.custom_time_base,
-            self.video_stream_info.time_base,
-        );
+        unsafe {
+            let timestamp = av_rescale_q(
+                offset,
+                self.custom_time_base,
+                self.video_stream_info.time_base,
+            );
 
-        let ret = av_seek_frame(
-            self.fmt_ctx,
-            self.video_stream_info.stream_index,
-            timestamp,
-            AVSEEK_FLAG_BACKWARD,
-        );
+            let ret = av_seek_frame(
+                self.fmt_ctx,
+                self.video_stream_info.stream_index,
+                timestamp,
+                AVSEEK_FLAG_BACKWARD,
+            );
 
-        if ret < 0 {
-            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                ret,
-                "Error seeking to offset".to_string(),
-            )));
+            if ret < 0 {
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Error seeking to offset".to_string(),
+                )));
+            }
+
+            (*self.frame_buf.latest_av_frame).pts = -1;
+            avcodec_flush_buffers(self.video_stream_info.codec_ctx);
+
+            Ok(())
         }
-
-        (*self.frame_buf.latest_av_frame).pts = -1;
-        avcodec_flush_buffers(self.video_stream_info.codec_ctx);
-
-        Ok(())
     }
 
     /// Moves offset to the start of the video if need to loop
@@ -558,7 +573,9 @@ impl FFmpegDecoder {
         }
 
         self.current_loop = new_loop_index;
-        self.seek_to_offset(new_offset)?;
+        unsafe {
+            self.seek_to_offset(new_offset)?;
+        }
 
         Ok(new_offset)
     }
@@ -567,75 +584,77 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
-        let target_pts = av_rescale_q(
-            offset,
-            self.custom_time_base,
-            self.video_stream_info.time_base,
-        );
+        unsafe {
+            let target_pts = av_rescale_q(
+                offset,
+                self.custom_time_base,
+                self.video_stream_info.time_base,
+            );
 
-        if (*self.frame_buf.latest_av_frame).pts >= target_pts {
-            return Ok(true);
-        }
-
-        loop {
-            // Clear packet before reading new frame
-            av_packet_unref(self.pkt);
-
-            let read_result = av_read_frame(self.fmt_ctx, self.pkt);
-            if read_result < 0 {
-                return Ok(false);
+            if (*self.frame_buf.latest_av_frame).pts >= target_pts {
+                return Ok(true);
             }
 
-            // Use scope to ensure packet is always unreferenced
-            // it is important to unref packet every time after av_read_frame is done
-            let decoder_result: Result<_> = {
-                if (*self.pkt).stream_index == self.video_stream_info.stream_index {
-                    let ret = avcodec_send_packet(self.video_stream_info.codec_ctx, self.pkt);
-                    if ret < 0 {
-                        return Err(FFramesMediaError::LibAVAudioDecodingError((
-                            ret,
-                            "Error submitting packet for decoding".to_string(),
-                        )));
-                    }
+            loop {
+                // Clear packet before reading new frame
+                av_packet_unref(self.pkt);
 
-                    loop {
-                        // Unref previous frame before receiving new one
-                        // av_frame_unref(self.frame_buf.latest_av_frame);
-                        let ret = avcodec_receive_frame(
-                            self.video_stream_info.codec_ctx,
-                            self.frame_buf.latest_av_frame,
-                        );
+                let read_result = av_read_frame(self.fmt_ctx, self.pkt);
+                if read_result < 0 {
+                    return Ok(false);
+                }
 
-                        match ret {
-                            0 => {
-                                if (*self.frame_buf.latest_av_frame).pts >= target_pts {
-                                    return Ok(true);
+                // Use scope to ensure packet is always unreferenced
+                // it is important to unref packet every time after av_read_frame is done
+                let decoder_result: Result<_> = {
+                    if (*self.pkt).stream_index == self.video_stream_info.stream_index {
+                        let ret = avcodec_send_packet(self.video_stream_info.codec_ctx, self.pkt);
+                        if ret < 0 {
+                            return Err(FFramesMediaError::LibAVAudioDecodingError((
+                                ret,
+                                "Error submitting packet for decoding".to_string(),
+                            )));
+                        }
+
+                        loop {
+                            // Unref previous frame before receiving new one
+                            // av_frame_unref(self.frame_buf.latest_av_frame);
+                            let ret = avcodec_receive_frame(
+                                self.video_stream_info.codec_ctx,
+                                self.frame_buf.latest_av_frame,
+                            );
+
+                            match ret {
+                                0 => {
+                                    if (*self.frame_buf.latest_av_frame).pts >= target_pts {
+                                        return Ok(true);
+                                    }
                                 }
-                            }
-                            val if val == AVERROR(EAGAIN) => {
-                                break;
-                            }
-                            _ => {
-                                av_frame_unref(self.frame_buf.latest_av_frame);
-                                av_packet_unref(self.pkt);
+                                val if val == AVERROR(EAGAIN) => {
+                                    break;
+                                }
+                                _ => {
+                                    av_frame_unref(self.frame_buf.latest_av_frame);
+                                    av_packet_unref(self.pkt);
 
-                                return Err(FFramesMediaError::LibAVAudioDecodingError((
-                                    ret,
-                                    "Decoding error".to_string(),
-                                )));
+                                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                                        ret,
+                                        "Decoding error".to_string(),
+                                    )));
+                                }
                             }
                         }
                     }
+
+                    Ok(false)
+                };
+
+                // Always unref packet after processing
+                av_packet_unref(self.pkt);
+
+                if let Ok(true) = decoder_result {
+                    return Ok(true);
                 }
-
-                Ok(false)
-            };
-
-            // Always unref packet after processing
-            av_packet_unref(self.pkt);
-
-            if let Ok(true) = decoder_result {
-                return Ok(true);
             }
         }
     }

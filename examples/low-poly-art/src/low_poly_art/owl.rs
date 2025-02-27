@@ -1,7 +1,7 @@
 use fframes;
+use fframes::Svgr;
 use fframes::include_media_dir;
 use fframes::svgr;
-use fframes::Svgr;
 use fframes::{AudioMap, Scene};
 
 include_media_dir!(pub struct OwlMedia, "examples/low-poly-art/media/owl");

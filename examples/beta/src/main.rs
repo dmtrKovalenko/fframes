@@ -1,7 +1,7 @@
 use beta_example::{BetaExamples, BetaVideo};
-use fframes::{lazy_static::lazy_static, CombinedMediaProvider, Video};
+use fframes::{CombinedMediaProvider, Video, lazy_static::lazy_static};
 use fframes::{MediaProvider, StaticMediaProvider};
-use fframes_renderer::{fframes_logger, render, EncoderOptions, RenderOptions};
+use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};

@@ -1,11 +1,11 @@
 use crate::Span;
 use nom::character::complete::space0;
 use nom::{
+    IResult,
     branch::alt,
     bytes::complete::{tag, take_until},
     combinator::opt,
     sequence::{separated_pair, terminated},
-    IResult,
 };
 
 use crate::vtt_parser::parse_number;

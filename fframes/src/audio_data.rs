@@ -1,4 +1,4 @@
-use crate::{audio_window_functions, media, TimeBase};
+use crate::{TimeBase, audio_window_functions, media};
 use std::{convert::TryInto, ops::Range};
 
 #[derive(Clone, Debug)]

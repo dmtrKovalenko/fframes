@@ -1,5 +1,5 @@
 use crate::{BetaExamples, IphoneScene};
-use fframes::{animation, AudioMap, AudioTimestamp, FFramesContext, Frame, Scene, Svgr, Video};
+use fframes::{AudioMap, AudioTimestamp, FFramesContext, Frame, Scene, Svgr, Video, animation};
 use svgr_macro::{self, svgr};
 
 pub struct BetaVideo<'a> {

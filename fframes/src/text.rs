@@ -1,4 +1,4 @@
-use crate::{svgr, FFramesContext, FontSource, FontStretch, FontStyle, FontVariant, Svgr};
+use crate::{FFramesContext, FontSource, FontStretch, FontStyle, FontVariant, Svgr, svgr};
 use lru::LruCache;
 use std::{
     collections::hash_map::DefaultHasher,
@@ -270,7 +270,9 @@ pub(crate) fn text_wrap_impl<
     {
         font_face
     } else {
-        crate::log!("ERROR breaking lines: font is not resolved. Make sure that system fonts are not available for break_lines feature in editor.");
+        crate::log!(
+            "ERROR breaking lines: font is not resolved. Make sure that system fonts are not available for break_lines feature in editor."
+        );
         return None;
     };
 

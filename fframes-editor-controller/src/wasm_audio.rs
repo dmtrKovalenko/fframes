@@ -5,7 +5,7 @@ use fframes::{
 };
 use futures::future::join_all;
 use std::collections::{HashMap, HashSet};
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen(module = "@fframes/editor")]
 extern "C" {

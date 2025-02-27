@@ -1,5 +1,5 @@
 use fframes::StaticMediaProvider;
-pub use fframes_renderer::{fframes_logger, render, RenderOptions};
+pub use fframes_renderer::{RenderOptions, fframes_logger, render};
 use tiktok_example::{GooseMedia, GooseVideo};
 
 fn main() {

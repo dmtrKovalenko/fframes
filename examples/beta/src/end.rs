@@ -1,4 +1,4 @@
-use fframes::{animation, svgr, Scene};
+use fframes::{Scene, animation, svgr};
 
 #[derive(Debug)]
 pub struct EndScene {}

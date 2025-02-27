@@ -1,10 +1,10 @@
 use crate::{
-    get_thread_count, render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError,
-    RenderEncodingResult,
+    RenderEncodingResult, get_thread_count, render_backend::FFramesRenderBackend,
+    renderer_error::RenderEncodingError,
 };
 use fframes::{
-    usvgr, AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
-    VideoDecodersWorker,
+    AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
+    VideoDecodersWorker, usvgr,
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};

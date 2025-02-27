@@ -1,5 +1,5 @@
 use fframes::{AudioTimelineFrames, NamedRange, ResolvedAudioMap, ResolvedScenesTimeline};
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen]
 pub struct VideoMetadata {

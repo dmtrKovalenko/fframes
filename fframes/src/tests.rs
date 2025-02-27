@@ -1,6 +1,6 @@
 use crate::{
-    resolve_timeline, AudioMap, AudioTimelineSamples, AudioTimestamp, FFramesContext, Frame,
-    ResolvedRenderingTimeline, Scene, Video,
+    AudioMap, AudioTimelineSamples, AudioTimestamp, FFramesContext, Frame,
+    ResolvedRenderingTimeline, Scene, Video, resolve_timeline,
 };
 
 #[derive(Debug)]

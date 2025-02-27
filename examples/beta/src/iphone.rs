@@ -1,4 +1,4 @@
-use fframes::{animation, media::ImageData, svgr, SampleSize, Scene, Svgr, VisualizeFrameInput};
+use fframes::{SampleSize, Scene, Svgr, VisualizeFrameInput, animation, media::ImageData, svgr};
 
 #[derive(Debug)]
 pub struct IphoneScene {

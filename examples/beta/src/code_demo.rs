@@ -1,4 +1,4 @@
-use fframes::{animation, svgr, FFramesContext, Frame, Scene, Svgr};
+use fframes::{FFramesContext, Frame, Scene, Svgr, animation, svgr};
 
 #[derive(Debug)]
 pub struct CodeDemoScene {}

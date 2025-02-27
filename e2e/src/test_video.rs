@@ -1,5 +1,5 @@
 pub use fframes::Video;
-use fframes::{animation, AudioMap, Color, FFramesContext, Frame};
+use fframes::{AudioMap, Color, FFramesContext, Frame, animation};
 
 #[derive(Debug)]
 pub struct TestVideo {

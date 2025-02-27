@@ -3,17 +3,17 @@ use std::ops::Deref;
 use crate::Span;
 use nom::branch::alt;
 use nom::character::complete::{digit1, newline, space0};
-use nom::error::{context, Error};
+use nom::error::{Error, context};
 use nom::{
+    IResult,
     bytes::complete::{is_not, tag, take, take_until},
     combinator::opt,
     multi::{many0, many1},
     sequence::{preceded, separated_pair},
-    IResult,
 };
 
 use crate::cue_settings_parser::parse_cue_settings;
-use crate::{Time, Vtt, VttCue, START_MARKER};
+use crate::{START_MARKER, Time, Vtt, VttCue};
 
 fn parse_note(input: Span) -> IResult<Span, Option<&str>> {
     let (rest, line) = take_until("\n")(input)?;
