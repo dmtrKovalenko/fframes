@@ -77,34 +77,30 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
 
     // These are used mainly for editor and provides direct access to all the static media as
     // 'static borrow which significantly simplifies wasm code
-    let audio_identifiers = media_files
-        .iter()
-        .filter_map(
-            |MediaFile {
-                 variant,
-                 ident,
-                 filename,
-                 ..
-             }| {
-                matches!(variant, MediaVariant::Audio)
-                    .then_some(quote! { ( &self.#ident, #filename )})
-            },
-        )
-        .collect::<Vec<_>>();
-    let font_identifiers = media_files
-        .iter()
-        .filter_map(
-            |MediaFile {
-                 variant,
-                 ident,
-                 filename,
-                 ..
-             }| {
-                matches!(variant, MediaVariant::Font)
-                    .then_some(quote! { ( &self.#ident, #filename )})
-            },
-        )
-        .collect::<Vec<_>>();
+    let mut audio_identifiers = Vec::new();
+    let mut font_identifiers = Vec::new();
+    let mut image_identifiers = Vec::new();
+
+    for MediaFile {
+        filename,
+        ident,
+        variant,
+        ..
+    } in media_files.iter()
+    {
+        match variant {
+            MediaVariant::Audio => {
+                audio_identifiers.push(quote! { ( &self.#ident, #filename )});
+            }
+            MediaVariant::Image => {
+                image_identifiers.push(quote! { ( &self.#ident, #filename )});
+            }
+            MediaVariant::Font => {
+                font_identifiers.push(quote! { ( &self.#ident, #filename )});
+            }
+            _ => {}
+        }
+    }
 
     quote! {
         // This is a workaround to force include_bytes which is the way we inline bytes to force
@@ -136,14 +132,6 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
                 Ok(Self {
                     #(#instantiate_fields)*
                 })
-            }
-
-            fn get_all_audio_data(&self) -> Option<Vec<(&#fframes_crate_ident::AudioData, &str)>> {
-                Some(vec![#(#audio_identifiers),*])
-            }
-
-            fn get_all_font_data(&self) -> Option<Vec<(&[u8], &str)>> {
-                Some(vec![#(#font_identifiers),*])
             }
         }
 
@@ -189,6 +177,19 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
             fn populate_image_source(&self, image_data: &mut std::collections::HashMap<String, std::sync::Arc<#fframes_crate_ident::media::PreloadedImageData>>) {
                #(#populate_images_expressions);*
             }
+
+            fn get_all_audio_data(&self) -> Vec<(&#fframes_crate_ident::AudioData, &str)> {
+                vec![#(#audio_identifiers),*]
+            }
+
+            fn get_all_font_data(&self) -> Vec<(&[u8], &str)> {
+                vec![#(#font_identifiers),*]
+            }
+
+            fn get_all_image_data(&self) -> Vec<(&#fframes_crate_ident::media::ImageData, &str)> {
+                vec![#(#image_identifiers),*]
+            }
+
         }
     }
     .into()

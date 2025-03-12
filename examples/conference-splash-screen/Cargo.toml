@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 fframes.workspace = true
 clap = { version = "4.3.4", features = ["derive"] }
-getrandom = { version = "0.2.15", features = ["js"] }
 serde = "1.0.210"
 serde_json = "1.0.132"
 rayon = "1.10.0"

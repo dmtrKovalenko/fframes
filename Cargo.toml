@@ -32,7 +32,9 @@ members = [
     "examples/conference-splash-screen/editor/editor-bridge",
     "examples/teej-podcast",
     "examples/teej-podcast/editor/editor-bridge",
-    
+    "examples/pixel-memory",
+    "examples/pixel-memory/editor/editor-bridge",
+
     # maybe clean this up?
     # "fframes-lyon-renderer",
 ]

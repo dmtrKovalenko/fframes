@@ -17,8 +17,8 @@ pub struct FrameConvertOptions {
 pub struct GeneralVideoFileMetadata {
     pub width: u32,
     pub height: u32,
-    pub duration: f64,
-    pub fps: f64,
+    pub duration: f32,
+    pub fps: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

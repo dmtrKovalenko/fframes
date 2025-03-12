@@ -6,8 +6,6 @@ edition = "2024"
 [dependencies]
 fframes.workspace = true
 clap = { version = "4.3.4", features = ["derive"] }
-# This is only needed for the wasm32 target for uuid
-getrandom = { version = "0.2.15", features = ["js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer = { path = "../../fframes-renderer", features = [

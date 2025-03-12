@@ -32,38 +32,27 @@ pub trait FFramesSyncedVideoFrame {
     /// Get the native size of the frame
     fn width(&self) -> u32;
     /// Get the frame index of the origin video
-    fn timestamp_seconds(&self) -> f64;
+    fn timestamp_seconds(&self) -> f32;
     /// Returns the native frame timestamp in the decoders' timebase
     fn timestamp(&self) -> i64;
     /// Get the FPS of the origin video
-    fn stream_fps(&self) -> f64;
+    fn stream_fps(&self) -> f32;
     /// Get the duration of the origin video in frames
-    fn stream_duration_in_seconds(&self) -> f64;
+    fn stream_duration_in_seconds(&self) -> f32;
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct SyncVideoFrameInput {
-    /// The frame of the fframes' video to start from.
-    /// If not provided starts from the beginning of the fframes' video.
-    ///
-    /// It is possible to leverage the scene's offset to start video from the scene start:
-    ///
-    /// ```no_run
-    /// use fframes::{Frame, SyncVideoFrameInput};
-    ///
-    /// let scene_info = ctx.get_scene_info();
-    ///
-    /// fnrame.get_synced_video_frame(ctx, "video.mp4", SyncVideoFrameInput {
-    ///    start_from: scene_info.map(|info| info.start_frame),
-    ///    ..Default::default()
-    /// });
-    ///
-    /// ```
-    pub start_from: usize,
+pub struct SyncVideoFrameInput<'a> {
+    /// The seconds timestamp in seconds to start playing the video from
+    /// If not provided starts playing from the beginning of the video or scene.
+    pub start_from: f32,
     /// If `true` the video playback will be looped and will start from the beginning on the end.
     /// Also if `true` the `get_synced_video_frame` API should never return None, only in case of
     /// decoding errors, so in some cases it might be okay to panic if the frame is not available.
     pub looping: bool,
+    /// The wasm preview editor is not supporting decoding video frames in runtime
+    /// so this allows to provide a fallback image for the debugging
+    pub editor_fallback_image: Option<&'a ImageData>,
 }
 
 /// This is used by the editor as a fallback for the static image
@@ -90,7 +79,7 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
         self.video_metadata.width
     }
 
-    fn timestamp_seconds(&self) -> f64 {
+    fn timestamp_seconds(&self) -> f32 {
         unimplemented!(
             "Timestamp seconds are not supported in the editor. Please mock this data for editing."
         )
@@ -102,11 +91,11 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
         )
     }
 
-    fn stream_fps(&self) -> f64 {
+    fn stream_fps(&self) -> f32 {
         self.video_metadata.fps
     }
 
-    fn stream_duration_in_seconds(&self) -> f64 {
+    fn stream_duration_in_seconds(&self) -> f32 {
         self.video_metadata.duration
     }
 }
@@ -157,7 +146,7 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
         self.get_height()
     }
 
-    fn timestamp_seconds(&self) -> f64 {
+    fn timestamp_seconds(&self) -> f32 {
         unsafe { self.timestamp_seconds() }
     }
 
@@ -165,11 +154,11 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
         unsafe { self.get_pts() }
     }
 
-    fn stream_duration_in_seconds(&self) -> f64 {
+    fn stream_duration_in_seconds(&self) -> f32 {
         unsafe { self.get_stream_duration_in_frames() }
     }
 
-    fn stream_fps(&self) -> f64 {
+    fn stream_fps(&self) -> f32 {
         self.get_stream_fps()
     }
 }
@@ -207,19 +196,24 @@ impl VideoDecodersWorker {
     pub(crate) fn get_synced_frame(
         &self,
         media_ref: &VideoMedia,
-        _offset: i64,
+        offset: i64,
         ctx: &FFramesContext,
-        _options: &SyncVideoFrameInput,
+        options: &SyncVideoFrameInput,
     ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
-        let filename = media_ref.path.file_name().unwrap().to_string_lossy();
-        let video_filename = filename.as_ref();
+        let Some(fallback_image) = options.editor_fallback_image else {
+            crate::log!("WHAT THE FUCK");
+            return Ok(None);
+        };
 
-        if let Some(image) = ctx
-            .get_image(format!("{video_filename}_fallback.png"))
-            .or_else(|| ctx.get_image(format!("{video_filename}.fallback.jpg")))
-        {
+        let Some(metadata) = media_ref.metadata else {
+            return Ok(None);
+        };
+
+        let last_frame_to_display_image = metadata.duration * ctx.time_base.fps as f32;
+        if offset <= last_frame_to_display_image as i64 || options.looping {
             Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
-                fallback_image: image.clone(),
+                // this is only editor code + the image data is a smartpointer so it is okay to clone
+                fallback_image: fallback_image.clone(),
                 video_metadata: media_ref
                     .metadata
                     .expect("Failed precodition: Missing editor video file metadata"),

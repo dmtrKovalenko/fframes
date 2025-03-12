@@ -7,7 +7,6 @@ edition = "2024"
 fframes.workspace = true
 libm="0.2.1"
 rand="0.8.5"
-getrandom = { version = "0.2.15", features = ["js"] }
 
 [dev-dependencies]
 fframes_test_utils = {path="../../fframes-test-utils"}

@@ -352,29 +352,34 @@ impl FFmpegFrameBuf {
     /// Returns the timestamp of the frame in seconds
     /// # Safety
     /// This is a libav based function which involes C ffi cals
-    pub unsafe fn timestamp_seconds(&self) -> f64 {
+    pub unsafe fn timestamp_seconds(&self) -> f32 {
         unsafe {
             let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
-            (*self.latest_av_frame).pts as f64 * av_q2d(video_stream_info.time_base)
+            let timestamp =
+                (*self.latest_av_frame).pts as f64 * av_q2d(video_stream_info.time_base);
+
+            timestamp as f32
         }
     }
 
     /// Returns the duration of the stream in frames
     /// # Safety
     /// This is a libav based function which involes C ffi cals
-    pub unsafe fn get_stream_duration_in_frames(&self) -> f64 {
+    pub unsafe fn get_stream_duration_in_frames(&self) -> f32 {
         unsafe {
             let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
-            video_stream_info.duration as f64 * av_q2d(video_stream_info.time_base)
+            let fps = video_stream_info.duration as f64 * av_q2d(video_stream_info.time_base);
+
+            fps as f32
         }
     }
 
     /// Returns the fps value of the stream
     /// Remember that the fps value is always a guess based on the stream timestamps
-    pub fn get_stream_fps(&self) -> f64 {
+    pub fn get_stream_fps(&self) -> f32 {
         unsafe {
             let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
-            video_stream_info.frame_rate.num as f64 / video_stream_info.frame_rate.den as f64
+            video_stream_info.frame_rate.num as f32 / video_stream_info.frame_rate.den as f32
         }
     }
 }

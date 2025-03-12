@@ -43,12 +43,15 @@ pub struct FFramesContext<'a, 'media: 'a> {
     /// Actual time base base of the video contains the FPS for video and sample rate for audio.
     pub time_base: TimeBase,
     /// The video size might be overridden by the render options.
-    /// Use this field to get the most up-to-date video size, it is okay to use
-    /// the `Video::WIDTH` and `Video::HEIGHT` as well if you don't need to scale/downscale.
+    /// Use this field to get the most up-to-date video size and scale the SVG using viewbox.
     pub current_video_size: VideoSize,
+    /// Total duration of the video in frames.
     pub duration_in_frames: usize,
+    /// The execution mode: Editor, EditorTimelinePreview, or Renderer.
     pub mode: FFramesMode,
+    /// Resolved scenes timeline if provided by the Video implementation
     pub scenes: Option<&'a ResolvedScenesTimeline<'a>>,
+    /// Media source can be used to resolve audio, video, images, and any other supported media
     pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
 }
@@ -90,17 +93,14 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
 
     /// Finds the scene layout and duration information based on the layout of defined in `define_scenes` of the `Video`.
     pub fn get_scene_info<T: crate::Scene>(&self, scene: &T) -> Option<&crate::SceneInfo> {
-        if let Some(scenes) = self.scenes.as_ref() {
-            scenes.iter().find_map(|(_, info, boxed_scene)| {
-                #[allow(clippy::ptr_eq)]
-                let pointers_equal =
-                    *boxed_scene as *const dyn crate::Scene as *const T == scene as *const T;
+        let scenes = self.scenes.as_ref()?;
+        scenes.iter().find_map(|(_, info, boxed_scene)| {
+            #[allow(clippy::ptr_eq)]
+            let pointers_equal =
+                *boxed_scene as *const dyn crate::Scene as *const T == scene as *const T;
 
-                pointers_equal.then_some(info)
-            })
-        } else {
-            None
-        }
+            pointers_equal.then_some(info)
+        })
     }
 
     /// This is internal method that is used by the renderer which mixes audio data and returns the final as fltp in a vector.

@@ -11,6 +11,7 @@ pub struct Svgr<'a> {
     pub svg_tree: usvgr::svgtree::NestedSvgDocument<'a, usvgr::svgtree::NestedNodeData<'a>>,
 }
 
+
 impl<'a> Svgr<'a> {
     #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
     pub fn into_svg_tree(
@@ -43,6 +44,10 @@ impl<'a> Svgr<'a> {
         unimplemented!(
             "Subtrees are not available when using runtime svg tree, if you see this message it means that feature flags are set incorrectly."
         )
+    }
+
+    pub fn empty() -> Self {
+        Self::default()
     }
 }
 

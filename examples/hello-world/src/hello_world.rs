@@ -38,12 +38,12 @@ impl Video for HelloWorldVideo<'_> {
               y="0"
               fill={
                 frame.animate(fframes::timeline!(
-                  on 0., val Color::hex("#fff") => Color::hex("#f8fafc"), &BACKGROUND_EASING,
-                  on 5., val Color::hex("#f8fafc") => Color::hex("#fff7ed"), &BACKGROUND_EASING,
-                  on 10., val Color::hex("#fff7ed") => Color::hex("#fef2f2"), &BACKGROUND_EASING,
-                  on 15., val Color::hex("#fef2f2") => Color::hex("#f7fee7"), &BACKGROUND_EASING,
-                  on 20., val Color::hex("#f7fee7") => Color::hex("#ecfdf5"), &BACKGROUND_EASING,
-                  on 25., val Color::hex("#ecfdf5") => Color::hex("#faf5ff"), &BACKGROUND_EASING
+                  on 0.; Color::hex("#fff") => Color::hex("#f8fafc"), &BACKGROUND_EASING,
+                  on 5.: Color::hex("#f8fafc") => Color::hex("#fff7ed"), &BACKGROUND_EASING,
+                  on 10.: Color::hex("#fff7ed") => Color::hex("#fef2f2"), &BACKGROUND_EASING,
+                  on 15.: Color::hex("#fef2f2") => Color::hex("#f7fee7"), &BACKGROUND_EASING,
+                  on 20.: Color::hex("#f7fee7") => Color::hex("#ecfdf5"), &BACKGROUND_EASING,
+                  on 25.: Color::hex("#ecfdf5") => Color::hex("#faf5ff"), &BACKGROUND_EASING
                 ))
               }
             />

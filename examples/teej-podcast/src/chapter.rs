@@ -34,6 +34,9 @@ pub(crate) fn create_transition_keyframes_for_chapters(
 
                 let keyframe = KeyFrame {
                     start,
+                    // The actual duration of animation will be automatically calculated
+                    // from the spring easing function, so just add some value for timeline.
+                    end: Some(start + 1.0),
                     from: current_position as f32,
                     to: new_position as f32,
                     easing: &CHAPTER_EASING,

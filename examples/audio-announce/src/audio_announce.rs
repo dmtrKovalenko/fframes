@@ -85,6 +85,7 @@ impl Video for AudioAnnounce<'_> {
                 &fframes::SyncVideoFrameInput {
                     start_from: 0,
                     looping: false,
+                    editor_fallback_image: None,
                 },
             )
         };

@@ -180,7 +180,7 @@ impl Parser<'_> {
                             .clone()
                             .into_iter()
                             .skip_while(|el| match el {
-                                proc_macro2::TokenTree::Ident(ident) => *ident != "val",
+                                proc_macro2::TokenTree::Ident(ident) => *ident != ":",
                                 _ => true,
                             })
                             .nth(1);

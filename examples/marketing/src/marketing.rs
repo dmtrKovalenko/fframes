@@ -11,7 +11,7 @@ include_media_dir!(pub struct MarketingMedia, "examples/marketing/media");
 
 fframes::lazy_static::lazy_static! {
     static ref SPRING_RUNTIME: animation::AnimationRuntime =
-        animation::AnimationRuntime::from(&SPRING);
+        animation::AnimationRuntime::new(None, &SPRING);
 }
 
 struct SpectrumValue<'a> {
@@ -31,7 +31,7 @@ pub struct MarketingVideo<'a> {
 
 impl MarketingVideo<'_> {
     fn render_ferris(&self, frame: &Frame) -> Svgr {
-        if !(2.3f32..5.0f32).contains(&frame.get_current_second()) {
+        if !(2.3f32..5.0f32).contains(&frame.seconds()) {
             return Svgr::default();
         }
 

@@ -31,12 +31,26 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
         &'a self,
         image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
     );
+
+    fn get_all_audio_data(&self) -> Vec<(&AudioData, &str)> {
+        Vec::with_capacity(0)
+    }
+
+    fn get_all_font_data(&self) -> Vec<(&[u8], &str)> {
+        Vec::with_capacity(0)
+    }
+
+    fn get_all_image_data(&self) -> Vec<(&media::ImageData, &str)> {
+        Vec::with_capacity(0)
+    }
+
+    fn get_all_video_data(&self) -> Vec<(&media::VideoMedia, &str)> {
+        Vec::with_capacity(0)
+    }
 }
 
 pub trait StaticMediaProvider<'a>: std::fmt::Debug + Sized + MediaProvider<'a> {
     fn prepare() -> Result<Self>;
-    fn get_all_audio_data(&'a self) -> Option<Vec<(&'a AudioData<'a>, &'a str)>>;
-    fn get_all_font_data(&'a self) -> Option<Vec<(&'a [u8], &'a str)>>;
 }
 
 impl<'a> MediaProvider<'a> for () {
@@ -52,6 +66,10 @@ impl<'a> MediaProvider<'a> for () {
         None
     }
 
+    fn resolve_video(&'a self, _name: &str) -> Option<&'a VideoMedia> {
+        None
+    }
+
     fn populate_font_source(&'a self, _font_source: &mut dyn FontSource) {}
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -60,23 +78,11 @@ impl<'a> MediaProvider<'a> for () {
         _image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
     ) {
     }
-
-    fn resolve_video(&'a self, _name: &str) -> Option<&'a VideoMedia> {
-        None
-    }
 }
 
 impl StaticMediaProvider<'_> for () {
     fn prepare() -> Result<Self> {
         Ok(())
-    }
-
-    fn get_all_audio_data(&self) -> Option<Vec<(&AudioData, &str)>> {
-        None
-    }
-
-    fn get_all_font_data(&self) -> Option<Vec<(&[u8], &str)>> {
-        None
     }
 }
 
@@ -138,6 +144,34 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
         for (name, data) in self.images.iter() {
             image_data.insert(name.clone(), data.href());
         }
+    }
+
+    fn get_all_font_data(&self) -> Vec<(&[u8], &str)> {
+        self.fontdata
+            .iter()
+            .map(|font| (font.data.as_ref().as_ref(), &font.file_name[..]))
+            .collect()
+    }
+
+    fn get_all_audio_data(&self) -> Vec<(&AudioData, &str)> {
+        self.audio
+            .iter()
+            .map(|(name, data)| (data, name.as_str()))
+            .collect()
+    }
+
+    fn get_all_image_data(&self) -> Vec<(&media::ImageData, &str)> {
+        self.images
+            .iter()
+            .map(|(name, data)| (data, name.as_str()))
+            .collect()
+    }
+
+    fn get_all_video_data(&self) -> Vec<(&fframes_media_loaders::VideoMedia, &str)> {
+        self.videos
+            .iter()
+            .map(|(name, data)| (data, name.as_str()))
+            .collect()
     }
 }
 

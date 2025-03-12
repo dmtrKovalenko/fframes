@@ -31,7 +31,6 @@ impl Scene for SceneTwo {
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(15.)
     }
-
     fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
         fframes::svgr!(
           <text

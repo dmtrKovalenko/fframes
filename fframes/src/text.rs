@@ -50,6 +50,7 @@ pub struct BreakLinesOpts<
     /// The [text-anchor](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor) attribute is used to align (start-, middle- or end-alignment) a string of pre-formatted text or auto-wrapped text where the wrapping area is determined from the inline-size property relative to a given point.
     /// **In short: defines how to align text horizontally based to the `x` position.**
     pub text_anchor: &'a str,
+    pub opacity: f32,
 }
 
 impl<'a, TX, TY> BreakLinesOpts<'a, TX, TY>
@@ -137,9 +138,10 @@ where
             align: TextAlign::Left,
             font_style: Default::default(),
             font_stretch: Default::default(),
-            font_weight: 400,
+            font_weight: 500,
             dominant_baseline: "auto",
             text_anchor: "start",
+            opacity: 1.0,
         }
     }
 }
@@ -191,6 +193,7 @@ impl WrappedTextStructure {
             font_weight,
             dominant_baseline,
             text_anchor,
+            opacity,
             ..
         }: BreakLinesOpts<'a, X, Y>,
     ) -> Svgr<'a> {
@@ -208,6 +211,7 @@ impl WrappedTextStructure {
                 font-weight={font_weight}
                 dominant-baseline={dominant_baseline}
                 text-anchor={text_anchor}
+                opacity={opacity}
             >
                 {Svgr::from_iter(
                     self.lines.iter().map(|line| {

@@ -1,17 +1,18 @@
-use super::spring;
+use super::{cubic_bezier::CubicBezierRuntime, spring};
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 /// Resolved easing function.
 pub enum AnimationRuntime {
     /// No animation, used internally for filling gaps keyframe
     Static(f32),
-    Linear(f32),
     SpringRuntime(spring::SpringRuntime, f32),
+    Linear(f32),
+    CubicBezier(CubicBezierRuntime, f32),
 }
 
-impl From<&Easing> for AnimationRuntime {
-    fn from(easing: &Easing) -> Self {
+impl AnimationRuntime {
+    pub fn new(tween_duration: f32, easing: &Easing) -> Self {
         match easing {
             Easing::Spring {
                 mass,
@@ -19,21 +20,38 @@ impl From<&Easing> for AnimationRuntime {
                 damping,
             } => {
                 let spring_runtime = spring::SpringRuntime::new(*mass, *stiffness, *damping);
-                let duration = spring_runtime.get_duration();
 
-                AnimationRuntime::SpringRuntime(spring_runtime, duration)
+                AnimationRuntime::SpringRuntime(
+                    spring_runtime,
+                    spring_runtime.get_duration().min(tween_duration),
+                )
             }
-            Easing::Linear(duration) => AnimationRuntime::Linear(*duration),
+            Easing::Linear => AnimationRuntime::Linear(tween_duration),
+            Easing::EaseIn => {
+                AnimationRuntime::CubicBezier(CubicBezierRuntime::ease_in(), tween_duration)
+            }
+            Easing::EaseOut => {
+                AnimationRuntime::CubicBezier(CubicBezierRuntime::ease_out(), tween_duration)
+            }
+            Easing::EaseInOut => {
+                AnimationRuntime::CubicBezier(CubicBezierRuntime::ease_in_out(), tween_duration)
+            }
+
+            Easing::CubicBezier(x1, y1, x2, y2) => AnimationRuntime::CubicBezier(
+                CubicBezierRuntime::new(*x1, *y1, *x2, *y2),
+                tween_duration,
+            ),
         }
     }
 }
 
 impl AnimationRuntime {
     pub fn get_duration(&self) -> f32 {
-        match &self {
-            AnimationRuntime::Linear(duration) => *duration,
-            AnimationRuntime::SpringRuntime(_spring, duration) => *duration,
-            AnimationRuntime::Static(_) => unreachable!(),
+        match *self {
+            AnimationRuntime::Linear(duration) => duration,
+            AnimationRuntime::SpringRuntime(_spring, duration) => duration,
+            AnimationRuntime::CubicBezier(_, duration) => duration,
+            AnimationRuntime::Static(duration) => duration,
         }
     }
 
@@ -41,7 +59,10 @@ impl AnimationRuntime {
         match &self {
             &AnimationRuntime::Linear(duration) => t / duration,
             &AnimationRuntime::SpringRuntime(spring, _) => spring.solve(t),
-            AnimationRuntime::Static(_) => 1.,
+            &AnimationRuntime::CubicBezier(cubic_bezier, duration) => {
+                cubic_bezier.solve(t / duration)
+            }
+            AnimationRuntime::Static(_) => 0.,
         }
     }
 }
@@ -51,7 +72,19 @@ impl AnimationRuntime {
 pub enum Easing {
     /// Specifies an animation with the same speed from start to end.
     /// calculates as Linear(duration): f(current_time) = current_time / duration
-    Linear(f32),
+    Linear,
+    /// CSS-like ease-in easing function.
+    /// Specifies an animation with a slow start.
+    EaseIn,
+    /// CSS-like ease-out easing function.
+    /// Specifies an animation with a slow start and end, and faster in the middle.
+    EaseOut,
+    /// CSS-like ease-in-out easing function.
+    /// Specifies an animation with a slow start and end, and faster in the middle.
+    EaseInOut,
+    /// CSS-like cubic-bezier easing function.
+    /// Defines as a cubic-bezier(x1, y1, x2, y2) where x1, y1, x2, y2 are numbers in the range [0, 1].
+    CubicBezier(f32, f32, f32, f32),
     // Inspired by https://webkit.org/demos/spring/spring.js. Copyright (C) 2016 Apple Inc. All rights reserved.
     /// Specifies an animation that calculates value based on spring physics.
     /// Learn more about spring physics: https://www.joshwcomeau.com/animation/a-friendly-introduction-to-spring-physics/
@@ -66,6 +99,8 @@ pub enum Easing {
 pub struct KeyFrame<'a, T: Animatable> {
     /// Start time of the keyframe in seconds
     pub start: f32,
+    /// End time of the keyframe in seconds, it is going to be used as an easing duration if specified leaving the time before the next keyframe as a static value.
+    pub end: Option<f32>,
     pub to: T,
     pub from: T,
     pub easing: &'a Easing,
@@ -80,6 +115,14 @@ impl Animatable for f32 {
         let animation_range = to - self;
 
         self + animation_range * progress
+    }
+}
+
+impl Animatable for f64 {
+    fn apply_progress(&self, to: &Self, progress: f32) -> Self {
+        let animation_range = to - self;
+
+        self + animation_range * progress as f64
     }
 }
 
@@ -122,12 +165,26 @@ pub(crate) struct Tween<T: Animatable + Copy> {
 }
 
 #[derive(Debug)]
-pub struct KeyFramesAnimation<T: Animatable + Copy> {
+pub struct KeyFramesAnimation<T: Animatable + Copy + Default> {
+    pub total_duration: f32,
+    pub final_value: T,
     pub(crate) keyframes: Vec<Tween<T>>,
 }
 
-impl<T: Animatable + Copy> KeyFramesAnimation<T> {
+impl<T: Animatable + Copy + Default> KeyFramesAnimation<T> {
     pub fn new(mut tweens: Vec<KeyFrame<T>>) -> Self {
+        if tweens.is_empty() {
+            crate::log!(
+                "WARN: some of the keyframe animations did not receive any keyframes. Behaviour is undefined."
+            );
+
+            return KeyFramesAnimation {
+                keyframes: vec![],
+                total_duration: 0.,
+                final_value: T::default(),
+            };
+        }
+
         tweens.sort_unstable_by(|a, b| {
             a.start
                 .partial_cmp(&b.start)
@@ -138,7 +195,18 @@ impl<T: Animatable + Copy> KeyFramesAnimation<T> {
             .iter()
             .enumerate()
             .flat_map(|(i, tween)| {
-                let animation_runtime = AnimationRuntime::from(tween.easing);
+                let next_start = tweens.get(i + 1).map(|tween| tween.start);
+                let tween_duration = match (tween.end, next_start) {
+                    (Some(end), _) => end - tween.start,
+                    (None, Some(next_start)) => next_start - tween.start,
+                    (None, None) => {
+                        crate::log!("WARN: no end time was provided on the last tween and impossible to info the value from the duration. Skipping last keyframe");
+
+                        return vec![];
+                    },
+                };
+
+                let animation_runtime = AnimationRuntime::new(tween_duration, tween.easing);
                 let keyframe = Tween {
                     to: tween.to,
                     from: tween.from,
@@ -168,6 +236,7 @@ impl<T: Animatable + Copy> KeyFramesAnimation<T> {
             })
             .collect::<Vec<_>>();
 
+        // safe to use [index access] because we invariant empty vectors at start
         if tweens[0].start > 0. {
             let seconds_range = 0f32..tweens[0].start;
             keyframes.insert(
@@ -183,36 +252,42 @@ impl<T: Animatable + Copy> KeyFramesAnimation<T> {
             );
         }
 
-        let last_keyframe = &keyframes[keyframes.len() - 1];
-        if last_keyframe.seconds_range.end < f32::MAX {
-            let last_filling_keyframe = Tween {
-                from: last_keyframe.to,
-                to: last_keyframe.to,
-                animation_runtime: AnimationRuntime::Static(
-                    f32::MAX - last_keyframe.seconds_range.end,
-                ),
-                seconds_range: last_keyframe.seconds_range.end..f32::MAX,
-            };
+        // this duplicates the logic. The last keyframe end is required, if not provided the
+        // keyframe is ignored and we end at the start of the last keyframe.
+        let last_tween = tweens.last().unwrap();
+        let total_duration = last_tween.end.unwrap_or(last_tween.start) - tweens[0].start;
 
-            keyframes.push(last_filling_keyframe);
+        KeyFramesAnimation {
+            keyframes,
+            total_duration,
+            final_value: last_tween.to,
         }
-
-        KeyFramesAnimation { keyframes }
     }
 }
 
 #[macro_export]
 macro_rules! timeline {
-    ($(on $start: expr, val $from:expr => $to:expr, $easing:expr),+) => {
+    ($(at $start:expr $(=> $end:expr)?, $from:expr => $to:expr, $easing:expr),+ $(,)?) => {
         fframes::animation::KeyFramesAnimation::new(vec![
-           $(
-            fframes::animation::KeyFrame {
-                start: $start,
-                from: $from,
-                to: $to,
-                easing: &$easing,
-            }
-           ),+
-    ])
+            $(
+                fframes::animation::KeyFrame {
+                    start: $start,
+                    end: $crate::option_literal!($($end)?),
+                    from: $from,
+                    to: $to,
+                    easing: &$easing,
+                },
+            )+
+        ])
+    };
+}
+
+#[macro_export]
+macro_rules! option_literal {
+    () => {
+        None
+    };
+    ($e:expr) => {
+        Some($e)
     };
 }

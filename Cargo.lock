@@ -152,7 +152,6 @@ dependencies = [
  "fframes",
  "fframes_renderer",
  "fframes_skia_renderer",
- "getrandom 0.2.15",
 ]
 
 [[package]]
@@ -216,7 +215,6 @@ dependencies = [
  "fframes",
  "fframes_renderer",
  "fframes_skia_renderer",
- "getrandom 0.2.15",
  "hello-world-example",
  "lazy_static",
  "libm",
@@ -452,7 +450,6 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_renderer",
- "getrandom 0.2.15",
  "image 0.25.5",
  "rayon",
  "serde",
@@ -1063,7 +1060,6 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_renderer",
- "getrandom 0.2.15",
  "image 0.25.5",
 ]
 
@@ -1212,10 +1208,11 @@ checksum = "f5d4a7da358eff58addd2877a45865158f0d78c911d43a5784ceb7bbf52833b0"
 
 [[package]]
 name = "js-sys"
-version = "0.3.72"
+version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a88f1bda2bd75b0452a14784937d796722fdebfe50df998aeb3f0b7603019a9"
+checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
 dependencies = [
+ "once_cell",
  "wasm-bindgen",
 ]
 
@@ -1361,7 +1358,6 @@ dependencies = [
  "fframes",
  "fframes_renderer",
  "fframes_test_utils",
- "getrandom 0.2.15",
  "libm",
  "rand",
 ]
@@ -1401,7 +1397,6 @@ dependencies = [
  "fframes_renderer",
  "fframes_test_utils",
  "futures",
- "getrandom 0.2.15",
 ]
 
 [[package]]
@@ -1700,6 +1695,27 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pixel-bridge-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "fframes-editor-controller",
+ "pixel-example",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "pixel-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "clap",
+ "fframes",
+ "fframes_renderer",
+ "getrandom 0.2.15",
+ "image 0.25.5",
+ "rand",
+]
 
 [[package]]
 name = "pkg-config"
@@ -2340,7 +2356,6 @@ dependencies = [
  "fframes",
  "fframes_renderer",
  "fframes_skia_renderer",
- "getrandom 0.2.15",
 ]
 
 [[package]]

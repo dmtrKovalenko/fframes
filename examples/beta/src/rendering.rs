@@ -11,7 +11,7 @@ impl Scene for RenderingScene {
     fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> fframes::Svgr {
         const GPU_SECOND: f32 = 1.1;
 
-        let gpu = frame.get_current_second() > GPU_SECOND;
+        let gpu = frame.seconds() > GPU_SECOND;
         let derivation: f32 = rand::random();
 
         let base_fps = frame.animate(&fframes::timeline!(

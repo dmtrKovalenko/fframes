@@ -5,8 +5,6 @@ edition = "2024"
 
 [dependencies]
 fframes.workspace = true
-# This is only needed for the wasm32 target for uuid
-getrandom = { version = "0.2.15", features = ["js"] }
 
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }

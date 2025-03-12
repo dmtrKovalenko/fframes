@@ -13,8 +13,6 @@ hello-world-example = { path = "../hello-world", default-features = false }
 marketing-example = { path = "../marketing", default-features = false }
 podcast-example = { path = "../podcast", default-features = false }
 tiktok-example = { path = "../tiktok", default-features = false }
-# This is only needed for the wasm32 target for uuid
-getrandom = { version = "0.2.15", features = ["js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_renderer = { path = "../../fframes-renderer", features = [

@@ -2,7 +2,7 @@ clippy *ARGS:
   cargo clippy {{ARGS}} -- -D warnings -A clippy::option-map-unit-fn -A clippy::module_inception -A clippy::single-match -A clippy::single-range-in-vec-init
 
 clippy-fix *ARGS:
-  @just clippy --fix --allow-dirty {{ARGS}}
+  @just clippy --fix {{ARGS}}
 
 syncpack:
   yarn syncpack lint
@@ -23,9 +23,20 @@ init-repo:
 watch-editor:
   cd fframes-editor && yarn dev
 
-run example:
-  cd examples/{{example}}/editor/editor-bridge && cargo watch -i ../../../../.gitignore -s "wasm-pack build  --target web --dev" &
+watch-example-build example:
+  cd examples/{{example}}/editor/editor-bridge && \
+  cargo watch -i ../../../../.gitignore -s "wasm-pack build  --target web --dev"
+
+start-example example:
   cd examples/{{example}}/editor && yarn dev
+
+run example:
+  #!/bin/bash
+  just watch-example-build {{example}} &
+  P1=$!
+  just start-example {{example}} &
+  P2=$!
+  wait $P1 $P2
 
 render example *ARGS:
   cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}

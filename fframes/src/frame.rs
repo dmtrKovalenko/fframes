@@ -92,7 +92,7 @@ impl Frame {
     }
 
     /// Returns current frame timestamp in seconds.
-    pub fn get_current_second(&self) -> f32 {
+    pub fn seconds(&self) -> f32 {
         self.frame_to_second(self.index)
     }
 
@@ -133,13 +133,35 @@ impl Frame {
     ) -> TValue {
         let duration = animation_runtime.get_duration();
 
-        match &self.get_current_second() {
+        match &self.seconds() {
             second if second < &on_second => from,
             second if second > &(on_second + duration) => to,
             second => {
                 let progress = animation_runtime.solve(&(second - on_second));
 
                 from.apply_progress(&to, progress)
+            }
+        }
+    }
+
+    fn animate_impl<T: crate::animation::Animatable + Copy + Default + std::fmt::Debug>(
+        &self,
+        animation: &animation::KeyFramesAnimation<T>,
+        current_second: &f32,
+    ) -> T {
+        let keyframe = animation
+            .keyframes
+            .iter()
+            .find(|keyframe| keyframe.seconds_range.contains(current_second));
+
+        match keyframe {
+            None => animation.final_value,
+            Some(keyframe) => {
+                let progress = keyframe
+                    .animation_runtime
+                    .solve(&(current_second - keyframe.seconds_range.start));
+
+                keyframe.from.apply_progress(&keyframe.to, progress)
             }
         }
     }
@@ -170,28 +192,20 @@ impl Frame {
     ///   />
     /// );
     /// ```
-    pub fn animate<T: crate::animation::Animatable + Copy + Default>(
+    pub fn animate<T: crate::animation::Animatable + Copy + Default + std::fmt::Debug>(
         &self,
         animation: &animation::KeyFramesAnimation<T>,
     ) -> T {
-        let current_second = &self.get_current_second();
+        let current_second = &self.seconds();
+        self.animate_impl(animation, current_second)
+    }
 
-        let keyframe = animation
-            .keyframes
-            .iter()
-            .rev()
-            .find(|keyframe| keyframe.seconds_range.contains(current_second));
-
-        match keyframe {
-            None => T::default(),
-            Some(keyframe) => {
-                let progress = keyframe
-                    .animation_runtime
-                    .solve(&(current_second - keyframe.seconds_range.start));
-
-                keyframe.from.apply_progress(&keyframe.to, progress)
-            }
-        }
+    pub fn animate_loop<T: crate::animation::Animatable + Copy + Default + std::fmt::Debug>(
+        &self,
+        animation: &animation::KeyFramesAnimation<T>,
+    ) -> T {
+        let current_second = &self.seconds() % &animation.total_duration;
+        self.animate_impl(animation, &current_second)
     }
 
     pub fn visualize_audio_frame(&self, input: VisualizeFrameInput) -> Vec<f32> {
@@ -331,7 +345,7 @@ impl Frame {
         &self,
         subtitles: &'a impl FFramesSubtitles<'a>,
     ) -> Option<&'a str> {
-        let milliseconds = (self.get_current_second() * 1000.0) as u64;
+        let milliseconds = (self.seconds() * 1000.0) as u64;
 
         let (_, cue) = subtitles.get_cue_by_time(milliseconds)?;
         Some(cue.text())
@@ -346,7 +360,7 @@ impl Frame {
         &self,
         subtitles: &'a TSubtitles,
     ) -> Option<&'a TSubtitles::Cue> {
-        let milliseconds = (self.get_current_second() * 1000.0) as u64;
+        let milliseconds = (self.seconds() * 1000.0) as u64;
 
         subtitles.get_cue_by_time(milliseconds).map(|(_, cue)| cue)
     }
@@ -362,7 +376,7 @@ impl Frame {
         subtitles: &'a TSubtitles,
         overlap: u64,
     ) -> Vec<&'a TSubtitles::Cue> {
-        let milliseconds = (self.get_current_second() * 1000.0) as u64;
+        let milliseconds = (self.seconds() * 1000.0) as u64;
 
         subtitles.get_cue_stack(milliseconds, overlap)
     }
@@ -379,13 +393,13 @@ impl Frame {
         file_name: impl AsRef<str>,
         input: &SyncVideoFrameInput,
     ) -> Option<Arc<impl FFramesSyncedVideoFrame + 'static>> {
-        if self.global_index < input.start_from {
+        let video = ctx.get_video(file_name.as_ref())?;
+        let start_from_frame = self.second_to_frame(input.start_from);
+        if self.index < start_from_frame {
             return None;
         }
 
-        let video = ctx.get_video(file_name.as_ref())?;
-
-        let offset = self.global_index - input.start_from;
+        let offset = self.index - start_from_frame;
         self.worker_local_video_decoders
             .get_synced_frame(video, offset as i64, ctx, input)
             .map_err(|e| {

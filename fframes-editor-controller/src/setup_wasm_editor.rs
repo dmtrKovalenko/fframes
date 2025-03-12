@@ -135,7 +135,7 @@ macro_rules! setup_wasm_editor {
             let metadata = fframes::media::GeneralVideoFileMetadata {
                 width: width as u32,
                 height: height as u32,
-                duration: duration as f64,
+                duration: duration,
                 fps: 30.0, // hardcoding for user convenience
             };
 
@@ -228,10 +228,8 @@ macro_rules! setup_wasm_editor {
         pub fn populate_static_fonts_db_with_static_fonts() {
             let mut font_wasm_db = FONTS.lock().unwrap();
 
-            if let Some(fonts) = (&$static_media).get_all_font_data() {
-                for (font_data, filename) in fonts {
-                    font_wasm_db.insert_font(font_data.into(), Some(filename));
-                }
+            for (font_data, filename) in (&$static_media).get_all_font_data() {
+                font_wasm_db.insert_font(font_data.into(), Some(filename));
             }
         }
 
@@ -245,7 +243,7 @@ macro_rules! setup_wasm_editor {
 
         #[wasm_bindgen]
         pub fn get_static_audio_data_by_index(index: usize) -> Option<wasm_audio::AudioData> {
-            let audios = (&$static_media).get_all_audio_data()?;
+            let audios = (&$static_media).get_all_audio_data();
 
             audios
                 .get(index)

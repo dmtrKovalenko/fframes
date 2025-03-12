@@ -86,6 +86,8 @@ impl ImageData {
     pub fn get_bytes(&mut self) -> &[u8] {
         self.base64_data.as_str().as_bytes()
     }
+
+    
 }
 
 #[cfg(not(target_arch = "wasm32"))]
