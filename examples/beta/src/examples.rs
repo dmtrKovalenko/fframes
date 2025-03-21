@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fframes::{Scene, Video, animation, svgr};
+use fframes::{Scene, Transform, Video, animation::Easing, svgr};
 use hello_world_example::HelloWorldVideo;
 use marketing_example::MarketingVideo;
 use podcast_example::PodcastVideo;
@@ -61,8 +61,8 @@ impl Scene for BetaExamples<'_> {
              font-family="DM Sans"
              font-weight="700"
              text-anchor="middle"
-             x={frame.animate(fframes::timeline!(
-               on 0., val 200. => 960., &animation::Easing::Spring { mass: 1.0 , stiffness: 100., damping: 16. }
+             x={frame.animate(&fframes::timeline!(
+               at 0., animate 200. => 960., Easing::Spring { mass: 1.0 , stiffness: 100., damping: 16. }
              ))}
              y="8%"
              font-size="60"
@@ -73,24 +73,29 @@ impl Scene for BetaExamples<'_> {
 
            <g clip-path="url(#text-clip)">
              <g
-               font-family="DM Sans"
-               font-weight="700"
-               fill="#000"
-               text-anchor="middle"
-               font-size="120"
-               transform={format!("translate(0, {})",
-                 frame.animate(
-                   &fframes::timeline!(
-                     on MARKETING_TS, val 0. => -180., &animation::Easing::Spring { mass: 1.0 , stiffness: 140., damping: 16. },
-                     on PODCAST_TS, val -200. => -380., &animation::Easing::Spring { mass: 1.0 , stiffness: 140., damping: 16. },
-                     on TIKTOK_TS, val -400. => -580., &animation::Easing::Spring { mass: 1.0 , stiffness: 140.,damping: 16. }
-                   )
-                 )
-               )}
+                font-family="DM Sans"
+                font-weight="700"
+                fill="#000"
+                text-anchor="middle"
+                font-size="120"
+                transform={
+                    frame.animate(
+                        &fframes::timeline!(
+                            at MARKETING_TS, animate Transform::translate(0, 0.) => Transform::translate(0, -180.),
+                            Easing::Spring { mass: 1.0, stiffness: 140., damping: 16. },
+
+                            at PODCAST_TS, animate Transform::translate(0, -180.) => Transform::translate(0, -380.),
+                            Easing::Spring { mass: 1.0, stiffness: 140., damping: 16. },
+
+                            at TIKTOK_TS, animate Transform::translate(0, -380.) => Transform::translate(0, -580.),
+                            Easing::Spring { mass: 1.0, stiffness: 140., damping: 16. }
+                        )
+                    )
+                }
              >
                <text
-                 x={frame.animate(fframes::timeline!(
-                   on 0., val 1700. => 960., &animation::Easing::Spring{ mass: 1.0 , stiffness: 100., damping: 16. }
+                 x={frame.animate(&fframes::timeline!(
+                   at 0., animate 1700. => 960., Easing::Spring{ mass: 1.0 , stiffness: 100., damping: 16. }
                  ))}
                  y="220"
                >
@@ -128,14 +133,18 @@ impl Scene for BetaExamples<'_> {
            />
 
            <g clip-path="url(#preview-clip)">
-            <g
-              transform={format!("translate({} {VIDEO_OFFSET_Y}) scale({VIDEO_SCALE} {VIDEO_SCALE}) rotate({})",
-               if frame.get_current_second() >= TIKTOK_TS { VIDEO_OFFSET_X + 1188. } else { VIDEO_OFFSET_X },
-               if frame.get_current_second() >= TIKTOK_TS { 90 } else { 0 }
-              )}
-             >
+            <g transform={
+                Transform {
+                    translate_x: if frame.seconds() >= TIKTOK_TS { VIDEO_OFFSET_X + 1188. } else { VIDEO_OFFSET_X } as f64,
+                    translate_y: VIDEO_OFFSET_Y.into(),
+                    rotate: (if frame.seconds() >= TIKTOK_TS { 90. } else { 0. }).into(),
+                    scale: VIDEO_SCALE.into(),
+                    skew_x: 0.,
+                    skew_y: 0.,
+                }
+            }>
               {
-                match frame.get_current_second() {
+                match frame.seconds() {
                    second if second < MARKETING_TS => self.hello_world_video.render_frame(frame, ctx),
                    second if second < PODCAST_TS => self.marketing_video.render_frame(frame, ctx),
                    second if second < TIKTOK_TS => self.podcast_video.render_frame(frame.into_global(), ctx),

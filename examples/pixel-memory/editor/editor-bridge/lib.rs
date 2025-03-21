@@ -4,7 +4,8 @@ use fframes_editor_controller::{
     prelude::{lazy_static, *},
     setup_wasm_editor,
 };
-use hello_world_example::{rand, PixelMedia, PixelVideo, RandomPhotos};
+use pixel_memory_example::rand::SeedableRng;
+use pixel_memory_example::{rand, PixelMedia, PixelVideo, RandomPhotos};
 
 lazy_static! {
     static ref MEDIA: PixelMedia = PixelMedia::prepare().unwrap();
@@ -15,7 +16,10 @@ lazy_static! {
 setup_wasm_editor!(
     PixelVideo,
     PixelVideo::new_random_scenes(
-        "The Farewell.mp3",
+        "naruto_grief.mp3",
+        "Sometimes the smallest things take up the most room in your heart",
+        // for more predictable results, you can use a fixed seed:
+        // &mut rand::rngs::StdRng::seed_from_u64(28),
         &mut rand::thread_rng(),
         None::<&()>,
         RandomPhotos::new_from_static_list(

@@ -1,6 +1,6 @@
 use fframes::{
     FontStretch, FontStyle,
-    ttf_parser::{self},
+    ttf_parser::{self, PlatformId},
 };
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
@@ -10,6 +10,7 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 pub struct FaceInfo {
     /// font name as bytes (we are in wasm so no utf8 strings parsing in runtime)
     name: String,
+    name_bytes: Vec<u8>,
     stretch: fframes::FontStretch,
     weight: u16,
     style: fframes::FontStyle,
@@ -62,11 +63,11 @@ impl WasmFontSource {
         filename: Option<&'static str>,
     ) -> Option<FaceInfo> {
         let face = ttf_parser::Face::parse(&data, 0).ok()?;
-        let name_bytes = parse_family_name(face.raw_face())?;
-        let name = String::from_utf8_lossy(&name_bytes).to_string();
+        let name = parse_family_name(face.raw_face())?;
 
         let face_info = FaceInfo {
-            name,
+            name: name.to_string(),
+            name_bytes: name.as_bytes().to_vec(),
             weight: face.weight().to_number(),
             stretch: face.width().into(),
             style: face.style().into(),
@@ -121,6 +122,7 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
         font_stretch: FontStretch,
     ) -> Option<Box<dyn fframes::FontFace<'a> + 'a>> {
         let font = self.data.get(&FaceInfo {
+            name_bytes: font_name.as_bytes().to_vec(),
             name: font_name.to_owned(),
             stretch: font_stretch,
             weight: font_weight,
@@ -142,17 +144,60 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
     }
 }
 
-pub fn parse_family_name(raw_face: &ttf_parser::RawFace) -> Option<Vec<u8>> {
+pub fn parse_family_name<'a>(raw_face: &'a ttf_parser::RawFace) -> Option<Cow<'a, str>> {
     const NAME_TAG: ttf_parser::Tag = ttf_parser::Tag::from_bytes(b"name");
     let name_data = raw_face.table(NAME_TAG)?;
     let name_table = ttf_parser::name::Table::parse(name_data)?;
 
-    name_table.names.into_iter().find_map(|name| {
-        (name.name_id == ttf_parser::name_id::FAMILY).then_some(
-            name.name
-                .iter()
-                .filter_map(|b| if *b != 0 { Some(*b) } else { None })
-                .collect(),
-        )
-    })
+    let mut typographic_family = None;
+    let mut family = None;
+    let mut wws_family = None;
+
+    for name in name_table.names.into_iter() {
+        let clean_name = match (name.platform_id, name.encoding_id) {
+            // Unicode platform encodings
+            (PlatformId::Unicode, _) |
+            // Windows platform encodings
+            // Encoding ID 1 = UTF-16BE
+            (PlatformId::Windows, 1) |
+            // Encoding ID 10 = UTF-16BE (full Unicode range)
+            (PlatformId::Windows, 10) => decode_utf16be(name.name).unwrap_or_else(|| String::from_utf8_lossy(name.name)),
+            // Macintosh platform encodings
+            // Encoding ID 0 = Roman (usually ASCII or Mac Roman)
+            (PlatformId::Macintosh, 0) |
+            // Other Mac encodings may need specific handling
+            // ISO platform encodings (rarely used)
+            (PlatformId::Iso, _) => String::from_utf8_lossy(name.name),
+            // Default fallback - try UTF-8 first then decode as utf16be
+            _ => String::from_utf8(name.name.to_vec()).map(Cow::Owned).ok().or_else(|| decode_utf16be(name.name))?,
+        };
+
+        match name.name_id {
+            ttf_parser::name_id::TYPOGRAPHIC_FAMILY => typographic_family = Some(clean_name),
+            ttf_parser::name_id::FAMILY => family = Some(clean_name),
+            ttf_parser::name_id::WWS_FAMILY => wws_family = Some(clean_name),
+            _ => continue,
+        }
+    }
+
+    typographic_family.or(family).or(wws_family)
+}
+
+fn decode_utf16be(data: &[u8]) -> Option<Cow<'_, str>> {
+    // Make sure we have an even number of bytes
+    if data.len() % 2 != 0 {
+        return None;
+    }
+
+    // Convert bytes to UTF-16BE code units
+    let utf16_units: Vec<u16> = data
+        .chunks_exact(2)
+        .map(|chunk| ((chunk[0] as u16) << 8) | (chunk[1] as u16))
+        .collect();
+
+    // Decode UTF-16BE to a Rust String
+    match String::from_utf16(&utf16_units) {
+        Ok(s) => Some(Cow::Owned(s)),
+        Err(_) => None,
+    }
 }

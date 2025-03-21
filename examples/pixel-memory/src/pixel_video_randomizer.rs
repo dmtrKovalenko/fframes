@@ -21,13 +21,43 @@ struct SongInfo {
 }
 
 lazy_static! {
-    static ref SONGS: HashMap<&'static str, SongInfo> = HashMap::from([(
-        "The Farewell.mp3",
-        SongInfo {
-            duration: 149.0,
-            tempo: 1.15
-        }
-    )]);
+    static ref SONGS: HashMap<&'static str, SongInfo> = HashMap::from([
+        (
+            "The_Farewell.mp3",
+            SongInfo {
+                duration: 166.0,
+                tempo: 1.12
+            }
+        ),
+        (
+            "vostok_zapomny.mp3",
+            SongInfo {
+                duration: 185.62,
+                tempo: 1.08
+            }
+        ),
+        (
+            "naruto_grief.mp3",
+            SongInfo {
+                duration: 196.,
+                tempo: 1.22
+            }
+        ),
+        (
+            "revenge.mp3",
+            SongInfo {
+                duration: 132.,
+                tempo: 1.05
+            }
+        ),
+        (
+            "passenger.mp3",
+            SongInfo {
+                duration: 189.,
+                tempo: 1.2
+            }
+        )
+    ]);
 }
 
 impl<'a> PixelVideo<'a> {
@@ -35,11 +65,12 @@ impl<'a> PixelVideo<'a> {
         total_duration: f32,
         tempo: f32,
         rng: &mut impl Rng,
+        enter_text: &'a str,
         media_provider: Option<&'a impl fframes::MediaProvider<'a>>,
         images: &mut RandomPhotos<'a>,
     ) -> Vec<Arc<dyn Scene + 'a>> {
         let get_duration = |scene: &dyn Scene| -> Option<f32> {
-            match (scene.duration(), media_provider) {
+            let duration = match (scene.duration(), media_provider) {
                 (fframes::Duration::Seconds(duration), _) => Some(duration),
                 (fframes::Duration::FromAudio(audio), Some(provider)) => {
                     let audio = provider.resolve_audio(audio)?;
@@ -49,14 +80,24 @@ impl<'a> PixelVideo<'a> {
                     Some(9.0) // for editor fallback
                 }
                 _ => None,
-            }
+            }?;
+
+            let overlap = match scene.overlap() {
+                fframes::Overlap::Previous(seconds) | fframes::Overlap::Next(seconds) => seconds,
+                fframes::Overlap::PreviousAndNext { previous, next } => previous - next + next,
+                fframes::Overlap::None => 0.,
+            };
+
+            Some(duration - overlap)
         };
 
-        let mut current_duration = rng.gen_range(3.0..5.0);
+        let mut current_duration = tempo * rng.gen_range(4..=5) as f32;
         let mut scenes = vec![Arc::new(StartScene {
             duration: current_duration,
-            text: "They say dogs live shorter lives because they already know how to love unconditionally",
+            text: enter_text,
         }) as Arc<dyn Scene + 'a>];
+
+        current_duration -= 3.0;
 
         while (total_duration - current_duration) > 10. {
             let chance = rng.gen_range(if total_duration - current_duration > 20. {
@@ -88,22 +129,21 @@ impl<'a> PixelVideo<'a> {
                 fframes::log!("No duration found for scene, skipping");
                 continue;
             };
-
-            if current_duration + duration < total_duration {
+            // left at minimum 3 seconds for the final scene
+            if current_duration + duration < total_duration - 3. {
                 scenes.push(new_scene);
                 current_duration += duration;
             }
         }
 
-        scenes.push(Arc::new(FinalScene {
-            duration: total_duration - current_duration,
-        }));
+        scenes.push(Arc::new(FinalScene::new(total_duration - current_duration)));
 
         scenes
     }
 
     pub fn new_random_scenes(
-        song: &str,
+        song: &'a str,
+        text: &'a str,
         rng: &mut impl Rng,
         provider: Option<&'a impl MediaProvider<'a>>,
         mut images: RandomPhotos<'a>,
@@ -112,13 +152,13 @@ impl<'a> PixelVideo<'a> {
         let SongInfo {
             duration: total_duration,
             tempo,
-        } = *SONGS.get(song).unwrap();
+        } = *SONGS.get(song).expect("Selected song not available.");
 
         Self {
             total_duration,
             bokeh_circles,
-            music: "The Farewell.mp3",
-            scenes: Self::randomize_scenes(total_duration, tempo, rng, provider, &mut images),
+            music: song,
+            scenes: Self::randomize_scenes(total_duration, tempo, rng, text, provider, &mut images),
         }
     }
 }

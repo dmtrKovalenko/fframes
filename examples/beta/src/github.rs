@@ -1,4 +1,4 @@
-use fframes::{Scene, animation, svgr};
+use fframes::{Scene, Transform, animation::Easing, svgr};
 
 #[derive(Debug)]
 pub struct GithubScene {}
@@ -23,13 +23,16 @@ impl Scene for GithubScene {
             <image
                 width="1920"
                 href={github_image}
-                transform={format!("translate({} -{})",
-                frame.animate(&fframes::timeline!(
-                    on 0.0, val 1920. => 0., &animation::Easing::Spring { mass: 0.3, stiffness: 90., damping: 26. }
-                )),
-                frame.animate(&fframes::timeline!(
-                    on 0.8, val 0. => 1700., &animation::Easing::Linear(5.5)
-                )))}
+                transform={
+                    Transform::translate(
+                        frame.animate(&fframes::timeline!(
+                            at 0.0, animate 1920. => 0., Easing::Spring { mass: 0.3, stiffness: 90., damping: 26. }
+                        )),
+                        frame.animate(&fframes::timeline!(
+                            at 0.8 => 6.3, animate 0. => -1700., Easing::Linear
+                        ))
+                    )
+                }
             />
         )
     }

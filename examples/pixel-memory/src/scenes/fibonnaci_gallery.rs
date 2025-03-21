@@ -1,32 +1,30 @@
 use crate::photo_phrame::PhotoFrame;
 use crate::pixel_video_randomizer::RandomPhotos;
 use crate::{FramedImage, PixelVideo};
-use fframes::{Scene, Svgr, Video};
+use fframes::{Scene, Svgr, Transform, Video};
 use rand::Rng;
 use std::f32::consts::PI;
 
-const BASE_PHOTO_SIZE: f32 = 950.0; // Base size for photos in pixels
-const SPIRAL_REVOLUTIONS: f32 = 1.2; // Just over 1 revolution for exit
+const GOLDEN_RATIO: f32 = 1.618034;
 
 #[derive(Debug)]
 pub struct FibonacciSpiralGallery<'a> {
     duration: f32,
     photo: &'a str,
-    photo_animation: PhotoAnimation,
-}
-
-// Store animation parameters for the photo
-#[derive(Debug)]
-struct PhotoAnimation {
+    base_photo_size: f32,
     fade_in_duration: f32,
     center_duration: f32,
     spiral_out_duration: f32,
-    spiral_angle: f32,
     spiral_direction: f32,
     max_spiral_radius: f32,
+    spiral_revolutions: f32,
 }
 
 impl Scene for FibonacciSpiralGallery<'_> {
+    fn overlap(&self) -> fframes::Overlap {
+        fframes::Overlap::Next(self.spiral_out_duration * 0.3)
+    }
+
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(self.duration)
     }
@@ -44,102 +42,104 @@ impl Scene for FibonacciSpiralGallery<'_> {
             return Svgr::empty();
         };
 
-        fframes::svgr!(
-            <defs>
-                // Drop shadow for photos
-                <filter id="photo-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="8" />
-                    <feOffset dx="3" dy="3" result="offsetblur" />
-                    <feComponentTransfer>
-                        <feFuncA type="linear" slope="0.3" />
-                    </feComponentTransfer>
-                    <feMerge>
-                        <feMergeNode />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-            </defs>
+        let original_width = image.metadata.width as f32;
+        let original_height = image.metadata.height as f32;
+        let aspect_ratio = original_width / original_height;
 
-            {
-                let animation = &self.photo_animation;
-                let total_animation_duration = animation.fade_in_duration + animation.center_duration + animation.spiral_out_duration;
+        let photo_width = if aspect_ratio > 1.0 {
+            self.base_photo_size
+        } else {
+            self.base_photo_size * aspect_ratio
+        };
 
-                if current_time <= total_animation_duration {
-                    let original_width = image.metadata.width as f32;
-                    let original_height = image.metadata.height as f32;
-                    let aspect_ratio = original_width / original_height;
+        let photo_height = if aspect_ratio > 1.0 {
+            self.base_photo_size / aspect_ratio
+        } else {
+            self.base_photo_size
+        };
 
-                    let photo_width = if aspect_ratio > 1.0 {
-                        BASE_PHOTO_SIZE
-                    } else {
-                        BASE_PHOTO_SIZE * aspect_ratio
-                    };
+        let mut opacity = 1.0;
+        let transform = if current_time < self.fade_in_duration {
+            let phase_progress = current_time / self.fade_in_duration;
+            opacity = phase_progress;
 
-                    let photo_height = if aspect_ratio > 1.0 {
-                        BASE_PHOTO_SIZE / aspect_ratio
-                    } else {
-                        BASE_PHOTO_SIZE
-                    };
-
-                    // Determine which phase of animation we're in
-                    let (x, y, scale, opacity, rotation) = if current_time < animation.fade_in_duration {
-                        // Phase 1: Fade in at center (no spiral)
-                        let phase_progress = current_time / animation.fade_in_duration;
-
-                        (
-                            center_x,
-                            center_y,
-                            0.7 + 0.3 * phase_progress, // Scale from 0.7 to 1.0
-                            phase_progress, // Opacity from 0.0 to 1.0
-                            0.0 // No rotation
-                        )
-                    } else if current_time < (animation.fade_in_duration + animation.center_duration) {
-                        (
-                            center_x,
-                            center_y,
-                            1.0, // Full scale
-                            1.0, // Full opacity
-                            0.0  // No rotation
-                        )
-                    } else {
-                        // Phase 3: Spiral out
-                        let phase_elapsed = current_time - animation.fade_in_duration - animation.center_duration;
-                        let phase_progress = phase_elapsed / animation.spiral_out_duration;
-
-                        // Calculate spiral position (from center to outside)
-                        let angle = animation.spiral_angle + animation.spiral_direction * phase_progress * SPIRAL_REVOLUTIONS * 2.0 * PI;
-                        let radius = animation.max_spiral_radius * phase_progress;
-
-                        let spiral_x = center_x + radius * angle.cos();
-                        let spiral_y = center_y + radius * angle.sin();
-
-                        let scale_factor = 1.0 - 0.7 * phase_progress; // Scale from 1.0 to 0.3
-                        let opacity_factor = 1.0 - phase_progress.powf(0.7);
-                        let rotation_factor = animation.spiral_direction * phase_progress * 25.0; // Gentle rotation
-
-                        (spiral_x, spiral_y, scale_factor, opacity_factor, rotation_factor)
-                    };
-
-                    fframes::svgr!(
-                        <g
-                            transform={format!("translate({}, {}) rotate({}) scale({})",
-                                x, y, rotation, scale)}
-                            filter="url(#photo-shadow)"
-                            opacity={opacity}
-                        >
-                            {image.render_framed(PhotoFrame {
-                                x: -photo_width / 2.0,
-                                y: -photo_height / 2.0,
-                                width: photo_width as u32,
-                                height: photo_height as u32,
-                                ..Default::default()
-                            })}
-                        </g>
-                    )
-                } else {
-                    Svgr::empty()
-                }
+            Transform {
+                translate_x: center_x as f64,
+                translate_y: center_y as f64,
+                scale: (0.7 + 0.3 * phase_progress as f64).into(),
+                ..Default::default()
             }
+        } else if current_time < (self.fade_in_duration + self.center_duration) {
+            Transform {
+                translate_x: center_x as f64,
+                translate_y: center_y as f64,
+                scale: 1.0.into(),
+                ..Default::default()
+            }
+        } else {
+            let phase_elapsed = current_time - self.fade_in_duration - self.center_duration;
+            let phase_progress = phase_elapsed / self.spiral_out_duration;
+
+            let growth_factor = phase_progress.powf(0.8);
+            opacity = 1.0 - phase_progress.powf(0.7);
+            let angle_progress = phase_progress.powf(0.6);
+
+            // this is the position of the spiral (θ) in radians
+            let theta = self.spiral_direction * angle_progress * self.spiral_revolutions * 2.0 * PI;
+
+            // The golden ratio growth factor b = ln(φ)/(2π)
+            let b = GOLDEN_RATIO.ln() / (2.0 * PI);
+            let base_radius = (b * theta.abs()).exp();
+            let max_radius_factor = (b * self.spiral_revolutions * 2.0 * PI).exp();
+
+            // Logarithmic Spiral Formula:
+            // r = a * e^(b*θ)
+            // where b is a the growth factor for the spiral movement
+            let spiral_radius =
+                self.max_spiral_radius * base_radius / max_radius_factor * growth_factor;
+
+            let start_blend = phase_progress.powf(0.3);
+            let radius = 0.1 * (1.0 - start_blend) + spiral_radius * start_blend;
+
+            // Convert to cartesian coordinates
+            let spiral_x = center_x + radius * theta.cos();
+            let spiral_y = center_y + radius * theta.sin();
+
+            Transform {
+                translate_x: spiral_x as f64,
+                translate_y: spiral_y as f64,
+                scale: (1.0 - 0.9 * phase_progress as f64).into(),
+                rotate: (self.spiral_direction as f64 * phase_progress as f64 * 25.0).into(),
+                ..Default::default()
+            }
+        };
+
+        fframes::svgr!(
+            <filter id="photo-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="8" />
+                <feOffset dx="3" dy="3" result="offsetblur" />
+                <feComponentTransfer>
+                    <feFuncA type="linear" slope="0.3" />
+                </feComponentTransfer>
+                <feMerge>
+                    <feMergeNode />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+
+            <g
+                transform={transform}
+                filter="url(#photo-shadow)"
+                opacity={opacity}
+            >
+                {image.render_framed(PhotoFrame {
+                    x: -photo_width / 2.0,
+                    y: -photo_height / 2.0,
+                    width: photo_width as u32,
+                    height: photo_height as u32,
+                    ..Default::default()
+                })}
+            </g>
         )
     }
 }
@@ -147,31 +147,29 @@ impl Scene for FibonacciSpiralGallery<'_> {
 impl<'a> FibonacciSpiralGallery<'a> {
     pub fn generate(rng: &mut impl Rng, tempo: f32, images: &mut RandomPhotos<'a>) -> Self {
         let photo = images.choose_one();
+        let base_photo_size = rng.gen_range(850..1000) as f32;
 
-        let fade_in_duration = tempo * rng.gen_range(1.0..1.5); // Simple fade in
-        let center_duration = tempo * rng.gen_range(2.0..3.0); // Time at center
-        let spiral_out_duration = tempo * rng.gen_range(2.5..3.5); // Spiral out duration
-
-        let spiral_angle = rng.gen_range(0.0..2.0 * PI);
+        let fade_in_duration = tempo * rng.gen_range(1..2) as f32;
+        let center_duration = tempo * rng.gen_range(2..3) as f32;
         let spiral_direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
 
-        let max_spiral_radius = rng.gen_range(250.0..350.0);
-        let photo_animation = PhotoAnimation {
-            fade_in_duration,
-            center_duration,
-            spiral_out_duration,
-            spiral_angle,
-            spiral_direction,
-            max_spiral_radius,
-        };
+        // the amount of full rotations the spiral will make
+        let spiral_revolutions = rng.gen_range(1.0..3.0);
+        let spiral_out_duration = tempo * spiral_revolutions * PI;
 
-        // Calculate total duration
-        let total_duration = fade_in_duration + center_duration + spiral_out_duration + 0.5;
+        let max_spiral_radius = rng.gen_range(350.0..650.0);
+        let total_duration = fade_in_duration + center_duration + spiral_out_duration;
 
         Self {
             duration: total_duration,
             photo,
-            photo_animation,
+            base_photo_size,
+            fade_in_duration,
+            center_duration,
+            spiral_out_duration,
+            spiral_direction,
+            max_spiral_radius,
+            spiral_revolutions,
         }
     }
 }

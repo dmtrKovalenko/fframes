@@ -16,18 +16,20 @@ fframes_renderer = { workspace = true, features = [
 	"h265",
 	"libav-agree-gpl",
 ] }
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "debug"] }
 
 [features]
+cpu = []
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-name = "hello_world_example"
+name = "pixel_memory_example"
 path = "src/lib.rs"
 doctest = false
 
 [[bin]]
-name = "hello_world_example_bin"
+name = "pixel_memory_example_bin"
 path = "src/main.rs"
 required-features = ["renderer"]

@@ -188,11 +188,7 @@ pub fn generate_bokeh(rng: &mut impl Rng, count: Range<usize>) -> Vec<BokehCircl
             opacity,
             &gradients,
             &filters,
-            map_to_heart_coordinates(
-                i + main_wave_count + secondary_wave_count,
-                count,
-                1.0,
-            ),
+            map_to_heart_coordinates(i + main_wave_count + secondary_wave_count, count, 1.0),
             rng,
         ));
     }
@@ -202,6 +198,7 @@ pub fn generate_bokeh(rng: &mut impl Rng, count: Range<usize>) -> Vec<BokehCircl
 
 // Add this implementation for BokehCircle
 impl BokehCircle {
+    #[allow(clippy::too_many_arguments)]
     fn create(
         cx: f64,
         cy: f64,

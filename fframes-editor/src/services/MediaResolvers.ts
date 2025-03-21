@@ -66,16 +66,19 @@ async function prepareFontMediaData(
     arrayBuffer: ArrayBuffer,
     name: string,
 ) {
-    let guaranteedFontName = fontInfo.name ?? name.replace(/\.[^/.]+$/, "");
-    const fontFace = new FontFace(guaranteedFontName, arrayBuffer);
+    if (!fontInfo.name || fontInfo.name === "") {
+        console.error("Failed to process font file", name)
+        return;
+    }
 
+    const fontFace = new FontFace(fontInfo.name, arrayBuffer);
     const loadedFont = await fontFace.load();
     document.fonts.add(loadedFont);
 
     return resolveMedia(name, {
         tag: "Font",
         value: {
-            name: guaranteedFontName,
+            name: fontInfo.name,
             style: fontInfo.style.toLowerCase(),
             weight: fontInfo.weight,
             unicodeRange: loadedFont.unicodeRange,

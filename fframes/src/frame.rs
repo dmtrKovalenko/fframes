@@ -204,7 +204,7 @@ impl Frame {
         &self,
         animation: &animation::KeyFramesAnimation<T>,
     ) -> T {
-        let current_second = &self.seconds() % &animation.total_duration;
+        let current_second = self.seconds() % animation.total_duration;
         self.animate_impl(animation, &current_second)
     }
 

@@ -1,6 +1,6 @@
 use crate::{PixelVideo, RandomPhotos};
 use fframes::{
-    Scene, Svgr, Video,
+    Rotate, Scene, Svgr, Transform, Video,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
 };
 use rand::Rng;
@@ -17,10 +17,6 @@ pub struct PolaroidDevelopment<'a> {
 }
 
 impl Scene for PolaroidDevelopment<'_> {
-    fn overlap(&self) -> fframes::Overlap {
-        fframes::Overlap::Next(0.5)
-    }
-
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::Seconds(self.duration)
     }
@@ -45,34 +41,18 @@ impl Scene for PolaroidDevelopment<'_> {
                         <feMergeNode in="SourceGraphic" />
                     </feMerge>
                 </filter>
-
-                // Clip path for development effect
-                {self.photos.iter().enumerate().map(|(i, _)| {
-                    fframes::svgr!(
-                        <clipPath id={format!("develop-clip-{}", i)}>
-                            <rect
-                                x="0"
-                                y="0"
-                                width="100%"
-                                height={format!("{}%", frame.animate(&self.development_animations[i]) * 100.0)}
-                            />
-                        </clipPath>
-                    )
-                }).collect::<Svgr>()}
             </defs>
 
-            // Polaroid photos
             {self.photos.iter().enumerate().filter_map(|(index, photo)| {
                 let image = ctx.get_image(photo)?;
 
                 let original_width = image.metadata.width as f32;
                 let original_height = image.metadata.height as f32;
 
-                // Constants for polaroid styling
                 const BORDER_SIZE: f32 = 30.0;
                 const CAPTION_HEIGHT: f32 = 70.0;
-                const MIN_PHOTO_DIMENSION: f32 = 250.0; // Slightly smaller minimum
-                const MAX_PHOTO_WIDTH: f32 = 650.0;     // Slightly smaller maximum
+                const MIN_PHOTO_DIMENSION: f32 = 250.0;
+                const MAX_PHOTO_WIDTH: f32 = 650.0;
 
                 let aspect_ratio = original_width / original_height;
 
@@ -96,7 +76,7 @@ impl Scene for PolaroidDevelopment<'_> {
                 let polaroid_width = photo_width + (BORDER_SIZE * 2.0);
                 let polaroid_height = photo_height + BORDER_SIZE + CAPTION_HEIGHT;
 
-                let (pos_x, pos_y, rotation) = frame.animate(&self.position_animations[index]);
+                let (translate_x, translate_y, rotation) = frame.animate(&self.position_animations[index]);
                 let shadow_opacity = frame.animate(&self.drop_shadow_animations[index]);
                 let development_progress = frame.animate(&self.development_animations[index]);
 
@@ -105,9 +85,16 @@ impl Scene for PolaroidDevelopment<'_> {
 
                 Some(fframes::svgr!(
                     <g
-                        transform={format!("translate({}, {}) rotate({}, {}, {})",
-                            pos_x, pos_y, rotation, center_x, center_y)}
-                        filter={"url(#polaroid-shadow)".to_string()}
+                        transform={Transform {
+                            translate_x: translate_x.into(),
+                            translate_y: translate_y.into(),
+                            rotate: Rotate {
+                                angle: rotation as f64,
+                                 origin: Some((center_x as f64, center_y as f64))
+                            },
+                            ..Default::default()
+                        }}
+                        filter="url(#polaroid-shadow)"
                         opacity={shadow_opacity}
                     >
                         <rect
@@ -120,25 +107,21 @@ impl Scene for PolaroidDevelopment<'_> {
                             stroke-width="1"
                         />
 
-                        // Photo area with development effect
-                        <g clip-path={format!("url(#develop-clip-{})", index)}>
-                            <rect
-                                x={BORDER_SIZE}
-                                y={BORDER_SIZE}
-                                width={photo_width}
-                                height={photo_height}
-                                fill="#f0f0f0"
-                            />
+                        <rect
+                            x={BORDER_SIZE}
+                            y={BORDER_SIZE}
+                            width={photo_width}
+                            height={photo_height}
+                            fill="#f0f0f0"
+                        />
 
-                            // The actual photo
-                            <image
-                                href={image.href()}
-                                x={BORDER_SIZE}
-                                y={BORDER_SIZE}
-                                width={photo_width}
-                                height={photo_height}
-                            />
-                        </g>
+                        <image
+                            href={image.href()}
+                            x={BORDER_SIZE}
+                            y={BORDER_SIZE}
+                            width={photo_width}
+                            height={photo_height}
+                        />
 
                         // White overlay that fades out during "development"
                         <rect
@@ -171,6 +154,7 @@ impl Scene for PolaroidDevelopment<'_> {
 
 impl<'a> PolaroidDevelopment<'a> {
     pub fn generate(rng: &mut impl Rng, tempo: f32, images: &mut RandomPhotos<'a>) -> Self {
+        const BLOW_OUT_DURATION: f32 = 0.5;
         let photo_count = rng.gen_range(4..=8);
         let photos = images.choose(photo_count);
 
@@ -180,7 +164,7 @@ impl<'a> PolaroidDevelopment<'a> {
             .collect::<Vec<_>>();
 
         let base_duration = tempo * 4.0;
-        let total_duration = base_duration * photo_count as f32 + rng.gen_range(1.0..2.0);
+        let total_duration = base_duration * photo_count as f32 + (tempo * rng.gen_range(1.0..2.0));
 
         let mut development_animations = Vec::new();
         let mut position_animations = Vec::new();
@@ -189,20 +173,11 @@ impl<'a> PolaroidDevelopment<'a> {
         let video_width = PixelVideo::WIDTH as f32;
         let video_height = PixelVideo::HEIGHT as f32;
 
-        let polaroid_sizes: Vec<(f32, f32)> = photos
-            .iter()
-            .map(|_| {
-                let estimated_width = 450.0 + rng.gen_range(60.0..80.0);
-                let estimated_height = 450.0 + rng.gen_range(80.0..120.0);
+        for (index, _) in photos.iter().enumerate() {
+            let polaroid_width: f32 = 450.0 + rng.gen_range(60.0..80.0);
+            let polaroid_height: f32 = 450.0 + rng.gen_range(80.0..120.0);
 
-                (estimated_width, estimated_height)
-            })
-            .collect();
-
-        for i in 0..photo_count {
-            let start_time = i as f32 * tempo * 3.0;
-
-            // Development animation (0.0 = white, 1.0 = fully developed)
+            let start_time = index as f32 * tempo * 3.0;
             development_animations.push(KeyFramesAnimation::new(vec![KeyFrame {
                 start: start_time,
                 end: Some(start_time + tempo * 2.0),
@@ -211,7 +186,6 @@ impl<'a> PolaroidDevelopment<'a> {
                 easing: &Easing::EaseOut,
             }]));
 
-            let (polaroid_width, polaroid_height) = polaroid_sizes[i];
             // Calculate safe boundaries to ensure polaroid stays fully in frame
             // Account for rotation by adding extra margin
             let rotation_margin = (polaroid_width.max(polaroid_height) * 0.2).max(50.0);
@@ -255,18 +229,21 @@ impl<'a> PolaroidDevelopment<'a> {
                 },
                 KeyFrame {
                     start: total_duration,
-                    end: Some(total_duration + 0.5),
+                    end: Some(total_duration + BLOW_OUT_DURATION),
                     from: last_position,
                     to: (
-                        if i % 2 == 0 { -2000.0 } else { 2000.0 },
-                        if i + i / 2 % 2 == 0 { -2000.0 } else { 2000.0 },
+                        if index % 2 == 0 { -2000.0 } else { 2000.0 },
+                        if index + index / 2 % 2 == 0 {
+                            -2000.0
+                        } else {
+                            2000.0
+                        },
                         last_position.2,
                     ),
                     easing: &Easing::EaseIn,
                 },
             ]));
 
-            // Shadow opacity animation
             drop_shadow_animations.push(KeyFramesAnimation::new(vec![KeyFrame {
                 start: start_time - 0.5,
                 end: Some(start_time + 0.5),
@@ -277,7 +254,7 @@ impl<'a> PolaroidDevelopment<'a> {
         }
 
         Self {
-            duration: total_duration,
+            duration: total_duration + BLOW_OUT_DURATION,
             photos,
             captions,
             development_animations,

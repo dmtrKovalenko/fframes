@@ -20,6 +20,7 @@ pub mod log;
 
 #[cfg(test)]
 mod tests;
+mod transform;
 mod video_data;
 
 pub use audio_data::*;
@@ -36,6 +37,7 @@ pub use scenes::*;
 pub use svgr::*;
 pub use svgr_macro::*;
 pub use text::*;
+pub use transform::*;
 pub use video::*;
 pub use video_data::*;
 

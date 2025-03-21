@@ -1,23 +1,12 @@
-use fframes::lazy_static::lazy_static;
 use fframes::{
-    AudioMap, FFramesContext, Frame, SampleSize, Svgr, Video, VisualizeFrameInput, animation,
+    AudioMap, FFramesContext, Frame, SampleSize, Svgr, Video, VisualizeFrameInput,
     center_spectrum_low_frequencies, svgr,
 };
 pub use tiktok_media::GooseMedia;
 
-const SPRING: animation::Easing = animation::Easing::Spring {
-    mass: 1.85,
-    stiffness: 130.,
-    damping: 16.,
-};
 const BAR_SIZE: usize = 30;
 const BAR_PADDING: usize = 20;
 const SPECTRUM_WIDTH: usize = 16 * (BAR_SIZE + BAR_PADDING) - BAR_PADDING;
-
-lazy_static! {
-    static ref SPRING_RUNTIME: animation::AnimationRuntime =
-        animation::AnimationRuntime::from(&SPRING);
-}
 
 #[derive(Debug)]
 pub struct GooseVideo<'a> {

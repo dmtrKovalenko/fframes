@@ -1,5 +1,5 @@
 pub use fframes::{AnimateRuntimeInput, AudioMap, Frame, Svgr, Video, animation};
-use fframes::{FFramesContext, VisualizeFrameInput, include_media_dir};
+use fframes::{FFramesContext, VisualizeFrameInput, animation::Easing, include_media_dir};
 
 const SPRING: animation::Easing = animation::Easing::Spring {
     mass: 1.85,
@@ -11,7 +11,7 @@ include_media_dir!(pub struct MarketingMedia, "examples/marketing/media");
 
 fframes::lazy_static::lazy_static! {
     static ref SPRING_RUNTIME: animation::AnimationRuntime =
-        animation::AnimationRuntime::new(None, &SPRING);
+        animation::AnimationRuntime::new(10., &SPRING);
 }
 
 struct SpectrumValue<'a> {
@@ -41,9 +41,14 @@ impl MarketingVideo<'_> {
                 width="400"
                 height="400"
                 x="1456"
-                y={frame.animate(fframes::timeline!(
-                    on 2.3, val 1400. => 770., animation::Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 },
-                    on 4.8, val 770. => 1400., animation::Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 }
+                y={frame.animate(&fframes::timeline!(
+                    at 2.3,
+                    animate 1400. => 770.,
+                    animation::Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 },
+
+                    at 4.8,
+                    animate 770. => 1400.,
+                    animation::Easing::Spring { mass: 1.85, stiffness: 130.0, damping: 16.0 }
                 ))}
                 xmlns="http://www.w3.org/2000/svg"
                 fill-rule="evenodd"
@@ -103,8 +108,8 @@ impl MarketingVideo<'_> {
                     <g
                         transform={format!("matrix(1,0,0,1,{},435.209)",
                             frame.animate(&fframes::timeline!(
-                                on 3.4, val 727. => 777., animation::Easing::Linear(0.25),
-                                on 4.1, val 777. => 727., animation::Easing::Linear(0.25)
+                                at 3.4 => 3.65, animate 727. => 777., animation::Easing::Linear,
+                                at 4.1 => 4.35, animate 777. => 727., animation::Easing::Linear
                             ))
                         )}
                     >
@@ -122,8 +127,8 @@ impl MarketingVideo<'_> {
                     <g
                         transform={format!("matrix(1,0,0,1,{},436.428)",
                             frame.animate(&fframes::timeline!(
-                                on 3.4, val 520. => 570., animation::Easing::Linear(0.25),
-                                on 4.1, val 570. => 520., animation::Easing::Linear(0.25)
+                                at 3.4 => 3.65, animate 520. => 570., animation::Easing::Linear,
+                                at 4.1 => 4.35 , animate 570. => 520., animation::Easing::Linear
                             ))
                         )}
                     >
@@ -347,9 +352,9 @@ impl Video for MarketingVideo<'_> {
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 598.3520004127504 417.989493060112"
                     width="298"
-                    opacity={frame.animate(fframes::timeline!(
-                        on 5.8, val 0. => 1., &animation::Easing::Spring { mass: 1.85, stiffness: 130., damping: 16. },
-                        on 9.0, val 1. => 0., &animation::Easing::Spring { mass: 1.85, stiffness: 130., damping: 16. }
+                    opacity={frame.animate(&fframes::timeline!(
+                        at 5.8, animate 0. => 1., animation::Easing::Spring { mass: 1.85, stiffness: 130., damping: 16. },
+                        at 9.0, animate 1. => 0., animation::Easing::Spring { mass: 1.85, stiffness: 130., damping: 16. }
                     ))}
                 >
                     <g stroke-linecap="round" transform="translate(12.76795062351539 11.630295608565234) rotate(0 286.4080495828598 197.36445092149077)">
@@ -378,9 +383,9 @@ impl Video for MarketingVideo<'_> {
                     width="900"
                     height="900"
                     href={self.media.code_png.href()}
-                    x={frame.animate(fframes::timeline!(
-                        on 5.8, val -1000. => 40., &animation::Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. },
-                        on 9.0, val 40. => -1200., &animation::Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. }
+                    x={frame.animate(&fframes::timeline!(
+                        at 5.8, animate -1000. => 40., Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. },
+                        at 9.0, animate 40. => -1200., Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. }
                     ))}
                     y="10"
                 />
@@ -391,16 +396,16 @@ impl Video for MarketingVideo<'_> {
                     cx={960}
                     fill="#fff"
                     cy="500"
-                    r={frame.animate(fframes::timeline!(
-                        on 16.2, val 0. => 1200.0, &animation::Easing::Linear(0.3)
+                    r={frame.animate(&fframes::timeline!(
+                        at 16.2 => 16.5, animate 0. => 1200.0, animation::Easing::Linear
                     ))}
                 />
 
-                {if frame.get_current_second() > 16.25 {
+                {if frame.seconds() > 16.25 {
                     fframes::svgr!(
                         <g>
                             <text x="960" y="570" font-family="Bubble Bobble" font-size="154" text-anchor="middle">
-                                <tspan fill={if frame.get_current_second() > 18.8 { "#7351d8" } else { "#000" }}>"ff"</tspan>"rames"
+                                <tspan fill={if frame.seconds() > 18.8 { "#7351d8" } else { "#000" }}>"ff"</tspan>"rames"
                             </text>
                             <text x="960" y="610" font-family="Chalkboard SE" font-size="30" text-anchor="middle">
                                 "Write some code. Get video. Enjoy!"
@@ -413,8 +418,8 @@ impl Video for MarketingVideo<'_> {
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
                                     stroke-miterlimit="10"
-                                    stroke-dashoffset={frame.animate(fframes::timeline!(
-                                        on 16.3, val -700. => 41.0, &animation::Easing::Linear(2.5)
+                                    stroke-dashoffset={frame.animate(&fframes::timeline!(
+                                        at 16.3 => 18.8, animate -700. => 41.0, animation::Easing::Linear
                                     ))}
                                     stroke-dasharray="40.4579px, 796.447px"
                                     d="M505,55c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50s-50,22.4-50,50c0-27.6-22.4-50-50-50S5,27.4,5,55"
@@ -425,17 +430,17 @@ impl Video for MarketingVideo<'_> {
                                     stroke-width="6"
                                     stroke-linecap="round"
                                     stroke-linejoin="round" opacity={frame.animate(
-                                        fframes::timeline!(
-                                            on 18.6, val 1. => 0.55, &animation::Easing::Linear(0.2)
+                                        &fframes::timeline!(
+                                            at 18.6 => 20.6, animate 1. => 0.55, Easing::Linear
                                         )
                                     )}
-                                    stroke-dashoffset={frame.animate(fframes::timeline!(
-                                        on 18.7, val -40. => 0.0, &animation::Easing::Linear(0.2)
+                                    stroke-dashoffset={frame.animate(&fframes::timeline!(
+                                        at 18.7 => 20.7, animate -40. => 0.0, Easing::Linear
                                     ))}
                                     stroke-dasharray={
-                                        format!("{}, 137px", frame.animate(
+                                        format!("{}, 137px", &frame.animate(
                                             &fframes::timeline!(
-                                                on 18.7, val 30.0 => 12.0, &animation::Easing::Linear(0.2)
+                                                at 18.7 => 20.7, animate 30.0 => 12.0, Easing::Linear
                                             )
                                         ))
                                     }

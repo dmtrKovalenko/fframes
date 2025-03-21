@@ -1,4 +1,4 @@
-use fframes::{FFramesContext, Frame, Scene, Svgr, animation, svgr};
+use fframes::{FFramesContext, Frame, Scene, Svgr, Transform, animation::Easing, svgr};
 
 #[derive(Debug)]
 pub struct CodeDemoScene {}
@@ -10,7 +10,7 @@ impl Scene for CodeDemoScene {
 
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
         let tilt_angle = frame.animate(&fframes::timeline!(
-          on 0.3, val -0.4 => 1.2, &animation::Easing::Linear(3.)
+          at 0.3, duration 3.0, animate -0.4 => 1.2, Easing::Linear
         ));
 
         svgr!(
@@ -18,18 +18,18 @@ impl Scene for CodeDemoScene {
              width="1023"
              x={
                 frame.animate(
-                    fframes::timeline!(
-                        on 0.2, val -500. => 50.0, &animation::Easing::Linear(0.3),
-                        on 0.5, val 50. => 65., &animation::Easing::Linear(2.6),
-                        on 3.8, val 65. => -2000., &animation::Easing::Linear(0.2)
+                    &fframes::timeline!(
+                        at 0.2, animate -500. => 50.0, Easing::Linear,
+                        at 0.5, animate 50. => 65., Easing::Linear,
+                        at 3.8 => 4.0, animate 65. => -2000., Easing::Linear
                     )
                 )
              }
              y="50"
-             transform={format!("skewX({tilt_angle}), skewY({y})", y=-tilt_angle + 0.4)}
+             transform={Transform::skew(tilt_angle, -tilt_angle + 0.4)}
              href={ctx.get_image("code.png").expect("Do not panic in real code").href()}
-             opacity={frame.animate(fframes::timeline!(
-               on 0.3, val 0. => 1., &animation::Easing::Linear(0.5)
+             opacity={frame.animate(&fframes::timeline!(
+               at 0.3, duration 0.5, animate 0. => 1., Easing::Linear
              ))}
           />
 
@@ -38,9 +38,9 @@ impl Scene for CodeDemoScene {
             width="500"
             height="500"
             x={
-              frame.animate(fframes::timeline!(
-                on 0.0, val 2444. => 1245., animation::Easing::Spring{ mass: 1.45, stiffness: 130.0, damping: 20.0 },
-                on 3.8, val 1245. => 3920., &animation::Easing::Linear(0.2)
+              frame.animate(&fframes::timeline!(
+                at 0.0, animate 2444. => 1245., Easing::Spring{ mass: 1.45, stiffness: 130.0, damping: 20.0 },
+                at 3.8 => 4.0, animate 1245. => 3920., Easing::Linear
               ))
             }
             y="250"
@@ -95,10 +95,10 @@ impl Scene for CodeDemoScene {
                 <path
                     transform={format!("matrix(1,0,0,1,{},435.209)",
                         frame.animate(&fframes::timeline!(
-                            on 1.4, val 727. => 777., animation::Easing::Linear(0.14),
-                            on 1.7, val 777. => 727., animation::Easing::Linear(0.14),
-                            on 1.9, val 727. => 777., animation::Easing::Linear(0.14),
-                            on 2.1, val 777. => 727., animation::Easing::Linear(0.14)
+                            at 1.4, duration 0.14, animate 727. => 777., Easing::Linear,
+                            at 1.7, duration 0.14, animate 777. => 727., Easing::Linear,
+                            at 1.9, duration 0.14, animate 727. => 777., Easing::Linear,
+                            at 2.1, duration 0.14, animate 777. => 727., Easing::Linear
                         ))
                     )}
                     d="M0,0.002C0,18.543 -10.93,33.574 -24.408,33.574C-37.885,33.574 -48.814,18.543 -48.814,0.002C-48.814,-18.539 -37.885,-33.572 -24.408,-33.572C-10.93,-33.572 0,-18.539 0,0.002"
@@ -114,10 +114,10 @@ impl Scene for CodeDemoScene {
                 <g
                   transform={format!("matrix(1,0,0,1,{},436.428)",
                    frame.animate(&fframes::timeline!(
-                        on 1.4, val 520. => 570., animation::Easing::Linear(0.1),
-                        on 1.7, val 570. => 520., animation::Easing::Linear(0.1),
-                        on 1.9, val 520. => 570., animation::Easing::Linear(0.1),
-                        on 2.1, val 570. => 520., animation::Easing::Linear(0.1)
+                        at 1.4, animate 520. => 570., Easing::Linear,
+                        at 1.7, animate 570. => 520., Easing::Linear,
+                        at 1.9, animate 520. => 570., Easing::Linear,
+                        at 2.1 => 2.3, animate 570. => 520., Easing::Linear
                     ))
                   )}
                 >

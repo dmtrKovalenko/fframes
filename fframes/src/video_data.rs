@@ -201,7 +201,6 @@ impl VideoDecodersWorker {
         options: &SyncVideoFrameInput,
     ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
         let Some(fallback_image) = options.editor_fallback_image else {
-            crate::log!("WHAT THE FUCK");
             return Ok(None);
         };
 

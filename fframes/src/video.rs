@@ -101,7 +101,10 @@ impl<'a> ResolvedScenesTimeline<'a> {
                 *scene,
             ));
 
-            final_duration += duration;
+            // the scene duration is reuded by any overlap but we should be careful with the scenes
+            // that have the overlap larger than the scene duration itself
+            final_duration =
+                (final_duration + duration).saturating_sub(overlap_prev + overlap_next);
         }
 
         Ok(ResolvedScenesTimeline {

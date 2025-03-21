@@ -39,8 +39,8 @@ impl Scene for PixelSingleVideoScene<'_> {
         let image = video_frame.into_image();
 
         let opacity = frame.animate(&timeline!(
-            at 0. => 0.5, 0. => 1., Easing::EaseIn,
-            at video_duration - 0.5 => video_duration, 1. => 0., Easing::EaseOut,
+            at 0. => 0.5, animate 0. => 1., Easing::EaseIn,
+            at video_duration - 0.5 => video_duration, animate 1. => 0., Easing::EaseOut,
         ));
 
         let scale_factor = image.metadata.height as f64 / 1080.;
@@ -54,27 +54,7 @@ impl Scene for PixelSingleVideoScene<'_> {
                         <filter id="blur-effect">
                             <feGaussianBlur in="SourceGraphic" stdDeviation="30" />
                         </filter>
-                        <mask id="edge-mask">
-                            <rect x="0" y="0" width="1920" height="1080" fill="white" />
-                            <rect
-                                x={center_x}
-                                y="0"
-                                width={scaled_width}
-                                height="1080"
-                                fill="black"
-                            />
-                        </mask>
                     </defs>
-
-                    <image
-                        id="main-image"
-                        x={center_x}
-                        y="0"
-                        width={scaled_width}
-                        height="1080"
-                        href={image.href()}
-                        opacity={opacity}
-                    />
 
                     <image
                         href={image.href()}
@@ -85,7 +65,16 @@ impl Scene for PixelSingleVideoScene<'_> {
                         preserveAspectRatio="xMidYMid slice"
                         opacity={opacity * 0.7}
                         filter="url(#blur-effect)"
-                        mask="url(#edge-mask)"
+                    />
+
+                    <image
+                        id="main-image"
+                        y="0"
+                        x={center_x}
+                        width={scaled_width}
+                        height="1080"
+                        href={image.href()}
+                        opacity={opacity}
                     />
                 </g>
             )

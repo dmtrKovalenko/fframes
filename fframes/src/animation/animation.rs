@@ -199,8 +199,12 @@ impl<T: Animatable + Copy + Default> KeyFramesAnimation<T> {
                 let tween_duration = match (tween.end, next_start) {
                     (Some(end), _) => end - tween.start,
                     (None, Some(next_start)) => next_start - tween.start,
+                    // easing is a specific use case, we can infer the duration of a tween based on
+                    // the parameters of the easing function. Defined duration just truncates the
+                    // animation
+                    (None, None) if matches!(tween.easing, Easing::Spring { .. }) => f32::MAX,
                     (None, None) => {
-                        crate::log!("WARN: no end time was provided on the last tween and impossible to info the value from the duration. Skipping last keyframe");
+                        crate::log!("WARN: for a last kefyrame starting at {:?} there is no duration defined. Skipping", tween.start);
 
                         return vec![];
                     },
@@ -224,7 +228,7 @@ impl<T: Animatable + Copy + Default> KeyFramesAnimation<T> {
                         let filler_keyframe = Tween {
                             from: keyframe.to,
                             to: keyframe.to,
-                            animation_runtime: AnimationRuntime::Linear(
+                            animation_runtime: AnimationRuntime::Static(
                                 filler_keyframe_range.end - filler_keyframe_range.start,
                             ),
                             seconds_range: filler_keyframe_range,
@@ -267,7 +271,7 @@ impl<T: Animatable + Copy + Default> KeyFramesAnimation<T> {
 
 #[macro_export]
 macro_rules! timeline {
-    ($(at $start:expr $(=> $end:expr)?, $from:expr => $to:expr, $easing:expr),+ $(,)?) => {
+    ($(at $start:expr $(=> $end:expr)?, animate $from:expr => $to:expr, $easing:expr),+ $(,)?) => {
         fframes::animation::KeyFramesAnimation::new(vec![
             $(
                 fframes::animation::KeyFrame {
@@ -279,6 +283,30 @@ macro_rules! timeline {
                 },
             )+
         ])
+    };
+
+    ($(at $start:expr $(, duration $duration:expr)?, animate $from:expr => $to:expr, $easing:expr),+ $(,)?) => {
+        fframes::animation::KeyFramesAnimation::new(vec![
+            $(
+                fframes::animation::KeyFrame {
+                    start: $start,
+                    end: $crate::option_duration!($start, $($duration)?),
+                    from: $from,
+                    to: $to,
+                    easing: &$easing,
+                },
+            )+
+        ])
+    };
+}
+
+#[macro_export]
+macro_rules! option_duration {
+    ($start: expr) => {
+        None
+    };
+    ($start: expr, $end:expr) => {
+        Some($start + $end)
     };
 }
 

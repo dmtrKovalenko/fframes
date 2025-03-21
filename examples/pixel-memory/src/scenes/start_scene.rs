@@ -1,18 +1,18 @@
 use fframes::{BreakLinesOpts, Scene, animation::Easing, timeline};
 
 #[derive(Debug)]
-pub struct StartScene {
-    pub text: &'static str,
+pub struct StartScene<'a> {
+    pub text: &'a str,
     pub duration: f32,
 }
 
-impl Scene for StartScene {
+impl Scene for StartScene<'_> {
     fn overlap(&self) -> fframes::Overlap {
-        fframes::Overlap::Next(self.duration)
+        fframes::Overlap::Next(3.0)
     }
 
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::Seconds(3.0)
+        fframes::Duration::Seconds(self.duration)
     }
 
     fn render_frame<'a>(
@@ -23,7 +23,7 @@ impl Scene for StartScene {
         frame
             .text_break_lines(
                 ctx,
-                &self.text,
+                self.text,
                 BreakLinesOpts {
                     x: "50%",
                     y: "30%",
@@ -35,10 +35,9 @@ impl Scene for StartScene {
                     width: 1600,
                     line_height: 1.1,
                     opacity: frame.animate(&timeline!(
-                        at (self.duration - 3.0) => self.duration, 1.0 => 0.0, Easing::EaseOut
+                        at (self.duration - 3.0) => self.duration, animate 1.0 => 0.0, Easing::EaseOut
                     )),
-                    ..Default::default()
-                },
+                    ..Default::default() },
             )
             .unwrap_or_default()
     }

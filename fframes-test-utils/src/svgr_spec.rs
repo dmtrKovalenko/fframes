@@ -343,9 +343,9 @@ pub fn macro_animations() {
 
             <rect
                 x={frame.animate(fframes::timeline!(
-                  at 0., 10.0 => 12.2, animation::Easing::Linear,
-                  at 10., 10.0 => 12.2, animation::Easing::Linear,
-                  at 12. => 12.2, 10.0 => 12.2, animation::Easing::Linear
+                  at 0., animate 10.0 => 12.2, animation::Easing::Linear,
+                  at 10., animate 10.0 => 12.2, animation::Easing::Linear,
+                  at 12. => 12.2, animate 10.0 => 12.2, animation::Easing::Linear
                 ))}
             />
           </svg>

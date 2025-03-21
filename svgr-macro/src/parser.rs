@@ -1,10 +1,12 @@
 use proc_macro2::{Span, TokenStream, TokenTree};
+use quote::quote;
 use std::{cell::RefCell, rc::Rc};
 use syn::{
     braced,
     ext::IdentExt,
     parse::{discouraged::Speculative, Parse, ParseStream, Peek},
     punctuated::Punctuated,
+    spanned::Spanned,
     token::{Brace, Colon, PathSep},
     Block, Error, Expr, ExprBlock, ExprLit, ExprPath, Ident, Path, PathArguments, PathSegment,
     Result, Stmt, Token,
@@ -135,95 +137,126 @@ impl Parser<'_> {
         }
     }
 
-    fn process_block(&self, statements: &[Stmt]) -> Option<Vec<Stmt>> {
-        use quote::quote;
+    fn is_timeline_macro(&self, macro_expr: &syn::ExprMacro) -> bool {
+        macro_expr
+            .mac
+            .path
+            .segments
+            .iter()
+            .any(|segment| segment.ident == "timeline")
+    }
+
+    fn process_block(&self, statements: &[Stmt]) -> Result<Option<Vec<Stmt>>> {
         use Stmt::*;
 
         let first_statement = (statements.len() == 1).then(|| &statements[0]);
         if let Some(Expr(syn::Expr::MethodCall(method_call), _)) = first_statement {
-            if method_call.method == "animate" && method_call.args.len() == 1 {
-                match &method_call.args[0] {
-                    syn::Expr::Macro(macro_expr)
-                        if macro_expr
-                            .mac
-                            .path
-                            .segments
-                            .iter()
-                            .any(|segment| segment.ident == "timeline") =>
-                    {
-                        let mut punctuated = Punctuated::new();
-
-                        punctuated.push(PathSegment {
-                            ident: Ident::new(
-                                &format!(
-                                    "ANIMATION_{}",
-                                    uuid::Uuid::new_v4().simple().to_string().to_uppercase()
-                                ),
-                                Span::call_site(),
-                            ),
-                            arguments: PathArguments::None,
-                        });
-
-                        let identifier = syn::Expr::Path(ExprPath {
-                            path: Path {
-                                leading_colon: None,
-                                segments: punctuated,
-                            },
-                            attrs: vec![],
-                            qself: None,
-                        });
-
-                        let fframes_crate_ident = self.fframes_crate_ident;
-                        let first_animation_value = macro_expr
-                            .mac
-                            .tokens
-                            .clone()
-                            .into_iter()
-                            .skip_while(|el| match el {
-                                proc_macro2::TokenTree::Ident(ident) => *ident != ":",
-                                _ => true,
-                            })
-                            .nth(1);
-
-                        // We only support the color and f32 as animation params so here we are doing a very unsafe assumption that
-                        // any literal is an f32 and everything else is a color. I do not want to pass additional types at to the macro
-                        // so let's check how it will work for now and would real users have any problems with this.
-                        let animation_type =  match first_animation_value {
-                            Some(proc_macro2::TokenTree::Punct(val)) if val.as_char() == '-' => quote! { f32 },
-                            Some(proc_macro2::TokenTree::Literal(_)) => quote! { f32 },
-                            Some(proc_macro2::TokenTree::Ident(_)) => quote! { #fframes_crate_ident::Color },
-                            _ => panic!("Can not infer the type of animation value. Did you set something else than `f32` or `fframes::Color` as the animation value? {:?}", first_animation_value),
-                        };
-
-                        self.animation_attributes.borrow_mut().push(quote::quote! {
-                            static ref #identifier: #fframes_crate_ident::animation::KeyFramesAnimation<#animation_type> = #macro_expr;
-                        });
-
-                        let mut processed_method_call = method_call.clone();
-                        processed_method_call.args = method_call
-                            .args
-                            .iter()
-                            .map(|_| {
-                                syn::Expr::Reference(syn::ExprReference {
-                                    and_token: Default::default(),
-                                    attrs: Default::default(),
-                                    mutability: None,
-                                    expr: Box::new(identifier.clone()),
-                                })
-                            })
-                            .collect();
-
-                        return Some(vec![syn::Stmt::Expr(
-                            syn::Expr::MethodCall(processed_method_call),
-                            None,
-                        )]);
-                    }
-                    _ => (),
-                }
+            if method_call.method != "animate" || method_call.args.len() != 1 {
+                return Ok(None);
             }
+
+            let macro_expr = match &method_call.args[0] {
+                syn::Expr::Macro(macro_expr) => {
+                    if self.is_timeline_macro(macro_expr) {
+                        macro_expr
+                    } else {
+                        return Ok(None);
+                    }
+                }
+                syn::Expr::Reference(ref_expr) => {
+                    if let syn::Expr::Macro(macro_expr) = &*ref_expr.expr {
+                        if self.is_timeline_macro(macro_expr) {
+                            macro_expr
+                        } else {
+                            return Ok(None);
+                        }
+                    } else {
+                        return Ok(None);
+                    }
+                }
+                _ => return Ok(None),
+            };
+
+            let mut punctuated = Punctuated::new();
+            punctuated.push(PathSegment {
+                ident: Ident::new(
+                    &format!(
+                        "ANIMATION_{}",
+                        uuid::Uuid::new_v4().simple().to_string().to_uppercase()
+                    ),
+                    Span::call_site(),
+                ),
+                arguments: PathArguments::None,
+            });
+
+            let identifier = syn::Expr::Path(ExprPath {
+                path: Path {
+                    leading_colon: None,
+                    segments: punctuated,
+                },
+                attrs: vec![],
+                qself: None,
+            });
+
+            let fframes_crate_ident = self.fframes_crate_ident;
+            let first_animation_value = macro_expr
+                .mac
+                .tokens
+                .clone()
+                .into_iter()
+                .skip_while(|el| match el {
+                    proc_macro2::TokenTree::Ident(ident) => *ident != "animate",
+                    _ => true,
+                })
+                .nth(1);
+
+            // We only support the color and f32 as animation params so here we are doing a very unsafe assumption that
+            // any literal is an f32 and everything else is a color. I do not want to pass additional types at to the macro
+            // so let's check how it will work for now and would real users have any problems with this.
+            let animation_type = match first_animation_value {
+                Some(proc_macro2::TokenTree::Punct(val)) if val.as_char() == '-' => quote! { f32 },
+                Some(proc_macro2::TokenTree::Literal(_)) => quote! { f32 },
+                Some(proc_macro2::TokenTree::Ident(ident)) if ident.to_string().contains("Color") => quote! { #fframes_crate_ident::Color },
+                Some(proc_macro2::TokenTree::Ident(ident)) if ident.to_string().contains("Transform") => quote! { #fframes_crate_ident::Transform },
+                Some(any_token_tree) => {
+                    return Err(Error::new(
+                        any_token_tree.span(),
+                        "In the svgr macro inline attribute animations only f32 and built-in animatable types **literals** are supported. If you are using your own animatable type or runtime value, please move the animation out to the self or lazy_static block."
+                    ));
+                },
+                _ => {
+                    return Err(Error::new(
+                        method_call.span(),
+                        "Failed to optimize the animation block, seems like the timeline! syntax is off or the animatable values are not literals"
+                    ))
+                }
+            };
+
+            self.animation_attributes.borrow_mut().push(quote::quote! {
+                static ref #identifier: #fframes_crate_ident::animation::KeyFramesAnimation<#animation_type> = #macro_expr;
+            });
+
+            let mut processed_method_call = method_call.clone();
+            processed_method_call.args = method_call
+                .args
+                .iter()
+                .map(|_| {
+                    syn::Expr::Reference(syn::ExprReference {
+                        and_token: Default::default(),
+                        attrs: Default::default(),
+                        mutability: None,
+                        expr: Box::new(identifier.clone()),
+                    })
+                })
+                .collect();
+
+            return Ok(Some(vec![syn::Stmt::Expr(
+                syn::Expr::MethodCall(processed_method_call),
+                None,
+            )]));
         }
 
-        None
+        Ok(None)
     }
 
     fn block_expr(&self, input: ParseStream) -> Result<(Expr, NodeType)> {
@@ -365,7 +398,7 @@ impl Parser<'_> {
         let brace_token = braced!(content in input);
         let statements = Block::parse_within(&content)?;
         let statements = self
-            .process_block(statements.as_slice())
+            .process_block(statements.as_slice())?
             .unwrap_or(statements);
 
         let expr = Expr::Block(ExprBlock {

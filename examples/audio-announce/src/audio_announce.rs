@@ -79,15 +79,7 @@ impl Video for AudioAnnounce<'_> {
         const AVATAR_Y: usize = 100;
 
         let video_frame = {
-            frame.get_synced_video_frame(
-                ctx,
-                "video.mp4",
-                &fframes::SyncVideoFrameInput {
-                    start_from: 0,
-                    looping: false,
-                    editor_fallback_image: None,
-                },
-            )
+            frame.get_synced_video_frame(ctx, "video.mp4", &fframes::SyncVideoFrameInput::default())
         };
 
         let visualisation = frame.visualize_audio_frame(VisualizeFrameInput {

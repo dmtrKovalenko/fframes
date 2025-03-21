@@ -83,6 +83,12 @@ impl<'a> From<Vec<&'a dyn Scene>> for Scenes<'a> {
     }
 }
 
+impl<'a, T: AsRef<dyn Scene + 'a>> From<&'a [T]> for Scenes<'a> {
+    fn from(arr: &'a [T]) -> Self {
+        Self(Some(arr.iter().map(|s| s.as_ref()).collect()))
+    }
+}
+
 #[derive(Debug)]
 pub struct SceneWithAudio<'a> {
     pub audio_map: AudioMap<'a>,

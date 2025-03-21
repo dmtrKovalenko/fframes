@@ -1,7 +1,7 @@
 use crate::Chapter;
 use crate::{constants::*, create_transition_keyframes_for_chapters};
 use fframes::animation::KeyFramesAnimation;
-use fframes::{AudioMap, FFramesContext, FFramesSyncedVideoFrame, Frame, Video};
+use fframes::{AudioMap, FFramesContext, FFramesSyncedVideoFrame, Frame, Transform, Video};
 
 #[derive(Debug)]
 pub struct TeejPodcast<'a> {
@@ -42,8 +42,9 @@ impl Video for TeejPodcast<'_> {
                 ctx,
                 "left.mp4",
                 &fframes::SyncVideoFrameInput {
-                    start_from: 0,
+                    start_from: 0.,
                     looping: false,
+                    editor_fallback_image: ctx.get_image("left.jpg"),
                 },
             )
             .map(|fr| fr.into_image());
@@ -53,8 +54,9 @@ impl Video for TeejPodcast<'_> {
                 ctx,
                 "right.mp4",
                 &fframes::SyncVideoFrameInput {
-                    start_from: 0,
+                    start_from: 0.,
                     looping: false,
+                    editor_fallback_image: ctx.get_image("right.jpg"),
                 },
             )
             .map(|fr| fr.into_image());
@@ -155,7 +157,7 @@ impl Video for TeejPodcast<'_> {
                         fill="#E5484D"
                         rx="5"
                         ry="5"
-                        transform={format!("translate(0, {})", frame.animate(&self.chapters_animation))}
+                        transform={Transform::translate(0, frame.animate(&self.chapters_animation))}
                     />
 
                     // The text is rendered on top of either highlighter or rectangle

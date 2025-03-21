@@ -1,6 +1,6 @@
 use crate::bokeh_background::BokehCircle;
 use fframes::{
-    AnimateRuntimeInput, AudioMap, FFramesContext, Frame, Scene, Scenes, Svgr, Video,
+    AnimateRuntimeInput, AudioMap, FFramesContext, Frame, Scene, Scenes, Svgr, Transform, Video,
     animation::{AnimationRuntime, Easing},
     include_media_dir,
     lazy_static::lazy_static,
@@ -23,16 +23,11 @@ impl Video for PixelVideo<'_> {
     const HEIGHT: usize = 1080;
 
     fn duration(&self) -> fframes::Duration {
-        fframes::Duration::FromAudio(self.music)
+        fframes::Duration::Seconds(self.total_duration)
     }
 
     fn define_scenes(&self) -> Scenes {
-        Scenes::from(
-            self.scenes
-                .iter()
-                .map(|scene| scene.as_ref())
-                .collect::<Vec<&dyn Scene>>(),
-        )
+        Scenes::from(self.scenes.as_slice())
     }
 
     fn audio(&self) -> AudioMap {
@@ -43,33 +38,33 @@ impl Video for PixelVideo<'_> {
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         let deviation1 = frame.animate_loop(&fframes::timeline!(
-            at 0.0, 0.0 => 20.0, Easing::Linear,
-            at 2.8, 20.0 => 0.0, Easing::Linear,
-            at 5.3, 0.0 => -20.0, Easing::Linear,
-            at 7.9, -20.0 => 0.0, Easing::Linear,
-            at 10.4, 0.0 => 20.0, Easing::Linear,
-            at 13.1, 20.0 => -20.0, Easing::Linear,
-            at 15.7, -20.0 => 0.0, Easing::Linear,
-            at 18.2, 0.0 => 20.0, Easing::Linear,
-            at 20.9, 20.0 => 0.0, Easing::Linear,
-            at 23.5, 0.0 => -20.0, Easing::Linear,
-            at 26.1 => 28.7, -20.0 => 0.0, Easing::Linear,
+            at 0.0, animate 0.0 => 20.0, Easing::Linear,
+            at 2.8, animate 20.0 => 0.0, Easing::Linear,
+            at 5.3, animate 0.0 => -20.0, Easing::Linear,
+            at 7.9, animate-20.0 => 0.0, Easing::Linear,
+            at 10.4,animate 0.0 => 20.0, Easing::Linear,
+            at 13.1,animate 20.0 => -20.0, Easing::Linear,
+            at 15.7,animate -20.0 => 0.0, Easing::Linear,
+            at 18.2,animate 0.0 => 20.0, Easing::Linear,
+            at 20.9,animate 20.0 => 0.0, Easing::Linear,
+            at 23.5,animate 0.0 => -20.0, Easing::Linear,
+            at 26.1 => 28.7, animate -20.0 => 0.0, Easing::Linear,
         ));
 
         let deviation2 = frame.animate_loop(&fframes::timeline!(
-            at 0.0, 0.0 => 20.0, Easing::Linear,
-            at 2.3, 20.0 => 0.0, Easing::Linear,
-            at 4.9, 0.0 => -20.0, Easing::Linear,
-            at 7.2, -20.0 => 0.0, Easing::Linear,
-            at 9.8, 0.0 => 20.0, Easing::Linear,
-            at 12.1, 20.0 => -20.0, Easing::Linear,
-            at 14.7, -20.0 => 0.0, Easing::Linear,
-            at 17.3, 0.0 => 20.0, Easing::Linear,
-            at 19.6, 20.0 => 0.0, Easing::Linear,
-            at 22.2, 0.0 => -20.0, Easing::Linear,
-            at 24.5, -20.0 => 0.0, Easing::Linear,
-            at 27.1, 0.0 => 20.0, Easing::Linear,
-            at 29.8 => 32.0, 20.0 => 0.0, Easing::Linear,
+            at 0.0,animate 0.0 => 20.0, Easing::Linear,
+            at 2.3,animate 20.0 => 0.0, Easing::Linear,
+            at 4.9,animate 0.0 => -20.0, Easing::Linear,
+            at 7.2,animate -20.0 => 0.0, Easing::Linear,
+            at 9.8,animate 0.0 => 20.0, Easing::Linear,
+            at 12.1,animate  20.0 => -20.0, Easing::Linear,
+            at 14.7,animate  -20.0 => 0.0, Easing::Linear,
+            at 17.3,animate  0.0 => 20.0, Easing::Linear,
+            at 19.6,animate  20.0 => 0.0, Easing::Linear,
+            at 22.2,animate  0.0 => -20.0, Easing::Linear,
+            at 24.5,animate  -20.0 => 0.0, Easing::Linear,
+            at 27.1,animate  0.0 => 20.0, Easing::Linear,
+            at 29.8 => 32.0, animate 20.0 => 0.0, Easing::Linear,
         ));
 
         fframes::svgr!(
@@ -121,7 +116,7 @@ impl Video for PixelVideo<'_> {
                     cx={
                       frame.animate_runtime(
                         AnimateRuntimeInput {
-                          on_second: (self.total_duration - 6.0).max(0.0),
+                          on_second: (self.total_duration - 5.0).max(0.0),
                           from: circle.cx,
                           to: heart_x,
                           animation_runtime: &HEART_RUNTIME
@@ -131,8 +126,8 @@ impl Video for PixelVideo<'_> {
                     cy={
                       frame.animate_runtime(
                         AnimateRuntimeInput {
-                          on_second: (self.total_duration - 6.0).max(0.0),
-                          from: circle.cy,
+                        on_second: (self.total_duration - 5.0).max(0.0),
+                        from: circle.cy,
                           to: heart_y,
                           animation_runtime: &HEART_RUNTIME
                         }
@@ -143,18 +138,18 @@ impl Video for PixelVideo<'_> {
                     fill={circle.fill.as_str()}
                     filter={circle.filter.as_str()}
                     transform={
-                      format!(
-                        "translate({}, {})",
-                        deviation * circle.amplitude_factor_x,
-                        deviation * circle.amplitude_factor_y
-                      )
+                      Transform {
+                        translate_x: deviation * circle.amplitude_factor_x,
+                        translate_y: deviation * circle.amplitude_factor_y,
+                        ..Default::default()
+                      }
                     }
                   />
                 )
               }).collect::<Svgr>()}
             </g>
 
-            {ctx.render_scenes(&frame)}
+           {ctx.render_scenes(&frame)}
           </svg>
         )
     }

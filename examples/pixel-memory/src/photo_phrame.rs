@@ -1,4 +1,4 @@
-use fframes::{Color, media::ImageData};
+use fframes::{Color, Transform, media::ImageData};
 
 pub struct PhotoFrame {
     pub x: f32,
@@ -10,7 +10,7 @@ pub struct PhotoFrame {
     pub rx: u32,
     pub ry: u32,
     pub opacity: f32,
-    pub transform: String,
+    pub transform: Transform,
     pub transform_origin: String,
 }
 
@@ -26,7 +26,7 @@ impl Default for PhotoFrame {
             rx: 0,
             ry: 0,
             opacity: 1.0,
-            transform: "".to_string(),
+            transform: Transform::default(),
             transform_origin: "".to_string(),
         }
     }
@@ -49,7 +49,7 @@ impl FramedImage for ImageData {
                 stroke={frame.stroke_color}
                 stroke-width={frame.stroke_width}
                 opacity={frame.opacity}
-                transform={frame.transform.clone()}
+                transform={frame.transform}
                 transform-origin={frame.transform_origin.clone()}
             />
 

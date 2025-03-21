@@ -1,6 +1,6 @@
 use crate::{FramedImage, PhotoFrame, PixelVideo, RandomPhotos};
 use fframes::{
-    Scene, Svgr, Video,
+    Scene, Svgr, Transform, Video,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
 };
 use rand::Rng;
@@ -9,8 +9,7 @@ use rand::Rng;
 pub struct SinglePhotoFloat<'a> {
     duration: f32,
     photo: &'a str,
-    position_animation: KeyFramesAnimation<(f32, f32)>,
-    scale_animation: KeyFramesAnimation<f32>,
+    transform_animation: KeyFramesAnimation<Transform>,
     rotation_animation: KeyFramesAnimation<f32>,
 }
 
@@ -18,7 +17,7 @@ const BASE_PHOTO_SIZE: f32 = 700.0;
 
 impl Scene for SinglePhotoFloat<'_> {
     fn overlap(&self) -> fframes::Overlap {
-        fframes::Overlap::Next(0.2)
+        fframes::Overlap::Next(0.4)
     }
 
     fn duration(&self) -> fframes::Duration {
@@ -30,13 +29,9 @@ impl Scene for SinglePhotoFloat<'_> {
         frame: fframes::Frame,
         ctx: &fframes::FFramesContext<'a, '_>,
     ) -> fframes::Svgr<'a> {
-        let Some(image) = ctx.get_image(&self.photo) else {
+        let Some(image) = ctx.get_image(self.photo) else {
             return Svgr::empty();
         };
-
-        let (x, y) = frame.animate(&self.position_animation);
-        let scale = frame.animate(&self.scale_animation);
-        let rotation = frame.animate(&self.rotation_animation);
 
         let original_width = image.metadata.width as f32;
         let original_height = image.metadata.height as f32;
@@ -46,17 +41,18 @@ impl Scene for SinglePhotoFloat<'_> {
             BASE_PHOTO_SIZE
         } else {
             BASE_PHOTO_SIZE * aspect_ratio
-        };
+        } as f64;
 
         let photo_height = if aspect_ratio > 1.0 {
             BASE_PHOTO_SIZE / aspect_ratio
         } else {
             BASE_PHOTO_SIZE
-        };
+        } as f64;
 
-        let x = x - photo_width / 2.0;
-        let y = y - photo_height / 2.0;
-        let transform = format!("translate({x}, {y}) rotate({rotation}) scale({scale})");
+        let mut transform = frame.animate(&self.transform_animation);
+        transform.rotate = frame.animate(&self.rotation_animation).into();
+        transform.translate_x -= photo_width / 2.0;
+        transform.translate_y -= photo_height / 2.0;
 
         image.render_framed(PhotoFrame {
             x: 0.0, // we use transform
@@ -94,59 +90,66 @@ impl<'a> SinglePhotoFloat<'a> {
         };
 
         let main_position = (
-            center_x + rng.gen_range(-10.0..10.0),
-            center_y + rng.gen_range(-10.0..10.0),
+            center_x + rng.gen_range(-30.0..30.0),
+            center_y + rng.gen_range(-30.0..30.0),
         );
 
-        let position_animation = KeyFramesAnimation::new(vec![
-            KeyFrame {
-                start: 0.0,
-                end: Some(entry_duration),
-                from: (start_x, start_y),
-                to: (center_x, center_y),
-                easing: &Easing::EaseOut,
-            },
-            KeyFrame {
-                start: entry_duration,
-                end: Some(exit_start_time),
-                from: (center_x, center_y),
-                to: main_position,
-                easing: &Easing::EaseInOut,
-            },
-            KeyFrame {
-                start: exit_start_time,
-                end: Some(total_duration),
-                from: main_position,
-                to: (exit_x, exit_y),
-                easing: &Easing::EaseIn,
-            },
-        ]);
-
         let main_scale = rng.gen_range(1.0..=1.3);
-        let scale_animation = KeyFramesAnimation::new(vec![
+        let transform_animation = KeyFramesAnimation::new(vec![
             KeyFrame {
                 start: 0.0,
                 end: Some(entry_duration),
-                from: 0.9,
-                to: 1.0,
+                from: Transform {
+                    translate_x: start_x.into(),
+                    translate_y: start_y.into(),
+                    scale: 0.9.into(),
+                    ..Default::default()
+                },
+                to: Transform {
+                    translate_x: center_x.into(),
+                    translate_y: center_y.into(),
+                    scale: 1.0.into(),
+                    ..Default::default()
+                },
                 easing: &Easing::EaseOut,
             },
             KeyFrame {
                 start: entry_duration,
                 end: Some(exit_start_time),
-                from: 1.0,
-                to: main_scale,
+                from: Transform {
+                    translate_x: center_x.into(),
+                    translate_y: center_y.into(),
+                    scale: 1.0.into(),
+                    ..Default::default()
+                },
+                to: Transform {
+                    translate_x: main_position.0.into(),
+                    translate_y: main_position.1.into(),
+                    scale: main_scale.into(),
+                    ..Default::default()
+                },
                 easing: &Easing::EaseInOut,
             },
             KeyFrame {
                 start: exit_start_time,
                 end: Some(total_duration),
-                from: main_scale,
-                to: 0.9,
+                from: Transform {
+                    translate_x: main_position.0.into(),
+                    translate_y: main_position.1.into(),
+                    scale: main_scale.into(),
+                    ..Default::default()
+                },
+                to: Transform {
+                    translate_x: exit_x.into(),
+                    translate_y: exit_y.into(),
+                    scale: rng.gen_range(0.7..0.9).into(),
+                    ..Default::default()
+                },
                 easing: &Easing::EaseIn,
             },
         ]);
 
+        let main_rotate = rng.gen_range(-2.0..2.0);
         let rotation_animation = KeyFramesAnimation::new(vec![
             KeyFrame {
                 start: 0.0,
@@ -159,13 +162,13 @@ impl<'a> SinglePhotoFloat<'a> {
                 start: entry_duration,
                 end: Some(entry_duration + center_duration * 0.5),
                 from: 0.0,
-                to: -2.,
+                to: main_rotate,
                 easing: &Easing::EaseInOut,
             },
             KeyFrame {
                 start: entry_duration + center_duration * 0.5,
                 end: Some(exit_start_time),
-                from: -2.,
+                from: main_rotate,
                 to: 1.,
                 easing: &Easing::EaseInOut,
             },
@@ -179,11 +182,10 @@ impl<'a> SinglePhotoFloat<'a> {
         ]);
 
         Self {
-            duration: total_duration,
             photo,
-            position_animation,
-            scale_animation,
+            duration: total_duration,
             rotation_animation,
+            transform_animation,
         }
     }
 }

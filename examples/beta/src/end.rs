@@ -1,4 +1,4 @@
-use fframes::{Scene, animation, svgr};
+use fframes::{Rotate, Scene, Transform, animation, svgr};
 
 #[derive(Debug)]
 pub struct EndScene {}
@@ -22,12 +22,12 @@ impl Scene for EndScene {
             y="50%"
             text-anchor="middle"
             opacity={frame.animate(&fframes::timeline!(
-              on 0.1, val 0. => 1., animation::Easing::Linear(0.1)
+              at 0.1 => 0.2, animate 0. => 1., animation::Easing::Linear
             ))}
             fill="black"
           >
             <tspan fill="#7450d9">
-            "ff"
+              "ff"
             </tspan>
             "rames"
           </text>
@@ -35,18 +35,21 @@ impl Scene for EndScene {
           <text font-size="80" x="1220" y="605" fill="url(#text)" font-family="Chalkboard SE"
             opacity={
               frame.animate(
-                fframes::timeline!(
-                  on 0.6, val 0. => 1., animation::Easing::Linear(0.2)
+                &fframes::timeline!(
+                  at 0.6 => 0.8, animate 0. => 1., animation::Easing::Linear
                 )
               )
             }
-            transform={format!("rotate({} 1300 590)",
-              frame.animate(
-                &fframes::timeline!(
-                  on 0.6, val -60. => -25., animation::Easing::Linear(0.2)
+            transform={
+                frame.animate(
+                    &fframes::timeline!(
+                        at 0.6 => 0.8,
+                        animate Transform::rotate(Rotate { angle: -60., origin: Some((1300., 590.)) })
+                             => Transform::rotate(Rotate { angle: -25., origin: Some((1300., 590.)) }),
+                        animation::Easing::Linear
+                    )
                 )
-              )
-            )}
+            }
           >
             "beta"
           </text>

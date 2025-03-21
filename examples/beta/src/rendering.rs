@@ -1,4 +1,8 @@
-use fframes::{Scene, animation, svgr};
+use fframes::{
+    Scene,
+    animation::{self, Easing},
+    svgr,
+};
 
 #[derive(Debug)]
 pub struct RenderingScene {}
@@ -15,18 +19,17 @@ impl Scene for RenderingScene {
         let derivation: f32 = rand::random();
 
         let base_fps = frame.animate(&fframes::timeline!(
-          on GPU_SECOND, val 60. => 100., &animation::Easing::Linear(0.8)
+          at GPU_SECOND => GPU_SECOND + 0.8, animate 60. => 100., animation::Easing::Linear
         ));
-
         let fps_counter = (base_fps + (derivation * 4.)) as u8;
 
         svgr!(
            <text
              font-family="DM Sans"
              font-weight="700"
-             x={frame.animate(fframes::timeline!(
-               on 0., val -400. => 260., &animation::Easing::Spring{ mass: 0.6 , stiffness: 300., damping: 26. },
-               on 0.3, val 260. => 310., &animation::Easing::Linear(1.9)
+             x={frame.animate(&fframes::timeline!(
+               at 0., animate -400. => 260., Easing::Spring{ mass: 0.6 , stiffness: 300., damping: 26. },
+               at 0.3 => 2.2, animate 260. => 310., Easing::Linear
              ))}
              y="30%"
              font-size="150"
@@ -37,9 +40,9 @@ impl Scene for RenderingScene {
            <text
              font-family="DM Sans"
              font-weight="700"
-             x={frame.animate(fframes::timeline!(
-               on 0., val 1900. => 460., &animation::Easing::Spring{ mass: 0.6 , stiffness: 300., damping: 26. },
-               on 0.3, val 460. => 410., &animation::Easing::Linear(1.9)
+             x={frame.animate(&fframes::timeline!(
+               at 0., animate 1900. => 460., Easing::Spring{ mass: 0.6 , stiffness: 300., damping: 26. },
+               at 0.3 => 2.2, animate 460. => 410., Easing::Linear
              ))}
              y="50%"
              font-size="150"
@@ -71,12 +74,11 @@ impl Scene for RenderingScene {
              rx="12"
              ry="12"
              height="30"
-             width={frame.animate(fframes::timeline!(
-               on 0., val 900. => 1000., &animation::Easing::Linear(0.8),
-               on GPU_SECOND, val 1000. => 1350., &animation::Easing::Linear(1.0)
+             width={frame.animate(&fframes::timeline!(
+               at 0. => 0.8, animate 900. => 1000., Easing::Linear,
+               at GPU_SECOND => GPU_SECOND + 1., animate 1000. => 1350., Easing::Linear
              ))}
            />
-
         )
     }
 }

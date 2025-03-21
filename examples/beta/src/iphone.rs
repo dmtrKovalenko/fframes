@@ -1,4 +1,7 @@
-use fframes::{SampleSize, Scene, Svgr, VisualizeFrameInput, animation, media::ImageData, svgr};
+use fframes::{
+    SampleSize, Scene, Svgr, Transform, VisualizeFrameInput, animation::Easing, media::ImageData,
+    svgr,
+};
 
 #[derive(Debug)]
 pub struct IphoneScene {
@@ -43,12 +46,12 @@ impl Scene for IphoneScene {
         const EXPAND_ISLAND_TS: f32 = 6.2;
 
         let dynamic_island_width = frame.animate(&fframes::timeline!(
-            on 0.0, val 120. => 180., &animation::Easing::Spring{ mass: 1.6 , stiffness: 400., damping: 26. },
-            on EXPAND_ISLAND_TS, val 180. => 348., &animation::Easing::Spring{ mass: 1.6 , stiffness: 300., damping: 26. }
+            at 0.0, animate 120. => 180., Easing::Spring{ mass: 1.6 , stiffness: 400., damping: 26. },
+            at EXPAND_ISLAND_TS, animate 180. => 348., Easing::Spring{ mass: 1.6 , stiffness: 300., damping: 26. }
         ));
 
         let dynamic_island_height = frame.animate(&fframes::timeline!(
-           on EXPAND_ISLAND_TS, val 40. => 80., &animation::Easing::Spring{ mass: 1.6 , stiffness: 300., damping: 26. }
+           at EXPAND_ISLAND_TS, animate 40. => 80., Easing::Spring{ mass: 1.6 , stiffness: 300., damping: 26. }
         ));
 
         let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
@@ -90,8 +93,8 @@ impl Scene for IphoneScene {
               />
 
               <g fill="none" opacity={
-                frame.animate(fframes::timeline!(
-                  on 1.1, val 0. => 1., &animation::Easing::Linear(0.3)
+                frame.animate(&fframes::timeline!(
+                  at 1.1 => 1.4, animate 0. => 1., Easing::Linear
                 ))
               }>
                 <path d="M832 439V415C832 402.297 842.297 392 855 392H882" stroke="#EBBD1D" stroke-width="2"/>
@@ -103,7 +106,7 @@ impl Scene for IphoneScene {
                   transform-origin="center center"
                   transform={format!("scale({scale}, {scale})",
                     scale=frame.animate(&fframes::timeline!(
-                      on 2.5, val 1. => 1.04, &animation::Easing::Linear(0.2)
+                      at 2.5 => 2.7, animate 1. => 1.04, Easing::Linear
                     ))
                   )}
                 />
@@ -111,7 +114,7 @@ impl Scene for IphoneScene {
                   transform-origin="center center"
                   transform={format!("scale({scale}, {scale})",
                     scale=frame.animate(&fframes::timeline!(
-                      on 2.5, val 1. => 1.04, &animation::Easing::Linear(0.2)
+                      at 2.5 => 2.7, animate 1. => 1.04, Easing::Linear
                     ))
                   )}
                 >
@@ -122,9 +125,12 @@ impl Scene for IphoneScene {
 
             <g clip-path="url(#iphoneUi)">
               <g
-                transform={format!("translate(0 {})", frame.animate(&fframes::timeline!(
-                    on 3.0, val 1800. => 0., &animation::Easing::Spring { mass: 0.4 , stiffness: 70., damping: 16. }
-                  )))
+                transform={
+                    frame.animate(fframes::timeline!(
+                        at 3.0,
+                        animate Transform::translate(0, 1800.) => Transform::translate(0, 0),
+                        &Easing::Spring { mass: 0.4, stiffness: 70., damping: 16. }
+                    ))
                 }
               >
                 <rect x="790" y="154" width="370" height="819" fill="#292841" />
@@ -147,15 +153,21 @@ impl Scene for IphoneScene {
 
                 <g
                   transform-origin="bottom center"
-                  transform={format!("translate(0 {y}) scale({scale})", y=frame.animate(&fframes::timeline!(
-                    on SEND_MESSAGE_TS, val 200. => 0., &animation::Easing::Spring{ mass: 1.0 , stiffness: 240., damping: 26. }
-                  )), scale=frame.animate(&fframes::timeline!(
-                    on SEND_MESSAGE_TS, val 0.4 => 1., &animation::Easing::Spring{ mass: 1.0 , stiffness: 220., damping: 26. }
-                  )))}
+                  transform={
+                    Transform {
+                      translate_y: frame.animate(&fframes::timeline!(
+                        at SEND_MESSAGE_TS, animate 200. => 0., Easing::Spring{ mass: 1.0 , stiffness: 240., damping: 26. }
+                      )),
+                      scale: frame.animate(&fframes::timeline!(
+                         at SEND_MESSAGE_TS, animate 0.4 => 1., Easing::Spring{ mass: 1.0 , stiffness: 220., damping: 26. }
+                       )).into(),
+                      ..Default::default()
+                    }
+                  }
                   opacity={
                     frame.animate(
-                      fframes::timeline!(
-                        on SEND_MESSAGE_TS, val 0. => 1., &animation::Easing::Linear(0.2)
+                      &fframes::timeline!(
+                        at SEND_MESSAGE_TS, duration 0.2, animate 0. => 1., Easing::Linear
                       )
                     )
                   }
@@ -171,13 +183,13 @@ impl Scene for IphoneScene {
               x="916"
               y="170"
               width={dynamic_island_width}
-              transform={format!("translate(-{}, 0)",( dynamic_island_width - 120. )/ 2.)}
+              transform={Transform::translate(-(dynamic_island_width - 120.) / 2., 0)}
               height={dynamic_island_height}
               ry={dynamic_island_height / 2.}
               fill="#000"
             />
 
-            {if frame.index > 8 && frame.get_current_second() < EXPAND_ISLAND_TS {
+            {if frame.index > 8 && frame.seconds() < EXPAND_ISLAND_TS {
               svgr!(
                 <text font-family="Bubble Bobble" fill="#6366f1" font-size="23" x="895" y="197">
                  "ff"
@@ -204,7 +216,7 @@ impl Scene for IphoneScene {
                   .collect::<Vec<_>>()
                 }
               )
-            } else if frame.get_current_second() > EXPAND_ISLAND_TS + 0.2 {
+            } else if frame.seconds() > EXPAND_ISLAND_TS + 0.2 {
               svgr!(
                 <svg
                   x="816" y="182"

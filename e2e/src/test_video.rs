@@ -1,5 +1,5 @@
 pub use fframes::Video;
-use fframes::{AudioMap, Color, FFramesContext, Frame, animation};
+use fframes::{AudioMap, Color, FFramesContext, Frame, animation::Easing};
 
 #[derive(Debug)]
 pub struct TestVideo {
@@ -20,8 +20,6 @@ impl Video for TestVideo {
     }
 
     fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> fframes::Svgr {
-        const BACKGROUND_EASING: animation::Easing = animation::Easing::Linear(5.);
-
         fframes::svgr!(
            <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -34,10 +32,10 @@ impl Video for TestVideo {
               x="0"
               y="0"
               fill={
-                frame.animate(fframes::timeline!(
-                  on 0., val Color::hex("#fff") => Color::hex("#f8fafc"), &BACKGROUND_EASING,
-                  on 5., val Color::hex("#f8fafc") => Color::hex("#fff7ed"), &BACKGROUND_EASING,
-                  on 10., val Color::hex("#fff7ed") => Color::hex("#fef2f2"), &BACKGROUND_EASING
+                frame.animate(&fframes::timeline!(
+                  at 0., animate Color::hex("#fff") => Color::hex("#f8fafc"), Easing::Linear,
+                  at 5., animate Color::hex("#f8fafc") => Color::hex("#fff7ed"), Easing::Linear,
+                  at 10. => 15., animate Color::hex("#fff7ed") => Color::hex("#fef2f2"), Easing::Linear
                 ))
               }
             />
@@ -54,7 +52,7 @@ impl Video for TestVideo {
             </svg>
 
             <text font-weight="500" font-family="JetBrains Mono" x="100" y="240" font-size="34" fill="#4b5563">
-              {format!("{} {}, second: {:.2}", self.slug, frame.index, frame.get_current_second())}
+              {format!("{} {}, second: {:.2}", self.slug, frame.index, frame.seconds())}
             </text>
           </svg>
         )

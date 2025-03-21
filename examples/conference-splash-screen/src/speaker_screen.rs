@@ -1,7 +1,7 @@
 use crate::ConferenceMedia;
 use fframes::{
     self, EstimateTextWidthOptions, FFramesContext, FontStretch, FontStyle, Frame, Scene, Svgr,
-    animation,
+    animation::{self, Easing},
 };
 
 #[derive(Debug, Clone)]
@@ -19,10 +19,9 @@ impl Scene for SpeakerScene<'_> {
     }
 
     fn render_frame<'a>(&'a self, mut frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
-        fframes::log!("{}", frame.global_index);
         let tilt_angle = frame.animate(&fframes::timeline!(
-          on 0.3, val 0.4 => 1.2, &animation::Easing::Linear(2.),
-          on 2.3, val 1.2 => 0.8, &animation::Easing::Linear(1.8)
+          at 0.3, animate 0.4 => 1.2, animation::Easing::Linear,
+          at 2.3 => 4.1, animate 1.2 => 0.8, animation::Easing::Linear
         ));
 
         const TITLE_Y: usize = 350;
@@ -36,10 +35,7 @@ impl Scene for SpeakerScene<'_> {
             } else {
                 56
             },
-            font_family: match ctx.mode {
-                fframes::FFramesMode::Renderer => "Inter 18pt",
-                _ => "Inter 18pt ExtraBold",
-            },
+            font_family: "Inter 18pt",
             align: fframes::TextAlign::Left,
             fill: "white",
             font_weight: 800,
@@ -102,8 +98,8 @@ impl Scene for SpeakerScene<'_> {
             <svg x="1000" y="250" width="140" height="134" viewBox="0 0 140 134" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M-4.94719e-06 2H134.8C136.567 2 138 3.43269 138 5.2V134" stroke="#FFFBFB" stroke-width="3"
                 stroke-dasharray="300"
-                stroke-dashoffset={frame.animate(fframes::timeline!(
-                  on 0., val 300. => 0., &animation::Easing::Spring  {mass: 4., stiffness: 80., damping: 55.}
+                stroke-dashoffset={frame.animate(&fframes::timeline!(
+                  at 0., animate 300. => 0., &Easing::Spring  {mass: 4., stiffness: 80., damping: 55.}
                 ))}
               />
             </svg>
@@ -111,8 +107,8 @@ impl Scene for SpeakerScene<'_> {
             <svg x="40" y={abstract_y + abstract_text_structure.occupied_height() - 110} width="140" height="134" viewBox="0 0 140 134" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M137.2 132H5.19999C3.43268 132 2 130.567 2 128.8V0" stroke="#FFFBFB" stroke-width="3"
                 stroke-dasharray="300"
-                stroke-dashoffset={frame.animate(fframes::timeline!(
-                  on 0., val 300. => 0., &animation::Easing::Spring  {mass: 4., stiffness: 80., damping: 55.}
+                stroke-dashoffset={frame.animate(&fframes::timeline!(
+                  at 0., animate 300. => 0., &Easing::Spring  {mass: 4., stiffness: 80., damping: 55.}
                 ))}
               />
             </svg>

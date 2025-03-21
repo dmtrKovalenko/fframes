@@ -11,7 +11,6 @@ pub struct Svgr<'a> {
     pub svg_tree: usvgr::svgtree::NestedSvgDocument<'a, usvgr::svgtree::NestedNodeData<'a>>,
 }
 
-
 impl<'a> Svgr<'a> {
     #[cfg(all(feature = "compile-time-svgtree", not(target_arch = "wasm32")))]
     pub fn into_svg_tree(

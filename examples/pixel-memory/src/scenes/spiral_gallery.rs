@@ -1,6 +1,6 @@
-use crate::{photo_phrame::FramedImage, PhotoFrame, RandomPhotos};
+use crate::{PhotoFrame, RandomPhotos, photo_phrame::FramedImage};
 use fframes::{
-    Scene, Svgr,
+    Scene, Svgr, Transform,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
 };
 use rand::Rng;
@@ -76,7 +76,15 @@ impl Scene for SpiralHeapGallery<'_> {
 
                 Some(fframes::svgr!(
                     <g
-                        transform={format!("translate({}, {}) rotate({}) scale({})", x, y, rotation, scale)}
+                        transform={
+                            Transform {
+                                translate_x: x.into(),
+                                translate_y: y.into(),
+                                rotate: rotation.into(),
+                                scale: scale.into(),
+                                ..Default::default()
+                            }
+                        }
                         filter="url(#photo-shadow)"
                         opacity={opacity}
                     >
@@ -94,7 +102,7 @@ impl Scene for SpiralHeapGallery<'_> {
     }
 }
 
-impl <'a>SpiralHeapGallery<'a> {
+impl<'a> SpiralHeapGallery<'a> {
     pub fn generate(rng: &mut impl Rng, tempo: f32, images: &mut RandomPhotos<'a>) -> Self {
         let photo_count = rng.gen_range(6..=10);
         let photos = images.choose(photo_count);
@@ -123,18 +131,11 @@ impl <'a>SpiralHeapGallery<'a> {
             final_positions.push((final_x, final_y, theta, radius));
         }
 
-        for i in 0..photo_count {
-            // Time when this photo appears
+        for (i, (final_x, final_y, theta, _)) in final_positions.iter().copied().enumerate() {
             let start_time = i as f32 * tempo * 4.0;
             let animation_duration = tempo * 4.0; // Single animation duration
-
-            // Get the final position for this photo
-            let (final_x, final_y, theta, _) = final_positions[i];
-
-            // Calculate a starting position from the edge of the screen
             let angle_normalized = (theta % (2.0 * PI)) / (2.0 * PI); // 0 to 1
 
-            // Calculate starting position from the appropriate edge
             let (start_x, start_y) = if angle_normalized < 0.25 {
                 // Top edge
                 (
@@ -201,7 +202,6 @@ impl <'a>SpiralHeapGallery<'a> {
                 },
             ]));
 
-            // Rotation animation - also simplified to one main keyframe
             let initial_rotation = rng.gen_range(-20.0..20.0);
             let final_rotation = rng.gen_range(-5.0..5.0);
 
@@ -229,7 +229,6 @@ impl <'a>SpiralHeapGallery<'a> {
                 },
             ]));
 
-            // Opacity animation
             opacity_animations.push(KeyFramesAnimation::new(vec![
                 KeyFrame {
                     start: start_time,
