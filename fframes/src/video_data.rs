@@ -138,12 +138,14 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
         ))
     }
 
-    fn height(&self) -> u32 {
-        self.get_width()
+    /// Returns the original stream video width
+    fn width(&self) -> u32 {
+        self.get_stream_width()
     }
 
-    fn width(&self) -> u32 {
-        self.get_height()
+    /// Returns the original stream video height
+    fn height(&self) -> u32 {
+        self.get_stream_height()
     }
 
     fn timestamp_seconds(&self) -> f32 {

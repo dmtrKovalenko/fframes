@@ -287,6 +287,20 @@ impl FFmpegFrameBuf {
         Ok(())
     }
 
+    pub fn get_stream_width(&self) -> u32 {
+        unsafe { self.sws_scaler.get().as_ref() }
+            .expect("Critical mememroy error: SWS scale is not allocated")
+            .video_stream_info
+            .width as u32
+    }
+
+    pub fn get_stream_height(&self) -> u32 {
+        unsafe { self.sws_scaler.get().as_ref() }
+            .expect("Critical mememroy error: SWS scale is not allocated")
+            .video_stream_info
+            .height as u32
+    }
+
     pub fn get_width(&self) -> u32 {
         unsafe { self.sws_scaler.get().as_ref() }
             .expect("Critical mememroy error: SWS scale is not allocated")
