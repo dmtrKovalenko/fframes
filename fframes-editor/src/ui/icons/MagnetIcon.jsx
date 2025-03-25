@@ -1,11 +1,7 @@
 import * as React from "react";
 
-export const MagnetIcon = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 512 512"
-    {...props}
-  >
+export const MagnetIcon = props => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" {...props}>
     <path
       d="M421.83 293.82A144 144 0 0 0 218.18 90.17m135.76 135.77a48 48 0 0 0-67.88-67.88"
       fill="none"

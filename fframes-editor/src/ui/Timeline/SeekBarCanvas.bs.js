@@ -20,17 +20,17 @@ function renderSeekBar(ctx, size, playState) {
   ctx.lineTo(x, 7);
   ctx.lineTo(x + 2, 0);
   ctx.lineTo(x - 2, 0);
-  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, "#fbbf24");
+  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */ 0, "#fbbf24");
   ctx.stroke();
   ctx.closePath();
-  
 }
 
 function calculateFrameFromEvent(e, size) {
-  var rectLeft = Web.$$Element.targetAsElement(e.target).getBoundingClientRect().left | 0;
-  var x = (e.clientX - rectLeft | 0) - 32 | 0;
+  var rectLeft =
+    Web.$$Element.targetAsElement(e.target).getBoundingClientRect().left | 0;
+  var x = (((e.clientX - rectLeft) | 0) - 32) | 0;
   if (x > 0) {
-    return x * size.pxToFrameRation | 0;
+    return (x * size.pxToFrameRation) | 0;
   } else {
     return 0;
   }
@@ -44,59 +44,59 @@ function SeekBarCanvas(Props) {
   var dispatch = match[1];
   var player = match[0];
   CanvasSize.useCanvasScale(seekCanvasRef, size);
-  React.useEffect((function () {
-          Belt_Option.map(Caml_option.nullable_to_opt(seekCanvasRef.current), (function (canvasElement) {
-                  var ctx = canvasElement.getContext("2d");
-                  ctx.clearRect(0, 0, size.scaledWidth, size.scaledHeight);
-                  var match = player.playState;
-                  if (match >= 3) {
-                    
-                  } else {
-                    renderSeekBar(ctx, size, player);
-                  }
-                  
-                }));
-          
-        }), [
-        size,
-        player.frame,
-        player.playState
-      ]);
-  var handleMouseMove = Hooks.useEvent(function (e) {
-        if (player.playState !== /* Playing */0 && document.hasFocus()) {
-          return Curry._1(dispatch, {
-                      TAG: /* NewFrame */1,
-                      _0: calculateFrameFromEvent(e, size)
-                    });
+  React.useEffect(
+    function () {
+      Belt_Option.map(
+        Caml_option.nullable_to_opt(seekCanvasRef.current),
+        function (canvasElement) {
+          var ctx = canvasElement.getContext("2d");
+          ctx.clearRect(0, 0, size.scaledWidth, size.scaledHeight);
+          var match = player.playState;
+          if (match >= 3) {
+          } else {
+            renderSeekBar(ctx, size, player);
+          }
         }
-        
+      );
+    },
+    [size, player.frame, player.playState]
+  );
+  var handleMouseMove = Hooks.useEvent(function (e) {
+    if (player.playState !== /* Playing */ 0 && document.hasFocus()) {
+      return Curry._1(dispatch, {
+        TAG: /* NewFrame */ 1,
+        _0: calculateFrameFromEvent(e, size),
       });
+    }
+  });
   var handleClick = Hooks.useEvent(function (e) {
-        var frame = calculateFrameFromEvent(e, size);
-        Curry._1(dispatch, {
-              TAG: /* Seek */0,
-              _0: frame
-            });
-        return Curry._1(dispatch, /* Play */1);
-      });
+    var frame = calculateFrameFromEvent(e, size);
+    Curry._1(dispatch, {
+      TAG: /* Seek */ 0,
+      _0: frame,
+    });
+    return Curry._1(dispatch, /* Play */ 1);
+  });
   var match$1 = player.playState;
   return React.createElement("canvas", {
-              ref: seekCanvasRef,
-              className: Cx.cx([
-                    "absolute inset-0",
-                    match$1 !== 0 ? (
-                        match$1 >= 3 ? "cursor-wait" : "cursor-col-resize"
-                      ) : "cursor-pointer"
-                  ]),
-              style: {
-                height: String(size.height) + "px",
-                width: String(size.width) + "px"
-              },
-              height: String(Math.floor(size.height)) + "px",
-              width: String(Math.floor(size.width)) + "px",
-              onClick: handleClick,
-              onMouseMove: handleMouseMove
-            });
+    ref: seekCanvasRef,
+    className: Cx.cx([
+      "absolute inset-0",
+      match$1 !== 0
+        ? match$1 >= 3
+          ? "cursor-wait"
+          : "cursor-col-resize"
+        : "cursor-pointer",
+    ]),
+    style: {
+      height: String(size.height) + "px",
+      width: String(size.width) + "px",
+    },
+    height: String(Math.floor(size.height)) + "px",
+    width: String(Math.floor(size.width)) + "px",
+    onClick: handleClick,
+    onMouseMove: handleMouseMove,
+  });
 }
 
 var Canvas;
@@ -105,12 +105,5 @@ var Canvas2d;
 
 var make = SeekBarCanvas;
 
-export {
-  Canvas ,
-  Canvas2d ,
-  renderSeekBar ,
-  calculateFrameFromEvent ,
-  make ,
-  
-}
+export { Canvas, Canvas2d, renderSeekBar, calculateFrameFromEvent, make };
 /* Hooks Not a pure module */

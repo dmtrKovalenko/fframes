@@ -1,6 +1,6 @@
 import * as React from "react";
 
-export const ListViewIcon = (props) => (
+export const ListViewIcon = props => (
   <svg
     width={57}
     height={57}

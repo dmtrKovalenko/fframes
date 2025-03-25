@@ -1,10 +1,14 @@
 #![cfg(target_arch = "wasm32")]
-use fframes_editor_controller::{prelude::*, setup_wasm_editor};
+use fframes_editor_controller::{impl_wasm_bridge_for, prelude::*};
 use teej_podcast_example::{Chapter, TeejPodcast};
 
-setup_wasm_editor!(
-    TeejPodcast,
-    TeejPodcast::new(&[
+impl_wasm_bridge_for!(TeejPodcast<'static>);
+
+#[wasm_bindgen]
+pub fn create_wasm_bridge() -> WasmBridge {
+    console_error_panic_hook::set_once();
+
+    WasmBridge::new(TeejPodcast::new(&[
         Chapter {
             title: "Introduction to Lunch Bites Podcast",
             start: "00:00",
@@ -53,5 +57,5 @@ setup_wasm_editor!(
             title: "Influencers and the Coding Landscape",
             start: "30:10",
         },
-    ])
-);
+    ]))
+}

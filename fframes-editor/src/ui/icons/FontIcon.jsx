@@ -1,12 +1,7 @@
 import * as React from "react";
 
-export const FontIcon = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-
-    viewBox="0 0 512 512"
-    {...props}
-  >
+export const FontIcon = props => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" {...props}>
     <path
       fill="none"
       stroke="currentColor"

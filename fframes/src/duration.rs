@@ -41,7 +41,7 @@ impl<'a> Sub for Duration<'a> {
 }
 
 impl<'a> Duration<'a> {
-    pub fn used_audio_files(&self) -> Option<Vec<&str>> {
+    pub fn used_audio_files(&self) -> Option<Vec<&'a str>> {
         match self {
             Duration::FromAudio(audio) => Some(vec![audio]),
             Duration::Seconds(_) => None,

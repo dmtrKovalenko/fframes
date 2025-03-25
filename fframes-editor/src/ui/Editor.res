@@ -39,19 +39,16 @@ let make = () => {
   })
 
   <div id="fframes-editor" className="w-screen h-screen bg-gray-900 overflow-hidden relative">
-    <ReactHelmet>
-      <title> {videoTitle} </title>
-      <style type_="text/css">
-        {React.string(
-          `
-            #editor-preview > svg {
-              transform-origin: top left !important;
-              transform: scale(${layout.preview.scale->Js.Float.toString}) !important
-            }
-          `,
-        )}
-      </style>
-    </ReactHelmet>
+    <style type_="text/css">
+      {React.string(
+        `
+        #editor-preview > svg {
+        transform-origin: top left !important;
+        transform: scale(${layout.preview.scale->Js.Float.toString}) !important
+        }
+        `,
+      )}
+    </style>
     <div className="overflow-auto flex justify-center w-full">
       {
         // MediaList
@@ -59,8 +56,9 @@ let make = () => {
         ->Belt.Option.map(size =>
           <div
             style={size->UseEditorLayout.sizeToStyle}
-            className="col-span-2 h-full overflow-auto flex flex-col p-4 border-r border-gray-800">
-            <div className="flex items-center justify-between mb-6 pt-1 gap-2">
+            className="col-span-2 h-full overflow-auto flex flex-col border-r border-gray-800">
+            <div
+              className="flex items-center p-4 border-b border-gray-700 justify-between mb-3 gap-2 sticky top-0 bg-gray-900/90 backdrop-blur-lg">
               <h1 className="text-3xl mt-px font-medium text-white grow-0 truncate">
                 {videoTitle}
               </h1>
@@ -93,11 +91,14 @@ let make = () => {
                 </button>
               </div>
             </div>
-            <MediaList variant=listVariant />
+            <div style={size->UseEditorLayout.sizeToStyle} className="pb-4">
+              <MediaList variant=listVariant />
+            </div>
           </div>
         )
         ->Utils.Option.unwrapOr(React.null)
       }
+
       // Preview
       <div
         id="editor-preview"
@@ -113,6 +114,8 @@ let make = () => {
         })}
       </div>
     </div>
+
+    // Timeline
     {layout.timeLine
     ->Belt.Option.map(sectionSize =>
       <div

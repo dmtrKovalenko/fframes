@@ -27,93 +27,96 @@ function MakeEditorContext(Wasm) {
   var PlayerObserver = Player.MakePlayer(Wasm);
   var EditorContext$MakeEditorContext = function (Props) {
     var children = Props.children;
-    React.useLayoutEffect((function () {
-            return Curry._1(MediaLoader.MediaLoaderObserver.subscribe, (function (state) {
-                          var player = Curry._1(PlayerObserver.get, undefined);
-                          if (state.allMediaLoaded && player.playState === /* CantPlay */3) {
-                            Curry._1(PlayerObserver.dispatch, /* AllowPlay */0);
-                            return Curry._1(PlayerObserver.dispatch, {
-                                        TAG: /* NewFrame */1,
-                                        _0: player.frame
-                                      });
-                          }
-                          
-                        }));
-          }), []);
+    React.useLayoutEffect(function () {
+      return Curry._1(
+        MediaLoader.MediaLoaderObserver.subscribe,
+        function (state) {
+          var player = Curry._1(PlayerObserver.get, undefined);
+          if (state.allMediaLoaded && player.playState === /* CantPlay */ 3) {
+            Curry._1(PlayerObserver.dispatch, /* AllowPlay */ 0);
+            return Curry._1(PlayerObserver.dispatch, {
+              TAG: /* NewFrame */ 1,
+              _0: player.frame,
+            });
+          }
+        }
+      );
+    }, []);
     var usePlayer = function (param) {
       return [
-              Curry._1(PlayerObserver.useObservable, undefined),
-              PlayerObserver.dispatch
-            ];
+        Curry._1(PlayerObserver.useObservable, undefined),
+        PlayerObserver.dispatch,
+      ];
     };
     return React.createElement(providerElement, {
-                value: {
-                  wasmController: Wasm.controller,
-                  videoMeta: Wasm.videoMeta,
-                  options: Wasm.options,
-                  usePlayer: usePlayer
-                },
-                children: children
-              });
+      value: {
+        wasmController: Wasm.controller,
+        videoMeta: Wasm.videoMeta,
+        options: Wasm.options,
+        usePlayer: usePlayer,
+      },
+      children: children,
+    });
   };
   return {
-          PlayerObserver: PlayerObserver,
-          make: EditorContext$MakeEditorContext
-        };
+    PlayerObserver: PlayerObserver,
+    make: EditorContext$MakeEditorContext,
+  };
 }
 
 function makeEditorContextComponent(wasmController, videoMeta, options) {
   var Wasm = {
     videoMeta: videoMeta,
     controller: wasmController,
-    options: options
+    options: options,
   };
   var PlayerObserver = Player.MakePlayer(Wasm);
   var EditorContext$MakeEditorContext = function (Props) {
     var children = Props.children;
-    React.useLayoutEffect((function () {
-            return Curry._1(MediaLoader.MediaLoaderObserver.subscribe, (function (state) {
-                          var player = Curry._1(PlayerObserver.get, undefined);
-                          if (state.allMediaLoaded && player.playState === /* CantPlay */3) {
-                            Curry._1(PlayerObserver.dispatch, /* AllowPlay */0);
-                            return Curry._1(PlayerObserver.dispatch, {
-                                        TAG: /* NewFrame */1,
-                                        _0: player.frame
-                                      });
-                          }
-                          
-                        }));
-          }), []);
+    React.useLayoutEffect(function () {
+      return Curry._1(
+        MediaLoader.MediaLoaderObserver.subscribe,
+        function (state) {
+          var player = Curry._1(PlayerObserver.get, undefined);
+          if (state.allMediaLoaded && player.playState === /* CantPlay */ 3) {
+            Curry._1(PlayerObserver.dispatch, /* AllowPlay */ 0);
+            return Curry._1(PlayerObserver.dispatch, {
+              TAG: /* NewFrame */ 1,
+              _0: player.frame,
+            });
+          }
+        }
+      );
+    }, []);
     var usePlayer = function (param) {
       return [
-              Curry._1(PlayerObserver.useObservable, undefined),
-              PlayerObserver.dispatch
-            ];
+        Curry._1(PlayerObserver.useObservable, undefined),
+        PlayerObserver.dispatch,
+      ];
     };
     return React.createElement(providerElement, {
-                value: {
-                  wasmController: wasmController,
-                  videoMeta: videoMeta,
-                  options: options,
-                  usePlayer: usePlayer
-                },
-                children: children
-              });
+      value: {
+        wasmController: wasmController,
+        videoMeta: videoMeta,
+        options: options,
+        usePlayer: usePlayer,
+      },
+      children: children,
+    });
   };
   return function (children) {
     return React.createElement(EditorContext$MakeEditorContext, {
-                children: children
-              });
+      children: children,
+    });
   };
 }
 
 export {
-  DocumentEvent ,
-  editorContext ,
-  providerElement ,
-  useEditorContext ,
-  MakeEditorContext ,
-  makeEditorContextComponent ,
-  
-}
+  DocumentEvent,
+  editorContext,
+  providerElement,
+  useEditorContext,
+  MakeEditorContext,
+  makeEditorContextComponent,
+};
 /* DocumentEvent Not a pure module */

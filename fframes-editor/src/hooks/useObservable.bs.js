@@ -6,7 +6,7 @@ import * as React from "react";
 
 function Pubsub(Init) {
   var mutableState = {
-    contents: Init.initial
+    contents: Init.initial,
   };
   var listeners = [];
   var get = function (param) {
@@ -15,110 +15,102 @@ function Pubsub(Init) {
   var set = function (newState) {
     mutableState.contents = newState;
     listeners.forEach(function (param) {
-          return Curry._1(param.listener, mutableState.contents);
-        });
-    
+      return Curry._1(param.listener, mutableState.contents);
+    });
   };
   var nextId = {
-    contents: 0
+    contents: 0,
   };
   var subscribe = function (listener) {
     var id = nextId.contents;
-    nextId.contents = id + 1 | 0;
+    nextId.contents = (id + 1) | 0;
     listeners.push({
-          id: id,
-          listener: listener
-        });
+      id: id,
+      listener: listener,
+    });
     return function (param) {
       var index = listeners.findIndex(function (listener) {
-            return listener.id === id;
-          });
+        return listener.id === id;
+      });
       if (index >= 0) {
         Utils.$$Array.removeInPlace(listeners, index);
-        return ;
+        return;
       }
-      
     };
   };
   var useObservable = function (param) {
-    var match = React.useReducer((function (x, param) {
-            return x + 1 | 0;
-          }), 0);
+    var match = React.useReducer(function (x, param) {
+      return (x + 1) | 0;
+    }, 0);
     var forceUpdate = match[1];
-    React.useEffect((function () {
-            return subscribe(forceUpdate);
-          }), []);
+    React.useEffect(function () {
+      return subscribe(forceUpdate);
+    }, []);
     return mutableState.contents;
   };
   return {
-          mutableState: mutableState,
-          listeners: listeners,
-          get: get,
-          set: set,
-          nextId: nextId,
-          subscribe: subscribe,
-          useObservable: useObservable
-        };
+    mutableState: mutableState,
+    listeners: listeners,
+    get: get,
+    set: set,
+    nextId: nextId,
+    subscribe: subscribe,
+    useObservable: useObservable,
+  };
 }
 
 function MakeObserver(Observable) {
   var mutableState = {
-    contents: Observable.initial
+    contents: Observable.initial,
   };
   var listeners = [];
   var get = function (param) {
     return mutableState.contents;
   };
   var nextId = {
-    contents: 0
+    contents: 0,
   };
   var subscribe = function (listener) {
     var id = nextId.contents;
-    nextId.contents = id + 1 | 0;
+    nextId.contents = (id + 1) | 0;
     listeners.push({
-          id: id,
-          listener: listener
-        });
+      id: id,
+      listener: listener,
+    });
     return function (param) {
       var index = listeners.findIndex(function (listener) {
-            return listener.id === id;
-          });
+        return listener.id === id;
+      });
       if (index >= 0) {
         Utils.$$Array.removeInPlace(listeners, index);
-        return ;
+        return;
       }
-      
     };
   };
   var useObservable = function (param) {
-    var match = React.useReducer((function (x, param) {
-            return x + 1 | 0;
-          }), 0);
+    var match = React.useReducer(function (x, param) {
+      return (x + 1) | 0;
+    }, 0);
     var forceUpdate = match[1];
-    React.useEffect((function () {
-            return subscribe(forceUpdate);
-          }), []);
+    React.useEffect(function () {
+      return subscribe(forceUpdate);
+    }, []);
     return mutableState.contents;
   };
   var dispatch = function (action) {
     var newState = Curry._2(Observable.reducer, mutableState.contents, action);
     mutableState.contents = newState;
     listeners.forEach(function (param) {
-          return Curry._1(param.listener, mutableState.contents);
-        });
-    
+      return Curry._1(param.listener, mutableState.contents);
+    });
   };
   return {
-          dispatch: dispatch,
-          get: get,
-          subscribe: subscribe,
-          useObservable: useObservable
-        };
+    dispatch: dispatch,
+    get: get,
+    subscribe: subscribe,
+    useObservable: useObservable,
+  };
 }
 
-export {
-  Pubsub ,
-  MakeObserver ,
-  
-}
+export { Pubsub, MakeObserver };
 /* Utils Not a pure module */

@@ -1,6 +1,6 @@
 import * as React from "react";
 
-export const LockIcon = (props) => (
+export const LockIcon = props => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" {...props}>
     <path
       d="M336 208v-95a80 80 0 0 0-160 0v95"

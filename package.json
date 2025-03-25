@@ -8,6 +8,7 @@
   ],
   "devDependencies": {
     "odiff-bin": "^2.5.1",
+    "prettier": "^3.5.3",
     "syncpack": "^12.3.0"
   }
 }

@@ -10,6 +10,7 @@ test_render/
 .merlin
 fframes-editor/lib
 dist/
+dev-dist/
 *_long.mp3
 .rsw/
 e2e/frames/results/*

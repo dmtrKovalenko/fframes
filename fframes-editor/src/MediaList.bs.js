@@ -9,30 +9,23 @@ import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as MediaLoader from "./services/mediaLoader.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
 
-var iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center";
+var iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr  from-indigo-400 to-pink-400 flex justify-center items-center";
 
 function MediaList$LoadedMediaIcon(Props) {
   var variant = Props.variant;
   var media = Props.media;
-  var style = variant ? ({
-        height: "2.5rem",
-        width: "2.5rem",
-        borderRadius: "0.75rem"
-      }) : ({
-        height: "7.4rem",
-        width: "7.4rem",
-        borderRadius: "1.35rem"
-      });
+  var layoutIconClassName = variant ? "size-10 2xl:size-12 rounded-xl" : "size-32 rounded-xl";
   var iconClassName = variant ? "h-[60%]" : "h-[40%]";
   if (media.TAG === /* Image */2) {
     return React.createElement("div", {
                 className: Cx.cx([
                       "bg-cover bg-no-repeat bg-center",
-                      iconContainerClassName
+                      iconContainerClassName,
+                      layoutIconClassName
                     ]),
-                style: Object.assign({}, {
-                      backgroundImage: "url(" + media._0.src + ")"
-                    }, style)
+                style: {
+                  backgroundImage: "url(" + media._0.src + ")"
+                }
               });
   }
   var tmp;
@@ -61,8 +54,10 @@ function MediaList$LoadedMediaIcon(Props) {
     
   }
   return React.createElement("div", {
-              className: iconContainerClassName,
-              style: style
+              className: Cx.cx([
+                    iconContainerClassName,
+                    layoutIconClassName
+                  ])
             }, tmp);
 }
 
@@ -141,13 +136,13 @@ function MediaList$LoadedMedia(Props) {
     
   }
   return React.createElement("li", {
-              className: Cx.cx([variant ? "py-2 h-16 2xl:h-20 flex space-x-2 px-6" : "w-32 flex flex-col space-y-2"]),
+              className: Cx.cx([variant ? "py-2 h-16 2xl:h-20 flex items-center gap-2 px-6" : "w-32 flex flex-col space-y-2"]),
               title: name
             }, React.createElement(MediaList$LoadedMediaIcon, {
                   variant: variant,
                   media: media
                 }), React.createElement("div", {
-                  className: "ml-0.5 flex flex-col"
+                  className: "flex flex-col flex-1"
                 }, React.createElement("p", {
                       className: Cx.cx([
                             "text-gray-300 2xl:text-lg",
@@ -172,7 +167,7 @@ var make = memo(function (Props) {
       var variant = Props.variant;
       var mediaState = Curry._1(MediaLoader.MediaLoaderObserver.useObservable, undefined);
       return React.createElement("ul", {
-                  className: Cx.cx([variant ? "divide-y divide-gray-800 -mx-6" : "flex flex-wrap gap-x-6 gap-y-4"])
+                  className: Cx.cx([variant ? "flex flex-col divide-y divide-gray-800" : "flex px-4 flex-wrap gap-x-6 gap-y-4"])
                 }, Belt_Array.map(Belt_MapString.keysToArray(mediaState.mediaList), (function (name) {
                         var media = Belt_MapString.getExn(mediaState.mediaList, name);
                         switch (media.TAG | 0) {

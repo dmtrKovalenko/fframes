@@ -3,7 +3,8 @@ import { renderEditor } from "@fframes/editor";
 import "@fframes/editor/dist/fframes-editor.css";
 
 const dynamicMediaFolder = import.meta.glob("../dynamic_media/*", {
-  as: "url",
+  query: "url",
+  import: "default",
   eager: true,
 });
 

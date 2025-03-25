@@ -7,7 +7,7 @@ import * as Pervasives from "rescript/lib/es6/pervasives.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 
 function last(arr) {
-  return arr[arr.length - 1 | 0];
+  return arr[(arr.length - 1) | 0];
 }
 
 function removeInPlace(arr, index) {
@@ -16,7 +16,7 @@ function removeInPlace(arr, index) {
 
 var $$Array = {
   last: last,
-  removeInPlace: removeInPlace
+  removeInPlace: removeInPlace,
 };
 
 function divideFloat(a, b) {
@@ -30,10 +30,7 @@ function divideAsFloat(a, b) {
 }
 
 function divideWithReminder(x, y) {
-  return [
-          Math.floor(x / y),
-          x % y
-        ];
+  return [Math.floor(x / y), x % y];
 }
 
 function minMax(val, min, max) {
@@ -51,7 +48,7 @@ var $$Math = {
   divideInt: divideInt,
   divideAsFloat: divideAsFloat,
   divideWithReminder: divideWithReminder,
-  minMax: minMax
+  minMax: minMax,
 };
 
 function unwrap(option) {
@@ -64,13 +61,12 @@ function unwrap(option) {
 
 function flatten(option) {
   if (option === undefined) {
-    return ;
+    return;
   }
   var val = Caml_option.valFromOption(option);
   if (val !== undefined) {
     return Caml_option.some(Caml_option.valFromOption(val));
   }
-  
 }
 
 function unwrapOr(option, $$default) {
@@ -87,12 +83,8 @@ function some(val) {
 
 function zip(a, b) {
   if (a !== undefined && b !== undefined) {
-    return [
-            Caml_option.valFromOption(a),
-            Caml_option.valFromOption(b)
-          ];
+    return [Caml_option.valFromOption(a), Caml_option.valFromOption(b)];
   }
-  
 }
 
 var $$Option = {
@@ -100,7 +92,7 @@ var $$Option = {
   flatten: flatten,
   unwrapOr: unwrapOr,
   some: some,
-  zip: zip
+  zip: zip,
 };
 
 function andReturn(a) {
@@ -109,7 +101,7 @@ function andReturn(a) {
 }
 
 var Log = {
-  andReturn: andReturn
+  andReturn: andReturn,
 };
 
 function getFilename(path) {
@@ -117,7 +109,7 @@ function getFilename(path) {
 }
 
 var Path = {
-  getFilename: getFilename
+  getFilename: getFilename,
 };
 
 function invert(a) {
@@ -128,12 +120,11 @@ function $$then(a) {
   if (a) {
     return Caml_option.some(undefined);
   }
-  
 }
 
 var Bool = {
   invert: invert,
-  $$then: $$then
+  $$then: $$then,
 };
 
 function leftPad(n) {
@@ -164,24 +155,14 @@ function formatFrame(frame, fps) {
 var Duration = {
   leftPad: leftPad,
   formatSeconds: formatSeconds,
-  formatFrame: formatFrame
+  formatFrame: formatFrame,
 };
 
 function neverRerender(__x) {
-  return React.memo(__x, (function (param, param$1) {
-                return true;
-              }));
+  return React.memo(__x, function (param, param$1) {
+    return true;
+  });
 }
 
-export {
-  $$Array ,
-  $$Math ,
-  $$Option ,
-  Log ,
-  Path ,
-  Bool ,
-  Duration ,
-  neverRerender ,
-  
-}
+export { $$Array, $$Math, $$Option, Log, Path, Bool, Duration, neverRerender };
 /* react Not a pure module */

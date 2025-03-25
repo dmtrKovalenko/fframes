@@ -15,6 +15,11 @@ pub use raw_file::*;
 pub use subtitles::*;
 pub use video_types::*;
 
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    pub static IS_PREVIEW_RENDERING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod audio_decoder;
 

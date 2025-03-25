@@ -7,6 +7,7 @@ type editorContext = {
   wasmController: WasmController.t,
   videoMeta: WasmController.videoMeta,
   options: WasmController.options,
+  @uncurry
   usePlayer: unit => (Player.state, Player.action => unit),
 }
 

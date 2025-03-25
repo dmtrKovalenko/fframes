@@ -4,12 +4,9 @@ import * as UseDebounce from "use-debounce";
 
 function useThrottle(val, ms) {
   return UseDebounce.useDebounce(val, ms, {
-              maxWait: ms
-            });
+    maxWait: ms,
+  });
 }
 
-export {
-  useThrottle ,
-  
-}
+export { useThrottle };
 /* use-debounce Not a pure module */

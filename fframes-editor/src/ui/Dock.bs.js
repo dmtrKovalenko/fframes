@@ -23,71 +23,92 @@ import * as Webapi__Dom__EventTarget from "bs-webapi/src/Webapi/Dom/Webapi__Dom_
 var DocumentEvent = Webapi__Dom__EventTarget.Impl({});
 
 var make = Utils.neverRerender(function (Props) {
-      return React.createElement("div", undefined, React.createElement("hr", {
-                      className: "mx-2 h-9 border-gray-600 border bg-none"
-                    }));
-    });
+  return React.createElement(
+    "div",
+    undefined,
+    React.createElement("hr", {
+      className: "mx-2 h-9 border-gray-600 border bg-none",
+    })
+  );
+});
 
 var DockDivider = {
-  make: make
+  make: make,
 };
 
-var baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 duration-300";
+var baseClass =
+  "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 duration-300";
 
 var make$1 = React.memo(function (Props) {
-      var children = Props.children;
-      var classNameOpt = Props.className;
-      var className = classNameOpt !== undefined ? classNameOpt : "";
-      return React.createElement("div", {
-                  className: Cx.cx([
-                        baseClass,
-                        className
-                      ])
-                }, children);
-    });
+  var children = Props.children;
+  var classNameOpt = Props.className;
+  var className = classNameOpt !== undefined ? classNameOpt : "";
+  return React.createElement(
+    "div",
+    {
+      className: Cx.cx([baseClass, className]),
+    },
+    children
+  );
+});
 
 var DockSpace = {
   baseClass: baseClass,
-  make: make$1
+  make: make$1,
 };
 
 var make$2 = React.memo(function (Props) {
-      var children = Props.children;
-      var label = Props.label;
-      var onClick = Props.onClick;
-      var highlightOpt = Props.highlight;
-      var highlight = highlightOpt !== undefined ? highlightOpt : false;
-      return React.createElement("button", {
-                  className: Cx.cx([
-                        baseClass,
-                        "group hover:scale-110",
-                        highlight ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80" : "bg-slate-700 hover:bg-slate-500"
-                      ]),
-                  onClick: (function (param) {
-                      return Curry._1(onClick, undefined);
-                    })
-                }, React.createElement("span", {
-                      className: "sr-only"
-                    }, label), React.createElement("span", {
-                      className: "group-active:scale-90 transition-transform"
-                    }, children));
-    });
+  var children = Props.children;
+  var label = Props.label;
+  var onClick = Props.onClick;
+  var highlightOpt = Props.highlight;
+  var highlight = highlightOpt !== undefined ? highlightOpt : false;
+  return React.createElement(
+    "button",
+    {
+      className: Cx.cx([
+        baseClass,
+        "group hover:scale-110",
+        highlight
+          ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80"
+          : "bg-slate-700 hover:bg-slate-500",
+      ]),
+      onClick: function (param) {
+        return Curry._1(onClick, undefined);
+      },
+    },
+    React.createElement(
+      "span",
+      {
+        className: "sr-only",
+      },
+      label
+    ),
+    React.createElement(
+      "span",
+      {
+        className: "group-active:scale-90 transition-transform",
+      },
+      children
+    )
+  );
+});
 
 var DockButton = {
-  make: make$2
+  make: make$2,
 };
 
 function getFpsMarker(fps, desiredFps) {
   if (fps !== undefined) {
     if (fps < desiredFps * 0.5) {
-      return /* Red */2;
+      return /* Red */ 2;
     } else if (fps < desiredFps * 0.8) {
-      return /* Yellow */1;
+      return /* Yellow */ 1;
     } else {
-      return /* Green */0;
+      return /* Green */ 0;
     }
   } else {
-    return /* White */3;
+    return /* White */ 3;
   }
 }
 
@@ -100,283 +121,366 @@ function Dock(Props) {
   var match$1 = Hooks.useToggle(context.options.hideDock);
   var collapsedToggle = match$1[1];
   var isCollapsed = match$1[0];
-  var match$2 = UseDebounce.useThrottle(AnimationRuntime.AudioRuntime.runtimeFps.contents, 100);
+  var match$2 = UseDebounce.useThrottle(
+    AnimationRuntime.AudioRuntime.runtimeFps.contents,
+    100
+  );
   var debouncedFps = match$2[0];
   var handlePlayOrPause = Hooks.useEvent(function (param) {
-        var match = player.playState;
-        Curry._1(dispatch, match !== 0 ? /* Play */1 : /* Pause */2);
-        
-      });
+    var match = player.playState;
+    Curry._1(dispatch, match !== 0 ? /* Play */ 1 : /* Pause */ 2);
+  });
   var handleSetVolume = Hooks.useEvent(function (value) {
-        return Curry._1(dispatch, {
-                    TAG: /* SetVolume */2,
-                    _0: value
-                  });
-      });
+    return Curry._1(dispatch, {
+      TAG: /* SetVolume */ 2,
+      _0: value,
+    });
+  });
   var increaseVolume = Hooks.useEvent(function (param) {
-        return Belt_Option.forEach(player.volume, (function (volume) {
-                      return Curry._1(dispatch, {
-                                  TAG: /* SetVolume */2,
-                                  _0: Player.validateVolume(volume + context.options.volumeStepFrom0To100 | 0)
-                                });
-                    }));
+    return Belt_Option.forEach(player.volume, function (volume) {
+      return Curry._1(dispatch, {
+        TAG: /* SetVolume */ 2,
+        _0: Player.validateVolume(
+          (volume + context.options.volumeStepFrom0To100) | 0
+        ),
       });
+    });
+  });
   var decreaseVolume = Hooks.useEvent(function (param) {
-        return Belt_Option.forEach(player.volume, (function (volume) {
-                      return Curry._1(dispatch, {
-                                  TAG: /* SetVolume */2,
-                                  _0: Player.validateVolume(volume - context.options.volumeStepFrom0To100 | 0)
-                                });
-                    }));
+    return Belt_Option.forEach(player.volume, function (volume) {
+      return Curry._1(dispatch, {
+        TAG: /* SetVolume */ 2,
+        _0: Player.validateVolume(
+          (volume - context.options.volumeStepFrom0To100) | 0
+        ),
       });
+    });
+  });
   var handleSeekLeft = Hooks.useEvent(function (param) {
-        return Curry._1(dispatch, {
-                    TAG: /* Seek */0,
-                    _0: player.frame - (context.videoMeta.fps << 1) | 0
-                  });
-      });
+    return Curry._1(dispatch, {
+      TAG: /* Seek */ 0,
+      _0: (player.frame - (context.videoMeta.fps << 1)) | 0,
+    });
+  });
   var handleSeekRight = Hooks.useEvent(function (param) {
-        return Curry._1(dispatch, {
-                    TAG: /* Seek */0,
-                    _0: player.frame + (context.videoMeta.fps << 1) | 0
-                  });
-      });
+    return Curry._1(dispatch, {
+      TAG: /* Seek */ 0,
+      _0: (player.frame + (context.videoMeta.fps << 1)) | 0,
+    });
+  });
   var toggleMute = Hooks.useEvent(function (param) {
-        return Curry._1(dispatch, {
-                    TAG: /* SetVolume */2,
-                    _0: 0
-                  });
-      });
+    return Curry._1(dispatch, {
+      TAG: /* SetVolume */ 2,
+      _0: 0,
+    });
+  });
   var loggedMagnetRef = React.useRef(false);
   var setMagnet = Hooks.useEvent(function (param) {
-        if (!loggedMagnetRef.current) {
-          console.log("Press 0 or Shift+j to seek to magnet point.");
-          loggedMagnetRef.current = true;
-        }
-        return Curry._1(dispatch, /* SetMagnet */3);
-      });
+    if (!loggedMagnetRef.current) {
+      console.log("Press 0 or Shift+j to seek to magnet point.");
+      loggedMagnetRef.current = true;
+    }
+    return Curry._1(dispatch, /* SetMagnet */ 3);
+  });
   var seekToStart = Hooks.useEvent(function (param) {
-        return Curry._1(dispatch, {
-                    TAG: /* Seek */0,
-                    _0: Utils.$$Option.unwrapOr(player.magnet, 0)
-                  });
-      });
+    return Curry._1(dispatch, {
+      TAG: /* Seek */ 0,
+      _0: Utils.$$Option.unwrapOr(player.magnet, 0),
+    });
+  });
   var seekToEnd = Hooks.useEvent(function (param) {
-        return Curry._1(dispatch, {
-                    TAG: /* Seek */0,
-                    _0: context.videoMeta.durationInFrames
-                  });
-      });
+    return Curry._1(dispatch, {
+      TAG: /* Seek */ 0,
+      _0: context.videoMeta.durationInFrames,
+    });
+  });
   var switchScene = Hooks.useEvent(function (dir) {
-        return Belt_Option.forEach(Belt_Option.flatMap(Caml_option.nullable_to_opt(context.videoMeta.scenesTimeline), (function (timeline) {
-                          var nextSceneIndex = dir ? timeline.findIndex(function (scene) {
-                                  return scene.start > player.frame;
-                                }) : timeline.findIndex(function (scene) {
-                                  return scene.end >= player.frame;
-                                });
-                          return Belt_Array.get(timeline, nextSceneIndex);
-                        })), (function (scene) {
-                      return Curry._1(dispatch, {
-                                  TAG: /* Seek */0,
-                                  _0: scene.start
-                                });
-                    }));
-      });
+    return Belt_Option.forEach(
+      Belt_Option.flatMap(
+        Caml_option.nullable_to_opt(context.videoMeta.scenesTimeline),
+        function (timeline) {
+          var nextSceneIndex = dir
+            ? timeline.findIndex(function (scene) {
+                return scene.start > player.frame;
+              })
+            : timeline.findIndex(function (scene) {
+                return scene.end >= player.frame;
+              });
+          return Belt_Array.get(timeline, nextSceneIndex);
+        }
+      ),
+      function (scene) {
+        return Curry._1(dispatch, {
+          TAG: /* Seek */ 0,
+          _0: scene.start,
+        });
+      }
+    );
+  });
   var toggleDock = Hooks.useEvent(function (param) {
-        Curry._1(collapsedToggle.toggle, undefined);
-        console.log("Press t to show/hide dock controls");
-        
-      });
-  React.useEffect((function () {
-          var handleKeydown = function (e) {
-            if (!Utils.Bool.invert(Web.$$Element.isFocusable(e.target))) {
-              return ;
-            }
-            var match = e.key;
-            switch (match) {
-              case " " :
-                  return Curry._1(handlePlayOrPause, undefined);
-              case "ArrowLeft" :
-                  if (e.shiftKey) {
-                    return Curry._1(seekToStart, undefined);
-                  } else {
-                    return Curry._1(handleSeekLeft, undefined);
-                  }
-              case "ArrowRight" :
-                  if (e.shiftKey) {
-                    return Curry._1(seekToEnd, undefined);
-                  } else {
-                    return Curry._1(handleSeekRight, undefined);
-                  }
-              case "End" :
-              case "G" :
-                  return Curry._1(seekToEnd, undefined);
-              case "0" :
-              case "Home" :
-              case "J" :
-                  return Curry._1(seekToStart, undefined);
-              case "S" :
-              case "b" :
-                  return Curry._1(switchScene, /* Back */0);
-              case "F" :
-              case "f" :
-                  return Curry._1(fullScreenToggler.toggle, undefined);
-              case "ArrowDown" :
-              case "h" :
-                  break;
-              case "j" :
-                  return Curry._1(handleSeekLeft, undefined);
-              case "k" :
-                  return Curry._1(handleSeekRight, undefined);
-              case "ArrowUp" :
-              case "l" :
-                  return Curry._1(increaseVolume, undefined);
-              case "M" :
-              case "m" :
-                  return Curry._1(setMagnet, undefined);
-              case "T" :
-              case "t" :
-                  return Curry._1(collapsedToggle.toggle, undefined);
-              case "s" :
-              case "w" :
-                  return Curry._1(switchScene, /* Forth */1);
-              default:
-                return ;
-            }
-            if (e.ctrlKey) {
-              return Curry._1(toggleMute, undefined);
-            } else {
-              return Curry._1(decreaseVolume, undefined);
-            }
-          };
-          window.addEventListener("keydown", handleKeydown);
-          return (function (param) {
-                    window.removeEventListener("keydown", handleKeydown);
-                    
-                  });
-        }), []);
+    Curry._1(collapsedToggle.toggle, undefined);
+    console.log("Press t to show/hide dock controls");
+  });
+  React.useEffect(function () {
+    var handleKeydown = function (e) {
+      if (!Utils.Bool.invert(Web.$$Element.isFocusable(e.target))) {
+        return;
+      }
+      var match = e.key;
+      switch (match) {
+        case " ":
+          return Curry._1(handlePlayOrPause, undefined);
+        case "ArrowLeft":
+          if (e.shiftKey) {
+            return Curry._1(seekToStart, undefined);
+          } else {
+            return Curry._1(handleSeekLeft, undefined);
+          }
+        case "ArrowRight":
+          if (e.shiftKey) {
+            return Curry._1(seekToEnd, undefined);
+          } else {
+            return Curry._1(handleSeekRight, undefined);
+          }
+        case "End":
+        case "G":
+          return Curry._1(seekToEnd, undefined);
+        case "0":
+        case "Home":
+        case "J":
+          return Curry._1(seekToStart, undefined);
+        case "S":
+        case "b":
+          return Curry._1(switchScene, /* Back */ 0);
+        case "F":
+        case "f":
+          return Curry._1(fullScreenToggler.toggle, undefined);
+        case "ArrowDown":
+        case "h":
+          break;
+        case "j":
+          return Curry._1(handleSeekLeft, undefined);
+        case "k":
+          return Curry._1(handleSeekRight, undefined);
+        case "ArrowUp":
+        case "l":
+          return Curry._1(increaseVolume, undefined);
+        case "M":
+        case "m":
+          return Curry._1(setMagnet, undefined);
+        case "T":
+        case "t":
+          return Curry._1(collapsedToggle.toggle, undefined);
+        case "s":
+        case "w":
+          return Curry._1(switchScene, /* Forth */ 1);
+        default:
+          return;
+      }
+      if (e.ctrlKey) {
+        return Curry._1(toggleMute, undefined);
+      } else {
+        return Curry._1(decreaseVolume, undefined);
+      }
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return function (param) {
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  }, []);
   var match$3 = getFpsMarker(debouncedFps, context.videoMeta.fps);
   var tmp;
   switch (match$3) {
-    case /* Green */0 :
-        tmp = "text-green-500";
-        break;
-    case /* Yellow */1 :
-        tmp = "text-yellow-500";
-        break;
-    case /* Red */2 :
-        tmp = "text-red-500";
-        break;
-    case /* White */3 :
-        tmp = "text-white";
-        break;
-    
+    case /* Green */ 0:
+      tmp = "text-green-500";
+      break;
+    case /* Yellow */ 1:
+      tmp = "text-yellow-500";
+      break;
+    case /* Red */ 2:
+      tmp = "text-red-500";
+      break;
+    case /* White */ 3:
+      tmp = "text-white";
+      break;
   }
   var originalFps = context.videoMeta.originalFps;
   var match$4 = player.playState;
   var volume = player.volume;
-  return React.createElement("div", {
-              className: Cx.cx([
-                    "absolute bottom-0 w-auto transition-transform transform-gpu left-1/2 px-4 pt-1 space-x-2 bg-slate-900/50 border-t border-x border-gray-100/20 shadow-xl rounded-t-lg backdrop-blur flex -translate-x-1/2",
-                    isCollapsed ? "translate-y-16 duration-300" : ""
-                  ])
-            }, React.createElement(make$1, {
-                  children: null,
-                  className: "tabular-nums space-x-1"
-                }, React.createElement("span", undefined, Utils.Duration.formatFrame(player.frame, context.videoMeta.fps)), React.createElement("span", {
-                      className: "normal-nums relative bottom-px"
-                    }, " / "), React.createElement("span", undefined, Utils.Duration.formatFrame(context.videoMeta.durationInFrames, context.videoMeta.fps))), React.createElement(make$1, {
-                  children: null
-                }, React.createElement("span", {
-                      className: "mr-2 ml-2"
-                    }, "FPS"), React.createElement("span", {
-                      className: Cx.cx([
-                            "inline-flex tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
-                            tmp
-                          ])
-                    }, debouncedFps !== undefined ? Math.min(debouncedFps, context.videoMeta.fps).toFixed(0) : context.videoMeta.fps.toString(), originalFps !== undefined ? React.createElement(Tooltip.make, {
-                            children: React.createElement(Icons.LockIcon.make, {
-                                  className: "ml-px mr-0.5 h-3.5 w-3.5 mt-px"
-                                }),
-                            content: React.createElement(React.Fragment, undefined, "FPS was locked on " + String(context.videoMeta.fps) + " for editor performance.", React.createElement("br", undefined), "Final video will be rendered at " + String(originalFps) + " FPS."),
-                            asChild: false
-                          }) : null)), React.createElement(make, {}), React.createElement(make$2, {
-                  children: React.createElement(Icons.PlayBackIcon.make, {
-                        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
-                        backward: true,
-                        className: "h-6 w-6"
-                      }),
-                  label: "Play forward 5 seconds",
-                  onClick: handleSeekLeft
-                }), React.createElement(make$2, {
-                  children: match$4 !== 0 ? (
-                      match$4 >= 3 ? React.createElement(Spinner.make, {
-                              className: "h-6 w-6"
-                            }) : React.createElement(Icons.PlayIcon.make, {
-                              className: "h-6 w-6"
-                            })
-                    ) : React.createElement(Icons.PauseIcon.make, {
-                          className: "h-6 w-6"
-                        }),
-                  label: "Play",
-                  onClick: handlePlayOrPause,
-                  highlight: true
-                }), React.createElement(make$2, {
-                  children: React.createElement(Icons.PlayBackIcon.make, {
-                        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
-                        className: "h-6 w-6"
-                      }),
-                  label: "Play back 5 seconds",
-                  onClick: handleSeekRight
-                }), React.createElement(make$1, {
-                  children: null
-                }, volume !== undefined ? React.createElement(Icons.VolumeIcon.make, {
-                        high: volume > 50,
-                        mute: volume === 0,
-                        className: "h-6 w-6"
-                      }) : React.createElement(Icons.VolumeIcon.make, {
-                        mute: true,
-                        className: "h-6 w-6 text-gray-500"
-                      }), React.createElement(Slider.make, {
-                      onValueChange: handleSetVolume,
-                      disabled: Belt_Option.isNone(player.volume),
-                      value: Utils.$$Option.unwrapOr(player.volume, 0),
-                      min: Player.min_volume,
-                      max: Player.max_volume,
-                      step: 1
-                    })), React.createElement(make, {}), React.createElement(make$2, {
-                  children: React.createElement(Icons.MagnetIcon.make, {
-                        className: "h-6 w-6"
-                      }),
-                  label: "Magnet to this position",
-                  onClick: setMagnet
-                }), React.createElement(make$2, {
-                  children: React.createElement(Icons.FullScreenIcon.make, {
-                        className: "h-6 w-6"
-                      }),
-                  label: "Turn on/off full-screen mode",
-                  onClick: fullScreenToggler.toggle
-                }), React.createElement(make$2, {
-                  children: React.createElement(Icons.CollapseIcon.make, {
-                        className: Cx.cx([
-                              "h-6 w-6 transition-transform",
-                              isCollapsed ? "rotate-180" : ""
-                            ])
-                      }),
-                  label: "Show/Hide dock controls",
-                  onClick: toggleDock
-                }));
+  return React.createElement(
+    "div",
+    {
+      className: Cx.cx([
+        "absolute bottom-0 w-auto transition-transform transform-gpu left-1/2 px-4 pt-1 space-x-2 bg-slate-900/50 border-t border-x border-gray-100/20 shadow-xl rounded-t-lg backdrop-blur flex -translate-x-1/2",
+        isCollapsed ? "translate-y-16 duration-300" : "",
+      ]),
+    },
+    React.createElement(
+      make$1,
+      {
+        children: null,
+        className: "tabular-nums space-x-1",
+      },
+      React.createElement(
+        "span",
+        undefined,
+        Utils.Duration.formatFrame(player.frame, context.videoMeta.fps)
+      ),
+      React.createElement(
+        "span",
+        {
+          className: "normal-nums relative bottom-px",
+        },
+        " / "
+      ),
+      React.createElement(
+        "span",
+        undefined,
+        Utils.Duration.formatFrame(
+          context.videoMeta.durationInFrames,
+          context.videoMeta.fps
+        )
+      )
+    ),
+    React.createElement(
+      make$1,
+      {
+        children: null,
+      },
+      React.createElement(
+        "span",
+        {
+          className: "mr-2 ml-2",
+        },
+        "FPS"
+      ),
+      React.createElement(
+        "span",
+        {
+          className: Cx.cx([
+            "inline-flex tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
+            tmp,
+          ]),
+        },
+        debouncedFps !== undefined
+          ? Math.min(debouncedFps, context.videoMeta.fps).toFixed(0)
+          : context.videoMeta.fps.toString(),
+        originalFps !== undefined
+          ? React.createElement(Tooltip.make, {
+              children: React.createElement(Icons.LockIcon.make, {
+                className: "ml-px mr-0.5 h-3.5 w-3.5 mt-px",
+              }),
+              content: React.createElement(
+                React.Fragment,
+                undefined,
+                "FPS was locked on " +
+                  String(context.videoMeta.fps) +
+                  " for editor performance.",
+                React.createElement("br", undefined),
+                "Final video will be rendered at " +
+                  String(originalFps) +
+                  " FPS."
+              ),
+              asChild: false,
+            })
+          : null
+      )
+    ),
+    React.createElement(make, {}),
+    React.createElement(make$2, {
+      children: React.createElement(Icons.PlayBackIcon.make, {
+        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
+        backward: true,
+        className: "h-6 w-6",
+      }),
+      label: "Play forward 5 seconds",
+      onClick: handleSeekLeft,
+    }),
+    React.createElement(make$2, {
+      children:
+        match$4 !== 0
+          ? match$4 >= 3
+            ? React.createElement(Spinner.make, {
+                className: "h-6 w-6",
+              })
+            : React.createElement(Icons.PlayIcon.make, {
+                className: "h-6 w-6",
+              })
+          : React.createElement(Icons.PauseIcon.make, {
+              className: "h-6 w-6",
+            }),
+      label: "Play",
+      onClick: handlePlayOrPause,
+      highlight: true,
+    }),
+    React.createElement(make$2, {
+      children: React.createElement(Icons.PlayBackIcon.make, {
+        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
+        className: "h-6 w-6",
+      }),
+      label: "Play back 5 seconds",
+      onClick: handleSeekRight,
+    }),
+    React.createElement(
+      make$1,
+      {
+        children: null,
+      },
+      volume !== undefined
+        ? React.createElement(Icons.VolumeIcon.make, {
+            high: volume > 50,
+            mute: volume === 0,
+            className: "h-6 w-6",
+          })
+        : React.createElement(Icons.VolumeIcon.make, {
+            mute: true,
+            className: "h-6 w-6 text-gray-500",
+          }),
+      React.createElement(Slider.make, {
+        onValueChange: handleSetVolume,
+        disabled: Belt_Option.isNone(player.volume),
+        value: Utils.$$Option.unwrapOr(player.volume, 0),
+        min: Player.min_volume,
+        max: Player.max_volume,
+        step: 1,
+      })
+    ),
+    React.createElement(make, {}),
+    React.createElement(make$2, {
+      children: React.createElement(Icons.MagnetIcon.make, {
+        className: "h-6 w-6",
+      }),
+      label: "Magnet to this position",
+      onClick: setMagnet,
+    }),
+    React.createElement(make$2, {
+      children: React.createElement(Icons.FullScreenIcon.make, {
+        className: "h-6 w-6",
+      }),
+      label: "Turn on/off full-screen mode",
+      onClick: fullScreenToggler.toggle,
+    }),
+    React.createElement(make$2, {
+      children: React.createElement(Icons.CollapseIcon.make, {
+        className: Cx.cx([
+          "h-6 w-6 transition-transform",
+          isCollapsed ? "rotate-180" : "",
+        ]),
+      }),
+      label: "Show/Hide dock controls",
+      onClick: toggleDock,
+    })
+  );
 }
 
 var make$3 = Dock;
 
 export {
-  DocumentEvent ,
-  DockDivider ,
-  DockSpace ,
-  DockButton ,
-  getFpsMarker ,
+  DocumentEvent,
+  DockDivider,
+  DockSpace,
+  DockButton,
+  getFpsMarker,
   make$3 as make,
-  
-}
+};
 /* DocumentEvent Not a pure module */

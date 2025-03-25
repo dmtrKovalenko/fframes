@@ -56,7 +56,7 @@ pub trait Video: Sync + Sized {
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolvedScenesTimeline<'a> {
     pub total_scenes_duration: usize,
     pub(crate) timeline: Vec<(std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))>,

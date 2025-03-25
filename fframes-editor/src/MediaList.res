@@ -4,13 +4,13 @@ open Belt
 type listVariant = Grid | List
 
 module LoadedMediaIcon = {
-  let iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr from-indigo-400 to-pink-400 flex justify-center items-center"
+  let iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr  from-indigo-400 to-pink-400 flex justify-center items-center"
 
   @react.component
   let make = (~variant, ~media: MediaLoader.processedMedia) => {
-    let style = switch variant {
-    | Grid => ReactDOM.Style.make(~width="7.4rem", ~height="7.4rem", ~borderRadius="1.35rem", ())
-    | List => ReactDOM.Style.make(~width="2.5rem", ~height="2.5rem", ~borderRadius="0.75rem", ())
+    let layoutIconClassName = switch variant {
+    | Grid => "size-32 rounded-xl"
+    | List => "size-10 2xl:size-12 rounded-xl"
     }
 
     let iconClassName = switch variant {
@@ -21,14 +21,16 @@ module LoadedMediaIcon = {
     switch media {
     | Image({src}) =>
       <div
-        className={cx(["bg-cover bg-no-repeat bg-center", iconContainerClassName])}
-        style={ReactDOMStyle.make(~backgroundImage=`url(${src})`, ())->ReactDOM.Style.combine(
-          style,
-        )}
+        className={cx([
+          "bg-cover bg-no-repeat bg-center",
+          iconContainerClassName,
+          layoutIconClassName,
+        ])}
+        style={ReactDOMStyle.make(~backgroundImage=`url(${src})`, ())}
       />
 
     | nonImageMedia =>
-      <div className=iconContainerClassName style>
+      <div className={cx([iconContainerClassName, layoutIconClassName])}>
         {switch nonImageMedia {
         | Audio(_) => <Icons.MusicalNotesIcon color="currentColor" className=iconClassName />
         | Font(_) => <Icons.FontIcon color="currentColor" className=iconClassName />
@@ -63,11 +65,11 @@ module LoadedMedia = {
       className={Cx.cx([
         switch variant {
         | Grid => "w-32 flex flex-col space-y-2"
-        | List => "py-2 h-16 2xl:h-20 flex space-x-2 px-6"
+        | List => "py-2 h-16 2xl:h-20 flex items-center gap-2 px-6"
         },
       ])}>
       <LoadedMediaIcon media variant />
-      <div className="ml-0.5 flex flex-col">
+      <div className="flex flex-col flex-1">
         <p
           className={Cx.cx([
             "text-gray-300 2xl:text-lg",
@@ -110,8 +112,8 @@ let make = memo((~variant: listVariant) => {
   <ul
     className={Cx.cx([
       switch variant {
-      | Grid => "flex flex-wrap gap-x-6 gap-y-4"
-      | List => "divide-y divide-gray-800 -mx-6"
+      | Grid => "flex px-4 flex-wrap gap-x-6 gap-y-4"
+      | List => "flex flex-col divide-y divide-gray-800"
       },
     ])}>
     {mediaState.mediaList

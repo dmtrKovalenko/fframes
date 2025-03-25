@@ -34,6 +34,10 @@ pub struct ImageData {
     pub filename: String,
     pub metadata: ImageMetadata,
 
+    #[cfg(target_arch = "wasm32")]
+    /// The URL to the image using the preview
+    pub web_url: String,
+
     #[cfg(not(target_arch = "wasm32"))]
     image: std::sync::Arc<usvgr::PreloadedImageData>,
     #[cfg(target_arch = "wasm32")]
@@ -43,7 +47,13 @@ pub struct ImageData {
 impl ImageData {
     #[cfg(target_arch = "wasm32")]
     pub fn href(&self) -> &str {
-        &self.base64_data.as_str()
+        crate::IS_PREVIEW_RENDERING.with(|force_base64| {
+            if force_base64.load(std::sync::atomic::Ordering::Relaxed) {
+                self.base64_data.as_str()
+            } else {
+                &self.web_url
+            }
+        })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -65,14 +75,16 @@ impl ImageData {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn new_from_raw_data(
+    pub fn new_from_base_64_data(
         data: Base64ImageData,
+        file_url: String,
         filename: String,
         metadata: ImageMetadata,
     ) -> Self {
         ImageData {
             filename,
             metadata,
+            web_url: file_url,
             base64_data: data.clone(),
         }
     }

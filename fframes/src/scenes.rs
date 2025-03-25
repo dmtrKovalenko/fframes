@@ -65,9 +65,14 @@ pub trait Scene: Debug + Sync + Send {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Scenes<'a>(pub(crate) Option<Vec<&'a (dyn Scene + 'a)>>);
 
 impl Scenes<'_> {
+    pub const fn empty() -> Self {
+        Self(None)
+    }
+
     pub fn len(&self) -> usize {
         self.0.as_ref().map(|s| s.len()).unwrap_or(0)
     }
@@ -99,7 +104,7 @@ pub struct SceneWithAudio<'a> {
 pub struct ScenesWithAudio<'a>(pub(crate) Option<Vec<SceneWithAudio<'a>>>);
 
 impl<'a> ScenesWithAudio<'a> {
-    pub fn new(scenes: &'a Scenes<'a>) -> Self {
+    pub fn new(scenes: &Scenes<'a>) -> Self {
         Self(scenes.0.as_ref().map(|s| {
             s.iter()
                 .map(|s| SceneWithAudio {

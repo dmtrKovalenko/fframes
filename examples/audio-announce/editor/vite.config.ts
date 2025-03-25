@@ -11,8 +11,5 @@ export default defineConfig({
   optimizeDeps: {
     entries: ["./main.tsx"],
   },
-  plugins: [
-    reactRefresh(),
-  ],
+  plugins: [reactRefresh()],
 });
-

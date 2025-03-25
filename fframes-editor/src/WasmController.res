@@ -11,7 +11,6 @@ type mediaFolder = Js.Dict.t<mediaImport>
 
 @gentype.as("EditorOptions")
 type options = {
-  staticMediaFolder: option<mediaFolder>,
   dynamicMediaFolder: option<mediaFolder>,
   ignoreMediaRegex: option<Js.RegExp.t>,
   hideDock: bool,
@@ -19,7 +18,7 @@ type options = {
   lockFps: option<int>,
   mediaListLayout: [#grid | #list | #fromAspectRatio],
   rewindStepInSeconds: int,
-  dynamicImageLengthLimit: int,
+  dynamicImageSizeLimitBytes: int,
   volumeStepFrom0To100: int,
 }
 
@@ -57,13 +56,9 @@ type staticAudio = {
 @genType.as("WasmController")
 type t = {
   add_audio_source: (string, int, Js.Float32Array.t) => unit,
-  /**
-   TODO: Add helper (~name: string, ~url: string, ~width: int, ~height: int, base64data: option<string>)
-  **/
   add_image_source: (string, string, int, int, Js.Undefined.t<string>) => unit,
   add_video_source_placeholder: (string, string, int, int, int) => unit,
   add_subtitles_source: (string, string) => int,
-  default: unit => Js.Promise.t<initOut>,
   prepare: Js.Undefined.t<int> => Js.Promise.t<videoMeta>,
   render_frame: Js.BigInt.t => string,
   render_preview_frame: Js.BigInt.t => string,
@@ -72,6 +67,47 @@ type t = {
   get_static_font_data_by_index: int => Js.Nullable.t<staticFont>,
   get_static_audio_data_by_index: int => Js.Nullable.t<staticAudio>,
 }
+
+@send @genType
+external add_audio_source: (t, string, int, Js.Float32Array.t) => unit = "add_audio_source"
+
+/**
+ TODO: Add helper (~name: string, ~url: string, ~width: int, ~height: int, base64data: option<string>)
+**/
+@send @genType
+external add_image_source: (t, string, string, int, int, Js.Undefined.t<string>) => unit =
+  "add_image_source"
+
+@send @genType
+external add_video_source_placeholder: (t, string, string, int, int, int) => unit =
+  "add_video_source_placeholder"
+
+@send @genType
+external add_subtitles_source: (t, string, string) => int = "add_subtitles_source"
+
+@send @genType
+external prepare: (t, Js.Undefined.t<int>) => Js.Promise.t<videoMeta> = "prepare"
+
+@send @genType
+external render_frame: (t, Js.BigInt.t) => string = "render_frame"
+
+@send @genType
+external render_preview_frame: (t, Js.BigInt.t) => string = "render_preview_frame"
+
+@send @genType
+external ingest_font: (t, Js.Uint8Array.t) => fontInfo = "ingest_font"
+
+@send @genType
+external populate_static_fonts_db_with_static_fonts: t => unit =
+  "populate_static_fonts_db_with_static_fonts"
+
+@send @genType
+external get_static_font_data_by_index: (t, int) => Js.Nullable.t<staticFont> =
+  "get_static_font_data_by_index"
+
+@send @genType
+external get_static_audio_data_by_index: (t, int) => Js.Nullable.t<staticAudio> =
+  "get_static_audio_data_by_index"
 
 module type WasmBridge = {
   let videoMeta: videoMeta

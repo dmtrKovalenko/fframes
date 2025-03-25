@@ -11,7 +11,6 @@ import * as Timeline from "./Timeline/Timeline.bs.js";
 import * as $$MediaList from "../MediaList.bs.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
-import * as ReactHelmet from "react-helmet";
 import * as EditorContext from "../EditorContext.bs.js";
 import * as UseEditorLayout from "../hooks/useEditorLayout.bs.js";
 import HtmlReactParser from "html-react-parser";
@@ -54,18 +53,16 @@ function Editor(Props) {
   return React.createElement("div", {
               className: "w-screen h-screen bg-gray-900 overflow-hidden relative",
               id: "fframes-editor"
-            }, React.createElement(ReactHelmet.Helmet, {
-                  children: null
-                }, React.createElement("title", undefined, videoTitle), React.createElement("style", {
-                      type: "text/css"
-                    }, "\n            #editor-preview > svg {\n              transform-origin: top left !important;\n              transform: scale(" + layout.preview.scale.toString() + ") !important\n            }\n          ")), React.createElement("div", {
+            }, React.createElement("style", {
+                  type: "text/css"
+                }, "\n        #editor-preview > svg {\n        transform-origin: top left !important;\n        transform: scale(" + layout.preview.scale.toString() + ") !important\n        }\n        "), React.createElement("div", {
                   className: "overflow-auto flex justify-center w-full"
                 }, Utils.$$Option.unwrapOr(Belt_Option.map(layout.mediaControls, (function (size) {
                             return React.createElement("div", {
-                                        className: "col-span-2 h-full overflow-auto flex flex-col p-4 border-r border-gray-800",
+                                        className: "col-span-2 h-full overflow-auto flex flex-col border-r border-gray-800",
                                         style: UseEditorLayout.sizeToStyle(size)
                                       }, React.createElement("div", {
-                                            className: "flex items-center justify-between mb-6 pt-1 gap-2"
+                                            className: "flex items-center p-4 border-b border-gray-700 justify-between mb-3 gap-2 sticky top-0 bg-gray-900/90 backdrop-blur-lg"
                                           }, React.createElement("h1", {
                                                 className: "text-3xl mt-px font-medium text-white grow-0 truncate"
                                               }, videoTitle), React.createElement("div", {
@@ -102,9 +99,12 @@ function Editor(Props) {
                                                       }, "Grid view"), React.createElement(Icons.GridViewIcon.make, {
                                                         color: "currentColor",
                                                         className: "h-5 w-5"
-                                                      })))), React.createElement($$MediaList.make, {
-                                            variant: listVariant
-                                          }));
+                                                      })))), React.createElement("div", {
+                                            className: "pb-4",
+                                            style: UseEditorLayout.sizeToStyle(size)
+                                          }, React.createElement($$MediaList.make, {
+                                                variant: listVariant
+                                              })));
                           })), null), React.createElement("div", {
                       ref: previewRef,
                       className: "bg-black",

@@ -4,7 +4,7 @@ use fframes::{
     ResolvedScenesTimeline, Scenes, ScenesWithAudio, StaticMediaProvider, TimeBase, Video,
 };
 use futures::future::join_all;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen(module = "@fframes/editor")]
@@ -51,15 +51,15 @@ impl AudioData {
 }
 
 async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaProvider<'media>>(
-    tb: &'a TimeBase,
+    tb: &TimeBase,
     duration: &'a Duration<'a>,
-    scene_audios: &'a ScenesWithAudio<'a>,
+    scene_audios: &'a ScenesWithAudio<'media>,
     global_audio_map: &'a fframes::AudioMap<'a>,
     static_media: &'media TStaticMedia,
-) -> fframes::error::Result<HashMap<&'a str, usize>> {
-    let mut duration_map: HashMap<&'a str, usize> = HashMap::new();
+) -> fframes::error::Result<HashMap<String, usize>> {
+    let mut duration_map: HashMap<String, usize> = HashMap::new();
     let mut all_used_files = global_audio_map
-        .used_audio_files::<HashSet<&str>>()
+        .used_audio_files::<Vec<&str>>()
         .unwrap_or_default();
 
     if let Some(duration_audios) = duration.used_audio_files() {
@@ -73,6 +73,9 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
         return Ok(HashMap::new());
     }
 
+    all_used_files.sort_unstable();
+    all_used_files.dedup();
+
     let all_used_files = all_used_files
         .into_iter()
         .filter(|file| {
@@ -82,7 +85,7 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
             static_audio
                 .map(|audio| {
                     let duration = audio.duration_in_frames(tb);
-                    duration_map.insert(file, duration);
+                    duration_map.insert(file.to_string(), duration);
                 })
                 .is_none()
         })
@@ -105,7 +108,7 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
             .as_f64()
             .map(|val| {
                 let frames = val * tb.fps as f64;
-                duration_map.insert(file, frames as usize);
+                duration_map.insert(file.to_string(), frames as usize);
             })
             .ok_or_else(|| FFramesError::CanNotProcessAudioDuration(file.to_string())),
         Err(_) => Err(FFramesError::CanNotProcessAudioDuration(file.to_string())),
@@ -114,14 +117,18 @@ async fn resolve_used_audio_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     Ok(duration_map)
 }
 
-pub async fn prepare_video_with_audio<'a, TVideo: Video, TStaticMedia: StaticMediaProvider<'a>>(
-    video: &'a TVideo,
+pub async fn prepare_video_with_audio<
+    'a,
+    TVideo: Video,
+    TStaticMedia: StaticMediaProvider<'static>,
+>(
+    video: &TVideo,
     tb: &TimeBase,
-    static_media: &'a TStaticMedia,
-    scenes: &'a Scenes<'a>,
+    static_media: &'static TStaticMedia,
+    scenes: &Scenes<'static>,
 ) -> (
     usize,
-    Option<ResolvedScenesTimeline<'a>>,
+    Option<ResolvedScenesTimeline<'static>>,
     Option<ResolvedAudioMap<AudioTimelineFrames>>,
 ) {
     let video_duration = video.duration();

@@ -11,7 +11,7 @@ import * as UseObservable from "./hooks/useObservable.bs.js";
 import * as AnimationRuntime from "./services/AnimationRuntime.bs.js";
 
 var currentFps = {
-  contents: undefined
+  contents: undefined,
 };
 
 function get_magnet_key(video) {
@@ -25,48 +25,69 @@ function validateVolume(param) {
 }
 
 function MakePlayer(Wasm) {
-  var sceneIndex = Belt_Option.flatMap(Dom_storage.getItem("ffscene", localStorage), Js__Int.fromString);
-  var savedMagnet = Belt_Option.flatMap(Dom_storage.getItem(Wasm.videoMeta.name + "_ffmagnet", localStorage), Js__Int.fromString);
+  var sceneIndex = Belt_Option.flatMap(
+    Dom_storage.getItem("ffscene", localStorage),
+    Js__Int.fromString
+  );
+  var savedMagnet = Belt_Option.flatMap(
+    Dom_storage.getItem(Wasm.videoMeta.name + "_ffmagnet", localStorage),
+    Js__Int.fromString
+  );
   var match = Wasm.videoMeta.scenesTimeline;
-  var initialFrame = Utils.$$Option.unwrapOr(savedMagnet !== undefined ? Utils.$$Option.some(Math.min(savedMagnet, Wasm.videoMeta.durationInFrames)) : (
-          !(match == null) && sceneIndex !== undefined ? Belt_Option.map(match[sceneIndex], (function (scene) {
-                    return scene.start;
-                  })) : Belt_Option.flatMap(Dom_storage.getItem("fframe", localStorage), Js__Int.fromString)
-        ), 0);
+  var initialFrame = Utils.$$Option.unwrapOr(
+    savedMagnet !== undefined
+      ? Utils.$$Option.some(
+          Math.min(savedMagnet, Wasm.videoMeta.durationInFrames)
+        )
+      : !(match == null) && sceneIndex !== undefined
+        ? Belt_Option.map(match[sceneIndex], function (scene) {
+            return scene.start;
+          })
+        : Belt_Option.flatMap(
+            Dom_storage.getItem("fframe", localStorage),
+            Js__Int.fromString
+          ),
+    0
+  );
   var savedValue = Dom_storage.getItem("ffvolume", localStorage);
-  var volume = savedValue !== undefined ? (
-      Wasm.videoMeta.hasAudio ? Js__Int.fromString(savedValue) : undefined
-    ) : (
-      Wasm.videoMeta.hasAudio ? 60 : undefined
-    );
+  var volume =
+    savedValue !== undefined
+      ? Wasm.videoMeta.hasAudio
+        ? Js__Int.fromString(savedValue)
+        : undefined
+      : Wasm.videoMeta.hasAudio
+        ? 60
+        : undefined;
   var state = Curry._1(MediaLoader.MediaLoaderObserver.get, undefined);
-  var initial = state.allMediaLoaded ? ({
+  var initial = state.allMediaLoaded
+    ? {
         frame: initialFrame,
         startPlayingFrame: initialFrame,
-        playState: /* WaitingForAction */2,
+        playState: /* WaitingForAction */ 2,
         fpsLimit: Wasm.videoMeta.fps,
-        svg: Utils.$$Option.some(Curry._1(Wasm.controller.render_frame, BigInt(0))),
+        svg: Utils.$$Option.some(Wasm.controller.render_frame(BigInt(0))),
         volume: volume,
-        magnet: savedMagnet
-      }) : ({
+        magnet: savedMagnet,
+      }
+    : {
         frame: initialFrame,
         startPlayingFrame: initialFrame,
-        playState: /* CantPlay */3,
+        playState: /* CantPlay */ 3,
         fpsLimit: Wasm.videoMeta.fps,
         svg: undefined,
         volume: volume,
-        magnet: savedMagnet
-      });
+        magnet: savedMagnet,
+      };
   var PlayerState = {
     sceneIndex: sceneIndex,
     savedMagnet: savedMagnet,
     initialFrame: initialFrame,
     volume: volume,
-    initial: initial
+    initial: initial,
   };
   var include = UseObservable.Pubsub({
-        initial: initial
-      });
+    initial: initial,
+  });
   var get = include.get;
   var set = include.set;
   var recordFrame = function (frame) {
@@ -75,185 +96,215 @@ function MakePlayer(Wasm) {
       return Dom_storage.setItem("fframe", frame.toString(), localStorage);
     }
     var currentScene = scenes.findIndex(function (scene) {
-          return scene.end > frame;
-        });
-    return Dom_storage.setItem("ffscene", currentScene.toString(), localStorage);
+      return scene.end > frame;
+    });
+    return Dom_storage.setItem(
+      "ffscene",
+      currentScene.toString(),
+      localStorage
+    );
   };
   var reducer = function (action) {
     var state = Curry._1(get, undefined);
     if (typeof action === "number") {
       switch (action) {
-        case /* AllowPlay */0 :
+        case /* AllowPlay */ 0:
+          return {
+            frame: state.frame,
+            startPlayingFrame: state.startPlayingFrame,
+            playState: /* WaitingForAction */ 2,
+            fpsLimit: state.fpsLimit,
+            svg: state.svg,
+            volume: state.volume,
+            magnet: state.magnet,
+          };
+        case /* Play */ 1:
+          if (
+            state.frame <= 0 ||
+            state.frame >= Wasm.videoMeta.durationInFrames
+          ) {
             return {
-                    frame: state.frame,
-                    startPlayingFrame: state.startPlayingFrame,
-                    playState: /* WaitingForAction */2,
-                    fpsLimit: state.fpsLimit,
-                    svg: state.svg,
-                    volume: state.volume,
-                    magnet: state.magnet
-                  };
-        case /* Play */1 :
-            if (state.frame <= 0 || state.frame >= Wasm.videoMeta.durationInFrames) {
-              return {
-                      frame: Utils.$$Option.unwrapOr(state.magnet, 0),
-                      startPlayingFrame: state.startPlayingFrame,
-                      playState: /* Playing */0,
-                      fpsLimit: state.fpsLimit,
-                      svg: state.svg,
-                      volume: state.volume,
-                      magnet: state.magnet
-                    };
-            } else {
-              return {
-                      frame: state.frame,
-                      startPlayingFrame: state.frame,
-                      playState: /* Playing */0,
-                      fpsLimit: state.fpsLimit,
-                      svg: state.svg,
-                      volume: state.volume,
-                      magnet: state.magnet
-                    };
-            }
-        case /* Pause */2 :
+              frame: Utils.$$Option.unwrapOr(state.magnet, 0),
+              startPlayingFrame: state.startPlayingFrame,
+              playState: /* Playing */ 0,
+              fpsLimit: state.fpsLimit,
+              svg: state.svg,
+              volume: state.volume,
+              magnet: state.magnet,
+            };
+          } else {
             return {
-                    frame: state.frame,
-                    startPlayingFrame: state.startPlayingFrame,
-                    playState: /* Paused */1,
-                    fpsLimit: state.fpsLimit,
-                    svg: state.svg,
-                    volume: state.volume,
-                    magnet: state.magnet
-                  };
-        case /* SetMagnet */3 :
-            if (state.magnet === state.frame) {
-              return {
-                      frame: state.frame,
-                      startPlayingFrame: state.startPlayingFrame,
-                      playState: state.playState,
-                      fpsLimit: state.fpsLimit,
-                      svg: state.svg,
-                      volume: state.volume,
-                      magnet: undefined
-                    };
-            } else {
-              return {
-                      frame: state.frame,
-                      startPlayingFrame: state.startPlayingFrame,
-                      playState: state.playState,
-                      fpsLimit: state.fpsLimit,
-                      svg: state.svg,
-                      volume: state.volume,
-                      magnet: state.frame
-                    };
-            }
-        
+              frame: state.frame,
+              startPlayingFrame: state.frame,
+              playState: /* Playing */ 0,
+              fpsLimit: state.fpsLimit,
+              svg: state.svg,
+              volume: state.volume,
+              magnet: state.magnet,
+            };
+          }
+        case /* Pause */ 2:
+          return {
+            frame: state.frame,
+            startPlayingFrame: state.startPlayingFrame,
+            playState: /* Paused */ 1,
+            fpsLimit: state.fpsLimit,
+            svg: state.svg,
+            volume: state.volume,
+            magnet: state.magnet,
+          };
+        case /* SetMagnet */ 3:
+          if (state.magnet === state.frame) {
+            return {
+              frame: state.frame,
+              startPlayingFrame: state.startPlayingFrame,
+              playState: state.playState,
+              fpsLimit: state.fpsLimit,
+              svg: state.svg,
+              volume: state.volume,
+              magnet: undefined,
+            };
+          } else {
+            return {
+              frame: state.frame,
+              startPlayingFrame: state.startPlayingFrame,
+              playState: state.playState,
+              fpsLimit: state.fpsLimit,
+              svg: state.svg,
+              volume: state.volume,
+              magnet: state.frame,
+            };
+          }
       }
     } else {
       switch (action.TAG | 0) {
-        case /* Seek */0 :
-        case /* NewFrame */1 :
-            break;
-        case /* SetVolume */2 :
-            return {
-                    frame: state.frame,
-                    startPlayingFrame: state.startPlayingFrame,
-                    playState: state.playState,
-                    fpsLimit: state.fpsLimit,
-                    svg: state.svg,
-                    volume: action._0,
-                    magnet: state.magnet
-                  };
-        
+        case /* Seek */ 0:
+        case /* NewFrame */ 1:
+          break;
+        case /* SetVolume */ 2:
+          return {
+            frame: state.frame,
+            startPlayingFrame: state.startPlayingFrame,
+            playState: state.playState,
+            fpsLimit: state.fpsLimit,
+            svg: state.svg,
+            volume: action._0,
+            magnet: state.magnet,
+          };
       }
     }
     var frame = action._0;
     if (frame >= Wasm.videoMeta.durationInFrames || frame < 0) {
       var frame$1 = Utils.$$Option.unwrapOr(state.magnet, 0);
-      var svg = Curry._1(Wasm.controller.render_frame, BigInt(frame$1));
+      var svg = Wasm.controller.render_frame(BigInt(frame$1));
       return {
-              frame: frame$1,
-              startPlayingFrame: frame$1,
-              playState: Wasm.options.loop ? /* Playing */0 : /* Paused */1,
-              fpsLimit: state.fpsLimit,
-              svg: svg,
-              volume: state.volume,
-              magnet: state.magnet
-            };
+        frame: frame$1,
+        startPlayingFrame: frame$1,
+        playState: Wasm.options.loop ? /* Playing */ 0 : /* Paused */ 1,
+        fpsLimit: state.fpsLimit,
+        svg: svg,
+        volume: state.volume,
+        magnet: state.magnet,
+      };
     }
     var frame$2 = action._0;
-    var svg$1 = Curry._1(Wasm.controller.render_frame, BigInt(frame$2));
+    var svg$1 = Wasm.controller.render_frame(BigInt(frame$2));
     var tmp;
-    tmp = typeof action === "number" || action.TAG !== /* Seek */0 ? state.startPlayingFrame : action._0;
+    tmp =
+      typeof action === "number" || action.TAG !== /* Seek */ 0
+        ? state.startPlayingFrame
+        : action._0;
     return {
-            frame: frame$2,
-            startPlayingFrame: tmp,
-            playState: state.playState,
-            fpsLimit: state.fpsLimit,
-            svg: svg$1,
-            volume: state.volume,
-            magnet: state.magnet
-          };
+      frame: frame$2,
+      startPlayingFrame: tmp,
+      playState: state.playState,
+      fpsLimit: state.fpsLimit,
+      svg: svg$1,
+      volume: state.volume,
+      magnet: state.magnet,
+    };
   };
   var onFrame = function (dispatch, secondsFromStart) {
-    var nextFrame = Math.floor(secondsFromStart * Wasm.videoMeta.fps + Curry._1(get, undefined).startPlayingFrame);
+    var nextFrame = Math.floor(
+      secondsFromStart * Wasm.videoMeta.fps +
+        Curry._1(get, undefined).startPlayingFrame
+    );
     if (nextFrame !== Curry._1(get, undefined).frame) {
       Curry._1(dispatch, {
-            TAG: /* NewFrame */1,
-            _0: nextFrame
-          });
+        TAG: /* NewFrame */ 1,
+        _0: nextFrame,
+      });
     }
-    return Curry._1(get, undefined).playState === /* Playing */0;
+    return Curry._1(get, undefined).playState === /* Playing */ 0;
   };
   var sideEffect = function (action, dispatch) {
     var startPlaying = function (currentFrame) {
-      Belt_Option.map(Curry._1(get, undefined).volume, AnimationRuntime.AudioRuntime.setVolume);
-      AnimationRuntime.AudioRuntime.startAnimation((function (param) {
-              return onFrame(dispatch, param);
-            }), currentFrame, Wasm.videoMeta);
-      
+      Belt_Option.map(
+        Curry._1(get, undefined).volume,
+        AnimationRuntime.AudioRuntime.setVolume
+      );
+      AnimationRuntime.AudioRuntime.startAnimation(
+        function (param) {
+          return onFrame(dispatch, param);
+        },
+        currentFrame,
+        Wasm.videoMeta
+      );
     };
     if (typeof action === "number") {
       switch (action) {
-        case /* AllowPlay */0 :
-            return ;
-        case /* Play */1 :
-            if (Curry._1(get, undefined).playState !== /* Playing */0) {
-              return startPlaying(Curry._1(get, undefined).frame);
-            } else {
-              return ;
-            }
-        case /* Pause */2 :
-            return AnimationRuntime.AudioRuntime.stop(undefined);
-        case /* SetMagnet */3 :
-            if (Curry._1(get, undefined).magnet !== Curry._1(get, undefined).frame) {
-              return Dom_storage.setItem(Wasm.videoMeta.name + "_ffmagnet", Curry._1(get, undefined).frame.toString(), localStorage);
-            } else if (Curry._1(get, undefined).magnet === Curry._1(get, undefined).frame) {
-              return Dom_storage.removeItem(Wasm.videoMeta.name + "_ffmagnet", localStorage);
-            } else {
-              return ;
-            }
-        
+        case /* AllowPlay */ 0:
+          return;
+        case /* Play */ 1:
+          if (Curry._1(get, undefined).playState !== /* Playing */ 0) {
+            return startPlaying(Curry._1(get, undefined).frame);
+          } else {
+            return;
+          }
+        case /* Pause */ 2:
+          return AnimationRuntime.AudioRuntime.stop(undefined);
+        case /* SetMagnet */ 3:
+          if (
+            Curry._1(get, undefined).magnet !== Curry._1(get, undefined).frame
+          ) {
+            return Dom_storage.setItem(
+              Wasm.videoMeta.name + "_ffmagnet",
+              Curry._1(get, undefined).frame.toString(),
+              localStorage
+            );
+          } else if (
+            Curry._1(get, undefined).magnet === Curry._1(get, undefined).frame
+          ) {
+            return Dom_storage.removeItem(
+              Wasm.videoMeta.name + "_ffmagnet",
+              localStorage
+            );
+          } else {
+            return;
+          }
       }
     } else {
       switch (action.TAG | 0) {
-        case /* Seek */0 :
-            var newFrame = action._0;
-            AnimationRuntime.AudioRuntime.stop(undefined);
-            startPlaying(newFrame);
-            return recordFrame(newFrame);
-        case /* NewFrame */1 :
-            var newFrame$1 = action._0;
-            if (Caml_int32.mod_(newFrame$1, Wasm.videoMeta.fps) === 0) {
-              return recordFrame(newFrame$1);
-            } else {
-              return ;
-            }
-        case /* SetVolume */2 :
-            var volume = action._0;
-            AnimationRuntime.AudioRuntime.setVolume(volume);
-            return Dom_storage.setItem("ffvolume", volume.toString(), localStorage);
-        
+        case /* Seek */ 0:
+          var newFrame = action._0;
+          AnimationRuntime.AudioRuntime.stop(undefined);
+          startPlaying(newFrame);
+          return recordFrame(newFrame);
+        case /* NewFrame */ 1:
+          var newFrame$1 = action._0;
+          if (Caml_int32.mod_(newFrame$1, Wasm.videoMeta.fps) === 0) {
+            return recordFrame(newFrame$1);
+          } else {
+            return;
+          }
+        case /* SetVolume */ 2:
+          var volume = action._0;
+          AnimationRuntime.AudioRuntime.setVolume(volume);
+          return Dom_storage.setItem(
+            "ffvolume",
+            volume.toString(),
+            localStorage
+          );
       }
     }
   };
@@ -262,20 +313,20 @@ function MakePlayer(Wasm) {
     return Curry._1(set, reducer(action));
   };
   return {
-          PlayerState: PlayerState,
-          mutableState: include.mutableState,
-          listeners: include.listeners,
-          get: get,
-          set: set,
-          nextId: include.nextId,
-          subscribe: include.subscribe,
-          useObservable: include.useObservable,
-          recordFrame: recordFrame,
-          reducer: reducer,
-          onFrame: onFrame,
-          sideEffect: sideEffect,
-          dispatch: dispatch
-        };
+    PlayerState: PlayerState,
+    mutableState: include.mutableState,
+    listeners: include.listeners,
+    get: get,
+    set: set,
+    nextId: include.nextId,
+    subscribe: include.subscribe,
+    useObservable: include.useObservable,
+    recordFrame: recordFrame,
+    reducer: reducer,
+    onFrame: onFrame,
+    sideEffect: sideEffect,
+    dispatch: dispatch,
+  };
 }
 
 var min_volume = 0;
@@ -283,12 +334,11 @@ var min_volume = 0;
 var max_volume = 100;
 
 export {
-  currentFps ,
-  get_magnet_key ,
-  min_volume ,
-  max_volume ,
-  validateVolume ,
-  MakePlayer ,
-  
-}
+  currentFps,
+  get_magnet_key,
+  min_volume,
+  max_volume,
+  validateVolume,
+  MakePlayer,
+};
 /* Utils Not a pure module */

@@ -1,11 +1,13 @@
 #![cfg(target_arch = "wasm32")]
 use beta_example::{BetaExamples, BetaVideo, IphoneScene};
-use fframes_editor_controller::{prelude::*, setup_wasm_editor};
+use fframes_editor_controller::{impl_wasm_bridge_for, prelude::*};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use marketing_example::{MarketingMedia, MarketingVideo};
 use podcast_example::PodcastVideo;
 use std::sync::Arc;
 use tiktok_example::{GooseMedia, GooseVideo};
+
+impl_wasm_bridge_for!(BetaVideo<'static>);
 
 lazy_static! {
     static ref TIKTOK_MEDIA: GooseMedia = GooseMedia::prepare().unwrap();
@@ -13,9 +15,11 @@ lazy_static! {
     static ref HELLO_WORLD_MEDIA: HelloWorldMedia = HelloWorldMedia::prepare().unwrap();
 }
 
-setup_wasm_editor!(
-    BetaVideo,
-    BetaVideo {
+#[wasm_bindgen]
+pub fn create_wasm_bridge() -> WasmBridge {
+    console_error_panic_hook::set_once();
+
+    WasmBridge::new(BetaVideo {
         iphone_scene: IphoneScene {
             hours: 14,
             minutes: 4,
@@ -26,7 +30,7 @@ setup_wasm_editor!(
             }),
             hello_world_video: Arc::new(HelloWorldVideo {
                 slug: "Hello, Beta!",
-                media: &HELLO_WORLD_MEDIA
+                media: &HELLO_WORLD_MEDIA,
             }),
             marketing_video: Arc::new(MarketingVideo {
                 audio_track: "beta.mp3",
@@ -35,8 +39,8 @@ setup_wasm_editor!(
             podcast_video: Arc::new(PodcastVideo {
                 goose_audio: "beta.mp3",
                 duck_audio: "beta.mp3",
-                guest_audio: "beta.mp3"
-            })
-        }
-    }
-);
+                guest_audio: "beta.mp3",
+            }),
+        },
+    })
+}

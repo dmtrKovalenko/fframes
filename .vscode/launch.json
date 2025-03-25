@@ -1,51 +1,49 @@
-  {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "(lldb) Debug raw C libav code",
-        "type": "lldb",
-        "request": "launch",
-        "program": "${workspaceFolder}/fframes-renderer/c_render_bin",
-        "preLaunchTask": "cexample:build",
-        "args": [
-          "out.webm"
-        ],
-        "cwd": "${workspaceFolder}"
-      },
-      {
-        "type": "lldb",
-        "request": "launch",
-        "name": "Debug Hello World",
-        "program": "${workspaceFolder}/target/debug/hello_world_example_bin",
-        "cwd": "${workspaceFolder}/examples/hello-world",
-        "preLaunchTask": "cargo:build"
-      },
-      {
-        "type": "lldb",
-        "request": "launch",
-        "name": "Debug audio announce",
-        "program": "${workspaceFolder}/target/debug/audio_announce_example_bin",
-        "cwd": "${workspaceFolder}/examples/audio-announce",
-        "preLaunchTask": "cargo:build"
-      },
-      {
-        "type": "lldb",
-        "request": "launch",
-        "name": "Debug Conference",
-        "program": "${workspaceFolder}/target/debug/conference_splash_screen_bin",
-        "cwd": "${workspaceFolder}/examples/conference-splash-screen",
-        "preLaunchTask": "cargo:build"
-      },
-      {
-        "type": "lldb",
-        "request": "launch",
-        "name": "Debug Podcast",
-        "program": "${workspaceFolder}/target/debug/podcast_example_bin",
-        "cwd": "${workspaceFolder}/examples/podcast",
-        "preLaunchTask": "cargo:build"
-      }
-    ]
-  }
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(lldb) Debug raw C libav code",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/fframes-renderer/c_render_bin",
+      "preLaunchTask": "cexample:build",
+      "args": ["out.webm"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Hello World",
+      "program": "${workspaceFolder}/target/debug/hello_world_example_bin",
+      "cwd": "${workspaceFolder}/examples/hello-world",
+      "preLaunchTask": "cargo:build"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug audio announce",
+      "program": "${workspaceFolder}/target/debug/audio_announce_example_bin",
+      "cwd": "${workspaceFolder}/examples/audio-announce",
+      "preLaunchTask": "cargo:build"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Conference",
+      "program": "${workspaceFolder}/target/debug/conference_splash_screen_bin",
+      "cwd": "${workspaceFolder}/examples/conference-splash-screen",
+      "preLaunchTask": "cargo:build"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Podcast",
+      "program": "${workspaceFolder}/target/debug/podcast_example_bin",
+      "cwd": "${workspaceFolder}/examples/podcast",
+      "preLaunchTask": "cargo:build"
+    }
+  ]
+}

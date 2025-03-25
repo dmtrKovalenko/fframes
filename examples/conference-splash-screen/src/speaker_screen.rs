@@ -1,6 +1,7 @@
 use crate::ConferenceMedia;
 use fframes::{
     self, EstimateTextWidthOptions, FFramesContext, FontStretch, FontStyle, Frame, Scene, Svgr,
+    Transform,
     animation::{self, Easing},
 };
 
@@ -95,8 +96,19 @@ impl Scene for SpeakerScene<'_> {
 
             {title_structure.as_svgr(title_opts)}
 
-            <svg x="1000" y="250" width="140" height="134" viewBox="0 0 140 134" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M-4.94719e-06 2H134.8C136.567 2 138 3.43269 138 5.2V134" stroke="#FFFBFB" stroke-width="3"
+            <svg
+                x="1000"
+                y="250"
+                width="140"
+                height="134"
+                viewBox="0 0 140 134"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M-4.94719e-06 2H134.8C136.567 2 138 3.43269 138 5.2V134"
+                stroke="#FFFBFB"
+                stroke-width="3"
                 stroke-dasharray="300"
                 stroke-dashoffset={frame.animate(&fframes::timeline!(
                   at 0., animate 300. => 0., &Easing::Spring  {mass: 4., stiffness: 80., damping: 55.}
@@ -104,8 +116,19 @@ impl Scene for SpeakerScene<'_> {
               />
             </svg>
 
-            <svg x="40" y={abstract_y + abstract_text_structure.occupied_height() - 110} width="140" height="134" viewBox="0 0 140 134" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M137.2 132H5.19999C3.43268 132 2 130.567 2 128.8V0" stroke="#FFFBFB" stroke-width="3"
+            <svg
+                x="40"
+                y={abstract_y + abstract_text_structure.occupied_height() - 110}
+                width="140"
+                height="134"
+                viewBox="0 0 140 134"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M137.2 132H5.19999C3.43268 132 2 130.567 2 128.8V0"
+                stroke="#FFFBFB"
+                stroke-width="3"
                 stroke-dasharray="300"
                 stroke-dashoffset={frame.animate(&fframes::timeline!(
                   at 0., animate 300. => 0., &Easing::Spring  {mass: 4., stiffness: 80., damping: 55.}
@@ -115,9 +138,29 @@ impl Scene for SpeakerScene<'_> {
 
             {abstract_text_structure.as_svgr(abstract_opts).clone()}
 
-             <pattern id="speaker" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-               <image x="0%" y="0%" width="480" height="480" href={ctx.get_image(self.avatar.unwrap_or("__not_exists")).unwrap_or(&self.media.speaker_placeholder_png).href()}></image>
-             </pattern>
+            <pattern
+                id="speaker"
+                x="0%"
+                y="0%"
+                height="100%"
+                width="100%"
+                viewBox="0 0 480 480"
+            >
+               <image
+                 x="0%"
+                 y="0%"
+                 width="480"
+                 height="480"
+                 href={
+                    self
+                      .avatar
+                      .as_ref()
+                      .and_then(|avatar| ctx.get_image(avatar))
+                      .unwrap_or(&self.media.speaker_placeholder_png)
+                      .href()
+                 }
+               />
+            </pattern>
             <filter id="shadow">
               <feDropShadow
                 dx="3"
@@ -128,15 +171,44 @@ impl Scene for SpeakerScene<'_> {
               />
             </filter>
 
-            <g
-              transform={format!("skewX({tilt_angle}), skewY({y})", y=-tilt_angle + 0.4)}
-            >
-              <rect filter="url(#shadow)" rx="60" ry="60" x="1200" y="162" width="661" height="770" fill="#525764" />
-
-              <circle r="220" cx="1540" cy="470" fill="url(#speaker)" />
-
-              <rect x={1534-speaker_name_width/2} y={820-95/2} width={speaker_name_width} height="90" rx="20" ry="20" fill="white" />
-              <text dominant-baseline="middle" fill="#D54000" text-anchor="middle" x="1534" y="820" font-weight="700" font-family="Inter 24pt" font-size="54">{self.speaker_name}</text>
+            <g filter={Transform::skew(tilt_angle, -tilt_angle + 0.4)}>
+              <rect
+                filter="url(#shadow)"
+                rx="60"
+                ry="60"
+                x="1200"
+                y="162"
+                width="661"
+                height="770"
+                fill="#525764"
+              />
+              <circle
+                r="220"
+                cx="1540"
+                cy="470"
+                fill="url(#speaker)"
+              />
+              <rect
+                x={1534-speaker_name_width/2}
+                y={820-95/2}
+                width={speaker_name_width}
+                height="90"
+                rx="20"
+                ry="20"
+                fill="white"
+              />
+              <text
+                dominant-baseline="middle"
+                fill="#D54000"
+                text-anchor="middle"
+                x="1534"
+                y="820"
+                font-weight="700"
+                font-family="Inter 24pt"
+                font-size="54"
+              >
+                {self.speaker_name}
+              </text>
             </g>
         )
     }

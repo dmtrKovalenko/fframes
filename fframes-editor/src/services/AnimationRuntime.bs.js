@@ -9,23 +9,23 @@ import * as MediaLoader from "./mediaLoader.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
 
 var rafId = {
-  contents: undefined
+  contents: undefined,
 };
 
 var playingSources = {
-  contents: []
+  contents: [],
 };
 
 var startTime = {
-  contents: 0
+  contents: 0,
 };
 
 var lastFrameTime = {
-  contents: undefined
+  contents: undefined,
 };
 
 var runtimeFps = {
-  contents: undefined
+  contents: undefined,
 };
 
 var ctx = new AudioContext();
@@ -34,25 +34,25 @@ var gain = ctx.createGain();
 
 function setVolume(value) {
   gain.gain.value = value / 100;
-  
 }
 
 function stop(param) {
-  Belt_Option.map(rafId.contents, (function (prim) {
-          cancelAnimationFrame(prim);
-          
-        }));
-  return Belt_Array.forEach(playingSources.contents, (function (nameAndSource) {
-                nameAndSource[1].stop();
-                
-              }));
+  Belt_Option.map(rafId.contents, function (prim) {
+    cancelAnimationFrame(prim);
+  });
+  return Belt_Array.forEach(playingSources.contents, function (nameAndSource) {
+    nameAndSource[1].stop();
+  });
 }
 
 function frame(onFrame, _timestamp) {
   var currentTime = ctx.currentTime;
-  var thisFrameTime = Belt_Option.map(lastFrameTime.contents, (function (lastFrameTime) {
-          return currentTime - lastFrameTime;
-        }));
+  var thisFrameTime = Belt_Option.map(
+    lastFrameTime.contents,
+    function (lastFrameTime) {
+      return currentTime - lastFrameTime;
+    }
+  );
   var secondsFromStart = currentTime - startTime.contents;
   var match = runtimeFps.contents;
   var tmp;
@@ -60,7 +60,7 @@ function frame(onFrame, _timestamp) {
   if (match !== undefined) {
     if (thisFrameTime !== undefined) {
       if (thisFrameTime > 0) {
-        tmp = match * 0.9 + 1 / thisFrameTime * (1 - 0.9);
+        tmp = match * 0.9 + (1 / thisFrameTime) * (1 - 0.9);
       } else {
         exit = 1;
       }
@@ -71,15 +71,20 @@ function frame(onFrame, _timestamp) {
     exit = 1;
   }
   if (exit === 1) {
-    tmp = thisFrameTime !== undefined && thisFrameTime > 0 ? 1 / thisFrameTime : undefined;
+    tmp =
+      thisFrameTime !== undefined && thisFrameTime > 0
+        ? 1 / thisFrameTime
+        : undefined;
   }
   runtimeFps.contents = tmp;
   if (Curry._1(onFrame, secondsFromStart)) {
     lastFrameTime.contents = currentTime;
-    rafId.contents = Caml_option.some(requestAnimationFrame(function (param) {
-              return frame(onFrame, param);
-            }));
-    return ;
+    rafId.contents = Caml_option.some(
+      requestAnimationFrame(function (param) {
+        return frame(onFrame, param);
+      })
+    );
+    return;
   } else {
     return stop(undefined);
   }
@@ -88,32 +93,34 @@ function frame(onFrame, _timestamp) {
 function connectAudioFiles(ctx, videoMeta) {
   var match = Curry._1(MediaLoader.MediaLoaderObserver.get, undefined);
   var mediaList = match.mediaList;
-  return Belt_Array.map(Belt_Array.keepMap(Utils.$$Option.unwrapOr(Caml_option.nullable_to_opt(videoMeta.audioMap), []), (function (track) {
-                    var media = Belt_MapString.getExn(mediaList, track.name);
-                    switch (media.TAG | 0) {
-                      case /* Media */1 :
-                          var media$1 = media._0;
-                          if (media$1.TAG === /* Audio */3) {
-                            return [
-                                    track,
-                                    media$1._0
-                                  ];
-                          } else {
-                            return ;
-                          }
-                      case /* Loading */0 :
-                      case /* Error */2 :
-                          return ;
-                      
-                    }
-                  })), (function (param) {
-                var source = ctx.createBufferSource();
-                source.buffer = param[1].audioData;
-                return [
-                        param[0],
-                        source
-                      ];
-              }));
+  return Belt_Array.map(
+    Belt_Array.keepMap(
+      Utils.$$Option.unwrapOr(
+        Caml_option.nullable_to_opt(videoMeta.audioMap),
+        []
+      ),
+      function (track) {
+        var media = Belt_MapString.getExn(mediaList, track.name);
+        switch (media.TAG | 0) {
+          case /* Media */ 1:
+            var media$1 = media._0;
+            if (media$1.TAG === /* Audio */ 3) {
+              return [track, media$1._0];
+            } else {
+              return;
+            }
+          case /* Loading */ 0:
+          case /* Error */ 2:
+            return;
+        }
+      }
+    ),
+    function (param) {
+      var source = ctx.createBufferSource();
+      source.buffer = param[1].audioData;
+      return [param[0], source];
+    }
+  );
 }
 
 function startAnimation(onFrame, currentFrame, videoMeta) {
@@ -121,23 +128,24 @@ function startAnimation(onFrame, currentFrame, videoMeta) {
   playingSources.contents = connectAudioFiles(ctx, videoMeta);
   gain.connect(ctx.destination);
   startTime.contents = ctx.currentTime;
-  Belt_Array.forEach(playingSources.contents, (function (param) {
-          var source = param[1];
-          var track = param[0];
-          var offset = (currentFrame - track.start | 0) / videoMeta.fps;
-          var duration = Math.max((track.end - currentFrame | 0) / videoMeta.fps, 0);
-          source.connect(gain);
-          if (offset < 0) {
-            source.start(startTime.contents + Math.abs(offset), 0, duration);
-          } else {
-            source.start(startTime.contents, offset, duration);
-          }
-          
-        }));
+  Belt_Array.forEach(playingSources.contents, function (param) {
+    var source = param[1];
+    var track = param[0];
+    var offset = ((currentFrame - track.start) | 0) / videoMeta.fps;
+    var duration = Math.max(
+      ((track.end - currentFrame) | 0) / videoMeta.fps,
+      0
+    );
+    source.connect(gain);
+    if (offset < 0) {
+      source.start(startTime.contents + Math.abs(offset), 0, duration);
+    } else {
+      source.start(startTime.contents, offset, duration);
+    }
+  });
   requestAnimationFrame(function (param) {
-        return frame(onFrame, param);
-      });
-  
+    return frame(onFrame, param);
+  });
 }
 
 var AudioRuntime = {
@@ -153,11 +161,8 @@ var AudioRuntime = {
   stop: stop,
   frame: frame,
   connectAudioFiles: connectAudioFiles,
-  startAnimation: startAnimation
+  startAnimation: startAnimation,
 };
 
-export {
-  AudioRuntime ,
-  
-}
+export { AudioRuntime };
 /* ctx Not a pure module */

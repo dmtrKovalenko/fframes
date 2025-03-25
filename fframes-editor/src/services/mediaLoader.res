@@ -132,7 +132,7 @@ let populateInlinedMedia = (
   ~wasmController: WasmController.t,
   ~options: WasmController.options,
 ) => {
-  wasmController.populate_static_fonts_db_with_static_fonts()
+  wasmController->WasmController.populate_static_fonts_db_with_static_fonts
   let fonts_loader = resolveStaticFonts({
     wasmController: wasmController,
     wasmControllerOptions: options,

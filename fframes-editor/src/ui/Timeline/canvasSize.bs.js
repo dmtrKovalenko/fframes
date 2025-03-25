@@ -5,17 +5,20 @@ import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 
 function useCanvasScale(elementRef, size) {
-  React.useEffect((function () {
-          Belt_Option.forEach(Caml_option.nullable_to_opt(elementRef.current), (function (canvasElement) {
-                  var ctx = canvasElement.getContext("2d");
-                  canvasElement.height = Math.floor(size.scaledHeight) | 0;
-                  canvasElement.width = Math.floor(size.scaledWidth) | 0;
-                  ctx.scale(size.scale, size.scale);
-                  
-                }));
-          
-        }), [size]);
-  
+  React.useEffect(
+    function () {
+      Belt_Option.forEach(
+        Caml_option.nullable_to_opt(elementRef.current),
+        function (canvasElement) {
+          var ctx = canvasElement.getContext("2d");
+          canvasElement.height = Math.floor(size.scaledHeight) | 0;
+          canvasElement.width = Math.floor(size.scaledWidth) | 0;
+          ctx.scale(size.scale, size.scale);
+        }
+      );
+    },
+    [size]
+  );
 }
 
 function frameToX(frame, size) {
@@ -28,12 +31,5 @@ var Canvas;
 
 var Canvas2d;
 
-export {
-  audio_height ,
-  Canvas ,
-  Canvas2d ,
-  useCanvasScale ,
-  frameToX ,
-  
-}
+export { audio_height, Canvas, Canvas2d, useCanvasScale, frameToX };
 /* react Not a pure module */

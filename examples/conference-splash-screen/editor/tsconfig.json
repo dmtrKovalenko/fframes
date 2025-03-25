@@ -13,6 +13,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "types": ["vite/client"],
     "jsx": "react"
   },
   "include": ["main.tsx", "editor-bridge/main.tsx"]

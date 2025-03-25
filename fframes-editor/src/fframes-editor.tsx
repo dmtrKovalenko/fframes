@@ -25,20 +25,21 @@ export function renderEditor(
     mediaListLayout: "fromAspectRatio",
     loop: false,
     rewindStepInSeconds: 2,
-    dynamicImageLengthLimit: 2073600, // full-hd
+    dynamicImageSizeLimitBytes: 512 * 1024,
     volumeStepFrom0To100: 20,
     ...partialOptions,
   };
 
-  wasmController.default().then(() => {
-    Promise.all([
-      processMedia({
-        wasmController,
-        options,
-        dynamicImports: partialOptions.dynamicMediaFolder,
-      }),
-      wasmController.prepare(options.lockFps).then((videoMeta) => {
-        root.render(
+  Promise.all([
+    processMedia({
+      wasmController,
+      options,
+      dynamicImports: partialOptions.dynamicMediaFolder,
+    }),
+    wasmController.prepare(options.lockFps).then(videoMeta => {
+      document.title = videoMeta.name.split("::").pop() ?? "fframes";
+      root.render(
+        <React.StrictMode>
           <EditorContext
             options={options}
             wasmController={wasmController}
@@ -46,14 +47,14 @@ export function renderEditor(
           >
             <Editor />
           </EditorContext>
-        );
-      }),
-    ]);
-  });
+        </React.StrictMode>
+      );
+    }),
+  ]);
 
   document.addEventListener(
     "focus",
-    (event) => {
+    event => {
       if (event.target instanceof HTMLElement) {
         const target = event.target;
         // if in 2 seconds focus still on the target element blur it to prevent stealing keystrokes from
@@ -70,14 +71,14 @@ export function renderEditor(
 }
 
 export async function load_audio_wasm_callback(name: string) {
-  console.log(name)
+  console.log(name);
   if (!lastImports) {
     throw new Error(
       `Can not process audio duration callback for ${name} imports glob not provided.`
     );
   }
 
-  const importPath = Object.keys(lastImports).find((key) =>
+  const importPath = Object.keys(lastImports).find(key =>
     lastImports?.[key].endsWith(name)
   );
   if (!importPath) {

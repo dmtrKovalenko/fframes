@@ -51,14 +51,6 @@ module VolumeIcon = {
     ~style: ReactDOM.Style.t=?,
   ) => React.element = "VolumeIcon"
 }
-module VolumeLowIcon = {
-  @react.component @module("./VolumeIcon")
-  external make: (
-    ~color: string=?,
-    ~className: string=?,
-    ~style: ReactDOM.Style.t=?,
-  ) => React.element = "VolumeLowIcon"
-}
 module MagnetIcon = {
   @react.component @module("./MagnetIcon")
   external make: (

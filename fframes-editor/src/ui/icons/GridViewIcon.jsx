@@ -1,6 +1,6 @@
 import * as React from "react";
 
-export const GridViewIcon = (props) => (
+export const GridViewIcon = props => (
   <svg
     width={57}
     height={57}

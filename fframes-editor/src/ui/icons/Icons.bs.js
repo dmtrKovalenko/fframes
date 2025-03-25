@@ -18,97 +18,90 @@ import * as MusicalNoteIcon from "./MusicalNoteIcon";
 var make = MusicalNoteIcon.MusicalNoteIcon;
 
 var MusicalNotesIcon = {
-  make: make
+  make: make,
 };
 
 var make$1 = FontIcon.FontIcon;
 
 var FontIcon$1 = {
-  make: make$1
+  make: make$1,
 };
 
 var make$2 = CaptionsIcon.CaptionsIcon;
 
 var CaptionsIcon$1 = {
-  make: make$2
+  make: make$2,
 };
 
 var make$3 = PlayIcon.PlayIcon;
 
 var PlayIcon$1 = {
-  make: make$3
+  make: make$3,
 };
 
 var make$4 = PlayBackIcon.PlayBackIcon;
 
 var PlayBackIcon$1 = {
-  make: make$4
+  make: make$4,
 };
 
 var make$5 = VolumeIcon.VolumeIcon;
 
 var VolumeIcon$1 = {
-  make: make$5
+  make: make$5,
 };
 
-var make$6 = VolumeIcon.VolumeLowIcon;
-
-var VolumeLowIcon = {
-  make: make$6
-};
-
-var make$7 = MagnetIcon.MagnetIcon;
+var make$6 = MagnetIcon.MagnetIcon;
 
 var MagnetIcon$1 = {
-  make: make$7
+  make: make$6,
 };
 
-var make$8 = FullScreenIcon.FullScreenIcon;
+var make$7 = FullScreenIcon.FullScreenIcon;
 
 var FullScreenIcon$1 = {
-  make: make$8
+  make: make$7,
 };
 
-var make$9 = CollapseIcon.CollapseIcon;
+var make$8 = CollapseIcon.CollapseIcon;
 
 var CollapseIcon$1 = {
-  make: make$9
+  make: make$8,
 };
 
-var make$10 = PauseIcon.PauseIcon;
+var make$9 = PauseIcon.PauseIcon;
 
 var PauseIcon$1 = {
-  make: make$10
+  make: make$9,
 };
 
-var make$11 = GridViewIcon.GridViewIcon;
+var make$10 = GridViewIcon.GridViewIcon;
 
 var GridViewIcon$1 = {
-  make: make$11
+  make: make$10,
 };
 
-var make$12 = ListViewIcon.ListViewIcon;
+var make$11 = ListViewIcon.ListViewIcon;
 
 var ListViewIcon$1 = {
-  make: make$12
+  make: make$11,
 };
 
-var make$13 = LockIcon.LockIcon;
+var make$12 = LockIcon.LockIcon;
 
 var LockIcon$1 = {
-  make: make$13
+  make: make$12,
 };
 
 var magnetRawIcon = MagnetSvg;
 
 export {
-  MusicalNotesIcon ,
+  MusicalNotesIcon,
   FontIcon$1 as FontIcon,
   CaptionsIcon$1 as CaptionsIcon,
   PlayIcon$1 as PlayIcon,
   PlayBackIcon$1 as PlayBackIcon,
   VolumeIcon$1 as VolumeIcon,
-  VolumeLowIcon ,
   MagnetIcon$1 as MagnetIcon,
   FullScreenIcon$1 as FullScreenIcon,
   CollapseIcon$1 as CollapseIcon,
@@ -116,7 +109,6 @@ export {
   GridViewIcon$1 as GridViewIcon,
   ListViewIcon$1 as ListViewIcon,
   LockIcon$1 as LockIcon,
-  magnetRawIcon ,
-  
-}
+  magnetRawIcon,
+};
 /* make Not a pure module */

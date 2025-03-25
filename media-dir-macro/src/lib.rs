@@ -102,6 +102,11 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         }
     }
 
+    let doc = format!(
+        "This struct is generated automatically from the flat content of the `{}` directory.\nEvery individual field represents a statically inlined media file from the folder ready to use with fframes.\nFile name encoding is the following: `file.mp3` -> `file_mp3`",
+        path.display()
+    );
+
     quote! {
         // This is a workaround to force include_bytes which is the way we inline bytes to force
         // the alignment of the plain &'static [u8] to match alignment of f32 which we need for audio
@@ -114,6 +119,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         }
 
         #[derive(Debug)]
+        #[doc = #doc]
         #visibility struct #ident {
             #(#fields)*
         }
@@ -313,28 +319,25 @@ impl MediaFile {
                 let image_data =
                     &fframes_media_loaders::decode_image(file_name, &file_bytes).unwrap();
 
-                let platform_specific_identifier =
-                    create_image_identifier_for_platform(image_data, fframes_crate_ident);
+                let platform_specific_identifier = create_image_identifier_for_platform(
+                    fframes_crate_ident,
+                    image_data,
+                    file_name,
+                );
                 let platform_specific_identifier_wasm = create_image_identifier_for_platform_wasm(
                     fframes_crate_ident,
                     file_name,
+                    &self.path,
+                    image_data,
                     &file_bytes,
                 );
-
-                let width = image_data.width;
-                let height = image_data.height;
 
                 quote! {
                     {
                         #[cfg(not(target_arch = "wasm32"))]
-                        let image_data = #platform_specific_identifier;
+                        #platform_specific_identifier
                         #[cfg(target_arch = "wasm32")]
-                        let image_data = #platform_specific_identifier_wasm;
-
-                        #fframes_crate_ident::media::ImageData::new_from_raw_data(image_data, String::from(#file_name), #fframes_crate_ident::media::ImageMetadata {
-                            width: #width,
-                            height: #height,
-                        })
+                        #platform_specific_identifier_wasm
                     }
                 }
             }
@@ -366,34 +369,45 @@ impl MediaFile {
 }
 
 fn create_image_identifier_for_platform(
+    fframes_crate_ident: &syn::Ident,
     PreloadedImageData {
         data,
         width,
         height,
         id,
     }: &PreloadedImageData,
-    fframes_crate_ident: &syn::Ident,
+    file_name: &str,
 ) -> impl ToTokens {
     let bytes_literal = Literal::byte_string(data);
 
     quote! {
-    {
-        // This is basically the u32 rgba images under the hood so we must align them correctly
-        // they will be again casted via bytemuch to the u32
-        static ALIGNED_LITERAL: &FFramesForceAlignTo<u32, [u8]> = &FFramesForceAlignTo {
-            _align: [],
-            bytes: *#bytes_literal
-        };
+        {
+            // This is basically the u32 rgba images under the hood so we must align them correctly
+            // they will be again casted via bytemuch to the u32
+            static ALIGNED_LITERAL: &FFramesForceAlignTo<u32, [u8]> = &FFramesForceAlignTo {
+                _align: [],
+                bytes: *#bytes_literal
+            };
 
-        std::sync::Arc::new(
-            #fframes_crate_ident::usvgr::PreloadedImageData {
-                id: String::from(#id),
-                data: std::borrow::Cow::Borrowed(
-                    &ALIGNED_LITERAL.bytes
-                ),
-                width: #width,
-                height: #height,
-            })
+            let image_data = std::sync::Arc::new(
+                #fframes_crate_ident::usvgr::PreloadedImageData {
+                    id: String::from(#id),
+                    data: std::borrow::Cow::Borrowed(
+                        &ALIGNED_LITERAL.bytes
+                    ),
+                    width: #width,
+                    height: #height,
+                }
+            );
+
+            #fframes_crate_ident::media::ImageData::new_from_raw_data(
+                image_data,
+                String::from(#file_name),
+                #fframes_crate_ident::media::ImageMetadata {
+                    width: #width,
+                    height: #height,
+                }
+            )
         }
     }
 }
@@ -401,10 +415,12 @@ fn create_image_identifier_for_platform(
 fn create_image_identifier_for_platform_wasm(
     fframes_crate_ident: &syn::Ident,
     file_name: &str,
-    bytes: &[u8],
+    path: impl AsRef<Path>,
+    image_data: &PreloadedImageData,
+    file_bytes: &[u8],
 ) -> impl ToTokens {
     use base64::Engine;
-    let encoded: String = base64::engine::general_purpose::STANDARD_NO_PAD.encode(bytes);
+    let encoded: String = base64::engine::general_purpose::STANDARD_NO_PAD.encode(file_bytes);
     let extension = file_name.split('.').last();
 
     let mime_type = match extension {
@@ -414,9 +430,27 @@ fn create_image_identifier_for_platform_wasm(
         _ => panic!("File {file_name} is not a valid image file"),
     };
 
+    let width = image_data.width;
+    let height = image_data.height;
     let base64_web_png = format!("data:{mime_type};base64,{encoded}");
+    let dev_server_url = format!(
+        "/@fs/{}",
+        path.as_ref()
+            .canonicalize()
+            .expect("Failed to canonicalize image path")
+            .display()
+    );
+
     quote! {
-        #fframes_crate_ident::media::Base64ImageData::BorrowedStatic(#base64_web_png)
+        #fframes_crate_ident::media::ImageData::new_from_base_64_data(
+            #fframes_crate_ident::media::Base64ImageData::BorrowedStatic(#base64_web_png),
+            String::from(#dev_server_url),
+            String::from(#file_name),
+            #fframes_crate_ident::media::ImageMetadata {
+                width: #width,
+                height: #height,
+            }
+        )
     }
 }
 

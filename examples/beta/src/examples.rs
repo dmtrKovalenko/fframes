@@ -45,8 +45,8 @@ impl Scene for BetaExamples<'_> {
             </clipPath>
 
             <filter id="shadow" width="200%" height="200%" color-interpolation-filters="sRGB">
-            <feDropShadow stdDeviation="40" flood-opacity="0.3"/>
-             </filter>
+              <feDropShadow stdDeviation="40" flood-opacity="0.3"/>
+            </filter>
 
             <clipPath id="preview-clip">
               <rect

@@ -124,9 +124,10 @@ let renderMainScene = (ctx, size, editorContext: EditorContext.editorContext) =>
   let framesBreak = editorContext.videoMeta.durationInFrames / maxFramesInScene
 
   Range.forEach(0, maxFramesInScene, i => {
-    let svg = editorContext.wasmController.render_preview_frame(
-      (i * framesBreak)->Js.BigInt.fromInt,
-    )
+    let svg =
+      editorContext.wasmController->WasmController.render_preview_frame(
+        (i * framesBreak)->Js.BigInt.fromInt,
+      )
 
     let image = Image.make(~width, ~height=scene_height_size)
 

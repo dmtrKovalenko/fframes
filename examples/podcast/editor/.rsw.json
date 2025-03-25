@@ -1,5 +1,3 @@
 {
-  "crates": [
-    "editor-bridge"
-  ]
+  "crates": ["editor-bridge"]
 }

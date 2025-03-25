@@ -17,7 +17,7 @@ var RadixSlider = {
   Root: Root,
   Track: Track,
   $$Range: $$Range,
-  Thumb: Thumb
+  Thumb: Thumb,
 };
 
 function Slider(Props) {
@@ -27,33 +27,38 @@ function Slider(Props) {
   var min = Props.min;
   var max = Props.max;
   var step = Props.step;
-  var handleChange = React.useCallback((function (newValue) {
-          return Curry._1(onValueChange, Caml_array.get(newValue, 0));
-        }), [onValueChange]);
-  return React.createElement(ReactSlider.Root, {
-              value: [value],
-              onValueChange: handleChange,
-              step: step,
-              min: min,
-              max: max,
-              disabled: disabled,
-              children: null,
-              className: "relative flex items-center select-none w-28 h-4 mx-2"
-            }, React.createElement(ReactSlider.Track, {
-                  children: React.createElement(ReactSlider.Range, {
-                        className: "absolute bg-gray-100 rounded-full h-full"
-                      }),
-                  className: "relative flex-grow h-1 rounded-full bg-slate-800"
-                }), React.createElement(ReactSlider.Thumb, {
-                  className: "block cursor-grab w-[13px] h-[13px] bg-white transition-transform shadow-xl rounded-full focus:bg-gradient-to-tr from-indigo-400 to-pink-400"
-                }));
+  var handleChange = React.useCallback(
+    function (newValue) {
+      return Curry._1(onValueChange, Caml_array.get(newValue, 0));
+    },
+    [onValueChange]
+  );
+  return React.createElement(
+    ReactSlider.Root,
+    {
+      value: [value],
+      onValueChange: handleChange,
+      step: step,
+      min: min,
+      max: max,
+      disabled: disabled,
+      children: null,
+      className: "relative flex items-center select-none w-28 h-4 mx-2",
+    },
+    React.createElement(ReactSlider.Track, {
+      children: React.createElement(ReactSlider.Range, {
+        className: "absolute bg-gray-100 rounded-full h-full",
+      }),
+      className: "relative flex-grow h-1 rounded-full bg-slate-800",
+    }),
+    React.createElement(ReactSlider.Thumb, {
+      className:
+        "block cursor-grab w-[13px] h-[13px] bg-white transition-transform shadow-xl rounded-full focus:bg-gradient-to-tr from-indigo-400 to-pink-400",
+    })
+  );
 }
 
 var make = Slider;
 
-export {
-  RadixSlider ,
-  make ,
-  
-}
+export { RadixSlider, make };
 /* react Not a pure module */
