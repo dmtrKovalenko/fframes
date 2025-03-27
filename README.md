@@ -15,6 +15,10 @@ for arch based distros:
 ```sh
 sudo pacman -S ninja yasm nasm ffmpeg x264 x265 opus clang
 ```
+for nix users:
+```sh
+nix-shell
+```
 
 #### MacOS:
 ```sh
@@ -30,7 +34,7 @@ Once everything is installed please install the just command runner and init the
   cargo install --locked just cargo-watch wasm-bindgen-cli wasm-pack
   just init-repo
 ```
-During the build fframes will automatically download and compile required libraries. You can control which libraries will be tried to link (usually codecs or hw acceslleration librareies) by using cargo features of the `fframes_renderer`(for encoding) and `fframes`(for decoding) crates.
+During the build fframes will automatically download and compile required libraries. You can control which libraries will be tried to link (usually codecs or hw acceleration libraries) by using cargo features of the `fframes_renderer`(for encoding) and `fframes`(for decoding) crates.
 
 ```toml
 [dependencies]
