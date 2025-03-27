@@ -13,7 +13,8 @@ pkgs.mkShell {
     pkgs.x264       
     pkgs.x265           
     pkgs.libopus 
-    llvm.libclang   
+    llvm.libclang
+    pkgs.libgcc
     pkgs.ffmpeg     
   ];
 
