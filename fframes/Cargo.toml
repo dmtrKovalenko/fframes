@@ -25,6 +25,7 @@ usvgr.workspace = true
 svgr-macro.workspace = true
 fframes-media-loaders.workspace = true
 fframes-media-dir-macro.workspace = true
+rexif.workspace = true
 
 [dev-dependencies]
 futures = "0.3.24"
@@ -37,6 +38,7 @@ doctest = false
 wasm-bindgen = "0.2.100"
 
 [features]
+exif = ["fframes-media-loaders/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 media-h264 = ["fframes-media-loaders/h264"]
 media-h265 = ["fframes-media-loaders/h265"]

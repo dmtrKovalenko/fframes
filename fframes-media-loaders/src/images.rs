@@ -1,3 +1,6 @@
+#[cfg(feature = "exif")]
+use rexif::{ExifEntry, parse_file};
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use usvgr::PreloadedImageData;
 
@@ -42,6 +45,9 @@ pub struct ImageData {
     image: std::sync::Arc<usvgr::PreloadedImageData>,
     #[cfg(target_arch = "wasm32")]
     base64_data: Base64ImageData,
+
+    #[cfg(feature = "exif")]
+    pub exif_data: Option<Vec<ExifEntry>>,
 }
 
 impl ImageData {
@@ -66,11 +72,14 @@ impl ImageData {
         data: std::sync::Arc<usvgr::PreloadedImageData>,
         filename: String,
         metadata: ImageMetadata,
+        #[cfg(feature = "exif")] exif_data: Option<Vec<ExifEntry>>,
     ) -> Self {
         ImageData {
             filename,
             metadata,
             image: data,
+            #[cfg(feature = "exif")]
+            exif_data,
         }
     }
 
@@ -97,6 +106,17 @@ impl ImageData {
     #[cfg(target_arch = "wasm32")]
     pub fn get_bytes(&mut self) -> &[u8] {
         self.base64_data.as_str().as_bytes()
+    }
+}
+
+#[cfg(feature = "exif")]
+pub fn get_exif_data(photo: &str) -> Option<Vec<ExifEntry>> {
+    match parse_file(photo) {
+        Ok(exif) => Some(exif.entries),  // On success, return Some(Vec<ExifEntry>)
+        Err(e) => {
+            println!("Error to parse file: {} with error: {}", photo, e);
+            None
+        },  // On error, return None
     }
 }
 

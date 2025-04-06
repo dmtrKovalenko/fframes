@@ -24,11 +24,13 @@ uuid = { version = "1.8.0", features = ["v4"] }
 svgr-macro.workspace = true
 fframes.workspace = true
 ffmpeg-sys-fframes.workspace = true
+rexif.workspace = true
 
 [build-dependencies]
 cc = "1.0"
 
 [features]
+exif = []
 default = ["cpu_renderer"]
 cpu_renderer = ["svgr"]
 h264 = ["ffmpeg-sys-fframes/build-lib-x264"]

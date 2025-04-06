@@ -667,6 +667,7 @@ dependencies = [
  "num",
  "parking_lot",
  "rangemap",
+ "rexif",
  "roxmltree 0.14.1",
  "serde",
  "svgr-macro",
@@ -700,6 +701,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
+ "rexif",
  "syn 2.0.98",
 ]
 
@@ -713,6 +715,7 @@ dependencies = [
  "itoa",
  "libc",
  "quote",
+ "rexif",
  "ttf-parser 0.19.2",
  "usvgr",
  "wasm-bindgen",
@@ -767,6 +770,7 @@ dependencies = [
  "memmap",
  "once_cell",
  "rayon",
+ "rexif",
  "svgr",
  "svgr-macro",
  "syn 1.0.109",
@@ -1630,9 +1634,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.21.1"
+version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d75b0bedcc4fe52caa0e03d9f1151a323e4aa5e2d78ba3580400cd3c9e2bc4bc"
+checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "parking_lot"
@@ -1990,6 +1994,12 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "rexif"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be932047c168919c8d5af065b16fa7d4bd24835ffa256bf0cf1ff463f91c15df"
 
 [[package]]
 name = "rgb"

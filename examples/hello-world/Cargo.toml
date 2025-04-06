@@ -29,4 +29,3 @@ doctest = false
 name = "hello_world_example_bin"
 path = "src/main.rs"
 required-features = ["renderer"]
-

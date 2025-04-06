@@ -10,6 +10,9 @@ use std::{
 };
 use syn::{Ident, parse_macro_input};
 
+#[cfg(feature = "exif")]
+use rexif::ExifEntry;
+
 /// Embed the contents of a directory in your crate.
 #[proc_macro]
 pub fn include_media_dir(input: TokenStream) -> TokenStream {
@@ -125,7 +128,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         }
 
         impl #ident {
-            // we have this only to avoid the requirement of importing the trait 
+            // we have this only to avoid the requirement of importing the trait
             pub fn new() -> #fframes_crate_ident::error::Result<Self> {
                 Ok(Self {
                     #(#instantiate_fields)*
@@ -314,15 +317,21 @@ impl MediaFile {
             }
             MediaVariant::Image => {
                 let file_name = self.path.file_name().and_then(|f| f.to_str()).unwrap();
+                print!("self.path: {:?}", self.path);
                 let file_bytes = std::fs::read(&self.path).unwrap();
 
                 let image_data =
                     &fframes_media_loaders::decode_image(file_name, &file_bytes).unwrap();
 
+                #[cfg(feature = "exif")]
+                let exif_data = Some(fframes_media_loaders::get_exif_data(self.path.to_str().expect("Failed to convert path to string")).expect("Failed to get EXIF data"));
+
                 let platform_specific_identifier = create_image_identifier_for_platform(
                     fframes_crate_ident,
                     image_data,
                     file_name,
+                    #[cfg(feature = "exif")]
+                    exif_data
                 );
                 let platform_specific_identifier_wasm = create_image_identifier_for_platform_wasm(
                     fframes_crate_ident,
@@ -377,6 +386,8 @@ fn create_image_identifier_for_platform(
         id,
     }: &PreloadedImageData,
     file_name: &str,
+    #[cfg(feature = "exif")]
+    exif_data: Option<Vec<ExifEntry>>,
 ) -> impl ToTokens {
     let bytes_literal = Literal::byte_string(data);
 
@@ -406,7 +417,9 @@ fn create_image_identifier_for_platform(
                 #fframes_crate_ident::media::ImageMetadata {
                     width: #width,
                     height: #height,
-                }
+                },
+                #[cfg(feature = "exif")]
+                exif_data.expect("Exif data is required")
             )
         }
     }
