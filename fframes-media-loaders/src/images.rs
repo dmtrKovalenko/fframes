@@ -1,3 +1,6 @@
+#[cfg(feature = "exif")]
+use rexif::{ExifEntry, parse_file};
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use usvgr::PreloadedImageData;
 
