@@ -51,3 +51,6 @@ pub use roxmltree;
 pub use serde;
 pub use ttf_parser;
 pub use usvgr;
+
+#[cfg(feature = "exif")]
+pub use media::rexif;

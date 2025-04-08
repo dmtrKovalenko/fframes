@@ -114,7 +114,7 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
                 height: self.get_height(),
             },
             #[cfg(feature = "exif")]
-            None
+            None,
         )
     }
 
@@ -138,7 +138,7 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
                 height: self.get_height(),
             },
             #[cfg(feature = "exif")]
-            None
+            None,
         ))
     }
 

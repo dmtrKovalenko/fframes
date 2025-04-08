@@ -16,7 +16,7 @@ bytemuck = { version = "1.13.1", features = ["derive"] }
 ttf-parser = "0.19.1"
 wasm-bindgen.workspace = true
 itoa = "1.0.14"
-rexif.workspace = true
+rexif= { workspace = true, optional = true}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ffmpeg-sys-fframes.workspace = true
@@ -28,7 +28,7 @@ usvgr.workspace = true
 libc = "0.2.159"
 
 [features]
-exif = []
+exif = ["rexif"]
 h264 = ["ffmpeg-sys-fframes/build-lib-x264"]
 h265 = ["ffmpeg-sys-fframes/build-lib-x265"]
 videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]

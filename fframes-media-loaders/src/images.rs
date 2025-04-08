@@ -1,6 +1,3 @@
-#[cfg(feature = "exif")]
-use rexif::{ExifEntry, parse_file};
-
 #[cfg(not(target_arch = "wasm32"))]
 pub use usvgr::PreloadedImageData;
 
@@ -47,7 +44,7 @@ pub struct ImageData {
     base64_data: Base64ImageData,
 
     #[cfg(feature = "exif")]
-    pub exif_data: Option<Vec<ExifEntry>>,
+    pub exif_data: Option<Vec<rexif::ExifEntry>>,
 }
 
 impl ImageData {
@@ -72,7 +69,7 @@ impl ImageData {
         data: std::sync::Arc<usvgr::PreloadedImageData>,
         filename: String,
         metadata: ImageMetadata,
-        #[cfg(feature = "exif")] exif_data: Option<Vec<ExifEntry>>,
+        #[cfg(feature = "exif")] exif_data: Option<Vec<rexif::ExifEntry>>,
     ) -> Self {
         ImageData {
             filename,
@@ -81,6 +78,27 @@ impl ImageData {
             #[cfg(feature = "exif")]
             exif_data,
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_from_bytes(filename: &str, bytes: &[u8]) -> crate::Result<Self> {
+        let image = decode_image(filename, bytes)?;
+        #[cfg(feature = "exif")]
+        let exif_data = parse_exif_data(filename, bytes);
+
+        let metadata = ImageMetadata {
+            width: image.width,
+            height: image.height,
+        };
+
+        Ok(Self {
+            filename: filename.to_string(),
+            metadata,
+            #[cfg(not(target_arch = "wasm32"))]
+            image: std::sync::Arc::new(image),
+            #[cfg(feature = "exif")]
+            exif_data,
+        })
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -95,6 +113,8 @@ impl ImageData {
             metadata,
             web_url: file_url,
             base64_data: data.clone(),
+            #[cfg(feature = "exif")]
+            exif_data: None,
         }
     }
 
@@ -110,13 +130,20 @@ impl ImageData {
 }
 
 #[cfg(feature = "exif")]
-pub fn get_exif_data(photo: &str) -> Option<Vec<ExifEntry>> {
-    match parse_file(photo) {
-        Ok(exif) => Some(exif.entries),  // On success, return Some(Vec<ExifEntry>)
+pub fn parse_exif_data(
+    path: impl AsRef<std::path::Path>,
+    photo: &[u8],
+) -> Option<Vec<rexif::ExifEntry>> {
+    match rexif::parse_buffer(photo) {
+        Ok(exif) => Some(exif.entries),
         Err(e) => {
-            println!("Error to parse file: {} with error: {}", photo, e);
+            eprintln!(
+                "Error to parse file: {} with error: {}",
+                path.as_ref().display(),
+                e
+            );
             None
-        },  // On error, return None
+        }
     }
 }
 

@@ -27,3 +27,6 @@ mod audio_decoder;
 mod video_decoder;
 #[cfg(not(target_arch = "wasm32"))]
 pub use video_decoder::*;
+
+#[cfg(feature = "exif")]
+pub use rexif;

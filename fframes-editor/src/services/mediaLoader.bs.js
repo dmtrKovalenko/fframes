@@ -11,67 +11,57 @@ import * as MediaResolvers from "./MediaResolvers";
 
 var initial = {
   allMediaLoaded: false,
-  mediaList: undefined,
+  mediaList: undefined
 };
 
 function reducer(state, action) {
   if (typeof action === "number") {
     return {
-      allMediaLoaded: true,
-      mediaList: state.mediaList,
-    };
+            allMediaLoaded: true,
+            mediaList: state.mediaList
+          };
   }
-  if (action.TAG === /* InitMediaProcessing */ 0) {
+  if (action.TAG === /* InitMediaProcessing */0) {
     return {
-      allMediaLoaded: state.allMediaLoaded,
-      mediaList: Belt_MapString.merge(
-        state.mediaList,
-        Belt_MapString.fromArray(
-          Belt_Array.map(Object.keys(action._0), function (relativePath) {
-            return [
-              Utils.Path.getFilename(relativePath),
-              {
-                TAG: /* Loading */ 0,
-                _0: relativePath,
-              },
-            ];
-          })
-        ),
-        function (param, staticVal, dynamicVal) {
-          if (staticVal !== undefined) {
-            if (dynamicVal !== undefined) {
-              return dynamicVal;
-            } else {
-              return staticVal;
-            }
-          } else if (dynamicVal !== undefined) {
-            return dynamicVal;
-          } else {
-            return;
-          }
-        }
-      ),
-    };
+            allMediaLoaded: state.allMediaLoaded,
+            mediaList: Belt_MapString.merge(state.mediaList, Belt_MapString.fromArray(Belt_Array.map(Object.keys(action._0), (function (relativePath) {
+                            return [
+                                    Utils.Path.getFilename(relativePath),
+                                    {
+                                      TAG: /* Loading */0,
+                                      _0: relativePath
+                                    }
+                                  ];
+                          }))), (function (param, staticVal, dynamicVal) {
+                    if (staticVal !== undefined) {
+                      if (dynamicVal !== undefined) {
+                        return dynamicVal;
+                      } else {
+                        return staticVal;
+                      }
+                    } else if (dynamicVal !== undefined) {
+                      return dynamicVal;
+                    } else {
+                      return ;
+                    }
+                  }))
+          };
   }
   var media = action._1;
   return {
-    allMediaLoaded: state.allMediaLoaded,
-    mediaList: Belt_MapString.update(
-      state.mediaList,
-      action._0,
-      function (param) {
-        return {
-          TAG: /* Media */ 1,
-          _0: media,
+          allMediaLoaded: state.allMediaLoaded,
+          mediaList: Belt_MapString.update(state.mediaList, action._0, (function (param) {
+                  return {
+                          TAG: /* Media */1,
+                          _0: media
+                        };
+                }))
         };
-      }
-    ),
-  };
 }
 
 var ObserverState = {
   initial: initial,
-  reducer: reducer,
+  reducer: reducer
 };
 
 var MediaLoaderObserver = UseObservable.MakeObserver(ObserverState);
@@ -92,129 +82,119 @@ var resolveStaticAudios = MediaResolvers.resolveStaticAudios;
 
 function resolveMedia(name, media) {
   Curry._1(MediaLoaderObserver.dispatch, {
-    TAG: /* MediaItemProcessed */ 1,
-    _0: name,
-    _1: media,
-  });
-  return /* MediaResolved */ 0;
+        TAG: /* MediaItemProcessed */1,
+        _0: name,
+        _1: media
+      });
+  return /* MediaResolved */0;
 }
 
 function populateInlinedMedia(wasmController, options) {
   wasmController.populate_static_fonts_db_with_static_fonts();
   var fonts_loader = Curry._1(resolveStaticFonts, {
-    wasmController: wasmController,
-    wasmControllerOptions: options,
-  });
+        wasmController: wasmController,
+        wasmControllerOptions: options
+      });
   var audios_loader = Curry._1(resolveStaticAudios, {
-    wasmController: wasmController,
-    wasmControllerOptions: options,
-  });
-  return Promise.all([fonts_loader, audios_loader]);
+        wasmController: wasmController,
+        wasmControllerOptions: options
+      });
+  return Promise.all([
+              fonts_loader,
+              audios_loader
+            ]);
 }
 
 function processDynamicMedia(imports, wasmController, options) {
   Curry._1(MediaLoaderObserver.dispatch, {
-    TAG: /* InitMediaProcessing */ 0,
-    _0: imports,
-  });
-  return Promise.all(
-    Belt_Array.keepMap(Object.entries(imports), function (param) {
-      var moduleVal = param[1];
-      var moduleRelativePath = param[0];
-      var name = Utils.Path.getFilename(moduleRelativePath);
-      if (
-        Utils.$$Option.unwrapOr(
-          Belt_Option.map(options.ignoreMediaRegex, function (regex) {
-            return regex.test(moduleRelativePath);
-          }),
-          false
-        )
-      ) {
-        return;
-      }
-      var match = Utils.$$Array.last(name.split("."));
-      var tmp;
-      if (match !== undefined) {
-        switch (match) {
-          case "jpeg":
-          case "jpg":
-          case "png":
-            tmp = resolveImage;
-            break;
-          case "otf":
-          case "ttf":
-            tmp = resolveFont;
-            break;
-          case "vtt":
-            tmp = resolveSubtitles;
-            break;
-          case "aac":
-          case "flac":
-          case "mp3":
-          case "ogg":
-          case "pcm":
-          case "wav":
-            tmp = resolveAudio;
-            break;
-          case "avi":
-          case "mkv":
-          case "mov":
-          case "mp4":
-          case "webm":
-            tmp = resolveVideo;
-            break;
-          default:
-            tmp = undefined;
-        }
-      } else {
-        tmp = undefined;
-      }
-      return Belt_Option.map(tmp, function (resolveFn) {
-        return Curry._1(resolveFn, {
-          name: name,
-          url: moduleVal,
-          wasmController: wasmController,
-          wasmControllerOptions: options,
-        });
+        TAG: /* InitMediaProcessing */0,
+        _0: imports
       });
-    })
-  );
+  return Promise.all(Belt_Array.keepMap(Object.entries(imports), (function (param) {
+                    var moduleVal = param[1];
+                    var moduleRelativePath = param[0];
+                    var name = Utils.Path.getFilename(moduleRelativePath);
+                    if (Utils.$$Option.unwrapOr(Belt_Option.map(options.ignoreMediaRegex, (function (regex) {
+                                  return regex.test(moduleRelativePath);
+                                })), false)) {
+                      return ;
+                    }
+                    var match = Utils.$$Array.last(name.split("."));
+                    var tmp;
+                    if (match !== undefined) {
+                      switch (match) {
+                        case "jpeg" :
+                        case "jpg" :
+                        case "png" :
+                            tmp = resolveImage;
+                            break;
+                        case "otf" :
+                        case "ttf" :
+                            tmp = resolveFont;
+                            break;
+                        case "vtt" :
+                            tmp = resolveSubtitles;
+                            break;
+                        case "aac" :
+                        case "flac" :
+                        case "mp3" :
+                        case "ogg" :
+                        case "pcm" :
+                        case "wav" :
+                            tmp = resolveAudio;
+                            break;
+                        case "avi" :
+                        case "mkv" :
+                        case "mov" :
+                        case "mp4" :
+                        case "webm" :
+                            tmp = resolveVideo;
+                            break;
+                        default:
+                          tmp = undefined;
+                      }
+                    } else {
+                      tmp = undefined;
+                    }
+                    return Belt_Option.map(tmp, (function (resolveFn) {
+                                  return Curry._1(resolveFn, {
+                                              name: name,
+                                              url: moduleVal,
+                                              wasmController: wasmController,
+                                              wasmControllerOptions: options
+                                            });
+                                }));
+                  })));
 }
 
 function processMedia(dynamicImports, wasmController, options) {
   return Promise.all([
-    populateInlinedMedia(wasmController, options),
-    dynamicImports !== undefined
-      ? processDynamicMedia(
-          Caml_option.valFromOption(dynamicImports),
-          wasmController,
-          options
-        ).then(function (param) {})
-      : Promise.resolve(undefined),
-  ]).then(function (param) {
-    return Curry._1(
-      MediaLoaderObserver.dispatch,
-      /* MediaProcessingFinished */ 0
-    );
-  });
+                populateInlinedMedia(wasmController, options),
+                dynamicImports !== undefined ? processDynamicMedia(Caml_option.valFromOption(dynamicImports), wasmController, options).then(function (param) {
+                        
+                      }) : Promise.resolve(undefined)
+              ]).then(function (param) {
+              return Curry._1(MediaLoaderObserver.dispatch, /* MediaProcessingFinished */0);
+            });
 }
 
 var $$Promise$1;
 
 export {
   $$Promise$1 as $$Promise,
-  ObserverState,
-  MediaLoaderObserver,
-  resolveAudio,
-  resolveSubtitles,
-  resolveFont,
-  resolveImage,
-  resolveVideo,
-  resolveStaticFonts,
-  resolveStaticAudios,
-  resolveMedia,
-  populateInlinedMedia,
-  processDynamicMedia,
-  processMedia,
-};
+  ObserverState ,
+  MediaLoaderObserver ,
+  resolveAudio ,
+  resolveSubtitles ,
+  resolveFont ,
+  resolveImage ,
+  resolveVideo ,
+  resolveStaticFonts ,
+  resolveStaticAudios ,
+  resolveMedia ,
+  populateInlinedMedia ,
+  processDynamicMedia ,
+  processMedia ,
+  
+}
 /* MediaLoaderObserver Not a pure module */

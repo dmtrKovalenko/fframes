@@ -2,6 +2,7 @@ use crate::{PixelVideo, RandomPhotos};
 use fframes::{
     Rotate, Scene, Svgr, Transform, Video,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
+    rexif,
 };
 use rand::Rng;
 
@@ -9,7 +10,6 @@ use rand::Rng;
 pub struct PolaroidDevelopment<'a> {
     duration: f32,
     photos: Vec<&'a str>,
-    captions: Vec<String>,
     development_animations: Vec<KeyFramesAnimation<f32>>,
     /// animation for linked x, y, rotation
     position_animations: Vec<KeyFramesAnimation<(f32, f32, f32)>>,
@@ -45,6 +45,11 @@ impl Scene for PolaroidDevelopment<'_> {
 
             {self.photos.iter().enumerate().filter_map(|(index, photo)| {
                 let image = ctx.get_image(photo)?;
+                let year = image.exif_data.as_ref().and_then(|exif| {
+                    exif.iter().find(|entry| entry.tag == rexif::ExifTag::DateTime)
+                }).map(|entry| {
+                    &entry.value_more_readable.as_ref()[..4]
+                }).unwrap_or("2075");
 
                 let original_width = image.metadata.width as f32;
                 let original_height = image.metadata.height as f32;
@@ -143,7 +148,7 @@ impl Scene for PolaroidDevelopment<'_> {
                             fill="#333333"
                             opacity={development_progress}
                         >
-                            {self.captions.get(index).map_or("", |s| s)}
+                            {year}
                         </text>
                     </g>
                 ))
@@ -157,11 +162,6 @@ impl<'a> PolaroidDevelopment<'a> {
         const BLOW_OUT_DURATION: f32 = 0.5;
         let photo_count = rng.gen_range(4..=8);
         let photos = images.choose(photo_count);
-
-        // todo use real exif data
-        let captions = (0..photo_count)
-            .map(|_| rng.gen_range(2016..2025).to_string())
-            .collect::<Vec<_>>();
 
         let base_duration = tempo * 4.0;
         let total_duration = base_duration * photo_count as f32 + (tempo * rng.gen_range(1.0..2.0));
@@ -256,7 +256,6 @@ impl<'a> PolaroidDevelopment<'a> {
         Self {
             duration: total_duration + BLOW_OUT_DURATION,
             photos,
-            captions,
             development_animations,
             position_animations,
             drop_shadow_animations,

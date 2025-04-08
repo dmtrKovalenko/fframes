@@ -145,7 +145,6 @@ const loadImage = (url: string, sizeLimit: number) => {
     fetch(url)
       .then(response => response.blob())
       .then(imageBlob => {
-        console.log(imageBlob.size, sizeLimit);
         if (imageBlob.size > sizeLimit) {
           return Promise.resolve(null);
         }
