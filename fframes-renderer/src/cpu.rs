@@ -8,7 +8,7 @@ use fframes::{
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};
-use svgr::SvgrCache;
+use svgr::{PixmapPool, SvgrCache};
 use usvgr::fontdb;
 use uuid::Uuid;
 
@@ -98,6 +98,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         &mut |encoder| {
                             let mut frame = EncoderFrame::new(&encoder.video_stream)?;
 
+                            let pixmap_pool = PixmapPool::new();
                             let worker_local_decoders = VideoDecodersWorker::new(1);
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
                             let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
@@ -139,6 +140,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         svgr::tiny_skia::Transform::default(),
                                         &mut pixmap.as_mut(),
                                         &mut svgr_cache,
+                                        &pixmap_pool,
                                         &svgr_ctx,
                                     );
 
@@ -209,6 +211,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             svgr::tiny_skia::Transform::default(),
             &mut pixmap.as_mut(),
             &mut SvgrCache::none(),
+            &PixmapPool::new(),
             &ctx,
         );
 

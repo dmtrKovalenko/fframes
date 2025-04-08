@@ -44,8 +44,8 @@ render example *ARGS:
 play example:
   cd examples/{{example}} && ffplay out.mp4
 
-bench example:
-  cd examples/{{example}} && cargo build --release && time cargo run --release
+bench example *ARGS:
+  cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release
 
 check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown

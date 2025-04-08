@@ -54,7 +54,7 @@ fn main() {
         #[cfg(feature = "cpu")]
         {
             fframes_renderer::cpu::CpuRenderingBackend {
-                cache_capacity: 100,
+                cache_capacity: 300,
                 ..Default::default()
             }
         },

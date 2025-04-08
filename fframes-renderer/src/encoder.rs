@@ -126,6 +126,7 @@ impl EncoderOptions<'_> {
         let min_chunk = 2 * gop_size;
 
         if duration_in_frames < min_chunk {
+            #[allow(clippy::single_range_in_vec_init)]
             return vec![0..duration_in_frames];
         }
 

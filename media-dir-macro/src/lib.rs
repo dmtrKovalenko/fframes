@@ -421,7 +421,7 @@ fn create_image_identifier_for_platform_wasm(
 ) -> impl ToTokens {
     use base64::Engine;
     let encoded: String = base64::engine::general_purpose::STANDARD_NO_PAD.encode(file_bytes);
-    let extension = file_name.split('.').last();
+    let extension = file_name.split('.').next_back();
 
     let mime_type = match extension {
         Some("png") => "image/png",
