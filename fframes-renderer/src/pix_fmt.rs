@@ -111,11 +111,6 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
             "mov w9, wzr",              // y = 0
 
             "2:",                       // row loop
-                // Calculate base addresses for chroma rows (moved from inner loop)
-                "lsr w3, w9, #1",               // y/2
-                "mul w11, w3, {cb_linesize:w}", // (y/2) * cb_linesize
-                "mul w12, w3, {cr_linesize:w}", // (y/2) * cr_linesize
-
                 "add x1, {src}, {width:x}, lsl #2", // Next row start (width * 4 bytes per pixel)
                 "prfm pldl1keep, [x1]",             // Prefetch next row data
 
@@ -161,18 +156,9 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                     "add v18.8h, v18.8h, v30.8h",  // add 128 offset
                     "sqxtun v19.8b, v18.8h",       // convert to unsigned
 
-                    "lsr w4, w10, #1",             // x/2
-                    // calc address for cb
-                    "add w3, w11, w4",             // (y/2) * cb_linesize + (x/2)
-                    "add x5, {dst_cb}, x3",        // cb destination address
-
-                    // calc address for cr
-                    "add w6, w12, w4",             // (y/2) * cr_linesize + (x/2)
-                    "add x8, {dst_cr}, x6",        // cr destination address
-
                     // Store 4 bytes using correct syntax
-                    "str s17, [x5]",               // store 4 cb values
-                    "str s19, [x8]",               // store 4 cr values
+                    "str s17, [{dst_cb}], #4",               // store 4 cb values
+                    "str s19, [{dst_cr}], #4",               // store 4 cr values
 
                     "5:",
                     "add w10, w10, #8",            // go to next 8 pixels
@@ -200,12 +186,10 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
             width = in(reg) width,
             height = in(reg) height,
             y_pad = in(reg) (y_linesize - width),
-            cb_pad = in(reg) (cb_linesize - (width >> 1)),
-            cr_pad = in(reg) (cr_linesize - (width >> 1)),
-            cb_linesize = in(reg) cb_linesize,
-            cr_linesize = in(reg) cr_linesize,
+            cb_pad = in(reg) (cb_linesize - (width / 2)),
+            cr_pad = in(reg) (cr_linesize - (width / 2)),
 
-            out("x1") _, out("w3") _, out("w4") _, out("x5") _, out("w6") _, out("w7") _, out("x8") _,
+            out("x1") _, out("w4") _, out("x5") _, out("w6") _, out("w7") _, out("x8") _,
             out("w9") _, out("w10") _, out("w11") _, out("w12") _,
             out("v0") _, out("v1") _, out("v2") _, out("v3") _, out("v4") _,
             out("v6") _, out("v8") _, out("v10") _, out("v12") _, out("v13") _,

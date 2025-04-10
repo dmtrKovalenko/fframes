@@ -53,6 +53,7 @@ impl TestImage {
             Self::with_solid_color(16, 16, 0, 0, 0, 255), // Black
             Self::with_solid_color(32, 24, 128, 128, 128, 255), // Gray
             Self::random(32, 24),
+            Self::random(64, 48),
         ]
     }
 }
@@ -235,6 +236,68 @@ fn yuv_neon_matches_base() {
                 width,
                 width / 2,
                 width / 2,
+                &rgba_pixels,
+                y_pixels_neon.as_mut_ptr(),
+                cb_pixels_neon.as_mut_ptr(),
+                cr_pixels_neon.as_mut_ptr(),
+            );
+        }
+
+        // Compare results
+        assert_eq!(y_pixels_base, y_pixels_neon, "Y planes differ");
+        assert_eq!(cb_pixels_base, cb_pixels_neon, "Cb planes differ");
+        assert_eq!(cr_pixels_base, cr_pixels_neon, "Cr planes differ");
+    }
+}
+
+#[test]
+#[cfg(target_feature = "neon")]
+fn yuv_neon_matches_base_with_padded_linesize() {
+    use fframes_renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
+    for test_image in TestImage::create_test_patterns() {
+        let TestImage {
+            width,
+            height,
+            rgba_pixels,
+            ..
+        } = test_image;
+
+        // Create buffers with padding (linesize > width)
+        let y_linesize = (width + 32) & !15; // Align to 16 bytes with some padding
+        let uv_linesize = (width / 2 + 16) & !7; // Align to 8 bytes with some padding
+
+        let y_buffer_size = y_linesize as usize * height as usize;
+        let uv_buffer_size = uv_linesize as usize * (height as usize / 2);
+
+        let mut y_pixels_base = vec![0u8; y_buffer_size];
+        let mut cb_pixels_base = vec![0u8; uv_buffer_size];
+        let mut cr_pixels_base = vec![0u8; uv_buffer_size];
+
+        let mut y_pixels_neon = vec![0u8; y_buffer_size];
+        let mut cb_pixels_neon = vec![0u8; uv_buffer_size];
+        let mut cr_pixels_neon = vec![0u8; uv_buffer_size];
+
+        unsafe {
+            // Run base implementation
+            fill_yuv420_from_rgba_pixmap_base(
+                width,
+                height,
+                y_linesize,
+                uv_linesize,
+                uv_linesize,
+                &rgba_pixels,
+                y_pixels_base.as_mut_ptr(),
+                cb_pixels_base.as_mut_ptr(),
+                cr_pixels_base.as_mut_ptr(),
+            );
+
+            // Run NEON implementation
+            fill_yuv420_from_rgba_pixmap_accelerated(
+                width,
+                height,
+                y_linesize,
+                uv_linesize,
+                uv_linesize,
                 &rgba_pixels,
                 y_pixels_neon.as_mut_ptr(),
                 cb_pixels_neon.as_mut_ptr(),
