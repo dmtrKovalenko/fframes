@@ -144,11 +144,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install apt-deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev 
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

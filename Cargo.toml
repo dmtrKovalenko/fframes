@@ -44,8 +44,8 @@ members = [
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
 # svgr = { path = "../svgr/crates/svgr" }
 # usvgr = { path = "../svgr/crates/usvgr" }
-svgr = "0.43.4"
-usvgr = "0.43.4"
+svgr = "0.43.5"
+usvgr = "0.43.5"
 ffmpeg-sys-fframes = { package = "ffmpeg-sys-fframes", version = "7.1.1", features = [
     "build",
     "static",
