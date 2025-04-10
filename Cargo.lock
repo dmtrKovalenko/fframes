@@ -713,10 +713,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ffmpeg-sys-fframes"
-version = "7.1.1"
+name = "ffmpeg-sys-next"
+version = "7.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9937d1af0b5fb90663e5a68e133946691bc6880000bcc7a796bac07fe387e63"
+checksum = "773df59c62c7da5dae3733a188e19c2929070a865e7a6de0e4d33e980cfa069e"
 dependencies = [
  "bindgen",
  "cc",
@@ -785,7 +785,7 @@ name = "fframes-media-loaders"
 version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
  "bytemuck",
- "ffmpeg-sys-fframes",
+ "ffmpeg-sys-next",
  "image 0.24.9",
  "itoa",
  "libc",
@@ -837,7 +837,7 @@ dependencies = [
  "cc",
  "colored",
  "criterion",
- "ffmpeg-sys-fframes",
+ "ffmpeg-sys-next",
  "fframes",
  "futures",
  "image 0.25.5",
