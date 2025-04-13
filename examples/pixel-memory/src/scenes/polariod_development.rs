@@ -2,7 +2,7 @@ use crate::{PixelVideo, RandomPhotos};
 use fframes::{
     Rotate, Scene, Svgr, Transform, Video,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
-    rexif,
+    exif,
 };
 use rand::Rng;
 
@@ -45,11 +45,12 @@ impl Scene for PolaroidDevelopment<'_> {
 
             {self.photos.iter().enumerate().filter_map(|(index, photo)| {
                 let image = ctx.get_image(photo)?;
-                let year = image.exif_data.as_ref().and_then(|exif| {
-                    exif.iter().find(|entry| entry.tag == rexif::ExifTag::DateTime)
+                let year = image.exif_data.as_ref().and_then(|exif_| {
+                    exif_.fields.iter().find(|entry| entry.tag == exif::Tag::DateTime)
                 }).map(|entry| {
-                    &entry.value_more_readable.as_ref()[..4]
-                }).unwrap_or("2075");
+                    let datetime_str = entry.display_value().to_string();
+                    datetime_str.get(0..4).unwrap_or("").to_string()
+                }).unwrap_or("".to_string());
 
                 let original_width = image.metadata.width as f32;
                 let original_height = image.metadata.height as f32;

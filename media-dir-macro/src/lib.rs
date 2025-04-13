@@ -10,9 +10,6 @@ use std::{
 };
 use syn::{Ident, parse_macro_input};
 
-#[cfg(feature = "exif")]
-use rexif::ExifEntry;
-
 /// Embed the contents of a directory in your crate.
 #[proc_macro]
 pub fn include_media_dir(input: TokenStream) -> TokenStream {
@@ -323,22 +320,10 @@ impl MediaFile {
                 let image_data =
                     &fframes_media_loaders::decode_image(file_name, &file_bytes).unwrap();
 
-                #[cfg(feature = "exif")]
-                let exif_data = Some(
-                    fframes_media_loaders::get_exif_data(
-                        self.path
-                            .to_str()
-                            .expect("Failed to convert path to string"),
-                    )
-                    .expect("Failed to get EXIF data"),
-                );
-
                 let platform_specific_identifier = create_image_identifier_for_platform(
                     fframes_crate_ident,
                     image_data,
                     file_name,
-                    #[cfg(feature = "exif")]
-                    exif_data,
                 );
                 let platform_specific_identifier_wasm = create_image_identifier_for_platform_wasm(
                     fframes_crate_ident,
@@ -393,7 +378,6 @@ fn create_image_identifier_for_platform(
         id,
     }: &PreloadedImageData,
     file_name: &str,
-    #[cfg(feature = "exif")] exif_data: Option<Vec<ExifEntry>>,
 ) -> impl ToTokens {
     let bytes_literal = Literal::byte_string(data);
     let exif_tokens = if cfg!(feature = "exif") {

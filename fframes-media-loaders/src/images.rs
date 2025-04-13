@@ -1,8 +1,14 @@
-#[cfg(feature = "exif")]
-use rexif::{ExifEntry, parse_file};
-
 #[cfg(not(target_arch = "wasm32"))]
 pub use usvgr::PreloadedImageData;
+
+#[cfg(feature = "exif")]
+use exif::Field;
+
+#[cfg(feature = "exif")]
+#[derive(Debug, Clone)]
+pub struct CExif {
+    pub fields: Vec<Field>,
+}
 
 /// A more efficient version of `Cow` that is cheap to clone
 #[cfg(target_arch = "wasm32")]
@@ -47,7 +53,7 @@ pub struct ImageData {
     base64_data: Base64ImageData,
 
     #[cfg(feature = "exif")]
-    pub exif_data: Option<Vec<rexif::ExifEntry>>,
+    pub exif_data: Option<CExif>,
 }
 
 impl ImageData {
@@ -72,7 +78,7 @@ impl ImageData {
         data: std::sync::Arc<usvgr::PreloadedImageData>,
         filename: String,
         metadata: ImageMetadata,
-        #[cfg(feature = "exif")] exif_data: Option<Vec<rexif::ExifEntry>>,
+        #[cfg(feature = "exif")] exif_data: Option<CExif>,
     ) -> Self {
         ImageData {
             filename,
@@ -82,7 +88,7 @@ impl ImageData {
             exif_data,
         }
     }
-
+    // crate::error::Result<Self>
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_from_bytes(filename: &str, bytes: &[u8]) -> crate::Result<Self> {
         let image = decode_image(filename, bytes)?;
@@ -133,20 +139,16 @@ impl ImageData {
 }
 
 #[cfg(feature = "exif")]
-pub fn parse_exif_data(
-    path: impl AsRef<std::path::Path>,
-    photo: &[u8],
-) -> Option<Vec<rexif::ExifEntry>> {
-    match rexif::parse_buffer(photo) {
-        Ok(exif) => Some(exif.entries),
-        Err(e) => {
-            eprintln!(
-                "Error to parse file: {} with error: {}",
-                path.as_ref().display(),
-                e
-            );
-            None
-        }
+pub fn parse_exif_data(path: impl AsRef<std::path::Path>, photo: &[u8]) -> Option<CExif> {
+    let file = std::fs::File::open(&path).ok()?;
+    let mut bufreader = std::io::BufReader::new(&file);
+    let exifreader = exif::Reader::new();
+
+    match exifreader.read_from_container(&mut bufreader) {
+        Ok(exif) => Some(CExif {
+            fields: exif.fields().cloned().collect(),
+        }),
+        Err(_) => None,
     }
 }
 

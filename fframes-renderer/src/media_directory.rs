@@ -1,6 +1,4 @@
 use crate::renderer_error::FFramesRendererResult;
-#[cfg(feature = "exif")]
-use fframes::media::get_exif_data;
 use fframes::{
     DynamicMediaProvider, RawFontData,
     media::{RawMediaFile, Subtitles, VideoMedia},
@@ -114,27 +112,7 @@ impl MediaDirectory {
                                 data: Arc::new(bytes),
                             });
                         }
-                        #[cfg(feature = "exif")]
                         ("jpg" | "jpeg", RawMediaFile::Data(bytes)) => {
-                            let image = decode_image(filename, bytes)?;
-                            let exif_data = get_exif_data(filename);
-                            let metadata = fframes::media::ImageMetadata {
-                                width: image.width,
-                                height: image.height,
-                            };
-
-                            image_hash.lock()?.insert(
-                                filename.to_owned(),
-                                fframes::media::ImageData::new_from_raw_data(
-                                    Arc::new(image),
-                                    filename.to_owned(),
-                                    metadata,
-                                    exif_data,
-                                ),
-                            );
-                        }
-                        #[cfg(not(feature = "exif"))]
-                        ("jpg" | "jpeg" | "png", RawMediaFile::Data(bytes)) => {
                             image_hash.lock()?.insert(
                                 filename.to_owned(),
                                 fframes::media::ImageData::new_from_bytes(filename, bytes)?,

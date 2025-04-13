@@ -29,4 +29,4 @@ mod video_decoder;
 pub use video_decoder::*;
 
 #[cfg(feature = "exif")]
-pub use rexif;
+pub use exif;

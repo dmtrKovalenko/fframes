@@ -28,7 +28,7 @@ svgr = { workspace = true, optional = true }
 svgr-macro.workspace = true
 fframes.workspace = true
 ffmpeg-sys-fframes.workspace = true
-rexif.workspace = true
+kamadak-exif.workspace = true
 
 [dev-dependencies]
 criterion = "0.5"
@@ -38,7 +38,6 @@ rand = "0.8"
 cc = "1.0"
 
 [features]
-exif = []
 default = ["cpu_renderer"]
 cpu_renderer = ["svgr"]
 h264 = ["ffmpeg-sys-fframes/build-lib-x264"]

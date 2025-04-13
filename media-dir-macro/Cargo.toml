@@ -19,13 +19,13 @@ syn = { version = "2.0.98", features = [
   "extra-traits",
   "proc-macro",
 ] }
-rexif.workspace = true
+kamadak-exif.workspace = true
 fframes-media-loaders.workspace = true
 bytemuck = "1.21.0"
 base64 = "0.22.1"
 
 
 [features]
-exif = ["fframes-media-loaders/exif"]
+exif = ["fframes-media-loaders/kamadak-exif"]
 nightly = []
 metadata = []
