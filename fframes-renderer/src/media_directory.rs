@@ -112,7 +112,7 @@ impl MediaDirectory {
                                 data: Arc::new(bytes),
                             });
                         }
-                        ("jpg" | "jpeg", RawMediaFile::Data(bytes)) => {
+                        ("jpg" | "jpeg" | "png", RawMediaFile::Data(bytes)) => {
                             image_hash.lock()?.insert(
                                 filename.to_owned(),
                                 fframes::media::ImageData::new_from_bytes(filename, bytes)?,

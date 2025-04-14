@@ -3,7 +3,8 @@ pub use usvgr::PreloadedImageData;
 
 #[cfg(feature = "exif")]
 use exif::Field;
-
+#[cfg(feature = "exif")]
+use std::sync::OnceLock;
 #[cfg(feature = "exif")]
 #[derive(Debug, Clone)]
 pub struct CExif {
@@ -54,6 +55,9 @@ pub struct ImageData {
 
     #[cfg(feature = "exif")]
     pub exif_data: Option<CExif>,
+
+    #[cfg(feature = "exif")]
+    datetime_cache: OnceLock<Option<Field>>,
 }
 
 impl ImageData {
@@ -86,9 +90,11 @@ impl ImageData {
             image: data,
             #[cfg(feature = "exif")]
             exif_data,
+            #[cfg(feature = "exif")]
+            datetime_cache: OnceLock::new(),
         }
     }
-    // crate::error::Result<Self>
+
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_from_bytes(filename: &str, bytes: &[u8]) -> crate::Result<Self> {
         let image = decode_image(filename, bytes)?;
@@ -107,6 +113,8 @@ impl ImageData {
             image: std::sync::Arc::new(image),
             #[cfg(feature = "exif")]
             exif_data,
+            #[cfg(feature = "exif")]
+            datetime_cache: OnceLock::new(),
         })
     }
 
@@ -136,19 +144,50 @@ impl ImageData {
     pub fn get_bytes(&mut self) -> &[u8] {
         self.base64_data.as_str().as_bytes()
     }
+
+    #[cfg(feature = "exif")]
+    pub fn get_year(&self) -> String {
+        let field_opt = self.datetime_cache.get_or_init(|| {
+            self.exif_data.as_ref().and_then(|exif| {
+                exif.fields
+                    .iter()
+                    .find(|entry| entry.tag == exif::Tag::DateTime)
+                    .cloned()
+            })
+        });
+
+        field_opt
+            .as_ref()
+            .map(|field| {
+                field
+                    .display_value()
+                    .to_string()
+                    .get(..4)
+                    .unwrap_or("")
+                    .to_string()
+            })
+            .unwrap_or_else(|| "2075".to_string())
+    }
 }
 
 #[cfg(feature = "exif")]
 pub fn parse_exif_data(path: impl AsRef<std::path::Path>, photo: &[u8]) -> Option<CExif> {
-    let file = std::fs::File::open(&path).ok()?;
-    let mut bufreader = std::io::BufReader::new(&file);
+    let cursor = std::io::Cursor::new(photo);
+    let mut bufreader = std::io::BufReader::new(cursor);
     let exifreader = exif::Reader::new();
 
     match exifreader.read_from_container(&mut bufreader) {
         Ok(exif) => Some(CExif {
             fields: exif.fields().cloned().collect(),
         }),
-        Err(_) => None,
+        Err(e) => {
+            eprintln!(
+                "Error to parse file: {} with error: {}",
+                path.as_ref().display(),
+                e
+            );
+            None
+        }
     }
 }
 
