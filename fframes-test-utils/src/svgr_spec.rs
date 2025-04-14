@@ -352,3 +352,38 @@ pub fn macro_animations() {
         ),
     );
 }
+
+#[test]
+pub fn text_literal_children_next_to_blocks() {
+    let frame = fframes::Frame::new(75, 50, 50);
+
+    assert_compile_time_svgr_eq_runtime(
+        "text_literal_children_next_to_blocks",
+        svgr!(
+             <svg
+               xmlns="http://www.w3.org/2000/svg"
+               width="1920"
+               height="1080"
+             >
+                <rect x="0" y="0" width="100%" height="100%" fill="transparent" />
+                <text
+                    x="0"
+                    y="60%"
+                    fill="red"
+                    font-weight="700"
+                >
+                    "100"
+                    {svgr!(
+                       <tspan dy="10" font-size="190" font-weight="normal" font-family="Bubble Bobble"> <tspan fill="#7450d9"> "ff" </tspan> "rames" </tspan>
+                    )}
+
+                    {if frame.index < 100 {
+                        svgr!(<tspan x="0" y="60%" dx="0" dy="0"> "fframes" </tspan>)
+                    } else {
+                        svgr!(<tspan dy="10" font-size="190" font-weight="normal" font-family="Bubble Bobble"> <tspan fill="#7450d9"> "ff" </tspan> "rames" </tspan>)
+                    }}
+                </text>
+            </svg>
+        ),
+    );
+}

@@ -89,13 +89,13 @@ impl<'a> ResolvedScenesTimeline<'a> {
             let start_frame = final_duration - overlap_prev;
             let end_frame = final_duration + duration + overlap_next;
             resolved_scenes.push((
-                final_duration - overlap_prev..final_duration + duration + overlap_next,
+                start_frame..end_frame,
                 SceneInfo {
                     index,
                     start_frame,
                     end_frame,
                     total_scenes_in_video: scenes_count,
-                    duration_in_frames: duration + overlap_next,
+                    duration_in_frames: duration,
                     is_last: index == scenes_count - 1,
                 },
                 *scene,
@@ -103,8 +103,7 @@ impl<'a> ResolvedScenesTimeline<'a> {
 
             // the scene duration is reuded by any overlap but we should be careful with the scenes
             // that have the overlap larger than the scene duration itself
-            final_duration =
-                (final_duration + duration).saturating_sub(overlap_prev + overlap_next);
+            final_duration = (final_duration + duration).saturating_sub(overlap_next);
         }
 
         Ok(ResolvedScenesTimeline {

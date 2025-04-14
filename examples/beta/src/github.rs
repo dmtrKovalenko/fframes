@@ -1,11 +1,11 @@
-use fframes::{Scene, Transform, animation::Easing, svgr};
+use fframes::{Overlap, Scene, Transform, animation::Easing, svgr};
 
 #[derive(Debug)]
 pub struct GithubScene {}
 
 impl Scene for GithubScene {
     fn overlap(&self) -> fframes::Overlap {
-        fframes::Overlap::Previous(0.3)
+        Overlap::Previous(0.3)
     }
 
     fn duration(&self) -> fframes::Duration {

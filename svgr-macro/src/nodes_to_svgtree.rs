@@ -395,7 +395,9 @@ fn map_inline_or_runtime_nodes(
         let attrs = parse_element_attributes(node, tag_name)?;
 
         let children = match tag_name {
-            EId::Text => map_text_node_children(&node.children, tag_name, fframes_crate_ident),
+            EId::Text | EId::Tspan | EId::TextPath => {
+                map_text_node_children(&node.children, tag_name, fframes_crate_ident)
+            }
             _ => map_inline_or_runtime_nodes(&node.children, fframes_crate_ident),
         }?;
 
