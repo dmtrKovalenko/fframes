@@ -11,51 +11,42 @@ function Timeline(Props) {
   var sectionSize = Props.sectionSize;
   var editorContext = EditorContext.useEditorContext(undefined);
   var match = Curry._1(editorContext.usePlayer, undefined);
-  var size = React.useMemo(
-    function () {
-      var scale = window.devicePixelRatio;
-      var maxSceneWidth = sectionSize.width - 64;
-      var frameToPxRatio =
-        maxSceneWidth / editorContext.videoMeta.durationInFrames;
-      return {
-        width: sectionSize.width,
-        height: sectionSize.height,
-        scale: scale,
-        scaledWidth: sectionSize.width * scale,
-        scaledHeight: sectionSize.height * scale,
-        maxSceneWidth: maxSceneWidth,
-        frameToPxRatio: frameToPxRatio,
-        pxToFrameRation: 1 / frameToPxRatio,
-      };
-    },
-    [
-      sectionSize.height,
-      sectionSize.width,
-      sectionSize.scale,
-      editorContext.videoMeta.durationInFrames,
-    ]
-  );
+  var size = React.useMemo((function () {
+          var scale = window.devicePixelRatio;
+          var maxSceneWidth = sectionSize.width - 64;
+          var frameToPxRatio = maxSceneWidth / editorContext.videoMeta.durationInFrames;
+          return {
+                  width: sectionSize.width,
+                  height: sectionSize.height,
+                  scale: scale,
+                  scaledWidth: sectionSize.width * scale,
+                  scaledHeight: sectionSize.height * scale,
+                  maxSceneWidth: maxSceneWidth,
+                  frameToPxRatio: frameToPxRatio,
+                  pxToFrameRation: 1 / frameToPxRatio
+                };
+        }), [
+        sectionSize.height,
+        sectionSize.width,
+        sectionSize.scale,
+        editorContext.videoMeta.durationInFrames
+      ]);
   var match$1 = match[0].playState;
-  return React.createElement(
-    "div",
-    {
-      className: "relative",
-    },
-    match$1 >= 3
-      ? null
-      : React.createElement(SceneMapCanvas.make, {
-          size: size,
-        }),
-    React.createElement(ControlsCanvas.make, {
-      size: size,
-    }),
-    React.createElement(SeekBarCanvas.make, {
-      size: size,
-    })
-  );
+  return React.createElement("div", {
+              className: "relative"
+            }, match$1 >= 3 ? null : React.createElement(SceneMapCanvas.make, {
+                    size: size
+                  }), React.createElement(ControlsCanvas.make, {
+                  size: size
+                }), React.createElement(SeekBarCanvas.make, {
+                  size: size
+                }));
 }
 
 var make = Timeline;
 
-export { make };
+export {
+  make ,
+  
+}
 /* react Not a pure module */

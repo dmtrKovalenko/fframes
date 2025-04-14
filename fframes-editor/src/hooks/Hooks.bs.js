@@ -8,43 +8,44 @@ import * as UseEditorLayout from "./useEditorLayout.bs.js";
 function useEvent(fn) {
   var ref = React.useRef(fn);
   React.useLayoutEffect(function () {
-    ref.current = fn;
-  });
-  return React.useCallback(function (arg) {
-    return Curry._1(ref.current, arg);
-  }, []);
+        ref.current = fn;
+        
+      });
+  return React.useCallback((function (arg) {
+                return Curry._1(ref.current, arg);
+              }), []);
 }
 
 function useToggle($$default) {
   var match = React.useState(function () {
-    return $$default;
-  });
+        return $$default;
+      });
   var setState = match[1];
-  var on = React.useCallback(function (param) {
-    return Curry._1(setState, function (param) {
-      return true;
-    });
-  }, []);
-  var off = React.useCallback(function (param) {
-    return Curry._1(setState, function (param) {
-      return false;
-    });
-  }, []);
-  var toggle = React.useCallback(function (param) {
-    return Curry._1(setState, function (state) {
-      return !state;
-    });
-  }, []);
+  var on = React.useCallback((function (param) {
+          return Curry._1(setState, (function (param) {
+                        return true;
+                      }));
+        }), []);
+  var off = React.useCallback((function (param) {
+          return Curry._1(setState, (function (param) {
+                        return false;
+                      }));
+        }), []);
+  var toggle = React.useCallback((function (param) {
+          return Curry._1(setState, (function (state) {
+                        return !state;
+                      }));
+        }), []);
   return [
-    match[0],
-    React.useMemo(function () {
-      return {
-        on: on,
-        off: off,
-        toggle: toggle,
-      };
-    }, []),
-  ];
+          match[0],
+          React.useMemo((function () {
+                  return {
+                          on: on,
+                          off: off,
+                          toggle: toggle
+                        };
+                }), [])
+        ];
 }
 
 var DocumentEvent = UseDimensions.DocumentEvent;
@@ -66,16 +67,17 @@ var calculatePreviewSize = UseEditorLayout.calculatePreviewSize;
 var useEditorLayout = UseEditorLayout.useEditorLayout;
 
 export {
-  DocumentEvent,
-  getDimensions,
-  useDimensions,
-  min_timeline_height,
-  min_media_controls_width,
-  emptySize,
-  sizeToStyle,
-  calculatePreviewSize,
-  useEditorLayout,
-  useEvent,
-  useToggle,
-};
+  DocumentEvent ,
+  getDimensions ,
+  useDimensions ,
+  min_timeline_height ,
+  min_media_controls_width ,
+  emptySize ,
+  sizeToStyle ,
+  calculatePreviewSize ,
+  useEditorLayout ,
+  useEvent ,
+  useToggle ,
+  
+}
 /* react Not a pure module */

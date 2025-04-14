@@ -18,14 +18,11 @@ function rendermagnet(ctx, size, frame) {
   ctx.beginPath();
   ctx.moveTo(magnetX, 0);
   ctx.lineTo(magnetX, size.height);
-  Webapi__Canvas__Canvas2d.setStrokeStyle(
-    ctx,
-    /* String */ 0,
-    "rgb(241 245 249 / 0.8)"
-  );
+  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, "rgb(241 245 249 / 0.8)");
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.drawImage(imageData, ((((magnetX | 0) - 18) | 0) - 5) | 0, 2, 18, 18);
+  ctx.drawImage(imageData, ((magnetX | 0) - 18 | 0) - 5 | 0, 2, 18, 18);
+  
 }
 
 function ControlsCanvas(Props) {
@@ -35,36 +32,37 @@ function ControlsCanvas(Props) {
   var match = Curry._1(editorContext.usePlayer, undefined);
   var player = match[0];
   CanvasSize.useCanvasScale(controlsCanvasRef, size);
-  React.useEffect(
-    function () {
-      Belt_Option.map(
-        Caml_option.nullable_to_opt(controlsCanvasRef.current),
-        function (canvasElement) {
-          var ctx = canvasElement.getContext("2d");
-          ctx.clearRect(0, 0, size.scaledWidth, size.scaledHeight);
-          return Belt_Option.map(player.magnet, function (param) {
-            return rendermagnet(ctx, size, param);
-          });
-        }
-      );
-    },
-    [player.magnet]
-  );
+  React.useEffect((function () {
+          Belt_Option.map(Caml_option.nullable_to_opt(controlsCanvasRef.current), (function (canvasElement) {
+                  var ctx = canvasElement.getContext("2d");
+                  ctx.clearRect(0, 0, size.scaledWidth, size.scaledHeight);
+                  return Belt_Option.map(player.magnet, (function (param) {
+                                return rendermagnet(ctx, size, param);
+                              }));
+                }));
+          
+        }), [player.magnet]);
   return React.createElement("canvas", {
-    ref: controlsCanvasRef,
-    className: "absolute inset-0",
-    style: {
-      height: String(size.height) + "px",
-      width: String(size.width) + "px",
-    },
-    height: String(Math.floor(size.height)) + "px",
-    width: String(Math.floor(size.width)) + "px",
-  });
+              ref: controlsCanvasRef,
+              className: "absolute inset-0",
+              style: {
+                height: String(size.height) + "px",
+                width: String(size.width) + "px"
+              },
+              height: String(Math.floor(size.height)) + "px",
+              width: String(Math.floor(size.width)) + "px"
+            });
 }
 
 var imageSize = 18;
 
 var make = ControlsCanvas;
 
-export { imageSize, imageData, rendermagnet, make };
+export {
+  imageSize ,
+  imageData ,
+  rendermagnet ,
+  make ,
+  
+}
 /* imageData Not a pure module */

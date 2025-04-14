@@ -1,27 +1,28 @@
 /* TypeScript file generated from WasmController.res by genType. */
 /* eslint-disable import/first */
 
-import type { Js_BigInt_t as ReScriptJs_Js_BigInt_t } from "./shims/Js.shim";
 
-import type { Js_Dict_t as ReScriptJs_Js_Dict_t } from "./shims/Js.shim";
+import type {Js_BigInt_t as ReScriptJs_Js_BigInt_t} from './shims/Js.shim';
 
-import type { Js_Float32Array_t as ReScriptJs_Js_Float32Array_t } from "./shims/Js.shim";
+import type {Js_Dict_t as ReScriptJs_Js_Dict_t} from './shims/Js.shim';
 
-import type { Js_Nullable_t as ReScriptJs_Js_Nullable_t } from "./shims/Js.shim";
+import type {Js_Float32Array_t as ReScriptJs_Js_Float32Array_t} from './shims/Js.shim';
 
-import type { Js_Promise_t as ReScriptJs_Js_Promise_t } from "./shims/Js.shim";
+import type {Js_Nullable_t as ReScriptJs_Js_Nullable_t} from './shims/Js.shim';
 
-import type { Js_RegExp_t as ReScriptJs_Js_RegExp_t } from "./shims/Js.shim";
+import type {Js_Promise_t as ReScriptJs_Js_Promise_t} from './shims/Js.shim';
 
-import type { Js_Uint8Array_t as ReScriptJs_Js_Uint8Array_t } from "./shims/Js.shim";
+import type {Js_RegExp_t as ReScriptJs_Js_RegExp_t} from './shims/Js.shim';
 
-import type { Js_Undefined_t as ReScriptJs_Js_Undefined_t } from "./shims/Js.shim";
+import type {Js_Uint8Array_t as ReScriptJs_Js_Uint8Array_t} from './shims/Js.shim';
+
+import type {Js_Undefined_t as ReScriptJs_Js_Undefined_t} from './shims/Js.shim';
 
 // tslint:disable-next-line:interface-over-type-literal
 export type namedRange = {
-  readonly name: string;
-  readonly start: number;
-  readonly end: number;
+  readonly name: string; 
+  readonly start: number; 
+  readonly end: number
 };
 
 // tslint:disable-next-line:interface-over-type-literal
@@ -32,87 +33,68 @@ export type mediaFolder = ReScriptJs_Js_Dict_t<mediaImport>;
 
 // tslint:disable-next-line:interface-over-type-literal
 export type options = {
-  readonly dynamicMediaFolder?: mediaFolder;
-  readonly ignoreMediaRegex?: ReScriptJs_Js_RegExp_t;
-  readonly hideDock: boolean;
-  readonly loop: boolean;
-  readonly lockFps?: number;
-  readonly mediaListLayout: "list" | "fromAspectRatio" | "grid";
-  readonly rewindStepInSeconds: number;
-  readonly dynamicImageSizeLimitBytes: number;
-  readonly volumeStepFrom0To100: number;
+  readonly dynamicMediaFolder?: mediaFolder; 
+  readonly ignoreMediaRegex?: ReScriptJs_Js_RegExp_t; 
+  readonly hideDock: boolean; 
+  readonly loop: boolean; 
+  readonly lockFps?: number; 
+  readonly mediaListLayout: 
+    "list"
+  | "fromAspectRatio"
+  | "grid"; 
+  readonly rewindStepInSeconds: number; 
+  readonly dynamicImageSizeLimitBytes: number; 
+  readonly volumeStepFrom0To100: number
 };
 export type EditorOptions = options;
 
 // tslint:disable-next-line:interface-over-type-literal
 export type videoMeta = {
-  readonly name: string;
-  readonly width: number;
-  readonly height: number;
-  readonly fps: number;
-  readonly durationInFrames: number;
-  readonly hasAudio: boolean;
-  readonly originalFps?: number;
-  readonly audioMap: ReScriptJs_Js_Nullable_t<namedRange[]>;
-  readonly scenesTimeline: ReScriptJs_Js_Nullable_t<namedRange[]>;
+  readonly name: string; 
+  readonly width: number; 
+  readonly height: number; 
+  readonly fps: number; 
+  readonly durationInFrames: number; 
+  readonly hasAudio: boolean; 
+  readonly originalFps?: number; 
+  readonly audioMap: ReScriptJs_Js_Nullable_t<namedRange[]>; 
+  readonly scenesTimeline: ReScriptJs_Js_Nullable_t<namedRange[]>
 };
 export type VideoMeta = videoMeta;
 
 // tslint:disable-next-line:interface-over-type-literal
 export type fontInfo = {
-  readonly name: string;
-  readonly weight: number;
-  readonly style: string;
+  readonly name: string; 
+  readonly weight: number; 
+  readonly style: string
 };
 
 // tslint:disable-next-line:interface-over-type-literal
 export type staticFont = {
-  readonly data: ReScriptJs_Js_Uint8Array_t;
-  readonly info: fontInfo;
-  readonly name: string;
+  readonly data: ReScriptJs_Js_Uint8Array_t; 
+  readonly info: fontInfo; 
+  readonly name: string
 };
 
 // tslint:disable-next-line:interface-over-type-literal
 export type staticAudio = {
-  readonly fltp_data: ReScriptJs_Js_Float32Array_t;
-  readonly sample_rate: number;
-  readonly name: string;
+  readonly fltp_data: ReScriptJs_Js_Float32Array_t; 
+  readonly sample_rate: number; 
+  readonly name: string
 };
 
 // tslint:disable-next-line:interface-over-type-literal
 export type t = {
-  readonly add_audio_source: (
-    _1: string,
-    _2: number,
-    _3: ReScriptJs_Js_Float32Array_t
-  ) => void;
-  readonly add_image_source: (
-    _1: string,
-    _2: string,
-    _3: number,
-    _4: number,
-    _5: ReScriptJs_Js_Undefined_t<string>
-  ) => void;
-  readonly add_video_source_placeholder: (
-    _1: string,
-    _2: string,
-    _3: number,
-    _4: number,
-    _5: number
-  ) => void;
-  readonly add_subtitles_source: (_1: string, _2: string) => number;
-  readonly prepare: (
-    _1: ReScriptJs_Js_Undefined_t<number>
-  ) => ReScriptJs_Js_Promise_t<videoMeta>;
-  readonly render_frame: (_1: ReScriptJs_Js_BigInt_t) => string;
-  readonly render_preview_frame: (_1: ReScriptJs_Js_BigInt_t) => string;
-  readonly ingest_font: (_1: ReScriptJs_Js_Uint8Array_t) => fontInfo;
-  readonly populate_static_fonts_db_with_static_fonts: () => void;
-  readonly get_static_font_data_by_index: (
-    _1: number
-  ) => ReScriptJs_Js_Nullable_t<staticFont>;
-  readonly get_static_audio_data_by_index: (
-    _1: number
-  ) => ReScriptJs_Js_Nullable_t<staticAudio>;
+  readonly add_audio_source: (_1:string, _2:number, _3:ReScriptJs_Js_Float32Array_t) => void; 
+  readonly add_image_source: (_1:string, _2:string, _3:number, _4:number, _5:ReScriptJs_Js_Undefined_t<string>) => void; 
+  readonly add_video_source_placeholder: (_1:string, _2:string, _3:number, _4:number, _5:number) => void; 
+  readonly add_subtitles_source: (_1:string, _2:string) => number; 
+  readonly prepare: (_1:ReScriptJs_Js_Undefined_t<number>) => ReScriptJs_Js_Promise_t<videoMeta>; 
+  readonly render_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 
+  readonly render_preview_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 
+  readonly ingest_font: (_1:ReScriptJs_Js_Uint8Array_t) => fontInfo; 
+  readonly populate_static_fonts_db_with_static_fonts: () => void; 
+  readonly get_static_font_data_by_index: (_1:number) => ReScriptJs_Js_Nullable_t<staticFont>; 
+  readonly get_static_audio_data_by_index: (_1:number) => ReScriptJs_Js_Nullable_t<staticAudio>
 };
 export type WasmController = t;
