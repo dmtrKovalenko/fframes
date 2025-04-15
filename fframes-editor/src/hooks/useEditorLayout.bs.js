@@ -7,70 +7,62 @@ import * as UseDimensions from "./useDimensions.bs.js";
 
 function sizeToStyle(param) {
   return {
-    height: String(param.height) + "px",
-    width: String(param.width) + "px",
-  };
+          height: String(param.height) + "px",
+          width: String(param.width) + "px"
+        };
 }
 
-function calculatePreviewSize(
-  windowDimensions,
-  param,
-  min_media_controls_width,
-  min_timeline_height
-) {
+function calculatePreviewSize(windowDimensions, param, min_media_controls_width, min_timeline_height) {
   var height = param.height;
   var width = param.width;
-  var max_preview_width =
-    (windowDimensions.width - min_media_controls_width) | 0;
-  var max_preview_height = (windowDimensions.height - min_timeline_height) | 0;
+  var max_preview_width = windowDimensions.width - min_media_controls_width | 0;
+  var max_preview_height = windowDimensions.height - min_timeline_height | 0;
   if (!(width > max_preview_width || height > max_preview_height)) {
     return {
-      height: height,
-      width: width,
-      scale: 1.0,
-    };
+            height: height,
+            width: width,
+            scale: 1.0
+          };
   }
-  var scale = Caml.caml_float_min(
-    max_preview_width / width,
-    max_preview_height / height
-  );
+  var scale = Caml.caml_float_min(max_preview_width / width, max_preview_height / height);
   return {
-    height: height * scale,
-    width: width * scale,
-    scale: scale,
-  };
+          height: height * scale,
+          width: width * scale,
+          scale: scale
+        };
 }
 
 function useEditorLayout(isFullScreen) {
   var viewportSize = UseDimensions.useDimensions(undefined);
   var match = EditorContext.useEditorContext(undefined);
   var videoMeta = match.videoMeta;
-  return React.useMemo(
-    function () {
-      if (isFullScreen) {
-        return {
-          preview: calculatePreviewSize(viewportSize, videoMeta, 0, 0),
-          timeLine: undefined,
-          mediaControls: undefined,
-        };
-      }
-      var previewSize = calculatePreviewSize(viewportSize, videoMeta, 370, 450);
-      return {
-        preview: previewSize,
-        timeLine: {
-          height: viewportSize.height - previewSize.height,
-          width: viewportSize.width,
-          scale: 1.0,
-        },
-        mediaControls: {
-          height: previewSize.height,
-          width: viewportSize.width - previewSize.width,
-          scale: 1.0,
-        },
-      };
-    },
-    [viewportSize.height, viewportSize.width, isFullScreen]
-  );
+  return React.useMemo((function () {
+                if (isFullScreen) {
+                  return {
+                          preview: calculatePreviewSize(viewportSize, videoMeta, 0, 0),
+                          timeLine: undefined,
+                          mediaControls: undefined
+                        };
+                }
+                var previewSize = calculatePreviewSize(viewportSize, videoMeta, 370, 450);
+                return {
+                        preview: previewSize,
+                        timeLine: {
+                          height: viewportSize.height - previewSize.height,
+                          width: viewportSize.width,
+                          scale: 1.0
+                        },
+                        mediaControls: {
+                          height: previewSize.height,
+                          width: viewportSize.width - previewSize.width,
+                          scale: 1.0
+                        }
+                      };
+              }), [
+              viewportSize.height,
+              viewportSize.width,
+              isFullScreen
+            ]);
 }
 
 var min_timeline_height = 450;
@@ -80,15 +72,16 @@ var min_media_controls_width = 370;
 var emptySize = {
   height: 0.0,
   width: 0.0,
-  scale: 0.0,
+  scale: 0.0
 };
 
 export {
-  min_timeline_height,
-  min_media_controls_width,
-  emptySize,
-  sizeToStyle,
-  calculatePreviewSize,
-  useEditorLayout,
-};
+  min_timeline_height ,
+  min_media_controls_width ,
+  emptySize ,
+  sizeToStyle ,
+  calculatePreviewSize ,
+  useEditorLayout ,
+  
+}
 /* react Not a pure module */

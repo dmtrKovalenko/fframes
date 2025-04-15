@@ -47,6 +47,7 @@ impl TestImage {
     fn create_test_patterns() -> Vec<Self> {
         vec![
             Self::with_solid_color(8, 8, 255, 0, 0, 255), // Pure red
+            Self::with_solid_color(8, 24, 255, 0, 0, 255), // Pure red
             Self::with_solid_color(16, 16, 0, 255, 0, 255), // Pure green
             Self::with_solid_color(16, 16, 0, 0, 255, 255), // Pure blue
             Self::with_solid_color(16, 16, 255, 255, 255, 255), // White

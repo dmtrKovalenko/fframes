@@ -34,6 +34,10 @@ kamadak-exif.workspace = true
 criterion = "0.5"
 rand = "0.8"
 
+[dev-dependencies]
+criterion = "0.5"
+rand = "0.8"
+
 [build-dependencies]
 cc = "1.0"
 

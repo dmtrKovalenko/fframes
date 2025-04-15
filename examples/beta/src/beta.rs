@@ -47,8 +47,7 @@ impl Scene for HeadingScene {
                     svgr!(<tspan> "fframes" </tspan>)
                 } else {
                     svgr!(<tspan dy="10" font-size="190" font-weight="normal" font-family="Bubble Bobble"> <tspan fill="#7450d9"> "ff" </tspan> "rames" </tspan>)
-                }
-                }
+                }}
             </text>
         )
     }

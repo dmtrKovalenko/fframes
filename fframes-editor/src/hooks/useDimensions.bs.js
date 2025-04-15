@@ -9,27 +9,33 @@ var DocumentEvent = Webapi__Dom__EventTarget.Impl({});
 
 function getDimensions(param) {
   return {
-    width: window.innerWidth,
-    height: window.innerHeight,
-  };
+          width: window.innerWidth,
+          height: window.innerHeight
+        };
 }
 
 function useDimensions(param) {
   var match = React.useState(function () {
-    return getDimensions(undefined);
-  });
+        return getDimensions(undefined);
+      });
   var setDimensions = match[1];
-  React.useLayoutEffect(function () {
-    var handleResize = function (param) {
-      return Curry._1(setDimensions, getDimensions);
-    };
-    window.addEventListener("resize", handleResize);
-    return function (param) {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
+  React.useLayoutEffect((function () {
+          var handleResize = function (param) {
+            return Curry._1(setDimensions, getDimensions);
+          };
+          window.addEventListener("resize", handleResize);
+          return (function (param) {
+                    window.removeEventListener("resize", handleResize);
+                    
+                  });
+        }), []);
   return match[0];
 }
 
-export { DocumentEvent, getDimensions, useDimensions };
+export {
+  DocumentEvent ,
+  getDimensions ,
+  useDimensions ,
+  
+}
 /* DocumentEvent Not a pure module */

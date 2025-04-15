@@ -12,6 +12,7 @@ fn main() {
             media: &media,
         },
         fframes_renderer::cpu::CpuRenderingBackend {
+            cache_capacity: 30,
             ..Default::default()
         },
         &RenderOptions {
@@ -20,7 +21,7 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: fframes_renderer::EncoderOptions {
                 preferred_video_codec: Some("libx265"),
-                codec_params: Some(&[("log-level", "none")]),
+                codec_params: Some(&[("log-level", "none"), ("crf", "23")]),
                 sample_rate: 44100,
                 ..Default::default()
             },

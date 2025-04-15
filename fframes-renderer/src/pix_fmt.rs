@@ -125,10 +125,10 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                     "uxtl v8.8h, v2.8b", // b
 
                     // calc y
-                    "mul v10.8h, v4.8h, v20.8h",   // r * 66
-                    "mla v10.8h, v6.8h, v21.8h",   // + g * 129
-                    "mla v10.8h, v8.8h, v22.8h",   // + b * 25
-                    "addhn v12.8b, v10.8h, v29.8h",  // + 16 offset and pack
+                    "mul.8h v10, v4, v20",   // r * 66
+                    "mla.8h v10, v6, v21",   // + g * 129
+                    "mla.8h v10, v8, v22",   // + b * 25
+                    "addhn.8b v12, v10, v29",  // + 16 offset and pack
                     // store y
                     "st1 {{v12.8b}}, [{dst_y}], #8",
 
@@ -141,24 +141,24 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                     "uzp1 v15.8h, v8.8h, v8.8h",
 
                     // calc cb for even pixels: 128 + ((-38*R - 74*G + 112*B) >> 8)
-                    "mul v16.8h, v13.8h, v23.8h",  // r * -38
-                    "mls v16.8h, v14.8h, v24.8h",  // - g * 74
-                    "mla v16.8h, v15.8h, v25.8h",  // + b * 112
-                    "sshr v16.8h, v16.8h, #8",     // >> 8
-                    "add v16.8h, v16.8h, v30.8h",  // add 128 offset
-                    "sqxtun v17.8b, v16.8h",       // convert to unsigned
+                    "mul.8h v16, v13, v23",  // r * -38
+                    "mls.8h v16, v14, v24",  // - g * 74
+                    "mla.8h v16, v15, v25",  // + b * 112
+                    "sshr.8h v16, v16, #8",     // >> 8
+                    "add.8h v16, v16, v30",  // add 128 offset
+                    "sqxtun.8b v17, v16",       // convert to unsigned
 
                     // calc cr for even pixels: 128 + ((112*R - 94*G - 18*B) >> 8)
-                    "mul v18.8h, v13.8h, v26.8h",  // r * 112
-                    "mls v18.8h, v14.8h, v27.8h",  // - g * 94 (subtract using mls)
-                    "mls v18.8h, v15.8h, v28.8h",  // - b * 18 (subtract using mls)
-                    "sshr v18.8h, v18.8h, #8",     // >> 8
-                    "add v18.8h, v18.8h, v30.8h",  // add 128 offset
-                    "sqxtun v19.8b, v18.8h",       // convert to unsigned
+                    "mul.8h v18, v13, v26",  // r * 112
+                    "mls.8h v18, v14, v27",  // - g * 94 (subtract using mls)
+                    "mls.8h v18, v15, v28",  // - b * 18 (subtract using mls)
+                    "sshr.8h v18, v18, #8",     // >> 8
+                    "add.8h v18, v18, v30",  // add 128 offset
+                    "sqxtun.8b v19, v18",       // convert to unsigned
 
-                    // Store 4 bytes using correct syntax
-                    "str s17, [{dst_cb}], #4",               // store 4 cb values
-                    "str s19, [{dst_cr}], #4",               // store 4 cr values
+                    // Store 4 bytes
+                    "str s17, [{dst_cb}], #4",
+                    "str s19, [{dst_cr}], #4",
 
                     "5:",
                     "add w10, w10, #8",            // go to next 8 pixels
@@ -168,7 +168,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                 // end of row
                 "add {dst_y}, {dst_y}, {y_pad:x}",
 
-                // handle cb/cr rows - only update on even rows
+                // only update padding on even rows
                 "tbnz w9, #0, 7f",
 
                 "add {dst_cb}, {dst_cb}, {cb_pad:x}",
