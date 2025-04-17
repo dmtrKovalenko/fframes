@@ -1,5 +1,5 @@
-use fframes::usvgr::fontdb::{self, Family, Query, Weight};
-use fframes::{self, FontFace, FontStretch, FontStyle};
+use crate::usvgr::fontdb::{self, Family, Query, Weight};
+use crate::{FontFace, FontStretch, FontStyle};
 use std::sync::Arc;
 
 pub(crate) struct RendererFont<'a> {
@@ -17,16 +17,14 @@ impl std::fmt::Debug for RendererFont<'_> {
     }
 }
 
-impl<'a> fframes::FontFace<'a> for RendererFont<'a> {
+impl<'a> crate::FontFace<'a> for RendererFont<'a> {
     fn is_monospaced(&self) -> Option<bool> {
-        let face =
-            fframes::ttf_parser::Face::parse(self.data.as_ref().as_ref(), self.index).ok()?;
+        let face = crate::ttf_parser::Face::parse(self.data.as_ref().as_ref(), self.index).ok()?;
         Some(face.is_monospaced())
     }
 
     fn resolve_char_width(&self, font_size: usize, char: char) -> Option<usize> {
-        let face =
-            fframes::ttf_parser::Face::parse(self.data.as_ref().as_ref(), self.index).ok()?;
+        let face = crate::ttf_parser::Face::parse(self.data.as_ref().as_ref(), self.index).ok()?;
         let glyph_id = face.glyph_index(char)?;
 
         Some(
@@ -47,7 +45,7 @@ impl RendererFontSource {
     }
 }
 
-impl<'a> fframes::FontSource<'a> for RendererFontSource {
+impl<'a> crate::FontSource<'a> for RendererFontSource {
     fn resolve_font(
         &'a self,
         font_name: &str,

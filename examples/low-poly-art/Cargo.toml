@@ -11,9 +11,6 @@ fframes = { workspace = true }
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { path = "../../fframes-renderer" }
-
 [features]
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree"]

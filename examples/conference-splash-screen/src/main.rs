@@ -1,8 +1,8 @@
 use conference_splash_screen::{ConferenceMedia, ConferenceVideo, SpeakerScene, SponsorScene};
 use fframes::{
-    CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video, lazy_static::lazy_static,
+    CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
+    StaticMediaProvider, Video, fframes_logger, lazy_static::lazy_static,
 };
-use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render, render_frame};
 use image::{ImageBuffer, Rgba};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -60,8 +60,7 @@ fn generate_description(talk: &Talk) -> String {
 
 fn main() {
     let media = ConferenceMedia::prepare().unwrap();
-    let media_folder =
-        fframes_renderer::MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
+    let media_folder = MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
     let dynamic_media = media_folder.process_media_source().unwrap();
 
     clean_dir("output").unwrap();
@@ -99,7 +98,7 @@ fn main() {
         ..Default::default()
     };
 
-    let backend = fframes_renderer::cpu::CpuRenderingBackend {
+    let backend = fframes::cpu::CpuRenderingBackend {
         concurrency: 1,
         cache_capacity: 40,
         ..Default::default()
@@ -119,7 +118,7 @@ fn main() {
             },
         };
 
-        render(
+        fframes::render(
             format!("output/{}.mp4", filename),
             &video,
             backend,
@@ -128,7 +127,7 @@ fn main() {
         .expect("Failed to render video");
 
         // 330 is a frame that we want to use as a preview
-        let preview_image = render_frame(330, &video, backend, &options).unwrap();
+        let preview_image = fframes::render_frame(330, &video, backend, &options).unwrap();
         let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
             ConferenceVideo::WIDTH as u32,
             ConferenceVideo::HEIGHT as u32,

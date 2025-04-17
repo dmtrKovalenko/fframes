@@ -5,7 +5,6 @@ members = [
     "svgr-macro",
     "webvtt-parser",
     "fframes",
-    "fframes-renderer",
     "fframes-editor-controller",
     "fframes-test-utils",
     "fframes-media-loaders",

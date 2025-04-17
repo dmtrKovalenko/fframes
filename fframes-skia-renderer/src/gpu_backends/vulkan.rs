@@ -1,7 +1,7 @@
 use crate::skia_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
 use ash::vk::{self, Handle};
 use ash::{Entry, Instance};
-use fframes_renderer::{FFramesRendererError, FFramesRendererResult};
+use fframes::{FFramesRendererError, FFramesRendererResult};
 use skia_safe::ColorType;
 use skia_safe::gpu;
 use skia_safe::gpu::ganesh::context_options::*;

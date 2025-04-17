@@ -1,5 +1,5 @@
-use crate::renderer_error::FFramesRendererResult;
-use fframes::{
+use super::renderer_error::FFramesRendererResult;
+use crate::{
     DynamicMediaProvider, RawFontData,
     media::{RawMediaFile, Subtitles, VideoMedia, decode_image},
 };
@@ -86,14 +86,14 @@ impl MediaDirectory {
                     // logger.log_media_processing_start(filename, &path);
                     match (extension, raw_file) {
                         ("mp3" | "wav" | "flac" | "aac" | "pcm" | "ogg" | "mp2", _) => {
-                            let audio_data = fframes::media::PreloadedAudioData::decode_raw_file(
+                            let audio_data = crate::media::PreloadedAudioData::decode_raw_file(
                                 Some(SAMPLE_RATE),
                                 path,
                             )?;
 
                             audio_hash.lock()?.insert(
                                 filename.to_owned(),
-                                fframes::AudioData::Preloaded(audio_data),
+                                crate::AudioData::Preloaded(audio_data),
                             );
                         }
                         ("vtt", RawMediaFile::Data(bytes)) => {
@@ -102,7 +102,7 @@ impl MediaDirectory {
                             subtitles_hash.lock()?.insert(
                                 filename.to_owned(),
                                 Subtitles::parse(str_bytes)
-                                    .map_err(fframes::media::FFramesMediaError::from)?,
+                                    .map_err(crate::media::FFramesMediaError::from)?,
                             );
                         }
                         ("ttf" | "ttc" | "otf" | "otc", RawMediaFile::Stream(path)) => {
@@ -114,14 +114,14 @@ impl MediaDirectory {
                         }
                         ("jpg" | "jpeg" | "png", RawMediaFile::Data(bytes)) => {
                             let image = decode_image(filename, bytes)?;
-                            let metadata = fframes::media::ImageMetadata {
+                            let metadata = crate::media::ImageMetadata {
                                 width: image.width,
                                 height: image.height,
                             };
 
                             image_hash.lock()?.insert(
                                 filename.to_owned(),
-                                fframes::media::ImageData::new_from_raw_data(
+                                crate::media::ImageData::new_from_raw_data(
                                     Arc::new(image),
                                     filename.to_owned(),
                                     metadata,
@@ -138,14 +138,14 @@ impl MediaDirectory {
                             );
 
                             if let Ok(audio_data) =
-                                fframes::media::PreloadedAudioData::decode_raw_file(
+                                crate::media::PreloadedAudioData::decode_raw_file(
                                     Some(SAMPLE_RATE),
                                     path,
                                 )
                             {
                                 audio_hash.lock()?.insert(
                                     filename.to_owned(),
-                                    fframes::AudioData::Preloaded(audio_data),
+                                    crate::AudioData::Preloaded(audio_data),
                                 );
                             }
                         }

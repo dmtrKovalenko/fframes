@@ -1,19 +1,18 @@
-use fframes::ffmpeg_sys_fframes::*;
-use fframes::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
+use crate::ffmpeg_sys_fframes::*;
+use crate::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
 use std::{
     ffi::CString,
     path::{Path, PathBuf},
 };
-
-use crate::{
+use super::{
     EncoderOptions,
     encoder::Encoder,
     encoder_frame::EncoderFrame,
-    ffmpeg_action,
     renderer_error::{RenderEncodingError, RenderEncodingResult},
     stream::Stream,
     stream::StreamVariant,
 };
+pub use crate::ffmpeg_action;
 
 pub struct AvPacketAutoFree {
     av_packet: *mut AVPacket,

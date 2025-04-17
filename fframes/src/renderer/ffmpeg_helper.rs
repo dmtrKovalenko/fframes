@@ -1,4 +1,4 @@
-use fframes::ffmpeg_sys_fframes::{
+use crate::ffmpeg_sys_fframes::{
     AV_CH_LAYOUT_MONO, AVChannelLayout, AVChannelLayout__bindgen_ty_1, AVChannelOrder,
 };
 
@@ -28,11 +28,13 @@ macro_rules! ffmpeg_loggable_action {
         let res = $x;
 
         if (res < 0) {
-            let error_description = $crate::encoder::av_error_to_string(res);
-            return Err($crate::renderer_error::RenderEncodingError::FFmpegError(
-                res,
-                error_description,
-            ));
+            let error_description = $crate::renderer::encoder::av_error_to_string(res);
+            return Err(
+                $crate::renderer::renderer_error::RenderEncodingError::FFmpegError(
+                    res,
+                    error_description,
+                ),
+            );
         }
     };
 }

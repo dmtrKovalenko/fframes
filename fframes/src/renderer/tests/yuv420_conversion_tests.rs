@@ -1,4 +1,4 @@
-use fframes_renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_base;
+use crate::renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_base;
 
 struct TestImage {
     width: i32,
@@ -157,7 +157,7 @@ fn yuv_base_implementation() {
 #[test]
 #[cfg(target_feature = "neon")]
 fn yuv_neon_implementation() {
-    use fframes_renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
+    use crate::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
     for test_image in TestImage::create_test_patterns() {
         let TestImage {
             width,
@@ -199,7 +199,7 @@ fn yuv_neon_implementation() {
 #[test]
 #[cfg(target_feature = "neon")]
 fn yuv_neon_matches_base() {
-    use fframes_renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
+    use crate::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
     for test_image in TestImage::create_test_patterns() {
         let TestImage {
             width,
@@ -254,7 +254,7 @@ fn yuv_neon_matches_base() {
 #[test]
 #[cfg(target_feature = "neon")]
 fn yuv_neon_matches_base_with_padded_linesize() {
-    use fframes_renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
+    use crate::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
     for test_image in TestImage::create_test_patterns() {
         let TestImage {
             width,

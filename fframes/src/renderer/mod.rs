@@ -1,11 +1,10 @@
-#![allow(clippy::missing_safety_doc)] // we have to implement a lot of ffi here
-use crate::renderer_font_source::RendererFontSource;
-use fframes::MediaProvider;
-use fframes::Video;
-use fframes::VideoDecodersWorker;
-use fframes::VideoSize;
-use fframes::usvgr::fontdb;
-use fframes::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
+#![allow(clippy::missing_safety_doc)]
+use crate::MediaProvider;
+use crate::Video;
+use crate::VideoDecodersWorker;
+use crate::VideoSize;
+use crate::usvgr::fontdb;
+use crate::{AudioData, FFramesContext, ScenesWithAudio, TimeBase};
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -32,6 +31,10 @@ pub use media_directory::*;
 pub use rayon;
 pub use render_backend::*;
 pub use renderer_error::*;
+use renderer_font_source::RendererFontSource;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone)]
 /// All the final render-specific options applies to the final video rendering pipeline
@@ -72,7 +75,7 @@ impl Default for RenderOptions<'_> {
 fn create_context<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
     _video: &'a TVideo,
     options: &'a RenderOptions<'media>,
-    timeline: &'a fframes::ResolvedRenderingTimeline<'a, fframes::AudioTimelineSamples>,
+    timeline: &'a crate::ResolvedRenderingTimeline<'a, crate::AudioTimelineSamples>,
     font_source: &'a RendererFontSource,
 ) -> FFramesContext<'a, 'media> {
     FFramesContext {
@@ -80,7 +83,7 @@ fn create_context<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
             sample_rate: 44100,
             fps: options.override_fps.unwrap_or(TVideo::FPS),
         },
-        mode: fframes::FFramesMode::Renderer,
+        mode: crate::FFramesMode::Renderer,
         media_source: options.media,
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
@@ -117,7 +120,7 @@ pub fn render<
 
     let output = PathBuf::from(output.as_ref());
     let scenes = video.define_scenes();
-    let timeline = fframes::resolve_timeline(
+    let timeline = crate::resolve_timeline(
         &video.duration(),
         &ScenesWithAudio::new(&scenes),
         &time_base,
@@ -125,9 +128,7 @@ pub fn render<
         |name| {
             options
                 .media
-                .ok_or_else(|| {
-                    fframes::error::FFramesError::RequiredAudioNotFound(name.to_owned())
-                })?
+                .ok_or_else(|| crate::error::FFramesError::RequiredAudioNotFound(name.to_owned()))?
                 .resolve_audio(name)
                 .and_then(|main_audio| match main_audio {
                     AudioData::Preloaded(data) => {
@@ -136,7 +137,7 @@ pub fn render<
                     _ => None,
                 })
                 .ok_or_else(|| {
-                    fframes::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
+                    crate::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
                 })
         },
     )?;
@@ -164,7 +165,7 @@ pub fn render<
         &output,
         video,
         logger,
-        &fframes::usvgr::Options {
+        &crate::usvgr::Options {
             image_data: Some(&image_source),
             font_family: options.default_font.to_string(),
             ..Default::default()
@@ -208,7 +209,7 @@ pub fn render_frame<
     };
 
     let scenes = video.define_scenes();
-    let timeline = fframes::resolve_timeline(
+    let timeline = crate::resolve_timeline(
         &video.duration(),
         &ScenesWithAudio::new(&scenes),
         &time_base,
@@ -216,9 +217,7 @@ pub fn render_frame<
         |name| {
             options
                 .media
-                .ok_or_else(|| {
-                    fframes::error::FFramesError::RequiredAudioNotFound(name.to_owned())
-                })?
+                .ok_or_else(|| crate::error::FFramesError::RequiredAudioNotFound(name.to_owned()))?
                 .resolve_audio(name)
                 .and_then(|main_audio| match main_audio {
                     AudioData::Preloaded(data) => {
@@ -227,7 +226,7 @@ pub fn render_frame<
                     _ => None,
                 })
                 .ok_or_else(|| {
-                    fframes::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
+                    crate::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
                 })
         },
     )?;
@@ -251,7 +250,7 @@ pub fn render_frame<
     let decoders = VideoDecodersWorker::new(1);
 
     render_backend.render_frame(
-        fframes::Frame::__internal_make_for_renderer(
+        crate::Frame::__internal_make_for_renderer(
             frame_index,
             frame_index,
             TVideo::FPS,
@@ -259,7 +258,7 @@ pub fn render_frame<
             decoders,
         ),
         video,
-        &fframes::usvgr::Options {
+        &crate::usvgr::Options {
             image_data: Some(&image_source),
             font_family: options.default_font.to_string(),
             ..Default::default()

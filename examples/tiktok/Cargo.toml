@@ -12,9 +12,6 @@ libm="0.2.8"
 default=["renderer"]
 renderer=["fframes/compile-time-svgtree"]
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer.workspace = true
-
 [lib]
 name = "tiktok_example"
 path = "src/lib.rs"

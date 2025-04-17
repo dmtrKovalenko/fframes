@@ -2,11 +2,11 @@ use fframes::usvgr::WriteOptions;
 use fframes::{
     AudioTimelineSamples, BreaksLruCache, FFramesContext, ResolvedRenderingTimeline, Video, usvgr,
 };
-use fframes_renderer::{
+use fframes::{
     Encoder, EncoderFrame, FFramesLogger, FFramesRendererError, FFramesRendererResult,
     RenderEncodingResult,
 };
-use fframes_renderer::{EncoderOptions, get_thread_count};
+use fframes::{EncoderOptions, get_thread_count};
 use skia_safe::svg::Dom;
 use skia_safe::{ConditionallySend, Sendable};
 use std::ops::Range;

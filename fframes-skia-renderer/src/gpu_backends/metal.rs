@@ -1,5 +1,5 @@
 use crate::skia_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
-use fframes_renderer::FFramesRendererResult;
+use fframes::FFramesRendererResult;
 use skia_safe::gpu;
 
 impl SkiaFFramesRenderer {
@@ -19,7 +19,7 @@ impl SkiaFFramesRenderer {
         };
 
         let device = Device::system_default().ok_or_else(|| {
-            fframes_renderer::FFramesRendererError::Skia(
+            fframes::FFramesRendererError::Skia(
                 "Failed to create Metal device".to_string(),
             )
         })?;
@@ -55,7 +55,7 @@ impl SkiaFFramesRenderer {
                 None,
             )
             .ok_or_else(|| {
-                fframes_renderer::FFramesRendererError::Skia(
+                fframes::FFramesRendererError::Skia(
                     "Failed to wrap backend render target".to_string(),
                 )
             })?

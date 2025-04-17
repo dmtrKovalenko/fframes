@@ -7,6 +7,7 @@ edition = "2024"
 license = "MIT"
 homepage = "https://fframes.studio"
 exclude = ["test_audio/*"]
+build = "build.rs"
 
 [lib]
 
@@ -28,7 +29,7 @@ usvgr.workspace = true
 libc = "0.2.159"
 
 [features]
-default = ["videotoolbox"]
+default = []
 h264 = ["ffmpeg-sys-fframes/build-lib-x264"]
 h265 = ["ffmpeg-sys-fframes/build-lib-x265"]
 videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]

@@ -1,5 +1,5 @@
 use e2e_test_video::test_video::TestVideo;
-pub use fframes_renderer::{RenderOptions, fframes_logger, render};
+use fframes::{RenderOptions, fframes_logger, render};
 use rayon::prelude::*;
 use std::env::consts::{ARCH, OS};
 use std::{fs, process::Command};
@@ -13,7 +13,7 @@ fn e2e_rendering() {
         &TestVideo {
             slug: "This frame index:".to_owned(),
         },
-        fframes_renderer::cpu::CpuRenderingBackend {
+        fframes::cpu::CpuRenderingBackend {
             cache_capacity: 5,
             concurrency: 1,
             ..Default::default()

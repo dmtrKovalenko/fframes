@@ -10,9 +10,6 @@ fframes = { workspace = true, features = ["h265", "libav-agree-gpl"] }
 fframes_test_utils = { path = "../../fframes-test-utils" }
 futures = "0.3.17"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer ={path="../../fframes-renderer"}
-
 [features]
 default=["renderer"]
 renderer=["fframes/compile-time-svgtree"]

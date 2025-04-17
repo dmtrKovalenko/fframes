@@ -15,7 +15,6 @@ tiktok-example = { path = "../tiktok", default-features = false }
 fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { path = "../../fframes-renderer" }
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
 
 [features]

@@ -1,6 +1,9 @@
 use clap::Parser;
-use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video};
-use fframes_renderer::{EncoderOptions, MediaDirectory, RenderOptions, fframes_logger, render};
+use fframes::{
+    CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
+    StaticMediaProvider, Video, fframes_logger, render,
+};
+#[cfg(not(feature = "cpu"))]
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
 use pixel_memory_example::{PixelMedia, PixelVideo, RandomPhotos};
 
@@ -53,7 +56,7 @@ fn main() {
         ),
         #[cfg(feature = "cpu")]
         {
-            fframes_renderer::cpu::CpuRenderingBackend {
+            fframes::cpu::CpuRenderingBackend {
                 cache_capacity: 300,
                 ..Default::default()
             }

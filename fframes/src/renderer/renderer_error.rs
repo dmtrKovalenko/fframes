@@ -1,5 +1,5 @@
+use crate::media::ffmpeg_sys_fframes::AVPixelFormat;
 use colored::Colorize;
-use fframes::ffmpeg_sys_fframes::AVPixelFormat;
 use std::{error::Error, fmt, path::PathBuf, str::Utf8Error, sync::PoisonError};
 
 /// Thread or Chunk level error which can happen during parallelized rendering
@@ -14,7 +14,7 @@ pub enum RenderEncodingError {
     Internal(String),
     CannotLocateCodec,
     InvalidArgument(String),
-    CoreError(fframes::error::FFramesError),
+    CoreError(crate::error::FFramesError),
     RenderError,
     CStringError(std::ffi::NulError),
     Utf8Error(Utf8Error),
@@ -66,8 +66,8 @@ pub enum FFramesRendererError {
     // specific for fframes_skia_render_backend
     Skia(String),
 
-    MediaError(fframes::media::FFramesMediaError),
-    CoreError(fframes::error::FFramesError),
+    MediaError(crate::media::FFramesMediaError),
+    CoreError(crate::error::FFramesError),
 
     /// Any custom rendering backend implementation-specific error
     Custom(String),
@@ -129,14 +129,14 @@ impl<T> From<PoisonError<T>> for FFramesRendererError {
 }
 
 // Duplicate implementation here because it is completely valid scenario to have core error during rendering/encoding phase and the preparation phase as well.
-impl From<fframes::error::FFramesError> for RenderEncodingError {
-    fn from(err: fframes::error::FFramesError) -> Self {
+impl From<crate::error::FFramesError> for RenderEncodingError {
+    fn from(err: crate::error::FFramesError) -> Self {
         Self::CoreError(err)
     }
 }
 
-impl From<fframes::error::FFramesError> for FFramesRendererError {
-    fn from(err: fframes::error::FFramesError) -> Self {
+impl From<crate::error::FFramesError> for FFramesRendererError {
+    fn from(err: crate::error::FFramesError) -> Self {
         Self::CoreError(err)
     }
 }
@@ -147,8 +147,8 @@ impl From<Utf8Error> for FFramesRendererError {
     }
 }
 
-impl From<fframes::media::FFramesMediaError> for FFramesRendererError {
-    fn from(err: fframes::media::FFramesMediaError) -> Self {
+impl From<crate::media::FFramesMediaError> for FFramesRendererError {
+    fn from(err: crate::media::FFramesMediaError) -> Self {
         Self::MediaError(err)
     }
 }

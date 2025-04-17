@@ -11,7 +11,6 @@ getrandom = { version = "0.2.15", features = ["js"] }
 fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { workspace = true }
 fframes_skia_renderer = { workspace = true, features = ["vulkan", "debug"] }
 
 [features]

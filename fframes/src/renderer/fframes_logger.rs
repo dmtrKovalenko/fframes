@@ -1,7 +1,7 @@
-use crate::renderer_error::{FFramesRendererError, FFramesRendererResult};
+use super::renderer_error::{FFramesRendererError, FFramesRendererResult};
+use crate::media::ffmpeg_sys_fframes::AV_LOG_FATAL;
 use colored::*;
 use core::fmt::Debug;
-use fframes::ffmpeg_sys_fframes::AV_LOG_FATAL;
 use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
 use std::{
@@ -37,8 +37,7 @@ pub trait FFramesLogger: Sync + Send {
 
 pub struct CompactFFramesLogger {
     frames_progress_bar: OnceCell<ProgressBar>,
-    media_progress_bar: OnceCell<ProgressBar>,
-}
+    media_progress_bar: OnceCell<ProgressBar>, }
 
 impl FFramesLogger for CompactFFramesLogger {
     fn init_frames_rendering(&self, frames_count: usize) -> FFramesRendererResult<()> {

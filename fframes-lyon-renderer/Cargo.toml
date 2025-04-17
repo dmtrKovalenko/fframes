@@ -10,7 +10,6 @@ authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 
 [dependencies]
 bytemuck = "1.21.0"
-fframes_renderer.workspace = true
 fframes.workspace = true
 lyon = "1.0.1"
 wgpu = "23.0.1"

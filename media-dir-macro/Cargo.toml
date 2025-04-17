@@ -19,9 +19,15 @@ syn = { version = "2.0.98", features = [
   "extra-traits",
   "proc-macro",
 ] }
-fframes-media-loaders.workspace = true
 bytemuck = "1.21.0"
 base64 = "0.22.1"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+fframes-media-loaders.workspace = true
+
+# this is acutally just suppresssing the error message at compile time
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes-media-loaders = { workspace = true, features = ["videotoolbox"] }
 
 [features]
 nightly = []

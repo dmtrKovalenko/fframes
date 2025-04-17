@@ -1,4 +1,4 @@
-use fframes_renderer::rayon::prelude::*;
+use fframes::rayon::prelude::*;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -9,9 +9,7 @@ use fframes::{
     AudioTimelineSamples, ResolvedRenderingTimeline, Video,
     usvgr::{self, WriteOptions},
 };
-use fframes_renderer::{
-    FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, concatenator,
-};
+use fframes::{FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, concatenator};
 use skia_safe::{Surface, gpu, surfaces::raster_n32_premul, svg::Dom};
 use uuid::Uuid;
 
@@ -64,7 +62,7 @@ impl SkiaFFramesRenderer {
         height: usize,
     ) -> FFramesRendererResult<Self> {
         let mut surface = raster_n32_premul((width as i32, height as i32)).ok_or_else(|| {
-            fframes_renderer::FFramesRendererError::Custom(
+            fframes::FFramesRendererError::Custom(
                 "Failed to create skia surface".to_string(),
             )
         })?;
@@ -103,7 +101,7 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
         let image_info = surface.image_info();
         let pixmap = skia_safe::Pixmap::new(&image_info, &mut pixels, image_info.min_row_bytes())
             .ok_or_else(|| {
-            fframes_renderer::FFramesRendererError::Custom("Failed to create pixmap".to_string())
+            fframes::FFramesRendererError::Custom("Failed to create pixmap".to_string())
         })?;
 
         let mut converter_cache = usvgr::Cache::default();
@@ -131,7 +129,7 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
         );
 
         if !result {
-            return Err(fframes_renderer::FFramesRendererError::Custom(
+            return Err(fframes::FFramesRendererError::Custom(
                 "Failed to read pixels from Skia image".to_string(),
             ));
         }
@@ -143,9 +141,9 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
         self,
         output: impl AsRef<Path>,
         video: &'a TVideo,
-        logger: std::sync::Arc<dyn fframes_renderer::FFramesLogger>,
+        logger: std::sync::Arc<dyn fframes::FFramesLogger>,
         usvg_options: &'a usvgr::Options,
-        encoder_options: &'a fframes_renderer::EncoderOptions<'a>,
+        encoder_options: &'a fframes::EncoderOptions<'a>,
         font_db: &'a usvgr::fontdb::Database,
         timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: &'a fframes::FFramesContext<'a, 'media>,
@@ -156,7 +154,7 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
         let output = output.as_ref();
         let concurrent_pipelines = match self.pipeline_config.concurrency_policy {
             SkiaPipelineConcurrencyPolicy::MaxPerformance => {
-                let threads_available = fframes_renderer::get_thread_count();
+                let threads_available = fframes::get_thread_count();
                 threads_available / 3
             }
             SkiaPipelineConcurrencyPolicy::Concurrency(pipelines) => pipelines,
@@ -194,7 +192,7 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
 
             let extension = output
                 .extension()
-                .ok_or(fframes_renderer::FFramesRendererError::InvalidOutput)?;
+                .ok_or(fframes::FFramesRendererError::InvalidOutput)?;
 
             let files = chunks
                 .par_iter()

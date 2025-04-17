@@ -1,8 +1,8 @@
-use crate::{
+use super::{
     RenderEncodingResult, get_thread_count, render_backend::FFramesRenderBackend,
     renderer_error::RenderEncodingError,
 };
-use fframes::{
+use crate::{
     AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
     VideoDecodersWorker, usvgr,
 };
@@ -12,7 +12,7 @@ use svgr::{PixmapPool, SvgrCache};
 use usvgr::fontdb;
 use uuid::Uuid;
 
-use crate::{
+use super::{
     concatenator,
     encoder::{Encoder, EncoderOptions},
     encoder_frame::EncoderFrame,
@@ -61,7 +61,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         encoder_options: &'a EncoderOptions<'a>,
         font_db: &'a fontdb::Database,
         timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
-        ctx: &'a fframes::FFramesContext<'a, 'media>,
+        ctx: &'a crate::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<()> {
         let output = output.as_ref();
         let extension = output
@@ -163,7 +163,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                             Ok(())
                         },
-                    )
+                   )
                 }
                 .map_err(|av_err| FFramesRendererError::RenderChunkError(thread_number, av_err))?;
 
@@ -189,11 +189,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         self,
-        frame: fframes::Frame,
+        frame: crate::Frame,
         video: &'a TVideo,
         usvg_options: &usvgr::Options,
         font_db: &usvgr::fontdb::Database,
-        ctx: fframes::FFramesContext<'a, 'media>,
+        ctx: crate::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<Vec<u8>> {
         let mut pixmap = svgr::tiny_skia::Pixmap::new(ctx.current_video_size.width as u32, ctx.current_video_size.height as u32)
             .ok_or_else(|| FFramesRendererError::Internal("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;

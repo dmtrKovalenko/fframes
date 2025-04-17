@@ -1,5 +1,4 @@
-use fframes::StaticMediaProvider;
-pub use fframes_renderer::{RenderOptions, fframes_logger, render};
+use fframes::{RenderOptions, StaticMediaProvider, fframes_logger, render};
 use tiktok_example::{GooseMedia, GooseVideo};
 
 fn main() {
@@ -8,8 +7,8 @@ fn main() {
     render(
         "out.mp4",
         &GooseVideo { media: &media },
-        fframes_renderer::cpu::CpuRenderingBackend {
-            cache_capacity: 10,
+        fframes::cpu::CpuRenderingBackend {
+            cache_capacity: 20,
             ..Default::default()
         },
         &RenderOptions {
