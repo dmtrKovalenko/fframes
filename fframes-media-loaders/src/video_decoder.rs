@@ -1,10 +1,10 @@
+use crate::FFramesMediaError;
 use crate::error::Result;
 use crate::video_types::FrameConvertOptions;
-use crate::{FFramesMediaError, ResizeVideoFrame};
 use ffmpeg_sys_fframes::*;
 use std::cell::UnsafeCell;
 use std::collections::VecDeque;
-use std::ffi::CString;
+use std::ffi::{CString, c_void};
 use std::mem::size_of;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
@@ -36,6 +36,7 @@ pub fn decode_video_resource(s: &str) -> Option<(&str, i64)> {
 
 #[derive(Debug, Clone, Copy)]
 struct VideoStreamInfo {
+    hw_pix_fmt: Option<AVPixelFormat>,
     stream_index: i32,
     codec_ctx: *mut AVCodecContext,
     width: i32,
@@ -48,10 +49,10 @@ struct VideoStreamInfo {
 
 #[derive(Debug)]
 struct SwsScaler {
-    width: u32,
-    height: u32,
+    width: i32,
+    height: i32,
     sws_ctx: *mut SwsContext,
-    options: FrameConvertOptions,
+    options: Option<FrameConvertOptions>,
     frame_data_len: usize,
     video_stream_info: VideoStreamInfo,
     linesize: [i32; 7],
@@ -70,6 +71,7 @@ const PIX_FMT_SIZE: usize = size_of::<i32>();
 impl SwsScaler {
     unsafe fn init_sws_context(
         video_stream_info: &VideoStreamInfo,
+        source_pix_fmt: AVPixelFormat,
         target_width: i32,
         target_height: i32,
     ) -> Result<*mut SwsContext> {
@@ -89,7 +91,7 @@ impl SwsScaler {
             Ok(sws_getContext(
                 video_stream_info.width,
                 video_stream_info.height,
-                video_stream_info.pixel_format,
+                source_pix_fmt,
                 target_width,
                 target_height,
                 AVPixelFormat::AV_PIX_FMT_RGBA,
@@ -115,55 +117,78 @@ impl SwsScaler {
         Ok(SwsScaler {
             linesize,
             frame_data_len,
-            height: video_stream_info.height as u32,
-            width: video_stream_info.width as u32,
-            sws_ctx: unsafe {
-                SwsScaler::init_sws_context(
-                    &video_stream_info,
-                    video_stream_info.width,
-                    video_stream_info.height,
-                )?
-            },
-            options: FrameConvertOptions {
-                resize: ResizeVideoFrame {
-                    width: video_stream_info.width as u32,
-                    height: video_stream_info.height as u32,
-                },
-            },
+            height: video_stream_info.height,
+            width: video_stream_info.width,
+            sws_ctx: std::ptr::null_mut(),
+            options: None,
             video_stream_info,
         })
     }
 
-    fn maybe_reinit_conversion_context(
+    unsafe fn reinit_sws_context(
         &mut self,
-        options: &FrameConvertOptions,
-    ) -> Result<*mut SwsContext> {
-        if self.options != *options {
-            unsafe {
-                sws_freeContext(self.sws_ctx);
-
-                self.sws_ctx = Self::init_sws_context(
-                    &self.video_stream_info,
-                    options.resize.width as i32,
-                    options.resize.height as i32,
-                )?;
-
-                self.width = options.resize.width;
-                self.height = options.resize.height;
-                self.frame_data_len = self.width as usize * self.height as usize * PIX_FMT_SIZE;
-
-                self.options = *options;
-                self.linesize = Self::calculate_linesize(self.width as i32);
-            }
+        pix_fmt: AVPixelFormat,
+        options: Option<FrameConvertOptions>,
+    ) -> Result<()> {
+        if !self.sws_ctx.is_null() {
+            sws_freeContext(self.sws_ctx);
         }
 
-        Ok(self.sws_ctx)
+        let new_width = options
+            .map(|o| o.resize.width as i32)
+            .unwrap_or(self.video_stream_info.width);
+        let new_height = options
+            .map(|o| o.resize.height as i32)
+            .unwrap_or(self.video_stream_info.height);
+
+        self.sws_ctx =
+            Self::init_sws_context(&self.video_stream_info, pix_fmt, new_width, new_height)?;
+        self.width = new_width;
+        self.height = new_height;
+        self.options = options;
+
+        self.frame_data_len = new_width as usize * new_height as usize * PIX_FMT_SIZE;
+        self.linesize = Self::calculate_linesize(new_width);
+
+        Ok(())
+    }
+
+    unsafe fn convert(
+        &mut self,
+        options: Option<FrameConvertOptions>,
+        source_frame: *mut AVFrame,
+        rgba_dst: &mut [u8],
+    ) -> Result<()> {
+        let source_pix_fmt: AVPixelFormat = std::mem::transmute((*source_frame).format);
+        if self.sws_ctx.is_null() || self.options != options {
+            self.reinit_sws_context(source_pix_fmt, options)?;
+        }
+
+        let ret = sws_scale(
+            self.sws_ctx,
+            (*source_frame).data.as_ptr() as *const *const u8,
+            (*source_frame).linesize.as_ptr(),
+            0,
+            self.video_stream_info.height,
+            &rgba_dst.as_mut_ptr(),
+            self.linesize.as_ptr(),
+        );
+
+        if ret < 0 {
+            return Err(FFramesMediaError::LibAVAudioDecodingError((
+                ret,
+                "Error while converting/scaling frame".to_string(),
+            )));
+        }
+
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 pub struct FFmpegDecoder {
     pub current_loop: i64,
+    hw_frame: *mut AVFrame,
     frame_buf: Arc<FFmpegFrameBuf>,
     fmt_ctx: *mut AVFormatContext,
     video_stream_info: VideoStreamInfo,
@@ -184,6 +209,7 @@ struct ScaledFrameImage {
 pub struct FFmpegFrameBuf {
     resource_name: String,
     latest_av_frame: *mut AVFrame,
+    video_stream_info: VideoStreamInfo,
     // This is not a safe operation but it gives a dramatic performance improvement
     // for the updating the underlying datavec. So we are relying on the constraint that
     // the decoder can operate (thus write the datavec) only within the frame, but
@@ -224,19 +250,22 @@ impl FFmpegFrameBuf {
         video_stream_info: VideoStreamInfo,
         buf_size: usize,
     ) -> Result<Self> {
-        let av_frame = unsafe { av_frame_alloc() };
-        if av_frame.is_null() {
-            return Err(FFramesMediaError::LibAVAllocationError("frame"));
-        }
+        unsafe {
+            let av_frame = av_frame_alloc();
+            if av_frame.is_null() {
+                return Err(FFramesMediaError::LibAVAllocationError("frame"));
+            }
 
-        let sws_ctx = SwsScaler::new(video_stream_info)?;
-        Ok(FFmpegFrameBuf {
-            latest_av_frame: av_frame,
-            resource_name,
-            #[allow(clippy::arc_with_non_send_sync)]
-            data_buf: Arc::new(UnsafeCell::new(VecDeque::with_capacity(buf_size))),
-            sws_scaler: UnsafeCell::new(sws_ctx),
-        })
+            let sws_ctx = SwsScaler::new(video_stream_info)?;
+            Ok(FFmpegFrameBuf {
+                video_stream_info,
+                latest_av_frame: av_frame,
+                resource_name,
+                #[allow(clippy::arc_with_non_send_sync)]
+                data_buf: Arc::new(UnsafeCell::new(VecDeque::with_capacity(buf_size))),
+                sws_scaler: UnsafeCell::new(sws_ctx),
+            })
+        }
     }
 
     unsafe fn write_new_frame(&self) -> Option<&'static mut ScaledFrameImage> {
@@ -270,23 +299,6 @@ impl FFmpegFrameBuf {
         }
     }
 
-    /// Reallocates the sws convertor and frame data vector if the options have changed
-    /// # Safety
-    /// Generally safe but uses libav functions
-    pub unsafe fn reinit_sws_context(&self, options: &FrameConvertOptions) -> Result<()> {
-        let scaler = unsafe {
-            self.sws_scaler.get().as_mut().ok_or_else(|| {
-                FFramesMediaError::LibAVAudioDecodingError((
-                    0,
-                    "Failed precondition: SwsScaler is not allocated".to_string(),
-                ))
-            })?
-        };
-        scaler.maybe_reinit_conversion_context(options)?;
-
-        Ok(())
-    }
-
     pub fn get_stream_width(&self) -> u32 {
         unsafe { self.sws_scaler.get().as_ref() }
             .expect("Critical mememroy error: SWS scale is not allocated")
@@ -304,13 +316,13 @@ impl FFmpegFrameBuf {
     pub fn get_width(&self) -> u32 {
         unsafe { self.sws_scaler.get().as_ref() }
             .expect("Critical mememroy error: SWS scale is not allocated")
-            .width
+            .width as u32
     }
 
     pub fn get_height(&self) -> u32 {
         unsafe { self.sws_scaler.get().as_ref() }
             .expect("Critical mememroy error: SWS scale is not allocated")
-            .height
+            .height as u32
     }
 
     /// Returns fframe image constructed from the underlying ffmpeg's frame
@@ -318,41 +330,38 @@ impl FFmpegFrameBuf {
     /// This is a libav based function which involes C ffi cals
     /// In addition it is manually transmutes the pointer owned by the decoder to the fframes
     /// images so it should not be used outside of the rendering worker.
-    pub unsafe fn scale_and_return_latest_frame(&self) -> Arc<PreloadedImageData> {
+    pub unsafe fn convert_last_decoded_frame_into_svg_image(
+        &self,
+        options: Option<&FrameConvertOptions>,
+    ) -> Result<Arc<PreloadedImageData>> {
         unsafe {
-            let scaler = self.sws_scaler.get().as_ref().unwrap();
+            let scaler = self.sws_scaler.get().as_mut().unwrap();
+            // fast path if we have the image already decoded and converted last time
+            // e.g. the same video frame is requested from multiple scenes
             match self.data_buf.get().as_ref().and_then(|q| q.back()) {
                 Some(image) if image.pts == (*self.latest_av_frame).pts => {
-                    return Arc::new(PreloadedImageData::new_blended(
+                    return Ok(Arc::new(PreloadedImageData::new_blended(
                         encode_video_resource(&self.resource_name, image.pts),
                         self.get_width(),
                         self.get_height(),
                         &image.data,
-                    ));
+                    )));
                 }
                 _ => {}
             }
 
             let image = self.write_new_frame().unwrap();
-            sws_scale(
-                scaler.sws_ctx,
-                (*self.latest_av_frame).data.as_ptr() as *const *const u8,
-                (*self.latest_av_frame).linesize.as_ptr(),
-                0,
-                scaler.video_stream_info.height,
-                &image.data.as_mut_ptr(),
-                scaler.linesize.as_ptr(),
-            );
+            scaler.convert(options.copied(), self.latest_av_frame, &mut image.data)?;
 
-            Arc::new(PreloadedImageData::new_blended(
+            Ok(Arc::new(PreloadedImageData::new_blended(
                 encode_video_resource(&self.resource_name, image.pts),
-                scaler.width,
-                scaler.height,
+                scaler.width as u32,
+                scaler.height as u32,
                 // Possible unsafety here because we assume that the frame vec is allocated
                 // (and it actually is) till the end of the rendering worker lifetime and the data
                 // inside a datavec is always valid.
                 &image.data,
-            ))
+            )))
         }
     }
 
@@ -368,9 +377,8 @@ impl FFmpegFrameBuf {
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn timestamp_seconds(&self) -> f32 {
         unsafe {
-            let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
             let timestamp =
-                (*self.latest_av_frame).pts as f64 * av_q2d(video_stream_info.time_base);
+                (*self.latest_av_frame).pts as f64 * av_q2d(self.video_stream_info.time_base);
 
             timestamp as f32
         }
@@ -381,8 +389,8 @@ impl FFmpegFrameBuf {
     /// This is a libav based function which involes C ffi cals
     pub unsafe fn get_stream_duration_in_frames(&self) -> f32 {
         unsafe {
-            let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
-            let fps = video_stream_info.duration as f64 * av_q2d(video_stream_info.time_base);
+            let fps =
+                self.video_stream_info.duration as f64 * av_q2d(self.video_stream_info.time_base);
 
             fps as f32
         }
@@ -391,10 +399,7 @@ impl FFmpegFrameBuf {
     /// Returns the fps value of the stream
     /// Remember that the fps value is always a guess based on the stream timestamps
     pub fn get_stream_fps(&self) -> f32 {
-        unsafe {
-            let video_stream_info = &self.sws_scaler.get().as_ref().unwrap().video_stream_info;
-            video_stream_info.frame_rate.num as f32 / video_stream_info.frame_rate.den as f32
-        }
+        self.video_stream_info.frame_rate.num as f32 / self.video_stream_info.frame_rate.den as f32
     }
 }
 
@@ -459,6 +464,22 @@ impl FFmpegDecoder {
                 return Err(FFramesMediaError::LibAVAllocationError("packet"));
             }
 
+            let hw_frame = if video_stream_info.hw_pix_fmt.is_some() {
+                let hw_frame = av_frame_alloc();
+                if hw_frame.is_null() {
+                    avformat_close_input(&mut fmt_ctx);
+                    return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
+                }
+
+                (*hw_frame).width = video_stream_info.width;
+                (*hw_frame).height = video_stream_info.height;
+                (*hw_frame).format = video_stream_info.pixel_format as i32;
+
+                hw_frame
+            } else {
+                ptr::null_mut()
+            };
+
             let custom_time_base = AVRational {
                 num: 1,
                 den: target_fps as i32,
@@ -473,6 +494,7 @@ impl FFmpegDecoder {
             Ok(FFmpegDecoder {
                 pkt,
                 fmt_ctx,
+                hw_frame,
                 frame_buf: Arc::new(FFmpegFrameBuf::new(
                     filename.to_string_lossy().to_string(),
                     video_stream_info,
@@ -499,13 +521,17 @@ impl FFmpegDecoder {
             if ret < 0 {
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
-                    "Could not find video stream information".to_string(),
+                    "Could not find video stream info".to_string(),
                 )));
             }
             let video_stream_idx = ret;
 
             let stream = *(*fmt_ctx).streams.offset(video_stream_idx as isize);
             let dec = avcodec_find_decoder((*(*stream).codecpar).codec_id);
+
+            let mut hw_device_ctx: *mut AVBufferRef = ptr::null_mut();
+            let hw_pix_fmt = find_hw_accelleleration_for_codec(&mut hw_device_ctx, dec);
+
             if dec.is_null() {
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
@@ -516,6 +542,12 @@ impl FFmpegDecoder {
             let video_dec_ctx = avcodec_alloc_context3(dec);
             if video_dec_ctx.is_null() {
                 return Err(FFramesMediaError::LibAVAllocationError("avcocdec_context"));
+            }
+
+            if let Some(hw_pix_fmt) = hw_pix_fmt {
+                (*video_dec_ctx).opaque = hw_pix_fmt as i32 as *mut c_void;
+                (*video_dec_ctx).get_format = Some(get_hw_format);
+                (*video_dec_ctx).hw_device_ctx = av_buffer_ref(hw_device_ctx);
             }
 
             if avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar) < 0 {
@@ -533,6 +565,7 @@ impl FFmpegDecoder {
             }
 
             Ok(VideoStreamInfo {
+                hw_pix_fmt,
                 stream_index: video_stream_idx,
                 codec_ctx: video_dec_ctx,
                 width: (*video_dec_ctx).width,
@@ -599,6 +632,39 @@ impl FFmpegDecoder {
         Ok(new_offset)
     }
 
+    /// If we are actually using hardware accelerated frames it is required to correctly
+    /// move the data from the hardware surface to the software frame
+    unsafe fn transfer_hardware_surface_data(&self, target_frame: *mut AVFrame) -> Result<()> {
+        match self.video_stream_info.hw_pix_fmt {
+            Some(hw_pix_fmt) if hw_pix_fmt as i32 == (*target_frame).format => {
+                if (*self.frame_buf.latest_av_frame).format
+                    == (AVPixelFormat::AV_PIX_FMT_NONE as i32)
+                {
+                    // if the target pix fmt is not initialized we are negotiating the format
+                    // to get the fastest conversion into the target fframes format (RGBA)
+                    if let Some(best_hw_out_format) = find_hw_out_source_format(target_frame) {
+                        (*self.frame_buf.latest_av_frame).format = best_hw_out_format as i32;
+                    }
+                }
+
+                let ret =
+                    av_hwframe_transfer_data(self.frame_buf.latest_av_frame, self.hw_frame, 0);
+
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error transferring data from GPU surface".to_string(),
+                    )));
+                }
+
+                av_frame_copy_props(self.frame_buf.latest_av_frame, self.hw_frame);
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
     /// Decodes the video stream up to the specified offset
     /// # Safety
     /// Generally safe but uses libav functions
@@ -635,17 +701,23 @@ impl FFmpegDecoder {
                             )));
                         }
 
+                        let target_frame = if !self.hw_frame.is_null() {
+                            self.hw_frame
+                        } else {
+                            self.frame_buf.latest_av_frame
+                        };
+
                         loop {
-                            // Unref previous frame before receiving new one
-                            // av_frame_unref(self.frame_buf.latest_av_frame);
                             let ret = avcodec_receive_frame(
                                 self.video_stream_info.codec_ctx,
-                                self.frame_buf.latest_av_frame,
+                                target_frame,
                             );
 
                             match ret {
                                 0 => {
-                                    if (*self.frame_buf.latest_av_frame).pts >= target_pts {
+                                    if (*target_frame).pts >= target_pts {
+                                        self.transfer_hardware_surface_data(target_frame)?;
+
                                         return Ok(true);
                                     }
                                 }
@@ -653,7 +725,6 @@ impl FFmpegDecoder {
                                     break;
                                 }
                                 _ => {
-                                    av_frame_unref(self.frame_buf.latest_av_frame);
                                     av_packet_unref(self.pkt);
 
                                     return Err(FFramesMediaError::LibAVAudioDecodingError((
@@ -687,4 +758,122 @@ impl Drop for FFmpegDecoder {
             av_packet_free(&mut self.pkt);
         }
     }
+}
+
+unsafe fn find_hw_accelleleration_for_codec(
+    hw_device_ctx: &mut *mut AVBufferRef,
+    codec: *const AVCodec,
+) -> Option<AVPixelFormat> {
+    unsafe {
+        // List of hardware types to try in order of preference
+        let hw_types = [
+            #[cfg(target_os = "linux")]
+            AVHWDeviceType::AV_HWDEVICE_TYPE_VAAPI,
+            #[cfg(target_os = "windows")]
+            AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA,
+            #[cfg(target_os = "windows")]
+            AVHWDeviceType::AV_HWDEVICE_TYPE_DXVA2,
+            #[cfg(feature = "videotoolbox")]
+            AVHWDeviceType::AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
+            AVHWDeviceType::AV_HWDEVICE_TYPE_QSV,
+        ];
+
+        for &hw_type in hw_types.iter() {
+            let create_result =
+                av_hwdevice_ctx_create(hw_device_ctx, hw_type, ptr::null(), ptr::null_mut(), 0);
+
+            if create_result < 0 {
+                continue;
+            }
+
+            let mut hw_pix_fmt = AVPixelFormat::AV_PIX_FMT_NONE;
+
+            let mut i = 0;
+            loop {
+                // Check if decoder supports this hardware if yes we return the available pix fmt
+                let config = avcodec_get_hw_config(codec, i);
+                if config.is_null() {
+                    break;
+                }
+
+                if (*config).device_type == hw_type
+                    && ((*config).methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX as i32) != 0
+                {
+                    hw_pix_fmt = (*config).pix_fmt;
+                    break;
+                }
+
+                i += 1;
+            }
+
+            if hw_pix_fmt != AVPixelFormat::AV_PIX_FMT_NONE {
+                return Some(hw_pix_fmt);
+            }
+
+            av_buffer_unref(hw_device_ctx);
+        }
+    }
+
+    None
+}
+
+/// Callback called from the C world that negotiating the available pixel format
+/// from the encoder stream and sets the desired pix format for the hardware acceleration
+unsafe extern "C" fn get_hw_format(
+    ctx: *mut AVCodecContext,
+    pix_fmts: *const AVPixelFormat,
+) -> AVPixelFormat {
+    unsafe {
+        let hw_pix_fmt: AVPixelFormat = std::mem::transmute((*ctx).opaque as i32);
+
+        let mut p = pix_fmts;
+        while !p.is_null() && *p != AVPixelFormat::AV_PIX_FMT_NONE {
+            if *p == hw_pix_fmt {
+                return *p;
+            }
+            p = p.offset(1);
+        }
+
+        eprintln!("Failed to get HW surface format, falling back to software decoding");
+        AVPixelFormat::AV_PIX_FMT_NONE
+    }
+}
+
+unsafe fn find_hw_out_source_format(frame: *mut AVFrame) -> Option<AVPixelFormat> {
+    let mut formats: *mut AVPixelFormat = ptr::null_mut();
+    let ret = av_hwframe_transfer_get_formats(
+        (*frame).hw_frames_ctx,
+        AVHWFrameTransferDirection::AV_HWFRAME_TRANSFER_DIRECTION_FROM,
+        &mut formats,
+        0,
+    );
+
+    if ret < 0 {
+        return None;
+    }
+
+    let mut fmt = formats;
+    loop {
+        match *fmt {
+            AVPixelFormat::AV_PIX_FMT_YUV420P
+            | AVPixelFormat::AV_PIX_FMT_RGBA
+            | AVPixelFormat::AV_PIX_FMT_BGRA => {
+                let res = *fmt;
+                av_freep(formats as *mut c_void);
+
+                return Some(res);
+            }
+            AVPixelFormat::AV_PIX_FMT_NONE => {
+                break;
+            }
+            _ => {}
+        }
+
+        fmt = formats.offset(1);
+    }
+
+    let first_format = *formats;
+    av_freep(&mut formats as *mut *mut _ as *mut c_void);
+
+    Some(first_format)
 }

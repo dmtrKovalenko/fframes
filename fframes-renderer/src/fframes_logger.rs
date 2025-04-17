@@ -1,7 +1,7 @@
 use crate::renderer_error::{FFramesRendererError, FFramesRendererResult};
 use colored::*;
 use core::fmt::Debug;
-use ffmpeg_sys_fframes::AV_LOG_FATAL;
+use fframes::ffmpeg_sys_fframes::AV_LOG_FATAL;
 use indicatif::ProgressBar;
 use once_cell::sync::OnceCell;
 use std::{

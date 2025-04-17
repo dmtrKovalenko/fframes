@@ -1,4 +1,4 @@
-use ffmpeg_sys_fframes::*;
+use fframes::ffmpeg_sys_fframes::*;
 use fframes::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
 use std::{
     ffi::CString,

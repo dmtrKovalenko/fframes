@@ -27,7 +27,6 @@ uuid = { version = "1.8.0", features = ["v4"] }
 svgr = { workspace = true, optional = true }
 svgr-macro.workspace = true
 fframes.workspace = true
-ffmpeg-sys-fframes.workspace = true
 
 [dev-dependencies]
 criterion = "0.5"
@@ -39,16 +38,3 @@ cc = "1.0"
 [features]
 default = ["cpu_renderer"]
 cpu_renderer = ["svgr"]
-h264 = ["ffmpeg-sys-fframes/build-lib-x264"]
-h265 = ["ffmpeg-sys-fframes/build-lib-x265"]
-videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]
-audiotoolbox = ["ffmpeg-sys-fframes/build-audiotoolbox"]
-aac = ["ffmpeg-sys-fframes/build-lib-aacplus"]
-mp3lame = ["ffmpeg-sys-fframes/build-lib-mp3lame"]
-opus = ["ffmpeg-sys-fframes/build-lib-opus"]
-vpx = ["ffmpeg-sys-fframes/build-lib-vpx"]
-
-# license stuff
-libav-agree-gpl = ["ffmpeg-sys-fframes/build-license-gpl"]
-libav-agree-nonfree = ["ffmpeg-sys-fframes/build-license-nonfree"]
-libav-agree-version3 = ["ffmpeg-sys-fframes/build-license-version3"]

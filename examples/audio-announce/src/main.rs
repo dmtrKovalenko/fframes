@@ -4,7 +4,7 @@ use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video};
 use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -23,8 +23,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let media = AudioAnnounceMedia::prepare().unwrap();
-    let media_folder =
-        fframes_renderer::MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
+    let media_folder = fframes_renderer::MediaDirectory::read_folder("./dynamic_media").unwrap();
     let dynamic_media = media_folder.process_media_source().unwrap();
 
     let vulkan_ctx = SkiaVulkanCtx::new(AudioAnnounce::WIDTH, AudioAnnounce::HEIGHT).unwrap();
@@ -44,7 +43,7 @@ fn main() {
             SkiaPipelineConfig {
                 buffer_queue_size: 10,
                 concurrency_policy:
-                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(3),
+                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(2),
                 ..Default::default()
             },
         )

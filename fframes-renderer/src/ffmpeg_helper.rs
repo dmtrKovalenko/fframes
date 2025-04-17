@@ -1,4 +1,4 @@
-use ffmpeg_sys_fframes::{
+use fframes::ffmpeg_sys_fframes::{
     AV_CH_LAYOUT_MONO, AVChannelLayout, AVChannelLayout__bindgen_ty_1, AVChannelOrder,
 };
 

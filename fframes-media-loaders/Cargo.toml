@@ -28,6 +28,7 @@ usvgr.workspace = true
 libc = "0.2.159"
 
 [features]
+default = ["videotoolbox"]
 h264 = ["ffmpeg-sys-fframes/build-lib-x264"]
 h265 = ["ffmpeg-sys-fframes/build-lib-x265"]
 videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]

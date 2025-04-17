@@ -834,7 +834,6 @@ dependencies = [
  "cc",
  "colored",
  "criterion",
- "ffmpeg-sys-next",
  "fframes",
  "futures",
  "image 0.25.5",

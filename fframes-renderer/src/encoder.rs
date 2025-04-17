@@ -4,7 +4,9 @@ use crate::{
     renderer_error::{self, RenderEncodingError},
     stream,
 };
-use ffmpeg_sys_fframes::*;
+pub use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
+
+use fframes::ffmpeg_sys_fframes::*;
 use std::ops::Range;
 use std::path::Path;
 use std::{
@@ -13,9 +15,6 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-
-pub use crate::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
-pub use ffmpeg_sys_fframes::{AVPixelFormat, AVSampleFormat, MKBETAG, MKTAG};
 
 #[inline(always)]
 #[allow(non_snake_case)]

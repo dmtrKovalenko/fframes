@@ -103,7 +103,10 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
 #[cfg(not(target_arch = "wasm32"))]
 impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
     fn into_image(&self) -> ImageData {
-        let image_data = unsafe { self.scale_and_return_latest_frame() };
+        let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(None) }
+            // we unwrap here because we guarantee that the sws scaler would work correctly
+            // unless the wrong dimensions are provided
+            .expect("Failed to convert frame to image");
 
         let filename = image_data.id.clone();
         ImageData::new_from_raw_data(
@@ -117,15 +120,11 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
     }
 
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData> {
-        let image_data = unsafe {
-            self.reinit_sws_context(options)
-                .map_err(|e| {
-                    crate::log!("Error while decoding video frame: {:?}", e);
-                })
-                .ok()?;
-
-            self.scale_and_return_latest_frame()
-        };
+        let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(Some(options)) }
+            .map_err(|e| {
+                eprintln!("Error converting frame to image: {:?}", e);
+            })
+            .ok()?;
 
         let filename = image_data.id.clone();
         Some(ImageData::new_from_raw_data(
@@ -254,13 +253,12 @@ impl VideoDecodersWorker {
         let resource_name = path
             .file_name()
             .ok_or_else(|| FFramesError::MediaError(FFramesMediaError::MediaDirectoryProvided))?
-            .to_string_lossy()
-            .to_string();
+            .to_string_lossy();
 
         // It is important to lock it for the whole duration of he function to
         // avoid any parallel encoder creation.
         let mut map_guard = self.map.write()?;
-        let needs_new_decoder = !map_guard.contains_key(&resource_name);
+        let needs_new_decoder = !map_guard.contains_key(resource_name.as_ref());
 
         // Create new decoder if needed
         if needs_new_decoder {
@@ -278,12 +276,12 @@ impl VideoDecodersWorker {
                 decoder
             };
 
-            map_guard.insert(resource_name.clone(), decoder);
+            map_guard.insert(resource_name.to_string(), decoder);
         }
 
         unsafe {
             // Use write lock for modifying decoder state
-            let decoder = map_guard.get_mut(&resource_name).unwrap();
+            let decoder = map_guard.get_mut(resource_name.as_ref()).unwrap();
 
             if options.looping {
                 offset = decoder.adjust_offset_for_looping(offset)?;

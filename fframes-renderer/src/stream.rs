@@ -3,9 +3,10 @@ use crate::ffmpeg_action;
 use crate::ffmpeg_helper::MONO_CH_LAYOUT;
 use crate::ffmpeg_loggable_action;
 use crate::renderer_error::{RenderEncodingError, RenderEncodingResult};
-use ffmpeg_sys_fframes::*;
+use fframes::ffmpeg_sys_fframes::*;
 use std::ffi::CStr;
 use std::ffi::CString;
+
 #[derive(Clone, Copy)]
 pub enum StreamVariant {
     Video,

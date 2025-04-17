@@ -1,3 +1,4 @@
+#![allow(unsafe_op_in_unsafe_fn)]
 mod audio;
 mod error;
 mod font;
@@ -22,8 +23,9 @@ thread_local! {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod audio_decoder;
-
 #[cfg(not(target_arch = "wasm32"))]
 mod video_decoder;
+#[cfg(not(target_arch = "wasm32"))]
+pub use ffmpeg_sys_fframes;
 #[cfg(not(target_arch = "wasm32"))]
 pub use video_decoder::*;

@@ -1,7 +1,7 @@
 use crate::ffmpeg_action;
 use crate::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use crate::stream;
-use ffmpeg_sys_fframes::*;
+use fframes::ffmpeg_sys_fframes::*;
 
 #[derive(Clone)]
 pub(crate) struct FrameFormatConvertor {
