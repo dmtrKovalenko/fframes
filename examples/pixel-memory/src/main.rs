@@ -5,7 +5,8 @@ use fframes::{
 };
 #[cfg(not(feature = "cpu"))]
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
-use pixel_memory_example::{PixelMedia, PixelVideo, RandomPhotos};
+use pixel_memory_example::{ALL_SONGS, PixelMedia, PixelVideo, RandomPhotos};
+use rand::prelude::*;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -15,8 +16,8 @@ struct Args {
         default_value = "They say dogs live shorter lives because they already know how to love unconditionally"
     )]
     enter_text: String,
-    #[clap(short, long, default_value = "The_Farewell.mp3")]
-    song: String,
+    #[clap(short, long)]
+    song: Option<String>,
     #[clap(short, long, default_value = "out.mp4")]
     output: String,
     #[clap(long, default_value = "libx265")]
@@ -45,15 +46,14 @@ fn main() {
     #[cfg(not(feature = "cpu"))]
     let vulkan_ctx = SkiaVulkanCtx::new(PixelVideo::WIDTH, PixelVideo::HEIGHT).unwrap();
 
+    let song = args
+        .song
+        .as_deref()
+        .unwrap_or_else(|| ALL_SONGS.choose(rng).expect("Failed to pick a random song"));
+
     render(
         "out.mp4",
-        &PixelVideo::new_random_scenes(
-            &args.song,
-            &args.enter_text,
-            rng,
-            Some(&photos_media),
-            photos,
-        ),
+        &PixelVideo::new_random_scenes(song, &args.enter_text, rng, Some(&photos_media), photos),
         #[cfg(feature = "cpu")]
         {
             fframes::cpu::CpuRenderingBackend {
@@ -97,7 +97,7 @@ fn main() {
                     #[cfg(not(feature = "cpu"))]
                     ("preset", "slower"),
                     #[cfg(feature = "cpu")]
-                    ("preset", "ultrafast"),
+                    ("preset", "slower"),
                     ("profile:v", "high"),
                     ("level:v", "5.1"),
                     ("g", "24"),

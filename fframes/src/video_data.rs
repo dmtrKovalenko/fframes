@@ -1,12 +1,12 @@
 use crate::{FFramesContext, media::GeneralVideoFileMetadata, media::ImageData};
-use fframes_media_loaders::VideoMedia;
+use fframes_media::VideoMedia;
 use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::error::Result;
 #[cfg(not(target_arch = "wasm32"))]
-use fframes_media_loaders::ImageMetadata;
-pub use fframes_media_loaders::{FrameConvertOptions, ResizeVideoFrame};
+use fframes_media::ImageMetadata;
+pub use fframes_media::{FrameConvertOptions, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
 
@@ -101,7 +101,7 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
+impl FFramesSyncedVideoFrame for fframes_media::FFmpegFrameBuf {
     fn into_image(&self) -> ImageData {
         let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(None) }
             // we unwrap here because we guarantee that the sws scaler would work correctly
@@ -169,7 +169,7 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
 pub struct VideoDecodersWorker {
     buffer_size: usize,
     #[cfg(not(target_arch = "wasm32"))]
-    map: Arc<std::sync::RwLock<HashMap<String, fframes_media_loaders::FFmpegDecoder>>>,
+    map: Arc<std::sync::RwLock<HashMap<String, fframes_media::FFmpegDecoder>>>,
 }
 
 impl std::fmt::Debug for VideoDecodersWorker {
@@ -248,7 +248,7 @@ impl VideoDecodersWorker {
         options: &SyncVideoFrameInput,
     ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
         use crate::error::FFramesError;
-        use fframes_media_loaders::FFramesMediaError;
+        use fframes_media::FFramesMediaError;
 
         let resource_name = path
             .file_name()
@@ -263,11 +263,8 @@ impl VideoDecodersWorker {
         // Create new decoder if needed
         if needs_new_decoder {
             let decoder = unsafe {
-                let mut decoder = fframes_media_loaders::FFmpegDecoder::new(
-                    path,
-                    ctx.time_base.fps,
-                    self.buffer_size,
-                )?;
+                let mut decoder =
+                    fframes_media::FFmpegDecoder::new(path, ctx.time_base.fps, self.buffer_size)?;
 
                 if offset > 0 {
                     decoder.seek_to_offset(offset)?;

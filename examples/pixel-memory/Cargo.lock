@@ -605,7 +605,7 @@ name = "fframes"
 version = "1.0.0-beta.1"
 dependencies = [
  "fframes-media-dir-macro",
- "fframes-media-loaders",
+ "fframes-media",
  "konst",
  "lazy_static",
  "libm",
@@ -628,7 +628,7 @@ version = "1.0.0-beta.1"
 dependencies = [
  "base64",
  "bytemuck",
- "fframes-media-loaders",
+ "fframes-media",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
@@ -636,7 +636,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fframes-media-loaders"
+name = "fframes-media"
 version = "1.0.0-beta.1"
 dependencies = [
  "bytemuck",

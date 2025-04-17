@@ -58,6 +58,7 @@ lazy_static! {
             }
         )
     ]);
+    pub static ref ALL_SONGS: Vec<&'static str> = SONGS.keys().copied().collect();
 }
 
 impl<'a> PixelVideo<'a> {

@@ -1,6 +1,6 @@
 mod parser;
 use crate::parser::IncludeMediaDirInput;
-use fframes_media_loaders::PreloadedImageData;
+use fframes_media::PreloadedImageData;
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use quote::{ToTokens, quote};
@@ -273,11 +273,10 @@ impl MediaFile {
     fn inline_file(&self, fframes_crate_ident: &syn::Ident) -> proc_macro2::TokenStream {
         match self.variant {
             MediaVariant::Audio => {
-                let fframes_media_loaders::PreloadedAudioData {
+                let fframes_media::PreloadedAudioData {
                     samples,
                     sample_rate,
-                } = fframes_media_loaders::PreloadedAudioData::decode_raw_file(None, &self.path)
-                    .unwrap();
+                } = fframes_media::PreloadedAudioData::decode_raw_file(None, &self.path).unwrap();
 
                 let bytes = bytemuck::cast_slice::<f32, u8>(&samples);
                 let literal = Literal::byte_string(bytes);
@@ -316,8 +315,7 @@ impl MediaFile {
                 let file_name = self.path.file_name().and_then(|f| f.to_str()).unwrap();
                 let file_bytes = std::fs::read(&self.path).unwrap();
 
-                let image_data =
-                    &fframes_media_loaders::decode_image(file_name, &file_bytes).unwrap();
+                let image_data = &fframes_media::decode_image(file_name, &file_bytes).unwrap();
 
                 let platform_specific_identifier = create_image_identifier_for_platform(
                     fframes_crate_ident,
@@ -559,7 +557,7 @@ fn read_file(path: &Path) -> Vec<u8> {
 fn verify_correct_algiment_of_the_file() {
     use bytemuck::cast_slice;
 
-    let initial_slize: &[f32] = &fframes_media_loaders::PreloadedAudioData::decode_raw_file(
+    let initial_slize: &[f32] = &fframes_media::PreloadedAudioData::decode_raw_file(
         Some(44100),
         &PathBuf::from("../examples/marketing/media/marketing.mp3"),
     )

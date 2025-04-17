@@ -62,9 +62,7 @@ impl SkiaFFramesRenderer {
         height: usize,
     ) -> FFramesRendererResult<Self> {
         let mut surface = raster_n32_premul((width as i32, height as i32)).ok_or_else(|| {
-            fframes::FFramesRendererError::Custom(
-                "Failed to create skia surface".to_string(),
-            )
+            fframes::FFramesRendererError::Custom("Failed to create skia surface".to_string())
         })?;
 
         let image_info = surface.image_info();

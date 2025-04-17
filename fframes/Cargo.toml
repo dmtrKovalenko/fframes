@@ -6,6 +6,7 @@ authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 license = "MIT"
 description = "A video generation framework"
 homepage = "https://fframes.studio"
+build = "build.rs"
 
 [[bench]]
 name = "yuv420_conversion"
@@ -15,22 +16,21 @@ harness = false
 doctest = false
 
 [dependencies]
-microfft = "0.4.0"
+microfft = "0.6.0"
 libm = "0.2.1"
 lazy_static = "1.4.0"
 num = "0.4.1"
-konst = "0.2.15"
-roxmltree = "0.14.1"
+konst = "0.3.16"
 rangemap = "1.0.3"
-ttf-parser = "0.18.0"
-lru = "0.9.0"
+ttf-parser = "0.25.1"
+lru = "0.14.0"
 serde = { version = "1.0", features = ["derive"] }
 parking_lot = "0.12.1"
 
 # fframes dependencies
 usvgr.workspace = true
 svgr-macro.workspace = true
-fframes-media-loaders.workspace = true
+fframes-media.workspace = true
 fframes-media-dir-macro.workspace = true
 
 # these are renderer/encoder specific dependnecies
@@ -59,17 +59,17 @@ cpu_renderer = ["svgr"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 
 # these are compile time dependnecies 
-h264 = ["fframes-media-loaders/h264"]
-h265 = ["fframes-media-loaders/h265"]
-videotoolbox = ["fframes-media-loaders/videotoolbox"]
-audiotoolbox = ["fframes-media-loaders/audiotoolbox"]
-aac = ["fframes-media-loaders/aac"]
-mp3lame = ["fframes-media-loaders/mp3lame"]
-opus = ["fframes-media-loaders/opus"]
-vpx = ["fframes-media-loaders/vpx"]
-libav-agree-gpl = ["fframes-media-loaders/libav-agree-gpl"]
-libav-agree-nonfree = ["fframes-media-loaders/libav-agree-nonfree"]
-libav-agree-version3 = ["fframes-media-loaders/libav-agree-version3"]
+h264 = ["fframes-media/h264"]
+h265 = ["fframes-media/h265"]
+videotoolbox = ["fframes-media/videotoolbox"]
+audiotoolbox = ["fframes-media/audiotoolbox"]
+aac = ["fframes-media/aac"]
+mp3lame = ["fframes-media/mp3lame"]
+opus = ["fframes-media/opus"]
+vpx = ["fframes-media/vpx"]
+libav-agree-gpl = ["fframes-media/libav-agree-gpl"]
+libav-agree-nonfree = ["fframes-media/libav-agree-nonfree"]
+libav-agree-version3 = ["fframes-media/libav-agree-version3"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

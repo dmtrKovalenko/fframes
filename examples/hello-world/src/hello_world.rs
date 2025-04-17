@@ -37,7 +37,7 @@ impl Video for HelloWorldVideo<'_> {
                     x="0"
                     y="0"
                     fill={
-                        frame.animate(fframes::timeline!(
+                        frame.animate(&fframes::timeline!(
                             at 0., animate Color::hex("#fff") => Color::hex("#f8fafc"), Easing::Linear,
                             at 5., animate Color::hex("#f8fafc") => Color::hex("#fff7ed"), Easing::Linear,
                             at 10., animate Color::hex("#fff7ed") => Color::hex("#fef2f2"), Easing::Linear,

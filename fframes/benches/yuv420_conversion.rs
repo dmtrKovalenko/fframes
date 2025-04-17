@@ -1,5 +1,7 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use fframes::pix_fmt::{fill_yuv420_from_rgba_pixmap_accelerated, fill_yuv420_from_rgba_pixmap_base};
+use fframes::pix_fmt::{
+    fill_yuv420_from_rgba_pixmap_accelerated, fill_yuv420_from_rgba_pixmap_base,
+};
 
 fn create_test_data(width: i32, height: i32) -> (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
     let size = (width * height * 4) as usize;

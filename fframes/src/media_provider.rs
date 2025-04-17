@@ -1,5 +1,5 @@
 use crate::{AudioData, FontSource, error::Result, media};
-use fframes_media_loaders::VideoMedia;
+use fframes_media::VideoMedia;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 #[derive(Clone)]
@@ -167,7 +167,7 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
             .collect()
     }
 
-    fn get_all_video_data(&self) -> Vec<(&fframes_media_loaders::VideoMedia, &str)> {
+    fn get_all_video_data(&self) -> Vec<(&fframes_media::VideoMedia, &str)> {
         self.videos
             .iter()
             .map(|(name, data)| (data, name.as_str()))

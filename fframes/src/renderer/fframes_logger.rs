@@ -37,7 +37,8 @@ pub trait FFramesLogger: Sync + Send {
 
 pub struct CompactFFramesLogger {
     frames_progress_bar: OnceCell<ProgressBar>,
-    media_progress_bar: OnceCell<ProgressBar>, }
+    media_progress_bar: OnceCell<ProgressBar>,
+}
 
 impl FFramesLogger for CompactFFramesLogger {
     fn init_frames_rendering(&self, frames_count: usize) -> FFramesRendererResult<()> {

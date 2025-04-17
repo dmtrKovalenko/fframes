@@ -1,4 +1,4 @@
-use fframes_media_loaders::{FFramesSubtitles, FFramesSubtitlesCue};
+use fframes_media::{FFramesSubtitles, FFramesSubtitlesCue};
 use std::{ops::DerefMut, sync::Arc};
 use usvgr::svgtree::SvgAttributeValue;
 

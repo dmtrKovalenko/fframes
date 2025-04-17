@@ -163,7 +163,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                             Ok(())
                         },
-                   )
+                    )
                 }
                 .map_err(|av_err| FFramesRendererError::RenderChunkError(thread_number, av_err))?;
 

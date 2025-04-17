@@ -3,7 +3,7 @@ use crate::{
     AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame, MediaProvider,
     ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
-use fframes_media_loaders::VideoMedia;
+use fframes_media::VideoMedia;
 use std::iter::FromIterator;
 
 #[derive(Clone, Debug)]

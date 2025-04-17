@@ -18,7 +18,8 @@ fn main() {
             media: Some(&media),
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             encoder_options: EncoderOptions {
-                preferred_video_codec: Some("libx264"), ..Default::default()
+                preferred_video_codec: Some("libx264"),
+                ..Default::default()
             },
             ..Default::default()
         },
