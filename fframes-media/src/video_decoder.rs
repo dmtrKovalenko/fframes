@@ -765,17 +765,23 @@ unsafe fn find_hw_accelleleration_for_codec(
     codec: *const AVCodec,
 ) -> Option<AVPixelFormat> {
     unsafe {
-        // List of hardware types to try in order of preference
         let hw_types = [
-            #[cfg(target_os = "linux")]
+            #[cfg(feature = "vaapi")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_VAAPI,
-            #[cfg(target_os = "windows")]
+            #[cfg(feature = "direct3d11")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA,
-            #[cfg(target_os = "windows")]
+            #[cfg(feature = "direct3d9")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_DXVA2,
             #[cfg(feature = "videotoolbox")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
+            #[cfg(feature = "nvidia")]
+            AVHWDeviceType::AV_HWDEVICE_TYPE_CUDA,
+            #[cfg(feature = "qsv")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_QSV,
+            #[cfg(feature = "mediacodec")]
+            AVHWDeviceType::AV_HWDEVICE_TYPE_MEDIACODEC,
+            #[cfg(feature = "vulkan")]
+            AwHwDeviceType::AV_HWDEVICE_TYPE_VDPAU,
         ];
 
         for &hw_type in hw_types.iter() {

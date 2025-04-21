@@ -45,7 +45,7 @@ members = [
 # usvgr = { path = "../svgr/crates/usvgr" }
 svgr = "0.43.7"
 usvgr = "0.43.7"
-ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "7.1.2", features = [
+ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "7.1.3", features = [
     "build",
     "static",
 ] }

@@ -15,7 +15,7 @@ impl FrameFormatConvertor {
             let sws_ctx = sws_getContext(
                 (*video_stream.enc).width,
                 (*video_stream.enc).height,
-                AVPixelFormat::AV_PIX_FMT_YUV420P,
+                AVPixelFormat::AV_PIX_FMT_RGBA,
                 (*video_stream.enc).width,
                 (*video_stream.enc).height,
                 (*video_stream.enc).pix_fmt,

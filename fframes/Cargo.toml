@@ -54,19 +54,28 @@ criterion = "0.5"
 wasm-bindgen = "0.2.100"
 
 [features]
+# by default we enable only platform specific encoders that 
+# would be always populated by the platform sysroot itself
 default = ["cpu_renderer"]
 cpu_renderer = ["svgr"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 
-# these are compile time dependnecies 
+# enable various encoders & decoders
 h264 = ["fframes-media/h264"]
 h265 = ["fframes-media/h265"]
-videotoolbox = ["fframes-media/videotoolbox"]
-audiotoolbox = ["fframes-media/audiotoolbox"]
 aac = ["fframes-media/aac"]
 mp3lame = ["fframes-media/mp3lame"]
 opus = ["fframes-media/opus"]
 vpx = ["fframes-media/vpx"]
+# enable various hardware accelerations
+videotoolbox = ["fframes-media/videotoolbox"]
+audiotoolbox = ["fframes-media/audiotoolbox"]
+vaapi = ["fframes-media/vaapi"]
+nvidia = ["fframes-media/nvidia"]
+qsv = ["fframes-media/qsv"]
+vulkan = ["fframes-media/vulkan"]
+mediacodec = ["fframes-media/mediacodec"]
+# might b required for some of the other features licensing
 libav-agree-gpl = ["fframes-media/libav-agree-gpl"]
 libav-agree-nonfree = ["fframes-media/libav-agree-nonfree"]
 libav-agree-version3 = ["fframes-media/libav-agree-version3"]
