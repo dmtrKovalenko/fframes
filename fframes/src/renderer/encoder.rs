@@ -6,7 +6,6 @@ use super::{
 };
 pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use crate::ffmpeg_action;
-
 use crate::ffmpeg_sys_fframes::*;
 use std::ops::Range;
 use std::path::Path;
@@ -16,6 +15,8 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+
+pub use crate::media::ffmpeg_sys_fframes::{AVPixelFormat, MKTAG};
 
 #[inline(always)]
 #[allow(non_snake_case)]

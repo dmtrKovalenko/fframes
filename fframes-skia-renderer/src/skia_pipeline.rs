@@ -1,6 +1,9 @@
+use crate::SkiaBackend;
+use crate::resource_provider::SkiaFFramesProvider;
 use fframes::usvgr::WriteOptions;
 use fframes::{
-    AudioTimelineSamples, BreaksLruCache, FFramesContext, ResolvedRenderingTimeline, Video, usvgr,
+    AudioTimelineSamples, BreaksLruCache, FFramesContext, ResolvedRenderingTimeline, Video,
+    VideoDecodersWorker, usvgr,
 };
 use fframes::{
     Encoder, EncoderFrame, FFramesLogger, FFramesRendererError, FFramesRendererResult,
@@ -18,9 +21,6 @@ use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::thread;
 #[cfg(feature = "debug")]
 use std::time::Instant;
-
-use crate::resource_provider::SkiaFFramesProvider;
-use crate::{SkiaContext, SkiaFFramesRenderer};
 
 // Pipeline data structures
 struct FrameRequest {
@@ -83,7 +83,7 @@ impl Default for SkiaPipelineConfig {
     }
 }
 
-pub(crate) struct Pipeline<'b, 'a, 'media, TVideo: Video + Sync + Send> {
+pub(crate) struct Pipeline<'b, 'a, 'media, TVideo: Video + Sync + Send, TBackend: SkiaBackend> {
     pub(crate) ctx: &'a FFramesContext<'a, 'media>,
     pub(crate) encoder_options: &'a EncoderOptions<'a>,
     pub(crate) font_db: &'a usvgr::fontdb::Database,
@@ -91,14 +91,14 @@ pub(crate) struct Pipeline<'b, 'a, 'media, TVideo: Video + Sync + Send> {
     pub(crate) include_audio: bool,
     pub(crate) logger: Arc<dyn FFramesLogger>,
     pub(crate) output: &'b Path,
-    pub(crate) provider: &'b SkiaFFramesProvider,
-    pub(crate) skia: &'b SkiaFFramesRenderer,
+    pub(crate) pipeline_config: SkiaPipelineConfig,
+    pub(crate) skia: &'b TBackend,
     pub(crate) timeline: &'a ResolvedRenderingTimeline<'a, AudioTimelineSamples>,
     pub(crate) usvg_options: &'a usvgr::Options<'a>,
     pub(crate) video: &'a TVideo,
 }
 
-pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send>(
+pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBackend>(
     Pipeline {
         ctx,
         encoder_options,
@@ -107,17 +107,17 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send>(
         include_audio,
         logger,
         output,
-        provider,
         skia,
         timeline,
+        pipeline_config,
         usvg_options,
         video,
-    }: Pipeline<'a, 'b, 'media, TVideo>,
+    }: Pipeline<'a, 'b, 'media, TVideo, TBackend>,
 ) -> FFramesRendererResult<()> {
     let (render_sender, render_receiver) =
-        thingbuf::mpsc::blocking::channel(skia.pipeline_config.buffer_queue_size);
+        thingbuf::mpsc::blocking::channel(pipeline_config.buffer_queue_size);
     let (frame_tx, frame_receiver) =
-        mpsc::sync_channel::<FrameRequest>(skia.pipeline_config.buffer_queue_size);
+        mpsc::sync_channel::<FrameRequest>(pipeline_config.buffer_queue_size);
 
     let encoder = unsafe {
         Encoder::new(
@@ -141,9 +141,9 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send>(
                 video,
                 frame_range.clone(),
                 usvg_options,
-                provider,
                 font_db,
                 frame_tx,
+                &pipeline_config,
                 ctx,
                 #[cfg(feature = "debug")]
                 metrics.generator_metrics.clone(),
@@ -173,7 +173,7 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send>(
     })?;
 
     if let Some(audio_stream) = encoder.audio_stream.as_ref() {
-        audio_stream.set_encoder_threads_count(skia.pipeline_config.encoder_threads);
+        audio_stream.set_encoder_threads_count(pipeline_config.encoder_threads);
         unsafe { encoder.fill_audio_stream(timeline.audio_map.as_ref(), ctx) }
             .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
     }
@@ -189,14 +189,18 @@ fn spawn_frame_generator<'a, 'media: 'a, TVideo: Video + Sync + Send>(
     video: &'a TVideo,
     frame_range: Range<usize>,
     usvg_options: &'a usvgr::Options<'a>,
-    provider: &SkiaFFramesProvider,
     font_db: &'a usvgr::fontdb::Database,
     frame_sender: SyncSender<FrameRequest>,
+    pipeline_config: &SkiaPipelineConfig,
     ctx: &'a FFramesContext<'a, 'media>,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
     let break_lines_cache = BreaksLruCache::new(10);
     let mut converter_cache = usvgr::Cache::new_with_text_cache(10);
+
+    // x2 because sometimse we might need to decode 2 frames at once
+    let video_decoders_worker = VideoDecodersWorker::new(pipeline_config.buffer_queue_size * 2);
+    let provider = SkiaFFramesProvider::new(video_decoders_worker.clone(), ctx);
 
     for frame in frame_range {
         #[cfg(feature = "debug")]
@@ -243,13 +247,15 @@ fn spawn_frame_generator<'a, 'media: 'a, TVideo: Video + Sync + Send>(
     Ok(())
 }
 
-fn spawn_renderer(
-    skia: &SkiaFFramesRenderer,
+fn spawn_renderer<TBackend: SkiaBackend>(
+    backend: &TBackend,
     logger: Arc<dyn FFramesLogger>,
     frame_receiver: Receiver<FrameRequest>,
     render_sender: thingbuf::mpsc::blocking::Sender<RenderPayload>,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
+    let (mut surface, mut gpu_context) = backend.create_skia_surface()?;
+
     while let Ok(FrameRequest { dom, frame }) = {
         #[cfg(feature = "debug")]
         let wait_start = Instant::now();
@@ -263,53 +269,47 @@ fn spawn_renderer(
 
         result
     } {
+        let image_info = surface.image_info();
+        let frame_datavec_size = image_info.compute_byte_size(image_info.min_row_bytes());
+
         #[cfg(feature = "debug")]
         let start = Instant::now();
         logger.log_frame(frame, 0);
 
         if let Ok(mut payload) = render_sender.send_ref() {
             payload.frame_index = frame;
-            if payload.pixels.len() != skia.frame_datavec_size {
-                payload.pixels = vec![0; skia.frame_datavec_size];
+            if payload.pixels.len() != frame_datavec_size {
+                payload.pixels = vec![0; frame_datavec_size];
             }
 
             let dom = dom.into_inner();
-            {
-                let mut skia = skia.skia.lock()?;
-                let SkiaContext {
-                    ref mut gpu_context,
-                    ref mut surface,
-                } = *skia;
 
-                let image_info = surface.image_info();
-                let pixmap = skia_safe::Pixmap::new(
-                    &image_info,
-                    &mut payload.pixels,
-                    image_info.min_row_bytes(),
-                )
-                .ok_or_else(|| {
-                    FFramesRendererError::Custom("Failed to create pixmap".to_string())
-                })?;
+            let image_info = surface.image_info();
+            let pixmap = skia_safe::Pixmap::new(
+                &image_info,
+                &mut payload.pixels,
+                image_info.min_row_bytes(),
+            )
+            .ok_or_else(|| FFramesRendererError::Custom("Failed to create pixmap".to_string()))?;
 
-                surface.canvas().clear(skia_safe::Color::BLACK);
-                dom.render(surface.canvas());
-                drop(dom);
+            surface.canvas().clear(skia_safe::Color::BLACK);
+            dom.render(surface.canvas());
+            drop(dom);
 
-                if let Some(gpu_context) = gpu_context.as_mut() {
-                    gpu_context.flush_submit_and_sync_cpu();
-                }
+            if let Some(gpu_context) = gpu_context.as_mut() {
+                gpu_context.flush_submit_and_sync_cpu();
+            }
 
-                let image = surface.image_snapshot();
-                if !image.read_pixels_to_pixmap_with_context(
-                    gpu_context.as_mut(),
-                    &pixmap,
-                    (0, 0),
-                    skia_safe::image::CachingHint::Disallow,
-                ) {
-                    return Err(FFramesRendererError::Custom(
-                        "Failed to read pixels from Skia image".to_string(),
-                    ));
-                }
+            let image = surface.image_snapshot();
+            if !image.read_pixels_to_pixmap_with_context(
+                gpu_context.as_mut(),
+                &pixmap,
+                (0, 0),
+                skia_safe::image::CachingHint::Disallow,
+            ) {
+                return Err(FFramesRendererError::Custom(
+                    "Failed to read pixels from Skia image".to_string(),
+                ));
             };
         }
 

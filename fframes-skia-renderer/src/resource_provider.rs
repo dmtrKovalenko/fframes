@@ -1,4 +1,3 @@
-use crate::SkiaPipelineConfig;
 use fframes::{
     FFramesContext, VideoDecodersWorker, media::decode_video_resource, usvgr::PreloadedImageData,
 };
@@ -16,7 +15,7 @@ pub(crate) struct SkiaFFramesProvider {
 }
 
 impl SkiaFFramesProvider {
-    pub fn new(pipeline_config: &SkiaPipelineConfig, ctx: &FFramesContext) -> Self {
+    pub fn new(worker_local_decoders: VideoDecodersWorker, ctx: &FFramesContext) -> Self {
         // This is that we do to satisfy the lifetime requirements of the
         // skia, as we always guarantee that fframes context will be living the whole lifetime
         // of the render functions be executed but there is not way to pass prove that for skia
@@ -26,8 +25,7 @@ impl SkiaFFramesProvider {
             ctx: unsafe {
                 std::mem::transmute::<&FFramesContext, &FFramesContext<'static, 'static>>(ctx)
             },
-            // this is an additional safety, keeping the buffer in quue is relatively cheap
-            worker_local_decoders: VideoDecodersWorker::new(pipeline_config.buffer_queue_size * 2),
+            worker_local_decoders,
         }
     }
 }

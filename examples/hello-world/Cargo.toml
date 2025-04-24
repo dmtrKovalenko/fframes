@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
 clap = { version = "4.3.4", features = ["derive"] }
-image = "0.25.5"
 
 [features]
 default = ["renderer"]

@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.3.4", features = ["derive"] }
-fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
+fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }

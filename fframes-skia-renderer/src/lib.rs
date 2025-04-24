@@ -1,18 +1,19 @@
 mod resource_provider;
 mod skia_pipeline;
 
-mod gpu_backends;
+mod backends;
+pub use backends::*;
+
 #[allow(dead_code)]
 mod ordered_sender;
-pub use gpu_backends::*;
 
 mod skia_backend;
 pub use skia_backend::*;
 
+mod instant_rendering;
+pub use instant_rendering::*;
+
 #[cfg(feature = "debug")]
 mod metrics;
 
-// reexports
-#[cfg(feature = "metal")]
-pub use metal_rs as metal;
 pub use skia_safe;

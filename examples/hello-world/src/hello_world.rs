@@ -1,5 +1,5 @@
 use fframes::{
-    AudioMap, Color, FFramesContext, Frame, Video, animation::Easing, include_media_dir,
+    AudioMap, Color, FFramesContext, Frame, Transform, Video, animation::Easing, include_media_dir,
 };
 
 include_media_dir!(pub struct HelloWorldMedia, "examples/hello-world/media");
@@ -48,11 +48,34 @@ impl Video for HelloWorldVideo<'_> {
                     }
                 />
 
-                <text font-family="DM Sans" x="100" y="300" font-size="150">
+                <text font-family="DM Sans" x="100" y="300" font-size="150" fill="#000">
                     "Hello " {self.slug}
                 </text>
 
-                <text font-weight="500" font-family="JetBrains Mono" x="100" y="440" font-size="74" fill="#4b5563">
+                <rect
+                    x="400"
+                    y="400"
+                    width="200"
+                    height="200"
+                    fill="blue"
+                    transform={frame.animate(
+                        fframes::timeline!(
+                            at 0., animate Transform::translate(0, 0) => Transform::translate(200,480), Easing::Linear,
+                            at 2. => 6.0, animate Transform::translate(200, 480) => Transform::translate(750,-400), Easing::Linear,
+                            // move it the bottom most corner
+                            at 6.0 => 10.0, animate Transform::translate(750, -400) => Transform::translate(1310, 480), Easing::Linear,
+                        )
+                    )}
+                />
+
+                <text
+                    font-weight="500"
+                    font-family="JetBrains Mono"
+                    x="100"
+                    y="440"
+                    font-size="74"
+                    fill="#4b5563"
+                >
                     {format!("This frame index: {}, second: {:.2}", frame.index, frame.seconds())}
                 </text>
             </svg>

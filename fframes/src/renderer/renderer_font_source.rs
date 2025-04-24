@@ -35,7 +35,7 @@ impl<'a> crate::FontFace<'a> for RendererFont<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct RendererFontSource {
+pub struct RendererFontSource {
     pub(crate) fontdb: fontdb::Database,
 }
 

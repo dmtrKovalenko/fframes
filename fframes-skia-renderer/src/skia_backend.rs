@@ -1,7 +1,8 @@
 use fframes::rayon::prelude::*;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use crate::backends::SkiaBackend;
 use crate::skia_pipeline::Pipeline;
 pub use crate::skia_pipeline::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
 use crate::{resource_provider::SkiaFFramesProvider, skia_pipeline};
@@ -9,78 +10,36 @@ use fframes::{
     AudioTimelineSamples, ResolvedRenderingTimeline, Video,
     usvgr::{self, WriteOptions},
 };
-use fframes::{FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, concatenator};
-use skia_safe::{Surface, gpu, surfaces::raster_n32_premul, svg::Dom};
+use fframes::{
+    FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, VideoDecodersWorker,
+    concatenator,
+};
+use skia_safe::svg::Dom;
 use uuid::Uuid;
 
-pub(crate) struct SkiaContext {
-    pub(crate) gpu_context: Option<skia_safe::gpu::DirectContext>,
-    pub(crate) surface: Surface,
-}
-
 #[derive(Clone)]
-pub struct SkiaFFramesRenderer {
-    pub(crate) frame_datavec_size: usize,
+pub struct SkiaFFramesRenderer<'a, T: SkiaBackend + Sync + Send> {
     pub(crate) pipeline_config: SkiaPipelineConfig,
-    pub(crate) skia: Arc<Mutex<SkiaContext>>,
+    pub(crate) backend: &'a T,
 }
 
-unsafe impl Send for SkiaFFramesRenderer {}
-unsafe impl Sync for SkiaFFramesRenderer {}
-
-impl SkiaFFramesRenderer {
-    /// Creates a new skia render with an optional gpu context and an abstracted surface.
-    /// If you are using metal or vulkan consider using prebuild `new_metal` and `new_vulkan`
-    /// constructors for the reasonable defaults.
+impl<'a, TSkiaBackend: SkiaBackend> SkiaFFramesRenderer<'a, TSkiaBackend> {
+    /// Creates a new Skia render with based on the supported skia rendering backend.
+    /// Currently only Vulkan and Metal are supported (also CPU for testing purposes).
+    ///
+    /// Check `new_metal` and `new_vulkan` methods for more details.
     pub fn new(
         pipeline_config: SkiaPipelineConfig,
-        mut surface: Surface,
-        gpu_context: Option<gpu::DirectContext>,
+        skia_backend_context: &'a TSkiaBackend,
     ) -> Self {
-        let image_info = surface.image_info();
-        let frame_byte_size = image_info.compute_byte_size(image_info.min_row_bytes());
-
         Self {
             pipeline_config,
-            frame_datavec_size: frame_byte_size,
-            #[allow(clippy::arc_with_non_send_sync)]
-            skia: Arc::new(Mutex::new(SkiaContext {
-                gpu_context,
-                surface,
-            })),
+            backend: skia_backend_context,
         }
-    }
-
-    /// Creates new CPU based skia renderer. It is not recommended to use it for the final
-    /// video rendering, if you are rendering a video on a target without GPU consider
-    /// using a built-in CPU renderer.
-    ///
-    /// Intended for compatibility layer with GPU renderer and/or testing.
-    pub fn new_cpu(
-        pipeline_config: SkiaPipelineConfig,
-        width: usize,
-        height: usize,
-    ) -> FFramesRendererResult<Self> {
-        let mut surface = raster_n32_premul((width as i32, height as i32)).ok_or_else(|| {
-            fframes::FFramesRendererError::Custom("Failed to create skia surface".to_string())
-        })?;
-
-        let image_info = surface.image_info();
-        let frame_byte_size = image_info.compute_byte_size(image_info.min_row_bytes());
-
-        Ok(Self {
-            frame_datavec_size: frame_byte_size,
-            pipeline_config,
-            #[allow(clippy::arc_with_non_send_sync)]
-            skia: Arc::new(Mutex::new(SkiaContext {
-                gpu_context: None,
-                surface,
-            })),
-        })
     }
 }
 
-impl FFramesRenderBackend for SkiaFFramesRenderer {
+impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBackend> {
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         self,
         frame: fframes::Frame,
@@ -89,14 +48,11 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
         font_db: &usvgr::fontdb::Database,
         ctx: fframes::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<Vec<u8>> {
-        let mut skia = self.skia.lock()?;
-        let SkiaContext {
-            ref mut gpu_context,
-            ref mut surface,
-        } = *skia;
-
-        let mut pixels = vec![0; self.frame_datavec_size];
+        let (mut surface, mut gpu_context) = self.backend.create_skia_surface()?;
         let image_info = surface.image_info();
+        let frame_datavec_size = image_info.compute_byte_size(image_info.min_row_bytes());
+
+        let mut pixels = vec![0; frame_datavec_size];
         let pixmap = skia_safe::Pixmap::new(&image_info, &mut pixels, image_info.min_row_bytes())
             .ok_or_else(|| {
             fframes::FFramesRendererError::Custom("Failed to create pixmap".to_string())
@@ -109,18 +65,20 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
             font_db,
         )?;
 
-        let provider = SkiaFFramesProvider::new(&self.pipeline_config, &ctx);
+        let video_decoders_worker = VideoDecodersWorker::new(1);
+        let provider = SkiaFFramesProvider::new(video_decoders_worker, &ctx);
         let raw_svg = rtree.to_string(&WriteOptions::default());
 
         let dom = Dom::from_str(&raw_svg, provider).unwrap();
         dom.render(surface.canvas());
-        if let Some(gpu_context) = gpu_context {
+
+        if let Some(gpu_context) = gpu_context.as_mut() {
             gpu_context.flush_and_submit();
         }
 
-        let image = { surface.image_snapshot() };
+        let image = surface.image_snapshot();
         let result = image.read_pixels_to_pixmap_with_context(
-            gpu_context,
+            gpu_context.as_mut(),
             &pixmap,
             (0, 0),
             skia_safe::image::CachingHint::Allow,
@@ -160,13 +118,12 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
         };
 
         if concurrent_pipelines < 2 {
-            let provider = SkiaFFramesProvider::new(&self.pipeline_config, ctx);
             skia_pipeline::start(Pipeline {
+                pipeline_config: self.pipeline_config,
                 output,
                 include_audio: true,
                 frame_range: &(0..ctx.duration_in_frames),
-                skia: &self,
-                provider: &provider,
+                skia: self.backend,
                 video,
                 logger: Arc::clone(&logger),
                 usvg_options,
@@ -196,7 +153,6 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
                 .par_iter()
                 .enumerate()
                 .map(|(file, chunk)| {
-                    let provider = SkiaFFramesProvider::new(&self.pipeline_config, ctx);
                     let file = directory.join(format!(
                         "{file}.{extension}",
                         file = file,
@@ -204,11 +160,11 @@ impl FFramesRenderBackend for SkiaFFramesRenderer {
                     ));
 
                     skia_pipeline::start(Pipeline {
+                        pipeline_config: self.pipeline_config,
                         include_audio: false,
                         frame_range: chunk,
                         output: &file,
-                        skia: &self,
-                        provider: &provider,
+                        skia: self.backend,
                         video,
                         logger: Arc::clone(&logger),
                         usvg_options,

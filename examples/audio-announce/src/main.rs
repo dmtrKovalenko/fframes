@@ -43,9 +43,10 @@ fn main() {
         SkiaFFramesRenderer::new_vulkan(
             &vulkan_ctx,
             SkiaPipelineConfig {
-                buffer_queue_size: 10,
+                buffer_queue_size: AudioAnnounce::FPS,
                 concurrency_policy:
-                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(2),
+                    // this works perfectly on my machine but you should test different options
+                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(4),
                 ..Default::default()
             },
         )
