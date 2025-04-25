@@ -1,11 +1,12 @@
 use fframes_media::{FFramesSubtitles, FFramesSubtitlesCue};
-use std::{ops::DerefMut, sync::Arc};
+use std::sync::Arc;
 use usvgr::svgtree::SvgAttributeValue;
 
 use crate::{
-    BreaksLruCache, Svgr, SyncVideoFrameInput, VisualizeFrameInput, WrappedTextStructure,
+    FontQuery, Svgr, SyncVideoFrameInput, TextCache, VisualizeFrameInput, WrappedTextStructure,
     animation, get_visualization,
     text::{BreakLinesOpts, text_wrap_impl},
+    text_get_width_impl,
     video_data::{FFramesSyncedVideoFrame, VideoDecodersWorker},
 };
 
@@ -15,12 +16,12 @@ use crate::{
 pub struct Frame {
     /// The frame index of the current scene. If rendering a Scene it is relative to the current frame.
     pub index: usize,
-    /// The frame index of the current frame. If rendering within a scene will show the frame index within a whole video.
-    /// If rendering without scene always equal to self.index.
+    /// The frame index without current scene offset. If rendering within a scene will show the frame index within a whole video. Can be used to get the current video timestamp inside a scene.
+    /// If passed as an argument to the `Video` always equals to the `index` value.
     pub global_index: usize,
     /// FPS of the video. Always equals to the FPS constant.
     pub fps: usize,
-    breaks_lru_cache: Option<BreaksLruCache>,
+    text_cache: Option<TextCache>,
     worker_local_video_decoders: VideoDecodersWorker,
 }
 
@@ -44,7 +45,7 @@ impl Frame {
             index,
             global_index,
             fps,
-            breaks_lru_cache: None,
+            text_cache: None,
             worker_local_video_decoders: VideoDecodersWorker::default(),
         }
     }
@@ -58,14 +59,14 @@ impl Frame {
         index: usize,
         global_index: usize,
         fps: usize,
-        breaks_lru_cache: Option<BreaksLruCache>,
+        breaks_lru_cache: Option<TextCache>,
         worker_local_decoders: VideoDecodersWorker,
     ) -> Self {
         Self {
             index,
             global_index,
             fps,
-            breaks_lru_cache,
+            text_cache: breaks_lru_cache,
             worker_local_video_decoders: worker_local_decoders,
         }
     }
@@ -77,7 +78,7 @@ impl Frame {
             index: frame.index - offset,
             global_index: frame.global_index + offset,
             fps: frame.fps,
-            breaks_lru_cache: frame.breaks_lru_cache.clone(),
+            text_cache: frame.text_cache.clone(),
             worker_local_video_decoders: frame.worker_local_video_decoders.clone(),
         }
     }
@@ -276,12 +277,10 @@ impl Frame {
         let font_source = ctx.font_source?;
         let hash = opts.hash_with_value(value);
 
-        if let Some(cache_mutex) = self.breaks_lru_cache.as_ref() {
-            cache_mutex
-                .0
-                .lock()
-                .ok()?
-                .deref_mut()
+        if let Some(breaks_cache) = self.text_cache.as_ref() {
+            breaks_cache
+                .breaks_cache
+                .borrow_mut()
                 .get_or_insert(hash, || text_wrap_impl(hash, value, font_source, opts))
                 .clone()
         } else {
@@ -325,10 +324,41 @@ impl Frame {
         value: &str,
         opts: BreakLinesOpts<'a, X, Y>,
     ) -> Option<Svgr<'a>> {
-        Some(
-            self.text_break_lines_structure(ctx, value, opts)?
-                .as_svgr(opts),
-        )
+        let font_source = ctx.font_source?;
+        let hash = opts.hash_with_value(value);
+
+        if let Some(breaks_cache) = self.text_cache.as_ref() {
+            breaks_cache
+                .breaks_cache
+                .borrow_mut()
+                .get_or_insert(hash, || text_wrap_impl(hash, value, font_source, opts))
+                .as_ref()
+                .map(|text| text.as_svgr(opts))
+        } else {
+            text_wrap_impl(hash, value, font_source, opts).map(|text| text.as_svgr(opts))
+        }
+    }
+
+    /// Returns the actual text width in pixels of the provided text for a certain font query.
+    /// If the font is not resolved returns `None` (make sure that system fonts are not resolvable
+    /// in the web preview edtitor).
+    pub fn text_width<'a>(
+        &mut self,
+        ctx: &crate::FFramesContext<'a, '_>,
+        font_query: FontQuery,
+        value: &'a str,
+    ) -> Option<usize> {
+        let font_source = ctx.font_source?;
+
+        if let Some(text_cache) = self.text_cache.as_ref() {
+            let hash = font_query.hash_with_value(value);
+            *text_cache
+                .text_width_cache
+                .borrow_mut()
+                .get_or_insert(hash, || text_get_width_impl(font_query, value, font_source))
+        } else {
+            text_get_width_impl(font_query, value, font_source)
+        }
     }
 
     /// Returns a phrase that must be rendered by time in this frame.

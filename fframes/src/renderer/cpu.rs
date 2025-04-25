@@ -3,8 +3,8 @@ use super::{
     renderer_error::RenderEncodingError,
 };
 use crate::{
-    AudioTimelineSamples, BreaksLruCache, Frame, ResolvedRenderingTimeline, Video,
-    VideoDecodersWorker, usvgr,
+    AudioTimelineSamples, Frame, ResolvedRenderingTimeline, TextCache, Video, VideoDecodersWorker,
+    usvgr,
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};
@@ -101,7 +101,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             let pixmap_pool = PixmapPool::new();
                             let worker_local_decoders = VideoDecodersWorker::new(1);
                             let mut svgr_cache = SvgrCache::new(self.cache_capacity);
-                            let break_lines_cache = BreaksLruCache::new(self.text_cache_capacity);
+                            let break_lines_cache = TextCache::new(self.text_cache_capacity);
                             let mut converter_cache =
                                 usvgr::Cache::new_with_text_cache(self.text_cache_capacity);
 

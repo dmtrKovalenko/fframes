@@ -45,12 +45,15 @@ impl AudioAnnounce<'_> {
                       line_height: 1.2,
                       x: 450,
                       y: 170,
-                      font_size: 120,
-                      font_family: self.font.unwrap_or("JetBrains Mono"),
+                      font: fframes::FontQuery {
+                        size: 120,
+                        weight: 400,
+                        family: self.font.unwrap_or("JetBrains Mono"),
+                        ..Default::default()
+                      },
                       align: fframes::TextAlign::Left,
                       dominant_baseline: "middle",
                       fill: "white",
-                      font_weight: 400,
                       ..Default::default()
                     },
                 ).unwrap_or_default()}

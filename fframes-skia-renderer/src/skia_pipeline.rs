@@ -2,7 +2,7 @@ use crate::SkiaBackend;
 use crate::resource_provider::SkiaFFramesProvider;
 use fframes::usvgr::WriteOptions;
 use fframes::{
-    AudioTimelineSamples, BreaksLruCache, FFramesContext, ResolvedRenderingTimeline, Video,
+    AudioTimelineSamples, FFramesContext, ResolvedRenderingTimeline, TextCache, Video,
     VideoDecodersWorker, usvgr,
 };
 use fframes::{
@@ -195,7 +195,7 @@ fn spawn_frame_generator<'a, 'media: 'a, TVideo: Video + Sync + Send>(
     ctx: &'a FFramesContext<'a, 'media>,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
-    let break_lines_cache = BreaksLruCache::new(10);
+    let break_lines_cache = TextCache::new(10);
     let mut converter_cache = usvgr::Cache::new_with_text_cache(10);
 
     // x2 because sometimse we might need to decode 2 frames at once

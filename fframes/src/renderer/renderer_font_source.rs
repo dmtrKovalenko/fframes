@@ -1,5 +1,6 @@
 use crate::usvgr::fontdb::{self, Family, Query, Weight};
 use crate::{FontFace, FontStretch, FontStyle};
+use std::path::Path;
 use std::sync::Arc;
 
 pub(crate) struct RendererFont<'a> {
@@ -42,6 +43,11 @@ pub struct RendererFontSource {
 impl RendererFontSource {
     pub fn as_db_ref(&self) -> &fontdb::Database {
         &self.fontdb
+    }
+
+    /// Read the fonts from the folder
+    pub fn read_folder(&mut self, path: impl AsRef<Path>) {
+        self.fontdb.load_fonts_dir(path);
     }
 }
 

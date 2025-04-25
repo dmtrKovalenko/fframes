@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum FontVariant {
     Monospaced(usize),
     Variable,

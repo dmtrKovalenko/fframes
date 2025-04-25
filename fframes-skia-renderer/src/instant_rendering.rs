@@ -1,7 +1,7 @@
 use crate::{SkiaBackend, SkiaFFramesRenderer, resource_provider::SkiaFFramesProvider};
 use fframes::{
-    BreaksLruCache, FFramesContext, FFramesRendererError, FFramesRendererResult,
-    FFramesRendererRuntime, MediaProvider, TimeBase, Video, VideoDecodersWorker, usvgr,
+    FFramesContext, FFramesRendererError, FFramesRendererResult, FFramesRendererRuntime,
+    MediaProvider, TextCache, TimeBase, Video, VideoDecodersWorker, usvgr,
 };
 use skia_safe::{Surface, svg::Dom};
 use std::sync::Mutex;
@@ -52,7 +52,7 @@ impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
 pub struct InstantRenderingVideoCtx<'a> {
     pub runtime: fframes::FFramesRendererRuntime<'a>,
     usvg_options: usvgr::Options<'a>,
-    break_lines_cache: Option<BreaksLruCache>,
+    break_lines_cache: Option<TextCache>,
     converter_cache: Mutex<usvgr::Cache>,
     video_decoders: VideoDecodersWorker,
 }
@@ -78,7 +78,7 @@ impl InstantRenderingVideoCtx<'_> {
             ..Default::default()
         };
 
-        let break_lines_cache = BreaksLruCache::new(1000);
+        let break_lines_cache = TextCache::new(1000);
         let converter_cache = Mutex::new(usvgr::Cache::default());
 
         Ok(Self {
