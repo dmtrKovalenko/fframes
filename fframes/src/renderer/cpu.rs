@@ -3,8 +3,8 @@ use super::{
     renderer_error::RenderEncodingError,
 };
 use crate::{
-    AudioTimelineSamples, Frame, ResolvedRenderingTimeline, TextCache, Video, VideoDecodersWorker,
-    usvgr,
+    AbortSignal, AudioTimelineSamples, Frame, ResolvedRenderingTimeline, TextCache, Video,
+    VideoDecodersWorker, usvgr,
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};
@@ -116,8 +116,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                             let svgr_ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
                             chunk_range.to_owned().enumerate().try_for_each(
                                 |(index, fr)| -> RenderEncodingResult<()> {
-                                    pixmap.fill(svgr::tiny_skia::Color::BLACK);
+                                    if ctx.abort_signal.is_some_and(AbortSignal::is_aborted) {
+                                        return Err(RenderEncodingError::Aborted);
+                                    }
 
+                                    pixmap.fill(svgr::tiny_skia::Color::BLACK);
                                     let svg = video.render_frame(
                                         Frame::__internal_make_for_renderer(
                                             fr,
@@ -165,7 +168,10 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         },
                     )
                 }
-                .map_err(|av_err| FFramesRendererError::RenderChunkError(thread_number, av_err))?;
+                .map_err(|av_err| match av_err {
+                    RenderEncodingError::Aborted => FFramesRendererError::Aborted,
+                    av_err => FFramesRendererError::RenderChunkError(thread_number, av_err),
+                })?;
 
                 Ok(file)
             })

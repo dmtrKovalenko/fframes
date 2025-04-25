@@ -4,6 +4,7 @@ use std::{error::Error, fmt, path::PathBuf, str::Utf8Error, sync::PoisonError};
 
 /// Thread or Chunk level error which can happen during parallelized rendering
 pub enum RenderEncodingError {
+    Aborted,
     MissingVideoStreamInFile(PathBuf),
     CantOpenFile(PathBuf),
     CantAllocate(String),
@@ -26,6 +27,7 @@ impl fmt::Display for RenderEncodingError {
             f,
             "{}",
             match self {
+                Self::Aborted => "Aborted by the user".to_owned(),
                 Self::MissingVideoStreamInFile(file) =>
                     format!("Missing video stream in file {}", file.to_string_lossy().as_ref().cyan()),
                 Self::CantOpenFile(file) => format!("Missing video stream in file {}", file.to_string_lossy().as_ref().cyan()),
@@ -63,6 +65,7 @@ pub enum FFramesRendererError {
     Internal(String),
     InvalidOutput,
     Utf8Error(Utf8Error),
+    Aborted,
     // specific for fframes_skia_render_backend
     Skia(String),
 
@@ -109,6 +112,7 @@ impl fmt::Debug for FFramesRendererError {
                 Self::Utf8Error(err) => format!("Failed to convert bytes to utf8 string: {err:?}"),
                 Self::MediaError(err) => format!("Media processing error: {err:?}"),
                 Self::Skia(err) => format!("Skia error: {err}"),
+                Self::Aborted => "Aborted by the user".to_owned(),
             }
         )
     }

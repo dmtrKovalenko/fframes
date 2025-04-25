@@ -39,6 +39,8 @@ pub struct RenderOptions<'a, 'media> {
     ///
     /// @default "Arial"
     pub default_font: &'a str,
+    /// The abort signal that can be used to abort the rendering process.
+    pub abort_signal: Option<&'media crate::AbortSignal>,
 }
 
 impl Default for RenderOptions<'_, '_> {
@@ -51,6 +53,7 @@ impl Default for RenderOptions<'_, '_> {
             override_fps: None,
             load_system_fonts: false,
             default_font: "Arial",
+            abort_signal: None,
         }
     }
 }
@@ -171,6 +174,7 @@ pub fn render<
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
         font_source: Some(&font_source),
+        abort_signal: options.abort_signal,
         current_video_size: VideoSize::new_scaled(
             TVideo::WIDTH,
             TVideo::HEIGHT,
@@ -248,6 +252,7 @@ pub fn render_frame<
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
         font_source: Some(&font_source),
+        abort_signal: None,
         current_video_size: VideoSize::new_scaled(
             TVideo::WIDTH,
             TVideo::HEIGHT,

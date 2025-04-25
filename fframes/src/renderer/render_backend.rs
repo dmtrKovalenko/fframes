@@ -5,9 +5,6 @@ use crate::{AudioTimelineSamples, ResolvedRenderingTimeline, Video, usvgr};
 use std::{path::Path, sync::Arc};
 use usvgr::fontdb;
 
-// TODO: feature flag this
-// pub use crate::gpu::GpuRenderingBackend;
-
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized + Send>(

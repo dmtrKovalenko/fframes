@@ -221,6 +221,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     font_source: Some(self.fonts.lock().unwrap().deref()),
                     scenes: self.scenes.lock().unwrap().as_ref(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
+                    abort_signal: None,
                 },
             )
             .to_string()
@@ -262,6 +263,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     scenes: self.scenes.lock().unwrap().as_ref(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
                     font_source: Some(self.fonts.lock().unwrap().deref()),
+                    abort_signal: None,
                 },
             )
             .to_string();

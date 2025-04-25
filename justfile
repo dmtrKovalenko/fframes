@@ -45,7 +45,7 @@ play example:
   cd examples/{{example}} && ffplay out.mp4
 
 bench example *ARGS:
-  cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release
+  cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release {{ARGS}}
 
 hyperfine example *ARGS:
   #!/bin/bash

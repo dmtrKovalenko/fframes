@@ -114,6 +114,7 @@ impl<TBackend: SkiaBackend> SkiaFFramesRenderer<'_, TBackend> {
                 width: TVideo::WIDTH,
                 height: TVideo::HEIGHT,
             },
+            abort_signal: None,
             duration_in_frames: fframes_ctx.runtime.timeline.duration_in_frames,
             mode: fframes::FFramesMode::Editor,
             scenes: fframes_ctx.runtime.timeline.scenes.as_ref(),

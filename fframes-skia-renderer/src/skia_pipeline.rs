@@ -136,7 +136,7 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
     let metrics = Arc::new(crate::metrics::PipelineMetrics::new(1));
 
     thread::scope(|scope| -> FFramesRendererResult<()> {
-        scope.spawn(|| {
+        let generator_handle = scope.spawn(|| {
             spawn_frame_generator(
                 video,
                 frame_range.clone(),
@@ -150,11 +150,14 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
             )
         });
 
-        scope.spawn(|| unsafe {
+        let encoder_handle = scope.spawn(|| unsafe {
             spawn_video_encoder(
                 render_receiver,
                 &encoder,
                 frame_range.end - frame_range.start,
+                // we have to pass abort signals to all threads to not wait for the
+                // buffer queue to be empty before being able to finish the pipeline
+                ctx.abort_signal,
                 #[cfg(feature = "debug")]
                 metrics.encoder_metrics.clone(),
             )
@@ -165,9 +168,20 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
             logger.clone(),
             frame_receiver,
             render_sender,
+            ctx.abort_signal,
             #[cfg(feature = "debug")]
             metrics.renderer_metrics.clone(),
         )?;
+
+        generator_handle.join().map_err(|e| {
+            FFramesRendererError::Internal(format!("Frame generator thread panicked: {:?}", e))
+        })??;
+        encoder_handle
+            .join()
+            .map_err(|e| {
+                FFramesRendererError::Internal(format!("Encoder thread panicked: {:?}", e))
+            })?
+            .map_err(|e| FFramesRendererError::RenderChunkError(0, e))?;
 
         Ok(())
     })?;
@@ -205,6 +219,13 @@ fn spawn_frame_generator<'a, 'media: 'a, TVideo: Video + Sync + Send>(
     for frame in frame_range {
         #[cfg(feature = "debug")]
         let start = Instant::now();
+
+        if ctx
+            .abort_signal
+            .is_some_and(fframes::AbortSignal::is_aborted)
+        {
+            return Err(FFramesRendererError::Aborted);
+        }
 
         let fframe = fframes::Frame::__internal_make_for_renderer(
             frame,
@@ -252,9 +273,12 @@ fn spawn_renderer<TBackend: SkiaBackend>(
     logger: Arc<dyn FFramesLogger>,
     frame_receiver: Receiver<FrameRequest>,
     render_sender: thingbuf::mpsc::blocking::Sender<RenderPayload>,
+    abort_signal: Option<&fframes::AbortSignal>,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
     let (mut surface, mut gpu_context) = backend.create_skia_surface()?;
+    let image_info = surface.image_info();
+    let frame_datavec_size = image_info.compute_byte_size(image_info.min_row_bytes());
 
     while let Ok(FrameRequest { dom, frame }) = {
         #[cfg(feature = "debug")]
@@ -269,8 +293,9 @@ fn spawn_renderer<TBackend: SkiaBackend>(
 
         result
     } {
-        let image_info = surface.image_info();
-        let frame_datavec_size = image_info.compute_byte_size(image_info.min_row_bytes());
+        if abort_signal.is_some_and(fframes::AbortSignal::is_aborted) {
+            return Err(FFramesRendererError::Aborted);
+        }
 
         #[cfg(feature = "debug")]
         let start = Instant::now();
@@ -283,8 +308,6 @@ fn spawn_renderer<TBackend: SkiaBackend>(
             }
 
             let dom = dom.into_inner();
-
-            let image_info = surface.image_info();
             let pixmap = skia_safe::Pixmap::new(
                 &image_info,
                 &mut payload.pixels,
@@ -330,6 +353,7 @@ unsafe fn spawn_video_encoder<'a, 'media: 'a>(
     render_receiver: thingbuf::mpsc::blocking::Receiver<RenderPayload>,
     encoder: &Encoder,
     frames_to_render: usize,
+    abort_signal: Option<&fframes::AbortSignal>,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> RenderEncodingResult<()> {
     unsafe {
@@ -348,6 +372,10 @@ unsafe fn spawn_video_encoder<'a, 'media: 'a>(
 
             result
         } {
+            if abort_signal.is_some_and(fframes::AbortSignal::is_aborted) {
+                return Err(fframes::RenderEncodingError::Aborted);
+            }
+
             #[cfg(feature = "debug")]
             let start = Instant::now();
 
