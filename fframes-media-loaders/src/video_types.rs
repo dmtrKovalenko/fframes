@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
@@ -12,7 +13,7 @@ pub struct FrameConvertOptions {
     pub resize: ResizeVideoFrame,
 }
 
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct GeneralVideoFileMetadata {
     pub width: u32,

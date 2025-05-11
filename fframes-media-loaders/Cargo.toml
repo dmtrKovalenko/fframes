@@ -15,13 +15,16 @@ quote = { version = "1.0.9", optional = true }
 webvtt-parser.workspace = true
 bytemuck = { version = "1.13.1", features = ["derive"] }
 ttf-parser = "0.19.1"
-wasm-bindgen.workspace = true
 itoa = "1.0.14"
 kamadak-exif = { workspace = true, optional = true }
+base64 = { version = "0.22.1" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ffmpeg-sys-fframes.workspace = true
-image = { version = "0.24.6", default-features = false, features = [
+image = { version = "0.25.6", default-features = false, features = [
   "png",
   "jpeg",
 ] }

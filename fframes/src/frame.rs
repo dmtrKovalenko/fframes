@@ -387,12 +387,12 @@ impl Frame {
     ///
     /// **Make sure this function is not working in the editor for now. Editor will automatically fallback to
     /// `{your_video_file}.{your_extension}_fallback.{jpg|png}` image file for preview if it exists
-    pub fn get_synced_video_frame(
+    pub fn get_synced_video_frame<'media>(
         &self,
-        ctx: &crate::FFramesContext<'_, '_>,
+        ctx: &crate::FFramesContext<'_, 'media>,
         file_name: impl AsRef<str>,
-        input: &SyncVideoFrameInput,
-    ) -> Option<Arc<impl FFramesSyncedVideoFrame + 'static>> {
+        input: &SyncVideoFrameInput<'media>,
+    ) -> Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>> {
         let video = ctx.get_video(file_name.as_ref())?;
         let start_from_frame = self.second_to_frame(input.start_from);
         if self.index < start_from_frame {

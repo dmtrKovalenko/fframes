@@ -1,13 +1,18 @@
+use std::sync::OnceLock;
+
 use crate::{PixelVideo, RandomPhotos};
 use fframes::{
     Rotate, Scene, Svgr, Transform, Video,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
+    exif::Tag,
+    media::ImageData,
 };
 use rand::Rng;
+
 #[derive(Debug)]
 pub struct PolaroidDevelopment<'a> {
     duration: f32,
-    photos: Vec<&'a str>,
+    photos: Vec<PhotoWithExif<'a>>,
     development_animations: Vec<KeyFramesAnimation<f32>>,
     /// animation for linked x, y, rotation
     position_animations: Vec<KeyFramesAnimation<(f32, f32, f32)>>,
@@ -42,8 +47,7 @@ impl Scene for PolaroidDevelopment<'_> {
             </defs>
 
             {self.photos.iter().enumerate().filter_map(|(index, photo)| {
-                let image = ctx.get_image(photo)?;
-                let year = image.get_year();
+                let (image, year) = photo.image_and_year(ctx)?;
 
                 let original_width = image.metadata.width as f32;
                 let original_height = image.metadata.height as f32;
@@ -151,6 +155,46 @@ impl Scene for PolaroidDevelopment<'_> {
     }
 }
 
+#[derive(Debug)]
+struct PhotoWithExif<'a> {
+    id: &'a str,
+    exif_year: OnceLock<Option<String>>,
+}
+
+impl<'a, 'media: 'a> PhotoWithExif<'a> {
+    fn new(id: &'a str) -> Self {
+        Self {
+            id,
+            exif_year: OnceLock::new(),
+        }
+    }
+
+    fn image_and_year(
+        &'a self,
+        ctx: &fframes::FFramesContext<'a, 'media>,
+    ) -> Option<(&'media ImageData<'media>, &'a str)> {
+        let image = ctx.get_image(self.id)?;
+        // Parsing EXIF data occurs during the on-demand render, and it’s a rather long, blocking process
+        // that only becomes available after the context is created.
+        // 1) Cache the result to reuse across frames
+        // 2) Avoid performing it in the timeline to speed up the initial load
+        let year = match ctx.mode {
+            fframes::FFramesMode::EditorTimelinePreview => "",
+            _ => self
+                .exif_year
+                .get_or_init(|| {
+                    let year = image.get_exif_data(Tag::DateTime)?;
+
+                    Some(year.display_value().to_string().get(..4)?.to_string())
+                })
+                .as_deref()
+                .unwrap_or("♥︎"),
+        };
+
+        Some((image, year))
+    }
+}
+
 impl<'a> PolaroidDevelopment<'a> {
     pub fn generate(rng: &mut impl Rng, tempo: f32, images: &mut RandomPhotos<'a>) -> Self {
         const BLOW_OUT_DURATION: f32 = 0.5;
@@ -249,7 +293,7 @@ impl<'a> PolaroidDevelopment<'a> {
 
         Self {
             duration: total_duration + BLOW_OUT_DURATION,
-            photos,
+            photos: photos.into_iter().map(PhotoWithExif::new).collect(),
             development_animations,
             position_animations,
             drop_shadow_animations,

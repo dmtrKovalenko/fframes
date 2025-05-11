@@ -36,7 +36,7 @@ pub trait FramedImage {
     fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr;
 }
 
-impl FramedImage for ImageData {
+impl FramedImage for ImageData<'_> {
     fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr {
         fframes::svgr!(
             <rect

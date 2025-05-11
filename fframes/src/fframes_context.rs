@@ -65,7 +65,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         self.media_source?.resolve_subtitles(filename.as_ref())
     }
 
-    pub fn get_image(&self, filename: impl AsRef<str>) -> Option<&'media ImageData> {
+    pub fn get_image(&self, filename: impl AsRef<str>) -> Option<&'media ImageData<'media>> {
         self.media_source?.resolve_image(filename.as_ref())
     }
 

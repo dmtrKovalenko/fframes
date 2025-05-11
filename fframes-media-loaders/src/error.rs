@@ -1,6 +1,4 @@
 pub enum FFramesMediaError {
-    #[cfg(not(target_arch = "wasm32"))]
-    ImageError(image::ImageError),
     LibAVAllocationError(&'static str),
     LibAVAudioDecodingError((i32, String)),
     LibAVVideoDecodingError((i32, String)),
@@ -9,6 +7,11 @@ pub enum FFramesMediaError {
     VttError(webvtt_parser::VttError),
     NulError(std::ffi::NulError),
     MediaDirectoryProvided,
+    Base64Error(base64::DecodeError),
+    #[cfg(not(target_arch = "wasm32"))]
+    ImageError(image::ImageError),
+    #[cfg(feature = "exif")]
+    ExifError(exif::Error),
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -36,6 +39,19 @@ impl From<std::ffi::NulError> for FFramesMediaError {
     }
 }
 
+impl From<base64::DecodeError> for FFramesMediaError {
+    fn from(err: base64::DecodeError) -> Self {
+        Self::Base64Error(err)
+    }
+}
+
+#[cfg(feature = "exif")]
+impl From<exif::Error> for FFramesMediaError {
+    fn from(err: exif::Error) -> Self {
+        Self::ExifError(err)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, FFramesMediaError>;
 
 impl std::fmt::Debug for FFramesMediaError {
@@ -58,6 +74,9 @@ impl std::fmt::Debug for FFramesMediaError {
                 f,
                 "Can not open directory as a media file. Use a separate media source for directories."
             ),
+            Self::Base64Error(err) => write!(f, "Base64 error: {:?}", err),
+            #[cfg(feature = "exif")]
+            Self::ExifError(err) => write!(f, "Parsing exif metadata error: {:?}", err),
         }
     }
 }

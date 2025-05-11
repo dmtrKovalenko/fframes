@@ -19,7 +19,7 @@ impl Debug for RawFontData {
 
 pub trait MediaProvider<'a>: Send + Sync + Debug {
     fn resolve_audio(&'a self, name: &str) -> Option<&'a AudioData<'a>>;
-    fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData>;
+    fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData<'a>>;
     fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles<'a>>;
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia>;
 
@@ -58,7 +58,7 @@ impl<'a> MediaProvider<'a> for () {
         None
     }
 
-    fn resolve_image(&'a self, _name: &str) -> Option<&'a media::ImageData> {
+    fn resolve_image(&'a self, _name: &str) -> Option<&'a media::ImageData<'a>> {
         None
     }
 
@@ -89,7 +89,7 @@ impl StaticMediaProvider<'_> for () {
 #[derive(Clone, Default, Debug)]
 pub struct DynamicMediaProvider<'media> {
     pub audio: HashMap<String, AudioData<'media>>,
-    pub images: HashMap<String, media::ImageData>,
+    pub images: HashMap<String, media::ImageData<'media>>,
     pub subtitles: HashMap<String, media::Subtitles<'media>>,
     pub videos: HashMap<String, media::VideoMedia>,
     pub fontdata: Vec<RawFontData>,
@@ -98,7 +98,7 @@ pub struct DynamicMediaProvider<'media> {
 impl<'media> DynamicMediaProvider<'media> {
     pub fn new(
         audio: HashMap<String, AudioData<'media>>,
-        images: HashMap<String, media::ImageData>,
+        images: HashMap<String, media::ImageData<'media>>,
         subtitles: HashMap<String, media::Subtitles<'media>>,
         videos: HashMap<String, media::VideoMedia>,
         fonts_data: Vec<RawFontData>,
@@ -118,7 +118,7 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
         self.audio.get(name)
     }
 
-    fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData> {
+    fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData<'a>> {
         self.images.get(name)
     }
 
@@ -201,7 +201,7 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
             .find_map(|provider| provider.resolve_audio(name))
     }
 
-    fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData> {
+    fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData<'a>> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_image(name))

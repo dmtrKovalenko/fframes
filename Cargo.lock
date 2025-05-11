@@ -498,7 +498,7 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_renderer",
- "image 0.25.5",
+ "image",
  "rayon",
  "serde",
  "serde_json",
@@ -784,9 +784,10 @@ dependencies = [
 name = "fframes-media-loaders"
 version = "1.0.0-beta.6.rc-3.2"
 dependencies = [
+ "base64 0.22.1",
  "bytemuck",
  "ffmpeg-sys-next",
- "image 0.24.9",
+ "image",
  "itoa",
  "kamadak-exif",
  "libc",
@@ -840,7 +841,7 @@ dependencies = [
  "ffmpeg-sys-next",
  "fframes",
  "futures",
- "image 0.25.5",
+ "image",
  "indicatif",
  "kamadak-exif",
  "lazy_static",
@@ -1152,7 +1153,7 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_renderer",
- "image 0.25.5",
+ "image",
 ]
 
 [[package]]
@@ -1169,23 +1170,9 @@ checksum = "fbd780fe5cc30f81464441920d82ac8740e2e46b29a6fad543ddd075229ce37e"
 
 [[package]]
 name = "image"
-version = "0.24.9"
+version = "0.25.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5690139d2f55868e080017335e4b94cb7414274c74f1669c84fb5feba2c9f69d"
-dependencies = [
- "bytemuck",
- "byteorder",
- "color_quant",
- "jpeg-decoder",
- "num-traits",
- "png",
-]
-
-[[package]]
-name = "image"
-version = "0.25.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd6f44aed642f18953a158afeb30206f4d50da59fbc66ecb53c66488de73563b"
+checksum = "db35664ce6b9810857a38a906215e75a9c879f0696556a39f59c62829710251a"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
@@ -1848,7 +1835,7 @@ dependencies = [
  "fframes_renderer",
  "fframes_skia_renderer",
  "getrandom 0.2.15",
- "image 0.25.5",
+ "image",
  "rand",
 ]
 
@@ -2915,9 +2902,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.57"
+version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b17e741662c70c8bd24ac5c5b18de314a2c26c32bf8346ee1e6f53de919c283"
+checksum = "33b6dd2ef9186f1f2072e409e99cd22a975331a6b3591b12c764e0e55c60d5d2"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

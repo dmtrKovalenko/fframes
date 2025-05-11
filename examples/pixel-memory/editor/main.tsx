@@ -8,6 +8,7 @@ import "@fframes/editor/dist/fframes-editor.css";
 await initWasm();
 
 renderEditor(create_wasm_bridge(), {
+  dynamicImageSizeLimitBytes: 1024 * 1024 * 2,
   dynamicMediaFolder: import.meta.glob("../photos/*", {
     query: "url",
     import: "default",

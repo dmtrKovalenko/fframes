@@ -149,12 +149,13 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
         base64_data: Option<String>,
     ) {
         let mut media_provider = self.media_provider.lock().unwrap();
-        let base64_data =
-            fframes::media::Base64ImageData::new_owned(base64_data.unwrap_or_else(|| url.clone()));
+        let base64_data = fframes::media::OwnedSharedString::new_owned(
+            base64_data.unwrap_or_else(|| url.clone()),
+        );
 
         media_provider.images.insert(
             file.clone(),
-            fframes::media::ImageData::new_from_base_64_data(
+            fframes::media::ImageData::new_from_web_source(
                 base64_data,
                 url,
                 file,

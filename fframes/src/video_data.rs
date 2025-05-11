@@ -1,4 +1,4 @@
-use crate::{media::GeneralVideoFileMetadata, media::ImageData, FFramesContext};
+use crate::{FFramesContext, media::GeneralVideoFileMetadata, media::ImageData};
 use fframes_media_loaders::VideoMedia;
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ pub use fframes_media_loaders::{FrameConvertOptions, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
 
-pub trait FFramesSyncedVideoFrame {
+pub trait FFramesSyncedVideoFrame<'media> {
     /// Gets the original image from the frame
     /// This will perform color space conversion but will preserve the original frame
     /// size. If you need to render the video frame in the smaller size, use `into_resized_image`.
@@ -18,7 +18,7 @@ pub trait FFramesSyncedVideoFrame {
     /// This method take self to reuse frame data allocations, but you should not
     /// call this method more than once per the render function
     #[allow(clippy::wrong_self_convention)]
-    fn into_image(&self) -> ImageData;
+    fn into_image(&self) -> ImageData<'media>;
     /// Performs color space conversion and resizes the image to the specified size.
     /// Recommended to use this method if you render image in the smaller size than the original
     /// video e.g. as a pattern of some other shape or as a filler of standalone image.
@@ -26,7 +26,7 @@ pub trait FFramesSyncedVideoFrame {
     /// This method take self to reuse frame data allocations, but you should not
     /// call this method more than once per the render function
     #[allow(clippy::wrong_self_convention)]
-    fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData>;
+    fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>>;
     /// Get the native height of the frame
     fn height(&self) -> u32;
     /// Get the native size of the frame
@@ -41,8 +41,8 @@ pub trait FFramesSyncedVideoFrame {
     fn stream_duration_in_seconds(&self) -> f32;
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct SyncVideoFrameInput<'a> {
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SyncVideoFrameInput<'media> {
     /// The seconds timestamp in seconds to start playing the video from
     /// If not provided starts playing from the beginning of the video or scene.
     pub start_from: f32,
@@ -52,22 +52,22 @@ pub struct SyncVideoFrameInput<'a> {
     pub looping: bool,
     /// The wasm preview editor is not supporting decoding video frames in runtime
     /// so this allows to provide a fallback image for the debugging
-    pub editor_fallback_image: Option<&'a ImageData>,
+    pub editor_fallback_image: Option<&'media ImageData<'media>>,
 }
 
 /// This is used by the editor as a fallback for the static image
 #[derive(Debug, Clone)]
-pub struct WasmEditorVideoFrameFallback {
-    fallback_image: ImageData,
+pub struct WasmEditorVideoFrameFallback<'media> {
+    fallback_image: ImageData<'media>,
     video_metadata: GeneralVideoFileMetadata,
 }
 
-impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
-    fn into_image(&self) -> ImageData {
+impl<'media> FFramesSyncedVideoFrame<'media> for WasmEditorVideoFrameFallback<'media> {
+    fn into_image(&self) -> ImageData<'media> {
         self.fallback_image.clone()
     }
 
-    fn into_resized_image(&self, _options: &FrameConvertOptions) -> Option<ImageData> {
+    fn into_resized_image(&self, _options: &FrameConvertOptions) -> Option<ImageData<'media>> {
         Some(self.fallback_image.clone())
     }
 
@@ -101,8 +101,8 @@ impl FFramesSyncedVideoFrame for WasmEditorVideoFrameFallback {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
-    fn into_image(&self) -> ImageData {
+impl<'media> FFramesSyncedVideoFrame<'media> for fframes_media_loaders::FFmpegFrameBuf {
+    fn into_image(&self) -> ImageData<'media> {
         let image_data = unsafe { self.scale_and_return_latest_frame() };
 
         let filename = image_data.id.clone();
@@ -113,12 +113,10 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
                 width: self.get_width(),
                 height: self.get_height(),
             },
-            #[cfg(feature = "exif")]
-            None,
         )
     }
 
-    fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData> {
+    fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>> {
         let image_data = unsafe {
             self.reinit_sws_context(options)
                 .map_err(|e| {
@@ -137,8 +135,6 @@ impl FFramesSyncedVideoFrame for fframes_media_loaders::FFmpegFrameBuf {
                 width: self.get_width(),
                 height: self.get_height(),
             },
-            #[cfg(feature = "exif")]
-            None,
         ))
     }
 
@@ -199,13 +195,13 @@ impl VideoDecodersWorker {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(crate) fn get_synced_frame(
+    pub(crate) fn get_synced_frame<'media>(
         &self,
         media_ref: &VideoMedia,
         offset: i64,
         ctx: &FFramesContext,
-        options: &SyncVideoFrameInput,
-    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
+        options: &SyncVideoFrameInput<'media>,
+    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>>> {
         let Some(fallback_image) = options.editor_fallback_image else {
             return Ok(None);
         };
@@ -245,13 +241,13 @@ impl VideoDecodersWorker {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn get_synced_frame(
+    pub(crate) fn get_synced_frame<'media>(
         &self,
         VideoMedia { path, .. }: &VideoMedia,
         mut offset: i64,
-        ctx: &FFramesContext,
+        ctx: &FFramesContext<'_, 'media>,
         options: &SyncVideoFrameInput,
-    ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame + 'static>>> {
+    ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>>> {
         use crate::error::FFramesError;
         use fframes_media_loaders::FFramesMediaError;
 
