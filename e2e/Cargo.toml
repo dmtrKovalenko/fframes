@@ -8,9 +8,6 @@ fframes.workspace = true
 lazy_static = "1.4.0"
 rayon = "1.5.1"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { path = "../fframes-renderer" }
-
 [lib]
 name = "e2e_test_video"
 path = "src/lib.rs"

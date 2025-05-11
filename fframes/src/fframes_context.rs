@@ -3,8 +3,9 @@ use crate::{
     AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame, MediaProvider,
     ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
 };
-use fframes_media_loaders::VideoMedia;
+use fframes_media::VideoMedia;
 use std::iter::FromIterator;
+use std::sync::atomic::AtomicBool;
 
 #[derive(Clone, Debug)]
 pub enum FFramesMode {
@@ -54,6 +55,7 @@ pub struct FFramesContext<'a, 'media: 'a> {
     /// Media source can be used to resolve audio, video, images, and any other supported media
     pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
+    pub abort_signal: Option<&'media AbortSignal>,
 }
 
 impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
@@ -145,5 +147,55 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         });
 
         audio_data
+    }
+}
+
+/// A signal that can be used to abort the rendering process from the other thread to stop the
+/// rendering process or to abort the rendering process inside the rendering without panicking.
+///
+/// ```no_run
+/// let abort_signal = fframes::AbortSignal::new();
+/// let signal_clone = Arc::new(abort_signal.clone());
+///
+/// std::thread::spawn(move || {
+///     std::thread::sleep(std::time::Duration::from_secs(3));
+///     println!("Aborting rendering...");
+///     signal_clone.abort();
+/// });
+///
+/// fframes::render(
+///    "out.mp4",
+///    YourVideo::new(),
+///    fframes::RenderOptions {
+///        abort_signal: Some(&abort_signal),
+///    }
+/// )
+/// ```
+#[derive(Debug)]
+pub struct AbortSignal {
+    abort: AtomicBool,
+}
+
+impl AbortSignal {
+    pub fn new() -> Self {
+        Self {
+            abort: AtomicBool::new(false),
+        }
+    }
+
+    pub fn is_aborted(&self) -> bool {
+        self.abort.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// If the abort signal was populated at the `fframes::render` level it is possible
+    /// to abort the rendering process without panicking the thread
+    pub fn abort(&self) {
+        self.abort.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl Default for AbortSignal {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -4,15 +4,12 @@ version = "1.0.0-beta.6.rc-3.2"
 edition = "2024"
 
 [dependencies]
-fframes.workspace = true
+fframes = { workspace = true, features = ["h265", "libav-agree-gpl"] }
 clap = { version = "4.3.4", features = ["derive"] }
 serde = "1.0.210"
 serde_json = "1.0.132"
 rayon = "1.10.0"
 image = "0.25.4"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer = { path = "../../fframes-renderer", features = ["h265", "libav-agree-gpl"] }
 
 [features]
 default = ["renderer"]

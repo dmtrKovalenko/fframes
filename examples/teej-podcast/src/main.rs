@@ -1,8 +1,6 @@
 use clap::Parser;
-use fframes::Video;
-use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
-use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use fframes::{EncoderOptions, MediaDirectory, RenderOptions, Video, fframes_logger};
+use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
 use std::path::Path;
 use teej_podcast_example::{Chapter, TeejPodcast};
 
@@ -22,12 +20,11 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let media_folder =
-        fframes_renderer::MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
+    let media_folder = MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
     let dynamic_media = media_folder.process_media_source().unwrap();
     let vulkan_ctx = SkiaVulkanCtx::new(TeejPodcast::WIDTH, TeejPodcast::HEIGHT).unwrap();
 
-    render(
+    fframes::render(
         args.output.as_str(),
         &TeejPodcast::new(&[
             Chapter {

@@ -1,9 +1,13 @@
-use crate::{FFramesContext, FontSource, FontStretch, FontStyle, FontVariant, Svgr, svgr};
+use crate::{
+    FFramesContext, FontFace, FontSource, FontStretch, FontStyle, FontVariant, Svgr, svgr,
+};
 use lru::LruCache;
 use std::{
+    cell::RefCell,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
+    num::NonZeroUsize,
+    rc::Rc,
 };
 use usvgr::svgtree::SvgAttributeValue;
 
@@ -14,12 +18,69 @@ pub enum TextAlign {
     Right,
 }
 
+#[derive(Debug, Clone, Copy, Hash)]
+/// Define a query that will resolve a font from the provided media source.
+/// The values from the struct could be passed directly to the <text> element attributes like:
+///
+/// ```no_run
+/// let font = FontQuery {
+///    family: "Arial",
+///    size: 16,
+///    weight: 700,
+///    ..Default::default()
+/// }
+///
+/// svgr!(
+///  <text
+///     font-size={font.size}
+///     height={font.height}
+///     font-family={font.family}
+///     font-style={font.style}
+///     font-weight={font.weight}
+///     font-stretch={font.stretch}
+///  > "Hello world!" </text>
+/// )
+/// ```
+pub struct FontQuery<'a> {
+    pub family: &'a str,
+    pub size: usize,
+    pub weight: u16,
+    /// Font style (normal, italic, oblique) to use. If the font is variadic, applies the style.
+    /// If not - uses the will try to resolve font from the family that satisfies this style.
+    pub style: FontStyle,
+    pub stretch: FontStretch,
+}
+
+impl Default for FontQuery<'_> {
+    fn default() -> Self {
+        Self {
+            weight: 500,
+            size: 16,
+            family: "Arial",
+            style: Default::default(),
+            stretch: Default::default(),
+        }
+    }
+}
+
+impl FontQuery<'_> {
+    pub fn hash_with_value(&self, value: &str) -> u64 {
+        let mut s = DefaultHasher::new();
+        value.hash(&mut s);
+        self.hash(&mut s);
+
+        s.finish()
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct BreakLinesOpts<
     'a,
     TX: Into<SvgAttributeValue<'a>> + Hash + Default,
     TY: Into<SvgAttributeValue<'a>> + Hash + Default,
 > {
+    /// The font family to use for the text.
+    pub font: FontQuery<'a>,
     pub width: usize,
     /// Similar to css `line-height` property where 1.0 is the line height of the selected font
     /// size. 1.1 is 10% larger than the font size which adds 10% of the font size as a margin
@@ -29,17 +90,10 @@ pub struct BreakLinesOpts<
     pub line_height: f32,
     /// The font family to use for the text.
     /// **Pro tip**: check resolved font family name in the editor media panel.
-    pub font_family: &'a str,
-    pub font_size: usize,
     pub x: TX,
     pub y: TY,
     pub align: TextAlign,
-    pub font_weight: u16,
     pub fill: &'a str,
-    /// Font style (normal, italic, oblique) to use. If the font is variadic, applies the style.
-    /// If not - uses the will try to resolve font from the family that satisfies this style.
-    pub font_style: FontStyle,
-    pub font_stretch: FontStretch,
     /// The [dominant-baseline](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline) svg attribute specifies the dominant baseline,
     /// which is the baseline used to align the box's text and inline-level contents.
     /// It also indicates the default alignment baseline of any boxes
@@ -71,15 +125,12 @@ where
     /// `BreakLinesOpts` to the `text` svg element.
     pub fn create_text_svgr(self, children: Svgr<'a>) -> Svgr<'a> {
         let BreakLinesOpts::<'a, TX, TY> {
-            font_family,
-            font_size,
-            font_weight,
+            font,
             x,
             y,
             fill,
             dominant_baseline,
             text_anchor,
-            font_stretch,
             ..
         } = self;
 
@@ -88,10 +139,10 @@ where
             x={x.into()}
             y={y.into()}
             fill={fill}
-            font-size={font_size}
-            font-family={font_family}
-            font-weight={font_weight}
-            font-stretch={font_stretch.to_string()}
+            font-size={font.size}
+            font-family={font.family}
+            font-weight={font.weight}
+            font-stretch={font.stretch.to_string()}
             dominant-baseline={dominant_baseline}
             text-anchor={text_anchor}
           >
@@ -109,15 +160,13 @@ where
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.width.hash(state);
         self.line_height.to_bits().hash(state);
-        self.font_size.hash(state);
         self.x.hash(state);
         self.y.hash(state);
         self.align.hash(state);
-        self.font_weight.hash(state);
         self.fill.hash(state);
-        self.font_family.hash(state);
         self.dominant_baseline.hash(state);
         self.text_anchor.hash(state);
+        self.font.hash(state);
     }
 }
 
@@ -130,15 +179,11 @@ where
         Self {
             width: 0,
             line_height: 1.1,
-            font_family: Default::default(),
-            font_size: 16,
             x: TX::default(),
             y: TY::default(),
             fill: "",
+            font: FontQuery::default(),
             align: TextAlign::Left,
-            font_style: Default::default(),
-            font_stretch: Default::default(),
-            font_weight: 500,
             dominant_baseline: "auto",
             text_anchor: "start",
             opacity: 1.0,
@@ -146,16 +191,27 @@ where
     }
 }
 
+/// This is only fframes cache for text related processing, the actual
+/// glyph aliasing, text outlining happens in the rendering backend and
+/// can have its own cache
+#[doc(hidden)]
 #[derive(Debug, Clone)]
-pub struct BreaksLruCache(pub(crate) Arc<Mutex<LruCache<u64, Option<WrappedTextStructure>>>>);
+pub struct TextCache {
+    pub(crate) breaks_cache: Rc<RefCell<LruCache<u64, Option<WrappedTextStructure>>>>,
+    pub(crate) text_width_cache: Rc<RefCell<LruCache<u64, Option<usize>>>>,
+}
 
-impl BreaksLruCache {
+impl TextCache {
     pub fn new(size: usize) -> Option<Self> {
         if size > 0 {
-            Some(Self(Arc::new(Mutex::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(size)
-                    .unwrap_or(std::num::NonZeroUsize::new(1).unwrap()),
-            )))))
+            Some(Self {
+                breaks_cache: Rc::new(RefCell::new(LruCache::new(
+                    NonZeroUsize::new(size).unwrap(),
+                ))),
+                text_width_cache: Rc::new(RefCell::new(LruCache::new(
+                    NonZeroUsize::new(size).unwrap(),
+                ))),
+            })
         } else {
             None
         }
@@ -188,9 +244,7 @@ impl WrappedTextStructure {
             x,
             y,
             fill,
-            font_size,
-            font_family,
-            font_weight,
+            font,
             dominant_baseline,
             text_anchor,
             opacity,
@@ -206,9 +260,9 @@ impl WrappedTextStructure {
                 x={svgr_x.clone()}
                 y={svgr_y.clone()}
                 fill={fill}
-                font-size={font_size}
-                font-family={font_family}
-                font-weight={font_weight}
+                font-size={font.size}
+                font-family={font.family}
+                font-weight={font.weight}
                 dominant-baseline={dominant_baseline}
                 text-anchor={text_anchor}
                 opacity={opacity}
@@ -246,6 +300,46 @@ impl WrappedTextStructure {
     }
 }
 
+fn calc_text_width(
+    text: &str,
+    font_face: &dyn FontFace,
+    font_size: usize,
+    font_variant: FontVariant,
+) -> usize {
+    match text {
+        "" => 0,
+        "\n" | "\r" => 0,
+        text => match font_variant {
+            FontVariant::Monospaced(mono_width) => text.len() * mono_width,
+            FontVariant::Variable => text
+                .chars()
+                .filter_map(|char| font_face.resolve_char_width(font_size, char))
+                .sum(),
+        },
+    }
+}
+
+pub(crate) fn text_get_width_impl<'a>(
+    font_query: FontQuery,
+    text: &'a str,
+    font_source: &'a (dyn FontSource<'a> + 'a),
+) -> Option<usize> {
+    let font_face = font_source.resolve_font(
+        font_query.family,
+        font_query.weight,
+        font_query.style,
+        font_query.stretch,
+    )?;
+
+    let font_variant = font_face.font_variant(font_query.size)?;
+    Some(calc_text_width(
+        text,
+        font_face.as_ref(),
+        font_query.size,
+        font_variant,
+    ))
+}
+
 pub(crate) fn text_wrap_impl<
     'a,
     'b,
@@ -260,17 +354,13 @@ pub(crate) fn text_wrap_impl<
     let BreakLinesOpts {
         width,
         align,
-        font_family,
-        font_size,
-        font_weight,
-        font_style,
-        font_stretch,
+        font,
         line_height,
         ..
     } = options;
 
     let font_face = if let Some(font_face) =
-        font_source.resolve_font(font_family, font_weight, font_style, font_stretch)
+        font_source.resolve_font(font.family, font.weight, font.style, font.stretch)
     {
         font_face
     } else {
@@ -280,29 +370,17 @@ pub(crate) fn text_wrap_impl<
         return None;
     };
 
-    let font_variant = font_face.font_variant(font_size)?;
+    let font_variant = font_face.font_variant(font.size)?;
     let space_width = match font_variant {
         crate::FontVariant::Monospaced(mono_width) => mono_width,
-        crate::FontVariant::Variable => font_face.resolve_char_width(font_size, ' ')?,
-    };
-
-    let resolve_word_width = |word: &str| -> Option<usize> {
-        let raw_width = match font_variant {
-            crate::FontVariant::Monospaced(mono_width) => word.len() * mono_width,
-            crate::FontVariant::Variable => word
-                .chars()
-                .filter_map(|char| font_face.resolve_char_width(font_size, char))
-                .sum(),
-        };
-
-        Some(raw_width)
+        crate::FontVariant::Variable => font_face.resolve_char_width(font.size, ' ')?,
     };
 
     let mut structure = vec![(vec![], 0usize)];
-    let line_height_in_px = line_height * font_size as f32;
+    let line_height_in_px = line_height * font.size as f32;
 
     for word in value.split_whitespace() {
-        let word_width = resolve_word_width(word)?;
+        let word_width = calc_text_width(word, font_face.as_ref(), font.size, font_variant);
         let (last_line, last_line_width) = structure.last_mut()?;
 
         if *last_line_width + space_width + word_width > width {

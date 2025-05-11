@@ -13,6 +13,11 @@ mod svgr;
 mod text;
 mod video;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod renderer;
+#[cfg(not(target_arch = "wasm32"))]
+pub use renderer::*;
+
 // Methods that we are not pub use ::* should be declared here:
 pub mod animation;
 pub mod error;
@@ -42,12 +47,14 @@ pub use video::*;
 pub use video_data::*;
 
 // reexported deps
+pub use crate::usvgr::roxmltree;
+pub use fframes_media as media;
 pub use fframes_media_dir_macro::*;
-pub use fframes_media_loaders as media;
 pub use lazy_static;
 pub use lru;
 pub use media::bytemuck;
-pub use roxmltree;
+#[cfg(not(target_arch = "wasm32"))]
+pub use media::ffmpeg_sys_fframes;
 pub use serde;
 pub use ttf_parser;
 pub use usvgr;

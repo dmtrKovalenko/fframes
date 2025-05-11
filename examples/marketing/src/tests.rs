@@ -24,6 +24,7 @@ fn compile_time_svg() {
             duration_in_frames: 1200,
             font_source: None,
             scenes: None,
+            abort_signal: None,
         },
     );
 

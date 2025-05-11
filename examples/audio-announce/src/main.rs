@@ -1,10 +1,12 @@
 use audio_announce_example::{AudioAnnounce, AudioAnnounceMedia};
 use clap::Parser;
-use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider, Video};
-use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
+use fframes::{
+    CombinedMediaProvider, EncoderOptions, MediaProvider, RenderOptions, StaticMediaProvider,
+    Video, fframes_logger,
+};
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -23,28 +25,28 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let media = AudioAnnounceMedia::prepare().unwrap();
-    let media_folder =
-        fframes_renderer::MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
+    let media_folder = fframes::MediaDirectory::read_folder("./dynamic_media").unwrap();
     let dynamic_media = media_folder.process_media_source().unwrap();
 
     let vulkan_ctx = SkiaVulkanCtx::new(AudioAnnounce::WIDTH, AudioAnnounce::HEIGHT).unwrap();
 
-    render(
+    fframes::render(
         args.output.as_str(),
         &AudioAnnounce {
             media: &media,
             font: args.font.as_deref(),
         },
         // Render it with CPU to see the difference
-        // fframes_renderer::cpu::CpuRenderingBackend {
+        // fframes::cpu::CpuRenderingBackend {
         //     ..Default::default()
         // },
         SkiaFFramesRenderer::new_vulkan(
             &vulkan_ctx,
             SkiaPipelineConfig {
-                buffer_queue_size: 10,
+                buffer_queue_size: AudioAnnounce::FPS,
                 concurrency_policy:
-                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(3),
+                    // this works perfectly on my machine but you should test different options
+                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(4),
                 ..Default::default()
             },
         )

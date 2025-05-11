@@ -1,7 +1,7 @@
 [package]
 name = "hello-word-bridge-example"
 version = "1.0.0-beta.6.rc-3.2"
-authors = ["Dmitriy Kovalenoko <dmtr.kovalenko@outlook.com>"]
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2024"
 
 [package.metadata.wasm-pack.profile.profiling]

@@ -4,14 +4,11 @@ version = "1.0.0-beta.6.rc-3.2"
 edition = "2024"
 
 [dependencies]
-fframes.workspace = true
+fframes = { workspace = true, features = ["h265", "libav-agree-gpl"] }
 
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }
 futures = "0.3.17"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_renderer ={path="../../fframes-renderer", features=["h265", "libav-agree-gpl"]}
 
 [features]
 default=["renderer"]

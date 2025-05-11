@@ -1,7 +1,7 @@
 use crate::ConferenceMedia;
 use fframes::{
-    self, EstimateTextWidthOptions, FFramesContext, FontStretch, FontStyle, Frame, Scene, Svgr,
-    Transform,
+    self, EstimateTextWidthOptions, FFramesContext, FontQuery, FontStretch, FontStyle, Frame,
+    Scene, Svgr, Transform,
     animation::{self, Easing},
 };
 
@@ -31,15 +31,18 @@ impl Scene for SpeakerScene<'_> {
             line_height: 1.2,
             x: 90,
             y: TITLE_Y,
-            font_size: if self.talk_title.len() < 50 || self.talk_description.len() <= 300 {
-                70
-            } else {
-                56
+            font: FontQuery {
+                size: if self.talk_title.len() < 50 || self.talk_description.len() <= 300 {
+                    70
+                } else {
+                    56
+                },
+                family: "Inter 18pt",
+                weight: 800,
+                ..Default::default()
             },
-            font_family: "Inter 18pt",
             align: fframes::TextAlign::Left,
             fill: "white",
-            font_weight: 800,
             ..Default::default()
         };
 
@@ -67,17 +70,20 @@ impl Scene for SpeakerScene<'_> {
             line_height: 1.2,
             x: 90,
             y: abstract_y,
-            font_size: if self.talk_description.len() > 600 {
-                32
-            } else if self.talk_description.len() > 300 {
-                36
-            } else {
-                48
+            font: fframes::FontQuery {
+                size: if self.talk_description.len() > 600 {
+                    32
+                } else if self.talk_description.len() > 300 {
+                    36
+                } else {
+                    48
+                },
+                weight: 400,
+                family: "Inter 24pt",
+                ..Default::default()
             },
-            font_family: "Inter 24pt",
             align: fframes::TextAlign::Left,
             fill: "white",
-            font_weight: 400,
             ..Default::default()
         };
 

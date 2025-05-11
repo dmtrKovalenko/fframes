@@ -2,55 +2,85 @@
 name = "fframes"
 version = "1.0.0-beta.6.rc-3.2"
 edition = "2024"
-authors = ["Dmitriy Kovalenoko <dmtr.kovalenko@outlook.com>"]
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 license = "MIT"
 description = "A video generation framework"
 homepage = "https://fframes.studio"
+build = "build.rs"
+
+[[bench]]
+name = "yuv420_conversion"
+harness = false
+
+[lib]
+doctest = false
 
 [dependencies]
-microfft = "0.4.0"
+microfft = "0.6.0"
 libm = "0.2.1"
 lazy_static = "1.4.0"
 num = "0.4.1"
-konst = "0.2.15"
-roxmltree = "0.14.1"
+konst = "0.3.16"
 rangemap = "1.0.3"
-ttf-parser = "0.18.0"
-lru = "0.9.0"
+ttf-parser = "0.25.1"
+lru = "0.14.0"
 serde = { version = "1.0", features = ["derive"] }
 parking_lot = "0.12.1"
 
 # fframes dependencies
 usvgr.workspace = true
 svgr-macro.workspace = true
-fframes-media-loaders.workspace = true
+fframes-media.workspace = true
 fframes-media-dir-macro.workspace = true
 kamadak-exif.workspace = true
 
-[dev-dependencies]
+# these are renderer/encoder specific dependnecies
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+svgr = { workspace = true, optional = true }
+rayon = "1.5.1"
+colored = "2"
 futures = "0.3.24"
-approx = "0.5.0"
+image = "0.25.0"
+memmap = "0.7.0"
+indicatif = "0.16.2"
+once_cell = "1.10.0"
+uuid = { version = "1.8.0", features = ["v4"] }
 
-[lib]
-doctest = false
+[dev-dependencies]
+approx = "0.5.0"
+rand = "0.9.1"
+criterion = "0.5"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.100"
 
 [features]
-exif = ["fframes-media-loaders/exif", "fframes-media-dir-macro/exif"]
+# by default we enable only platform specific encoders that 
+# would be always populated by the platform sysroot itself
+default = ["cpu_renderer"]
+cpu_renderer = ["svgr"]
+exif = ["fframes-media/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
-media-h264 = ["fframes-media-loaders/h264"]
-media-h265 = ["fframes-media-loaders/h265"]
-media-videotoolbox = ["fframes-media-loaders/videotoolbox"]
-media-audiotoolbox = ["fframes-media-loaders/audiotoolbox"]
-media-aac = ["fframes-media-loaders/aac"]
-media-mp3lame = ["fframes-media-loaders/mp3lame"]
-media-opus = ["fframes-media-loaders/opus"]
-media-vpx = ["fframes-media-loaders/vpx"]
-media-libav-agree-gpl = ["fframes-media-loaders/libav-agree-gpl"]
-media-libav-agree-nonfree = ["fframes-media-loaders/libav-agree-nonfree"]
-media-libav-agree-version3 = ["fframes-media-loaders/libav-agree-version3"]
+
+# enable various encoders & decoders
+h264 = ["fframes-media/h264"]
+h265 = ["fframes-media/h265"]
+aac = ["fframes-media/aac"]
+mp3lame = ["fframes-media/mp3lame"]
+opus = ["fframes-media/opus"]
+vpx = ["fframes-media/vpx"]
+# enable various hardware accelerations
+videotoolbox = ["fframes-media/videotoolbox"]
+audiotoolbox = ["fframes-media/audiotoolbox"]
+vaapi = ["fframes-media/vaapi"]
+nvidia = ["fframes-media/nvidia"]
+qsv = ["fframes-media/qsv"]
+vulkan = ["fframes-media/vulkan"]
+mediacodec = ["fframes-media/mediacodec"]
+# might b required for some of the other features licensing
+libav-agree-gpl = ["fframes-media/libav-agree-gpl"]
+libav-agree-nonfree = ["fframes-media/libav-agree-nonfree"]
+libav-agree-version3 = ["fframes-media/libav-agree-version3"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

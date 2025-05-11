@@ -6,7 +6,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use fframes_renderer::{FFramesRendererError, FFramesRendererResult};
+use fframes::{FFramesRendererError, FFramesRendererResult};
 
 pub trait OrderedRequest {
     fn index(&self) -> usize;

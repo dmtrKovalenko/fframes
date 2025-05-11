@@ -39,7 +39,7 @@ pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> 
     video_ctx: RefCell<Pin<Box<VideoCtx<T>>>>,
     static_media: &'static TMedia,
     duration_in_frames: Mutex<usize>,
-    break_lines_cache: fframes::BreaksLruCache,
+    break_lines_cache: fframes::TextCache,
     fonts: Mutex<wasm_font_source::WasmFontSource>,
     scenes: Mutex<Option<fframes::ResolvedScenesTimeline<'static>>>,
     time_base: Mutex<Option<fframes::TimeBase>>,
@@ -53,7 +53,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             video_ctx: RefCell::new(VideoCtx::new(video)),
             static_media,
             duration_in_frames: Mutex::new(0),
-            break_lines_cache: fframes::BreaksLruCache::new(10).unwrap(),
+            break_lines_cache: fframes::TextCache::new(20).unwrap(),
             fonts: Mutex::new(wasm_font_source::WasmFontSource::new()),
             scenes: Mutex::new(None),
             time_base: Mutex::new(None),
@@ -222,6 +222,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     font_source: Some(self.fonts.lock().unwrap().deref()),
                     scenes: self.scenes.lock().unwrap().as_ref(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
+                    abort_signal: None,
                 },
             )
             .to_string()
@@ -263,6 +264,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     scenes: self.scenes.lock().unwrap().as_ref(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
                     font_source: Some(self.fonts.lock().unwrap().deref()),
+                    abort_signal: None,
                 },
             )
             .to_string();

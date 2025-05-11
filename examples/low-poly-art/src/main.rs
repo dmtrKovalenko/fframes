@@ -1,5 +1,4 @@
-use fframes::{CombinedMediaProvider, MediaProvider};
-pub use fframes_renderer::{RenderOptions, fframes_logger, render};
+use fframes::{CombinedMediaProvider, MediaProvider, RenderOptions, fframes_logger};
 use low_poly_art_example::{LowPolyMedia, LowPolyVideo, owl};
 
 /// Make sure that this example will compile very slowly but the rendering will be (relatively) fast.
@@ -14,13 +13,13 @@ fn main() {
         &owl_media as &dyn MediaProvider,
     ]);
 
-    render(
+    fframes::render(
         "out.mp4",
         &LowPolyVideo {
             media: &media,
             scene: &owl::Owl { media: &owl_media },
         },
-        fframes_renderer::cpu::CpuRenderingBackend {
+        fframes::cpu::CpuRenderingBackend {
             // Don't need a lot of capacity because the whole sub-svg of animal scene will be cached
             cache_capacity: 5,
             ..Default::default()

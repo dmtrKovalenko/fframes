@@ -1,6 +1,4 @@
-import initWasm, {
-  create_wasm_bridge,
-} from "./editor-bridge/pkg/hello_word_bridge_example";
+import initWasm, { create_wasm_bridge } from "./editor-bridge/pkg";
 import { renderEditor } from "@fframes/editor";
 import "@fframes/editor/dist/fframes-editor.css";
 

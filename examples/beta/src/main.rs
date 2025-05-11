@@ -1,8 +1,8 @@
 use beta_example::{BetaExamples, BetaVideo};
-use fframes::{CombinedMediaProvider, lazy_static::lazy_static};
-use fframes::{MediaProvider, StaticMediaProvider};
-use fframes_renderer::cpu::CpuRenderingBackend;
-use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
+use fframes::{
+    CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
+    StaticMediaProvider, cpu::CpuRenderingBackend, fframes_logger, lazy_static::lazy_static,
+};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use marketing_example::{MarketingMedia, MarketingVideo};
 use podcast_example::PodcastVideo;
@@ -16,7 +16,7 @@ lazy_static! {
 }
 
 fn main() {
-    let media_folder = fframes_renderer::MediaDirectory::read_folder(Path::new("./media")).unwrap();
+    let media_folder = MediaDirectory::read_folder(Path::new("./media")).unwrap();
     let fs_media = media_folder.process_media_source().unwrap();
 
     let media = CombinedMediaProvider::from([
@@ -26,7 +26,7 @@ fn main() {
         &fs_media as &dyn MediaProvider,
     ]);
 
-    render(
+    fframes::render(
         "out.mp4",
         &BetaVideo {
             iphone_scene: beta_example::IphoneScene {

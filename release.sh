@@ -16,7 +16,7 @@ yarn publish --no-git-tag-version --access public --new-version "$VERSION"
 
 cd ../webvtt-parser && cargo publish --allow-dirty --no-verify
 cd ../svgr-macro && cargo publish --allow-dirty --no-verify
-cd ../fframes-media-loaders && cargo publish --allow-dirty --no-verify
+cd ../fframes-media && cargo publish --allow-dirty --no-verify
 cd ../media-dir-macro && cargo publish --allow-dirty --no-verify
 cd ../fframes && cargo publish --allow-dirty --no-verify
 cd ../fframes-editor-controller && cargo publish --allow-dirty --no-verify

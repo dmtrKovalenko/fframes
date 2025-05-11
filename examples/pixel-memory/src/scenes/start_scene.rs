@@ -1,4 +1,4 @@
-use fframes::{BreakLinesOpts, Scene, animation::Easing, timeline};
+use fframes::{BreakLinesOpts, FontQuery, Scene, animation::Easing, timeline};
 
 #[derive(Debug)]
 pub struct StartScene<'a> {
@@ -27,8 +27,11 @@ impl Scene for StartScene<'_> {
                 BreakLinesOpts {
                     x: "50%",
                     y: "30%",
-                    font_size: 124,
-                    font_family: "Space Grotesk",
+                    font: FontQuery {
+                        size: 124,
+                        family: "Space Grotesk",
+                        ..Default::default()
+                    },
                     fill: "#fff",
                     text_anchor: "middle",
                     dominant_baseline: "middle",

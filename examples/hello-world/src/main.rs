@@ -1,6 +1,5 @@
 use clap::Parser;
-use fframes::StaticMediaProvider;
-use fframes_renderer::{EncoderOptions, RenderOptions, fframes_logger, render};
+use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, fframes_logger};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use std::path::PathBuf;
 
@@ -26,20 +25,20 @@ fn main() {
     let args = Args::parse();
     let media = HelloWorldMedia::prepare().unwrap();
 
-    render(
+    fframes::render(
         "out.mp4",
         &HelloWorldVideo {
             media: &media,
             slug: &args.slug,
         },
         if let Some(concurrency) = args.concurrency {
-            fframes_renderer::cpu::CpuRenderingBackend {
+            fframes::cpu::CpuRenderingBackend {
                 concurrency,
                 cache_capacity: 5,
                 ..Default::default()
             }
         } else {
-            fframes_renderer::cpu::CpuRenderingBackend {
+            fframes::cpu::CpuRenderingBackend {
                 cache_capacity: 5,
                 ..Default::default()
             }

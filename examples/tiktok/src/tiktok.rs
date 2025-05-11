@@ -74,11 +74,14 @@ impl Video for GooseVideo<'_> {
                       line_height: 1.2,
                       x: "40",
                       y: "34%",
-                      font_size: 100,
-                      font_family: "JetBrains Mono",
+                      font: fframes::FontQuery {
+                        size: 100,
+                        weight: 400,
+                        family: "JetBrains Mono",
+                        ..Default::default()
+                      },
                       align: fframes::TextAlign::Center,
                       fill: "white",
-                      font_weight: 400,
                       ..Default::default()
                     },
                 ).unwrap_or_default()}

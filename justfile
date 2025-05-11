@@ -45,7 +45,18 @@ play example:
   cd examples/{{example}} && ffplay out.mp4
 
 bench example *ARGS:
-  cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release
+  cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release {{ARGS}}
+
+hyperfine example *ARGS:
+  #!/bin/bash
+  set -eou pipefail
+
+  cd examples/{{example}}
+  EXECUTABLE=$(
+    cargo build --release {{ARGS}} --message-format=json |
+    jq -r 'select(.executable != null) | .executable'
+  )
+  hyperfine $EXECUTABLE --warmup 2
 
 check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown

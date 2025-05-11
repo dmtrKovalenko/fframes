@@ -4,21 +4,21 @@ description = "Rendering backend for fframes using skia"
 version = "1.0.0-beta.6.rc-3.2"
 edition = "2024"
 license = "MIT"
-authors = ["Dmitriy Kovalenoko <dmtr.kovalenko@outlook.com>"]
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 
 [lib]
 doctest = false
 
 [dependencies]
-skia-safe = { version = "0.80.2", package = "fframes-skia-safe", features = [
+skia-safe = { version = "0.84.2", package = "fframes-skia-safe", features = [
     "svg",
 ] }
 thingbuf = "0.1.6"
-fframes_renderer.workspace = true
 fframes.workspace = true
 ash = { version = "0.38.0", optional = true }
-metal-rs = { package = "metal", version = "0.30.0", optional = true }
+metal-rs = { package = "metal", version = "0.32.0", optional = true }
 uuid = "1.12.1"
+foreign-types-shared = "0.3.1"
 
 [features]
 default = ["gpu", "binary-cache"]

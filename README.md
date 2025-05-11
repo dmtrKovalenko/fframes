@@ -55,6 +55,8 @@ For the beta testing we provide a couple of examples you can use as a reference:
 - marketing – our marketing video example
 - podcast – an audio visualization for a podcast placeholder video
 - tiktok – displaying tiktok like vertical video
+- teej-podcast - teej's podcast with video and chapters visualization
+- pixel-memory - my dog's memorial video generator (totally randomized)
 
 To display the video editor for example you can use the following command:
 

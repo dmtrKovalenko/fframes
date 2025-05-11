@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use crate::{PixelVideo, RandomPhotos};
 use fframes::{
     Rotate, Scene, Svgr, Transform, Video,
@@ -8,6 +6,7 @@ use fframes::{
     media::ImageData,
 };
 use rand::Rng;
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct PolaroidDevelopment<'a> {

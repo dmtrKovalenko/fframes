@@ -162,7 +162,7 @@
             </g>
         </g>
     </g>
-    <image x="-1000" y="10" width="900" height="900" xlink:href="png"/>
+    <image x="-1000" y="10" width="900" height="900" xlink:href="code.png"/>
     <g clip-path="url(#clipPath1)">
         <g transform="matrix(0.33333334 0 0 0.33333334 1456 836.63403)">
             <g id="Layer-1">
