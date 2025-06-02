@@ -148,9 +148,7 @@ pub fn get_visualization(
     // imaginary part of the DC bin, it must be cleared before computing the amplitudes
     spectrum[0].im = 0.0;
 
-    let res = spectrum.iter().map(|x| x.norm()).collect::<Vec<f32>>();
-
-    res
+    spectrum.iter().map(|x| x.norm()).collect::<Vec<f32>>()
 }
 
 /// Prettifies audio spectrum by moving low frequencies (first elements) in the middle and all the other

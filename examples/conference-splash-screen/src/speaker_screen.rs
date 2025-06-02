@@ -177,7 +177,7 @@ impl Scene for SpeakerScene<'_> {
               />
             </filter>
 
-            <g filter={Transform::skew(tilt_angle, -tilt_angle + 0.4)}>
+            <g transform={Transform::skew(tilt_angle, -tilt_angle + 0.4)}>
               <rect
                 filter="url(#shadow)"
                 rx="60"

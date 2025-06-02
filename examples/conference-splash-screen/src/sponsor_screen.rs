@@ -63,7 +63,6 @@ impl Scene for SponsorScene<'_> {
             </text>
 
             <svg
-                id={frame.index}
                 y="250"
                 width="1140"
                 height="828"

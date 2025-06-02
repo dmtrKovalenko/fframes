@@ -432,11 +432,11 @@ impl Video for MarketingVideo<'_> {
                                     stroke-linejoin="round"
                                     opacity={frame.animate(
                                         &fframes::timeline!(
-                                            at 18.6, duration 0.4, animate 1. => 0.55, Easing::Linear
+                                            at 18.6, duration 0.3, animate 1. => 0.55, Easing::Linear
                                         )
                                     )}
                                     stroke-dashoffset={frame.animate(&fframes::timeline!(
-                                        at 18.7, duration 0.2, animate -40. => 0.0, Easing::Linear
+                                        at 18.7, duration 0.3, animate -40. => 0.0, Easing::Linear
                                     ))}
                                     stroke-dasharray={
                                         format!("{}, 137px", &frame.animate(
