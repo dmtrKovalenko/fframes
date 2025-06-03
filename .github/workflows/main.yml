@@ -102,11 +102,10 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with: 
           cache: true
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v3-rust"
           cache-on-failure: true
+          cache-key: "v3-rust"
+          components: rustfmt, clippy
+          target: wasm32-unknown-unknown
 
       - name: Check format
         run: cargo fmt --check
