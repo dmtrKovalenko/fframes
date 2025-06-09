@@ -128,8 +128,8 @@ pub enum FileVttParsingError {
 impl std::fmt::Display for FileVttParsingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileVttParsingError::IO(err) => write!(f, "Failed to read vtt file: {}", err),
-            FileVttParsingError::Vtt(error) => write!(f, "Failed to parse vtt file: {}", error),
+            FileVttParsingError::IO(err) => write!(f, "Failed to read vtt file: {err}"),
+            FileVttParsingError::Vtt(error) => write!(f, "Failed to parse vtt file: {error}"),
         }
     }
 }

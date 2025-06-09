@@ -1,5 +1,4 @@
 use super::{
-    EncoderOptions,
     encoder::Encoder,
     encoder_frame::EncoderFrame,
     renderer_error::{RenderEncodingError, RenderEncodingResult},
@@ -7,8 +6,8 @@ use super::{
     stream::StreamVariant,
 };
 pub use crate::ffmpeg_action;
-use crate::ffmpeg_sys_fframes::*;
 use crate::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
+use crate::{RenderOptions, ffmpeg_sys_fframes::*};
 use std::{
     ffi::CString,
     path::{Path, PathBuf},
@@ -102,7 +101,7 @@ unsafe fn open_file_stream(
 unsafe fn create_encoder_copy_from_file(
     file: &Path,
     output: &Path,
-    encoder_options: &EncoderOptions,
+    render_options: &RenderOptions,
 ) -> Result<Encoder, RenderEncodingError> {
     unsafe {
         let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
@@ -121,11 +120,8 @@ unsafe fn create_encoder_copy_from_file(
         );
 
         let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
-        let audio_stream = Stream::make_audio(
-            encoder_options.sample_rate as i32,
-            output_format_ctx,
-            encoder_options,
-        )?;
+        let audio_stream =
+            Stream::make_audio(output_format_ctx, &render_options.audio_encoder_options)?;
 
         let encoder = Encoder {
             video_stream: Stream {
@@ -267,11 +263,11 @@ pub unsafe fn concat_video_files_with_audio(
     output: &Path,
     concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
-    encoder_options: &EncoderOptions,
+    render_options: &RenderOptions,
     ctx: &FFramesContext,
 ) -> Result<(), RenderEncodingError> {
     unsafe {
-        let encoder = create_encoder_copy_from_file(&files[0], output, encoder_options)?;
+        let encoder = create_encoder_copy_from_file(&files[0], output, render_options)?;
 
         encoder.fill_video_stream_from_files(files)?;
         if let Some(audio_stream) = &encoder.audio_stream {

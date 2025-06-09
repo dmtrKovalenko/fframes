@@ -3,23 +3,26 @@ use super::{
     renderer_error::RenderEncodingError,
 };
 use crate::{
-    AbortSignal, AudioTimelineSamples, Frame, ResolvedRenderingTimeline, TextCache, Video,
-    VideoDecodersWorker, usvgr,
+    AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, TextCache,
+    Video, VideoDecodersWorker, usvgr,
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};
-use svgr::{PixmapPool, SvgrCache};
+use svgr::{PixmapPool, SvgrCache, tiny_skia::Color};
 use usvgr::fontdb;
 use uuid::Uuid;
 
 use super::{
     concatenator,
-    encoder::{Encoder, EncoderOptions},
+    encoder::Encoder,
     encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     renderer_error::{FFramesRendererError, FFramesRendererResult},
 };
 
+/// Default rendering backend for fframes that uses pure rust SVG rendering engine and extremely
+/// portable. It does not use GPU acceleration at all but still very competitive because of
+/// layer caching and SIMD optimizations.
 #[derive(Debug, Clone, Copy)]
 pub struct CpuRenderingBackend {
     /// The number of **individual svg elements or groups** to cache. Pure CPU rendering is very slow
@@ -58,7 +61,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &'a usvgr::Options,
-        encoder_options: &'a EncoderOptions<'a>,
+        render_options: &RenderOptions<'a, 'media>,
         font_db: &'a fontdb::Database,
         timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: &'a crate::FFramesContext<'a, 'media>,
@@ -70,14 +73,22 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
         let session = Uuid::new_v4();
         let tmp_path = std::env::temp_dir().join(format!("fframes-{session}"));
-        let directory = encoder_options.tmp_files_directory.unwrap_or(&tmp_path);
+        let directory = render_options.tmp_files_directory.unwrap_or(&tmp_path);
 
         if !directory.exists() {
             std::fs::create_dir(directory)?;
         }
 
-        let files = encoder_options
-            .split_video_chunks(ctx.duration_in_frames, self.concurrency)
+        let background_color = Color::from_rgba8(
+            TVideo::BACKGROUND_COLOR.r,
+            TVideo::BACKGROUND_COLOR.g,
+            TVideo::BACKGROUND_COLOR.b,
+            TVideo::BACKGROUND_COLOR.a,
+        );
+
+        let files = render_options
+            .video_encoder_options
+            .split_gop_chunks(ctx.duration_in_frames, self.concurrency)
             .par_iter()
             .enumerate()
             .map(|(thread_number, chunk_range)| {
@@ -93,7 +104,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                         ctx.current_video_size.height as i32,
                         ctx.time_base.fps as i32,
                         &file,
-                        encoder_options,
+                        render_options,
                         &logger,
                         &mut |encoder| {
                             let mut frame = EncoderFrame::new(&encoder.video_stream)?;
@@ -120,7 +131,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                         return Err(RenderEncodingError::Aborted);
                                     }
 
-                                    pixmap.fill(svgr::tiny_skia::Color::BLACK);
+                                    pixmap.fill(background_color);
                                     let svg = video.render_frame(
                                         Frame::__internal_make_for_renderer(
                                             fr,
@@ -183,7 +194,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                 output,
                 self.concurrency as i32,
                 timeline.audio_map.as_ref(),
-                encoder_options,
+                render_options,
                 ctx,
             )
             .map_err(FFramesRendererError::ConcatChunkError)?;

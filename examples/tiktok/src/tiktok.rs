@@ -17,6 +17,7 @@ impl Video for GooseVideo<'_> {
     const FPS: usize = 60;
     const WIDTH: usize = 1080;
     const HEIGHT: usize = 1920;
+    const BACKGROUND_COLOR: fframes::Color = fframes::Color::TRANSPARENT;
 
     fn duration(&self) -> fframes::Duration {
         fframes::Duration::FromAudio("thought.mp3")
@@ -93,7 +94,7 @@ impl Video for GooseVideo<'_> {
                   y={1920 - 950}
                   x={1080 / 2 - 400}
                 />
-        </svg>
+            </svg>
         );
         svgr
     }

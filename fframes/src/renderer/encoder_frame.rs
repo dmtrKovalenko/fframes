@@ -32,7 +32,8 @@ impl FrameFormatConvertor {
             }
 
             let tmp_frame = av_frame_alloc();
-            (*tmp_frame).format = AVPixelFormat::AV_PIX_FMT_YUV420P as i32;
+            // The data fro the frame is always RGBA coming directly from the pixmap
+            (*tmp_frame).format = AVPixelFormat::AV_PIX_FMT_RGBA as i32;
             (*tmp_frame).width = (*video_stream.enc).width;
             (*tmp_frame).height = (*video_stream.enc).height;
 

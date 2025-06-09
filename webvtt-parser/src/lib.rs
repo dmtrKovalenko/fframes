@@ -633,7 +633,7 @@ mod tests {
         let content = include_str!("../tests/simple.vtt");
 
         let vtt = Vtt::parse(content).unwrap();
-        assert_eq!(format!("{}", vtt), content)
+        assert_eq!(format!("{vtt}"), content)
     }
 
     #[test]

@@ -51,10 +51,13 @@ fn main() {
             } else {
                 fframes_logger::FFramesLoggerVariant::Compact
             },
-            encoder_options: EncoderOptions {
-                preferred_audio_codec: args.audio_codec.as_deref(),
-                preferred_video_codec: args.video_codec.as_deref(),
-                tmp_files_directory: Some(&PathBuf::from("test_render")),
+            tmp_files_directory: Some(&PathBuf::from("test_render")),
+            audio_encoder_options: EncoderOptions {
+                preferred_encoder: args.audio_codec.as_deref(),
+                ..Default::default()
+            },
+            video_encoder_options: EncoderOptions {
+                preferred_encoder: args.video_codec.as_deref(),
                 codec_params: (args.video_codec.as_deref() == Some("libx264")
                     || args.video_codec.as_deref() == Some("libx265"))
                 .then_some(&[

@@ -122,7 +122,7 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>> {
         let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(Some(options)) }
             .map_err(|e| {
-                eprintln!("Error converting frame to image: {:?}", e);
+                eprintln!("Error converting frame to image: {e:?}");
             })
             .ok()?;
 

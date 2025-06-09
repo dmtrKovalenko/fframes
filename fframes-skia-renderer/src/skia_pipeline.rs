@@ -1,15 +1,15 @@
 use crate::SkiaBackend;
 use crate::resource_provider::SkiaFFramesProvider;
+use fframes::get_thread_count;
 use fframes::usvgr::WriteOptions;
 use fframes::{
-    AudioTimelineSamples, FFramesContext, ResolvedRenderingTimeline, TextCache, Video,
-    VideoDecodersWorker, usvgr,
+    AudioTimelineSamples, FFramesContext, RenderOptions, ResolvedRenderingTimeline, TextCache,
+    Video, VideoDecodersWorker, usvgr,
 };
 use fframes::{
     Encoder, EncoderFrame, FFramesLogger, FFramesRendererError, FFramesRendererResult,
     RenderEncodingResult,
 };
-use fframes::{EncoderOptions, get_thread_count};
 use skia_safe::svg::Dom;
 use skia_safe::{ConditionallySend, Sendable};
 use std::ops::Range;
@@ -85,7 +85,7 @@ impl Default for SkiaPipelineConfig {
 
 pub(crate) struct Pipeline<'b, 'a, 'media, TVideo: Video + Sync + Send, TBackend: SkiaBackend> {
     pub(crate) ctx: &'a FFramesContext<'a, 'media>,
-    pub(crate) encoder_options: &'a EncoderOptions<'a>,
+    pub(crate) render_options: &'a RenderOptions<'a, 'media>,
     pub(crate) font_db: &'a usvgr::fontdb::Database,
     pub(crate) frame_range: &'b Range<usize>,
     pub(crate) include_audio: bool,
@@ -96,12 +96,13 @@ pub(crate) struct Pipeline<'b, 'a, 'media, TVideo: Video + Sync + Send, TBackend
     pub(crate) timeline: &'a ResolvedRenderingTimeline<'a, AudioTimelineSamples>,
     pub(crate) usvg_options: &'a usvgr::Options<'a>,
     pub(crate) video: &'a TVideo,
+    pub(crate) background_color: skia_safe::Color,
 }
 
 pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBackend>(
     Pipeline {
         ctx,
-        encoder_options,
+        render_options: encoder_options,
         font_db,
         frame_range,
         include_audio,
@@ -112,6 +113,7 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
         pipeline_config,
         usvg_options,
         video,
+        background_color,
     }: Pipeline<'a, 'b, 'media, TVideo, TBackend>,
 ) -> FFramesRendererResult<()> {
     let (render_sender, render_receiver) =
@@ -169,17 +171,18 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
             frame_receiver,
             render_sender,
             ctx.abort_signal,
+            background_color,
             #[cfg(feature = "debug")]
             metrics.renderer_metrics.clone(),
         )?;
 
         generator_handle.join().map_err(|e| {
-            FFramesRendererError::Internal(format!("Frame generator thread panicked: {:?}", e))
+            FFramesRendererError::Internal(format!("Frame generator thread panicked: {e:?}"))
         })??;
         encoder_handle
             .join()
             .map_err(|e| {
-                FFramesRendererError::Internal(format!("Encoder thread panicked: {:?}", e))
+                FFramesRendererError::Internal(format!("Encoder thread panicked: {e:?}"))
             })?
             .map_err(|e| FFramesRendererError::RenderChunkError(0, e))?;
 
@@ -274,6 +277,7 @@ fn spawn_renderer<TBackend: SkiaBackend>(
     frame_receiver: Receiver<FrameRequest>,
     render_sender: thingbuf::mpsc::blocking::Sender<RenderPayload>,
     abort_signal: Option<&fframes::AbortSignal>,
+    background_color: skia_safe::Color,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
     let (mut surface, mut gpu_context) = backend.create_skia_surface()?;
@@ -315,7 +319,7 @@ fn spawn_renderer<TBackend: SkiaBackend>(
             )
             .ok_or_else(|| FFramesRendererError::Custom("Failed to create pixmap".to_string()))?;
 
-            surface.canvas().clear(skia_safe::Color::BLACK);
+            surface.canvas().clear(background_color);
             dom.render(surface.canvas());
             drop(dom);
 

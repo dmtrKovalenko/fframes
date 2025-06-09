@@ -34,7 +34,7 @@ impl fmt::Display for FFramesError {
                 FFramesError::CanNotProcessAudioDuration(file) => format!("Can not get the duration based on the AudioTimestamp::Eof. The file {file} is not a valid audio file."),
                 FFramesError::MissingDurationOrScenes => "The Video trait implementation does not have  neither `duration` nor `define_scenes`, nor `audio` method implemented. One of them is required to to calculate the output duration of the video.".to_owned(),
                 FFramesError::Overflow(what, overflow_by) => format!("The {what} is overflowed by {overflow_by}"),
-                FFramesError::UserError(err) => format!("Custom error:\n{}", err),
+                FFramesError::UserError(err) => format!("Custom error:\n{err}"),
                 FFramesError::ParserError(err) => format!("SVG parsing error: {err:?}"),
                 FFramesError::MediaError(err) => format!("Media parsing error: {err:?}"),
                 FFramesError::RequiredAudioNotFound(audio) => format!("The required audio for resolving video duration {audio} was not found."),

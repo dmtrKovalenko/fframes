@@ -60,8 +60,8 @@ fn main() {
             media: Some(&media),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            encoder_options: EncoderOptions {
-                preferred_video_codec: Some("libx264"),
+            video_encoder_options: EncoderOptions {
+                preferred_encoder: Some("libx264"),
                 ..Default::default()
             },
             default_font: "Inter",

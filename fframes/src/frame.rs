@@ -51,10 +51,10 @@ impl Frame {
     }
 
     /// This is an internal API used by the render to create frames during the rendering phase.
-    /// It is not meant for public usage and might or might have breaking changes in any minor
-    /// version change..
+    /// It is not meant for consumer usage and might have breaking changes in any minor release,
+    /// but for is required for any extenral rendering backend implementations.
     ///
-    /// Use at your own risk.
+    /// ! **Use at your own risk** !.
     pub fn __internal_make_for_renderer(
         index: usize,
         global_index: usize,

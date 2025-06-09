@@ -93,8 +93,7 @@ fn e2e_rendering() {
 
     if failed_count > 0 {
         panic!(
-            "{} frames are visually different, check frames/diff folder for details",
-            failed_count
+            "{failed_count} frames are visually different, check frames/diff folder for details"
         );
     }
 }

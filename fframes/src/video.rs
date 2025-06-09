@@ -1,7 +1,7 @@
 use crate::audio_map::AudioMap;
 use crate::error::Result;
 use crate::{
-    AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo, Svgr,
+    AudioTimelineUnit, Color, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo, Svgr,
     TimeBase, scenes::*,
 };
 
@@ -11,7 +11,18 @@ pub trait Video: Sync + Sized {
     const FPS: usize;
     const WIDTH: usize;
     const HEIGHT: usize;
+
+    /// Background color of the video. This allows to set a solid color background.
+    ///
+    /// Make sure if you want to render a transparent video use `Color::TRANSPARENT` here
+    /// **and** set the proper encoder and pixel_format that supports transparency
+    /// (e.g. encoder libx265 with yuva420p pixel format) when rendering the video.
+    const BACKGROUND_COLOR: Color = Color::BLACK;
+
+    /// Defines either dynamic or inferred duration of the video
     fn duration(&self) -> Duration;
+
+    /// Defines the audio timeline of the video (when and how long audio tracks are played)
     fn audio(&self) -> AudioMap;
 
     /// Defines the scenes timeline of the video.
@@ -21,7 +32,7 @@ pub trait Video: Sync + Sized {
     /// In short: put your scenes to the `&self` or do not add any fields to the scene struct.
     ///
     /// # Example
-    /// ```rust
+    /// ```no_run
     /// use fframes::{Video, Scenes, Scene, Frame, Svgr, FFramesContext};
     ///
     /// struct SceneZeroSize;
@@ -40,7 +51,7 @@ pub trait Video: Sync + Sized {
     ///     fn define_scenes(&self) -> Scenes {
     ///         let scenes: Vec<&dyn Scene> = vec![
     ///             // notice this is a zero sized type so we can create ref right here
-    ///             &SceneZeroSize { },
+    ///             &SceneZeroSize,
     ///             // And here we passing a ref bound to the &self
     ///             &self.scene_with_input,
     ///         ]
@@ -53,6 +64,17 @@ pub trait Video: Sync + Sized {
         Scenes(None)
     }
 
+    /// This function is going to be called for each frame of the video and expects to return
+    /// a valid SVG rendering tree for the specific frame.
+    ///
+    /// This function is going to be called thousands of times per rendering, so it is important to reduce
+    /// amount of allocations and cpu bound operations happening during the render frame. It is
+    /// possible to cache the data in the `self` and use it in the function or to memoize the data
+    /// in `self` using `once_cell::LazyLock` or similar constructs.
+    ///
+    /// **Tip:** Avoid panicking in this function as much as possible, this function does not
+    /// return `Result` because it is extremely expensive to stop the rendering once it has
+    /// started. Prepare compiler guaranteed data in advance and read it from `self`.
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a>;
 }
 

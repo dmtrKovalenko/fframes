@@ -4,7 +4,7 @@ version = "1.0.0-beta.6.rc-3.2"
 edition = "2024"
 
 [dependencies]
-fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
+fframes = { workspace = true, features = ["h264", "h265", "vpx", "libav-agree-gpl"] }
 clap = { version = "4.3.4", features = ["derive"] }
 
 [features]

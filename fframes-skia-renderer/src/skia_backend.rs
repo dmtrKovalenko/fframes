@@ -99,7 +99,7 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
         video: &'a TVideo,
         logger: std::sync::Arc<dyn fframes::FFramesLogger>,
         usvg_options: &'a usvgr::Options,
-        encoder_options: &'a fframes::EncoderOptions<'a>,
+        render_options: &'a fframes::RenderOptions<'a, 'media>,
         font_db: &'a usvgr::fontdb::Database,
         timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: &'a fframes::FFramesContext<'a, 'media>,
@@ -108,6 +108,12 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
         Self: Sized,
     {
         let output = output.as_ref();
+        let background_color = skia_safe::Color::from_argb(
+            TVideo::BACKGROUND_COLOR.a,
+            TVideo::BACKGROUND_COLOR.r,
+            TVideo::BACKGROUND_COLOR.g,
+            TVideo::BACKGROUND_COLOR.b,
+        );
         let concurrent_pipelines = match self.pipeline_config.concurrency_policy {
             SkiaPipelineConcurrencyPolicy::MaxPerformance => {
                 let threads_available = fframes::get_thread_count();
@@ -119,28 +125,30 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
 
         if concurrent_pipelines < 2 {
             skia_pipeline::start(Pipeline {
-                pipeline_config: self.pipeline_config,
-                output,
-                include_audio: true,
-                frame_range: &(0..ctx.duration_in_frames),
-                skia: self.backend,
-                video,
-                logger: Arc::clone(&logger),
-                usvg_options,
-                encoder_options,
-                font_db,
-                timeline,
+                background_color,
                 ctx,
+                font_db,
+                frame_range: &(0..ctx.duration_in_frames),
+                include_audio: true,
+                logger: Arc::clone(&logger),
+                output,
+                pipeline_config: self.pipeline_config,
+                render_options,
+                skia: self.backend,
+                timeline,
+                usvg_options,
+                video,
             })?;
 
             logger.success(output, None);
         } else {
-            let chunks =
-                encoder_options.split_video_chunks(ctx.duration_in_frames, concurrent_pipelines);
+            let chunks = render_options
+                .video_encoder_options
+                .split_gop_chunks(ctx.duration_in_frames, concurrent_pipelines);
 
             let session_id = Uuid::new_v4();
             let tmp_path = std::env::temp_dir().join(format!("fframes-skia-{session_id}"));
-            let directory = encoder_options.tmp_files_directory.unwrap_or(&tmp_path);
+            let directory = render_options.tmp_files_directory.unwrap_or(&tmp_path);
             if !directory.exists() {
                 std::fs::create_dir(directory)?;
             }
@@ -160,18 +168,19 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
                     ));
 
                     skia_pipeline::start(Pipeline {
-                        pipeline_config: self.pipeline_config,
-                        include_audio: false,
-                        frame_range: chunk,
-                        output: &file,
-                        skia: self.backend,
-                        video,
-                        logger: Arc::clone(&logger),
-                        usvg_options,
-                        encoder_options,
-                        font_db,
-                        timeline,
+                        background_color,
                         ctx,
+                        font_db,
+                        frame_range: chunk,
+                        include_audio: false,
+                        logger: Arc::clone(&logger),
+                        output: &file,
+                        pipeline_config: self.pipeline_config,
+                        render_options,
+                        skia: self.backend,
+                        timeline,
+                        usvg_options,
+                        video,
                     })?;
 
                     Ok(file)
@@ -184,7 +193,7 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
                     output,
                     concurrent_pipelines as i32,
                     timeline.audio_map.as_ref(),
-                    encoder_options,
+                    render_options,
                     ctx,
                 )
                 .map_err(FFramesRendererError::ConcatChunkError)?;

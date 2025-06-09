@@ -90,8 +90,8 @@ fn main() {
             media: Some(&dynamic_media),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            encoder_options: EncoderOptions {
-                preferred_video_codec: Some("libx265"),
+            video_encoder_options: EncoderOptions {
+                preferred_encoder: Some("libx265"),
                 qmin: 0,
                 qmax: 69,
                 qcompress: 0.6,

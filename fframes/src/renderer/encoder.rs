@@ -5,14 +5,13 @@ use super::{
     stream::Stream,
 };
 pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
-use crate::ffmpeg_action;
 use crate::ffmpeg_sys_fframes::*;
+use crate::{RenderOptions, ffmpeg_action};
 use std::ops::Range;
 use std::path::Path;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
-    path::PathBuf,
     sync::Arc,
 };
 
@@ -39,22 +38,30 @@ pub fn av_error_to_string(errnum: i32) -> String {
 
 #[derive(Debug, Clone)]
 pub struct EncoderOptions<'a> {
-    /// If several codecs available for specified format output here you can specify the libav (ffmpeg) compatible name of the video codec that should be used to encode.
-    pub preferred_video_codec: Option<&'a str>,
-    /// If several codecs available for specified format output here you can specify the libav (ffmpeg) compatible name of the audio codec that should be used to encode.
-    /// If not provided or the name is invalid or the codec is not compatible with the output
-    /// container format fallback to the first available codec for the specified output format.
-    pub preferred_audio_codec: Option<&'a str>,
+    /// Force the codec to be used for encoding audio/video stream. If not provided the codec will
+    /// be inferred from the output file extensions + preferred encoder (if specified).
+    pub codec: Option<AVCodecID>,
+    /// If several encoders available for the specified codec and/or container format here you can
+    /// specify the ffmpeg-compatible name of the encoder that should be used. If nothing provided
+    /// fallback toe the first available encoder for the specified output format.
+    pub preferred_encoder: Option<&'a str>,
     /// Pixel format used to store encoded frame. By default equals to AVPixelFormat::AV_PIX_FMT_YUV420P
+    /// If not supported by the encoder the first supported pixel format will be used (which may
+    /// lead to quality of alpha channel loss)
+    ///
+    /// Ignored for audio streams.
     /// @default AV_PIX_FMT_YUV420P
     pub pixel_format: AVPixelFormat,
     /// Sample format used to store encoded audio frame. By default equals to AvSampleFormat::AV_SAMPLE_FMT_FLTP
+    /// Ignored for video streams.
+    ///
     /// @default AV_SAMPLE_FMT_FLTP
     pub sample_format: AVSampleFormat,
-    /// Target audio bitrate in bits, if not provided 192kb used.
-    pub audio_bitrate: Option<i64>,
-    /// Target video bitrate in bits, sometimes may not be needed and inferred from other codec params, like crf for libx264 and libx265
-    pub video_bitrate: Option<i64>,
+    /// Target audio bitrate in bits,
+    /// For video streams sometimes may not be needed and set dynamically based on the other codec
+    /// params, like crf for libx264 and libx265.
+    /// If not provided 192kb used for audios streams and set dynamically for video streams.
+    pub bitrate: Option<i64>,
     /// Number of bits the bitstream is allowed to diverge from the reference.
     /// @default 0
     pub bitrate_tolerance: i32,
@@ -72,11 +79,9 @@ pub struct EncoderOptions<'a> {
     /// Size of group of picture
     /// @default 12
     pub gop_size: i32,
-    /// Output sample rate of the final video file
+    /// Specify the resulting sample rate of the audio stream (ignored for video streams)
     /// @default 44100
     pub sample_rate: usize,
-    /// Directory used to store temporary files and artifacts generated for rendering and encoding.
-    pub tmp_files_directory: Option<&'a PathBuf>,
     /// Dynamic set of options specific to encoder. Every encoder accepts its own purely dynamic set of options, e.g.
     /// the most popular example for h264 & h265 codecs are options like `-crf 18 -tune animation -preset ultrafast`.
     ///
@@ -104,21 +109,13 @@ pub struct EncoderOptions<'a> {
     /// use fframes_renderer::MKTAG;
     /// let video_tag = MKTAG!('h', 'v', 'c', '1');
     /// ```
-    pub video_tag: Option<isize>,
-    /// Tag used to identify audio stream in the output file
-    /// to create a tag use the `MKTAG!` macro:
-    ///
-    /// ```rust
-    /// use fframes_renderer::MKTAG;
-    /// let video_tag = MKTAG!('h', 'v', 'c', '1');
-    /// ```
-    pub audio_tag: Option<isize>,
+    pub tag: Option<isize>,
 }
 
 impl EncoderOptions<'_> {
     /// Split video for concurrent rendering taking into account the GOP size
     /// to make sure that individual chunks are never less than 2xGOP size.
-    pub fn split_video_chunks(
+    pub fn split_gop_chunks(
         &self,
         duration_in_frames: usize,
         concurrency: usize,
@@ -155,28 +152,20 @@ impl EncoderOptions<'_> {
 impl Default for EncoderOptions<'_> {
     fn default() -> Self {
         Self {
-            audio_bitrate: None,
+            bitrate: None,
             bitrate_tolerance: 0,
-            codec_params: Some(&[
-                ("crf", "23"),
-                ("tune", "animation"),
-                ("preset", "ultrafast"),
-                ("bframes", "5"),
-            ]),
+            codec: None,
+            codec_params: None,
             gop_size: 24,
             max_qdiff: 4,
             pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P,
-            preferred_audio_codec: None,
-            preferred_video_codec: None,
+            preferred_encoder: None,
             qcompress: 0.6,
             qmax: 60,
             qmin: 15,
             sample_format: AVSampleFormat::AV_SAMPLE_FMT_FLTP,
             sample_rate: 44100,
-            tmp_files_directory: None,
-            video_bitrate: None,
-            video_tag: None,
-            audio_tag: None,
+            tag: None,
         }
     }
 }
@@ -231,7 +220,7 @@ impl Encoder {
         height: i32,
         fps: i32,
         filename: &Path,
-        encoder_options: &EncoderOptions,
+        render_options: &RenderOptions,
         logger: &Arc<dyn FFramesLogger>,
     ) -> RenderEncodingResult<Self> {
         unsafe {
@@ -251,7 +240,13 @@ impl Encoder {
                 RenderEncodingError::UnknownExtension(filename.to_owned())
             );
 
-            let video_stream = stream::Stream::make_video(width, height, fps, oc, encoder_options)?;
+            let video_stream = stream::Stream::make_video(
+                width,
+                height,
+                fps,
+                oc,
+                &render_options.video_encoder_options,
+            )?;
             if logger.should_dump_format_info() {
                 av_dump_format(oc, 0, c_filename.as_ptr(), 1);
             }
@@ -262,9 +257,7 @@ impl Encoder {
             );
 
             let audio_stream = with_audio
-                .then(|| {
-                    Stream::make_audio(encoder_options.sample_rate as i32, oc, encoder_options)
-                })
+                .then(|| Stream::make_audio(oc, &render_options.audio_encoder_options))
                 .transpose()?;
 
             avformat_write_header(oc, std::ptr::null_mut());
@@ -284,7 +277,7 @@ impl Encoder {
         height: i32,
         fps: i32,
         filename: &Path,
-        encoder_options: &EncoderOptions,
+        render_options: &RenderOptions,
         logger: &Arc<dyn FFramesLogger>,
         inner_fn: &mut F,
     ) -> RenderEncodingResult<T> {
@@ -295,7 +288,7 @@ impl Encoder {
                 height,
                 fps,
                 filename,
-                encoder_options,
+                render_options,
                 logger,
             )?;
 

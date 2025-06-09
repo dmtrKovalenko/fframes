@@ -25,8 +25,15 @@ use super::renderer_font_source::RendererFontSource;
 pub struct RenderOptions<'a, 'media> {
     pub media: Option<&'media (dyn MediaProvider<'media>)>,
     pub logger: FFramesLoggerVariant,
-    pub encoder_options: EncoderOptions<'a>,
+    pub audio_encoder_options: EncoderOptions<'a>,
+    pub video_encoder_options: EncoderOptions<'a>,
     pub override_fps: Option<usize>,
+    /// Directory used to store temporary files and artifacts generated for rendering and encoding.
+    pub tmp_files_directory: Option<&'a PathBuf>,
+    /// Scale resolution factor, in svg terms this is basically increases the `viewBox` size,
+    /// allowing to scale the video down or up, e.g. if the `WIDTH` and `HEIGHT` of the video
+    /// are set to 1920x1080, setting `scale_resolution` to 2.0 will result in the video
+    /// being rendered to 3840x2160 (4k) resolution.
     pub scale_resolution: f64,
     /// If `true` locates and loads system font on MacOS, Windows and Linux OSes.
     /// It is anyway recommended to provide all the font as either statically and dynamically
@@ -49,11 +56,13 @@ impl Default for RenderOptions<'_, '_> {
             media: None,
             scale_resolution: 1.0,
             logger: FFramesLoggerVariant::Compact,
-            encoder_options: Default::default(),
+            audio_encoder_options: Default::default(),
+            video_encoder_options: Default::default(),
             override_fps: None,
             load_system_fonts: false,
             default_font: "Arial",
             abort_signal: None,
+            tmp_files_directory: None,
         }
     }
 }
@@ -144,7 +153,7 @@ pub fn render<
     } = FFramesRendererRuntime::new(
         TimeBase {
             fps: TVideo::FPS,
-            sample_rate: options.encoder_options.sample_rate,
+            sample_rate: options.audio_encoder_options.sample_rate,
         },
         video,
         &scenes,
@@ -187,7 +196,7 @@ pub fn render<
         video,
         logger,
         &usvg_options,
-        &options.encoder_options,
+        options,
         font_source.as_db_ref(),
         &timeline,
         &ctx,
@@ -229,7 +238,7 @@ pub fn render_frame<
     } = FFramesRendererRuntime::new(
         TimeBase {
             fps: TVideo::FPS,
-            sample_rate: options.encoder_options.sample_rate,
+            sample_rate: options.audio_encoder_options.sample_rate,
         },
         video,
         &scenes,

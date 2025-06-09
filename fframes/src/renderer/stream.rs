@@ -90,8 +90,8 @@ impl Stream {
     }
 
     pub(crate) unsafe fn prepare_stream_codec(
-        preferred_codec_name: Option<&str>,
-        default_codec_id: AVCodecID,
+        preferred_encoder: Option<&str>,
+        codec_id: AVCodecID,
         oc: *mut AVFormatContext,
     ) -> RenderEncodingResult<(
         *const AVCodec,
@@ -100,9 +100,9 @@ impl Stream {
         *mut AVCodecContext,
     )> {
         unsafe {
-            let mut codec = if let Some(preferred_codec_name) = preferred_codec_name {
-                let codec_name = CString::new(preferred_codec_name)
-                    .map_err(RenderEncodingError::CStringError)?;
+            let mut codec = if let Some(encoder) = preferred_encoder {
+                let codec_name =
+                    CString::new(encoder).map_err(RenderEncodingError::CStringError)?;
 
                 avcodec_find_encoder_by_name(codec_name.as_ptr())
             } else {
@@ -110,14 +110,15 @@ impl Stream {
             };
 
             if codec.is_null() {
-                codec = avcodec_find_encoder(default_codec_id);
+                codec = avcodec_find_encoder(codec_id);
 
-                if let Some(preferred_codec_name) = preferred_codec_name {
-                    let found_codec_name = CStr::from_ptr((*codec).name);
+                if let Some(preferred_codec_name) = preferred_encoder {
+                    let found_encoder_name = CStr::from_ptr((*codec).name);
 
                     eprintln!(
-                        "Warning: Can not find codec {preferred_codec_name}, continue with {codec_name}",
-                        codec_name = found_codec_name.to_str().unwrap_or("unknown codec name")
+                        "Warning: Can not find encoder {preferred_codec_name}, continue with {found_encoder_name}",
+                        found_encoder_name =
+                            found_encoder_name.to_str().unwrap_or("unknown codec name")
                     );
                 }
             }
@@ -150,7 +151,7 @@ impl Stream {
     ) -> RenderEncodingResult<Self> {
         unsafe {
             let (codec, codec_id, st, c) = Self::prepare_stream_codec(
-                encoder_options.preferred_video_codec,
+                encoder_options.preferred_encoder,
                 (*(*oc).oformat).video_codec,
                 oc,
             )?;
@@ -175,7 +176,7 @@ impl Stream {
             (*c).max_qdiff = encoder_options.max_qdiff;
             (*c).bit_rate_tolerance = encoder_options.bitrate_tolerance;
 
-            if let Some(video_bitrate) = encoder_options.video_bitrate {
+            if let Some(video_bitrate) = encoder_options.bitrate {
                 (*c).bit_rate = video_bitrate;
             }
 
@@ -184,8 +185,28 @@ impl Stream {
             }
 
             let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
+            const DEFAULT_X264_X265_OPTIONS: &[(&str, &str)] = &[
+                ("preset", "ultrafast"),
+                ("tune", "animation"),
+                ("profile", "main"),
+                ("bframes", "2"),
+                ("crf", "23"),
+            ];
 
-            if let Some(codec_params) = encoder_options.codec_params {
+            let codec_options = match encoder_options.codec_params {
+                Some(options) => Some(options),
+                None if !(*codec).name.is_null() => {
+                    let codec_name = CStr::from_ptr((*codec).name).to_string_lossy();
+
+                    match codec_name.as_ref() {
+                        "libx264" | "libx265" => Some(DEFAULT_X264_X265_OPTIONS),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
+
+            if let Some(codec_params) = codec_options {
                 for (param, value) in codec_params {
                     let c_param =
                         CString::new(*param).map_err(RenderEncodingError::CStringError)?;
@@ -199,7 +220,7 @@ impl Stream {
             ffmpeg_loggable_action!(avcodec_open2(c, codec, opts));
             ffmpeg_loggable_action!(avcodec_parameters_from_context((*st).codecpar, c));
 
-            if let Some((tag, options)) = encoder_options.video_tag.zip((*st).codecpar.as_mut()) {
+            if let Some((tag, options)) = encoder_options.tag.zip((*st).codecpar.as_mut()) {
                 options.codec_tag = tag as u32;
             }
 
@@ -213,17 +234,17 @@ impl Stream {
     }
 
     pub(crate) unsafe fn make_audio(
-        sample_rate: i32,
         oc: *mut AVFormatContext,
         encoder_options: &EncoderOptions,
     ) -> RenderEncodingResult<Self> {
         unsafe {
             let (codec, _codec_id, st, c) = Self::prepare_stream_codec(
-                encoder_options.preferred_audio_codec,
+                encoder_options.preferred_encoder,
                 (*(*oc).oformat).audio_codec,
                 oc,
             )?;
 
+            let sample_rate = encoder_options.sample_rate as i32;
             let validated_sample_rate = validate_sample_rate_fits_codec(codec, sample_rate);
             if validated_sample_rate != sample_rate {
                 eprintln!(
@@ -233,19 +254,28 @@ impl Stream {
 
             (*c).sample_fmt = encoder_options.sample_format;
             (*c).sample_rate = validated_sample_rate;
-            (*c).bit_rate = encoder_options.audio_bitrate.unwrap_or(192000);
+            (*c).bit_rate = encoder_options.bitrate.unwrap_or(192000);
             (*st).time_base = AVRational {
                 num: 1,
                 den: sample_rate,
             };
 
             (*c).ch_layout = MONO_CH_LAYOUT;
-            if let Some((tag, options)) = encoder_options.audio_tag.zip((*st).codecpar.as_mut()) {
+            if let Some((tag, options)) = encoder_options.tag.zip((*st).codecpar.as_mut()) {
                 options.codec_tag = tag as u32;
             }
 
-            // TODO pass user options
             let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
+            if let Some(codec_params) = encoder_options.codec_params {
+                for (param, value) in codec_params {
+                    let c_param =
+                        CString::new(*param).map_err(RenderEncodingError::CStringError)?;
+                    let c_value =
+                        CString::new(*value).map_err(RenderEncodingError::CStringError)?;
+
+                    av_dict_set(opts, c_param.as_ptr(), c_value.as_ptr(), 0);
+                }
+            }
 
             ffmpeg_loggable_action!(avcodec_open2(c, codec, opts));
             ffmpeg_loggable_action!(avcodec_parameters_from_context((*st).codecpar, c));

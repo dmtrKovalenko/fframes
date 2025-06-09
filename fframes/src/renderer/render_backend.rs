@@ -1,7 +1,5 @@
-use super::{
-    encoder::EncoderOptions, fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult,
-};
-use crate::{AudioTimelineSamples, ResolvedRenderingTimeline, Video, usvgr};
+use super::{fframes_logger::FFramesLogger, renderer_error::FFramesRendererResult};
+use crate::{AudioTimelineSamples, RenderOptions, ResolvedRenderingTimeline, Video, usvgr};
 use std::{path::Path, sync::Arc};
 use usvgr::fontdb;
 
@@ -22,7 +20,7 @@ pub trait FFramesRenderBackend {
         video: &'a TVideo,
         logger: Arc<dyn FFramesLogger>,
         usvg_options: &'a usvgr::Options,
-        encoder_options: &'a EncoderOptions<'a>,
+        encoder_options: &'a RenderOptions<'a, 'media>,
         font_db: &'a fontdb::Database,
         timeline: &'a ResolvedRenderingTimeline<AudioTimelineSamples>,
         ctx: &'a crate::FFramesContext<'a, 'media>,

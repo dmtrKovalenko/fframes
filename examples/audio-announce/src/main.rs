@@ -6,7 +6,6 @@ use fframes::{
 };
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
-use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -58,14 +57,13 @@ fn main() {
             ])),
             load_system_fonts: true,
             logger: fframes_logger::FFramesLoggerVariant::Compact,
-            encoder_options: EncoderOptions {
-                preferred_video_codec: Some("libx264"),
+            video_encoder_options: EncoderOptions {
+                preferred_encoder: Some("libx264"),
                 qmin: 0,
                 qmax: 69,
                 qcompress: 0.6,
                 max_qdiff: 4,
                 gop_size: 60,
-                tmp_files_directory: Some(&PathBuf::from("test_render")),
                 codec_params: Some(&[
                     ("crf", "25"),
                     ("preset", "slower"),

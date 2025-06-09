@@ -49,6 +49,14 @@
       "program": "${workspaceFolder}/target/debug/podcast_example_bin",
       "cwd": "${workspaceFolder}/examples/podcast",
       "preLaunchTask": "cargo:build"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Tiktok",
+      "program": "${workspaceFolder}/target/debug/tiktok_example_bin",
+      "cwd": "${workspaceFolder}/examples/tiktok",
+      "preLaunchTask": "cargo:build"
     }
   ]
 }

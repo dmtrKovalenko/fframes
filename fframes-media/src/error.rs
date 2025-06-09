@@ -58,25 +58,25 @@ impl std::fmt::Debug for FFramesMediaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LibAVAudioDecodingError((code, msg)) => {
-                write!(f, "LibAVAudioDecodingError: {} - {}", code, msg,)
+                write!(f, "LibAVAudioDecodingError: {code} - {msg}",)
             }
             Self::LibAVVideoDecodingError((code, msg)) => {
-                write!(f, "LibAVVideoDecodingError: {} - {}", code, msg,)
+                write!(f, "LibAVVideoDecodingError: {code} - {msg}",)
             }
-            Self::AudioDecodingError(msg) => write!(f, "AudioDecodingError: {}", msg),
+            Self::AudioDecodingError(msg) => write!(f, "AudioDecodingError: {msg}"),
             #[cfg(not(target_arch = "wasm32"))]
-            Self::ImageError(err) => write!(f, "ImageError: {:?}", err),
-            Self::FontError(err) => write!(f, "FontError: {:?}", err),
-            Self::VttError(err) => write!(f, "VttError: {:?}", err),
-            Self::NulError(err) => write!(f, "{:?}", err),
-            Self::LibAVAllocationError(what) => write!(f, "libav: Failed to allocate {}", what),
+            Self::ImageError(err) => write!(f, "ImageError: {err:?}"),
+            Self::FontError(err) => write!(f, "FontError: {err:?}"),
+            Self::VttError(err) => write!(f, "VttError: {err:?}"),
+            Self::NulError(err) => write!(f, "{err:?}"),
+            Self::LibAVAllocationError(what) => write!(f, "libav: Failed to allocate {what}"),
             Self::MediaDirectoryProvided => write!(
                 f,
                 "Can not open directory as a media file. Use a separate media source for directories."
             ),
-            Self::Base64Error(err) => write!(f, "Base64 error: {:?}", err),
+            Self::Base64Error(err) => write!(f, "Base64 error: {err:?}"),
             #[cfg(feature = "exif")]
-            Self::ExifError(err) => write!(f, "Parsing exif metadata error: {:?}", err),
+            Self::ExifError(err) => write!(f, "Parsing exif metadata error: {err:?}"),
         }
     }
 }
