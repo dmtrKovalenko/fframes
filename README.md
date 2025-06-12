@@ -22,7 +22,7 @@ nix-shell
 
 #### MacOS:
 ```sh
-brew install pkg-config ffmpeg x264 x265 opus nasm
+brew install pkg-config ffmpeg x264 x265 opus nasm ninja
 ```
 
 ## Beta testing
