@@ -41,26 +41,66 @@ impl Video for GooseVideo<'_> {
 
         let svgr = svgr!(
             <svg width="1080" height="1920" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clip-path="url(#a)">
+                <defs>
+                    // Filters for blur effects
+                    <filter id="blur-hard" x="-66.271" y="140.76" width="1031.86" height="1023.68" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                        <feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_3_2"/>
+                    </filter>
+                    <filter id="blur-purple" x="194.823" y="954.499" width="983.941" height="977.681" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                        <feGaussianBlur stdDeviation="140" result="effect1_foregroundBlur_3_2"/>
+                    </filter>
+                    <filter id="blur-orange" x="26.522" y="550.447" width="759.054" height="753" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                        <feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_3_2"/>
+                    </filter>
+                    <filter id="blur-blue" x="-15.573" y="578.228" width="1161.46" height="1159.48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                        <feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_3_2"/>
+                    </filter>
+                    <clipPath id="screen-clip">
+                        <path fill="#fff" d="M0 0h1080v1920H0z"/>
+                    </clipPath>
+                </defs>
+
+                <g clip-path="url(#screen-clip)">
+                    // Black background
                     <path fill="#000" d="M0 0h1080v1920H0z"/>
-                    <g style="mix-blend-mode:hard-light" filter="url(#b)">
-                    <ellipse cx="449.658" cy="652.599" rx="311.126" ry="316.462" transform="rotate(70 449.658 652.599)" fill="#B011E8"/>
+
+                    // Background gradient ellipses
+                    <g mix-blend-mode="hard-light" filter="url(#blur-hard)">
+                        <ellipse cx="449.658" cy="652.599" rx="311.126" ry="316.462" transform="rotate(70 449.658 652.599)" fill="#B011E8"/>
                     </g>
-                 <g filter="url(#c)"><ellipse rx="208.812" ry="211.997" transform="matrix(.00844 .99996 -.99984 .01802 686.793 1443.34)" fill="#B310FF"/></g><g style="mix-blend-mode:lighten" opacity=".5" filter="url(#d)"><ellipse rx="176.773" ry="179.55" transform="matrix(.00844 .99996 -.99984 .01802 406.049 927.243)" fill="#F90"/></g><g style="mix-blend-mode:hard-light" filter="url(#e)"><ellipse cx="565.155" cy="1157.97" rx="379.483" ry="380.775" transform="rotate(70 565.155 1157.97)" fill="#454ACF"/></g></g>
-                 <defs>
-                   <filter id="b" x="-66.271" y="140.76" width="1031.86" height="1023.68" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_3_2"/></filter><filter id="c" x="194.823" y="954.499" width="983.941" height="977.681" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="140" result="effect1_foregroundBlur_3_2"/></filter><filter id="d" x="26.522" y="550.447" width="759.054" height="753" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_3_2"/></filter><filter id="e" x="-15.573" y="578.228" width="1161.46" height="1159.48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_3_2"/></filter><clipPath id="a"><path fill="#fff" d="M0 0h1080v1920H0z"/></clipPath>
-                 </defs>
-                 {
-                     audio_visualization.iter().enumerate().map(|(i, value)| {
-                         let height= (value * 2000.).clamp(30., 400.);
-                         svgr!(
-                             <rect
-                                 x={i * (BAR_SIZE + BAR_PADDING) + (Self::WIDTH - SPECTRUM_WIDTH) / 2}
-                                 y={300. - height / 2. }
-                                 width={BAR_SIZE}
+                    <g filter="url(#blur-purple)">
+                        <ellipse rx="208.812" ry="211.997" transform="matrix(.00844 .99996 -.99984 .01802 686.793 1443.34)" fill="#B310FF"/>
+                    </g>
+                    <g mix-blend-mode="lighten" opacity=".5" filter="url(#blur-orange)">
+                        <ellipse rx="176.773" ry="179.55" transform="matrix(.00844 .99996 -.99984 .01802 406.049 927.243)" fill="#F90"/>
+                    </g>
+                    <g mix-blend-mode="hard-light" filter="url(#blur-blue)">
+                        <ellipse cx="565.155" cy="1157.97" rx="379.483" ry="380.775" transform="rotate(70 565.155 1157.97)" fill="#454ACF"/>
+                    </g>
+                </g>
+                // Audio visualization bars
+                {
+                    audio_visualization.iter().enumerate().map(|(i, value)| {
+                        let bar_height = (value * 2000.).clamp(30., 400.);
+                        let bar_x = i * (BAR_SIZE + BAR_PADDING) + (Self::WIDTH - SPECTRUM_WIDTH) / 2;
+                        let bar_y = 300. - bar_height / 2.;
+
+                        svgr!(
+                            <rect
+                                x={bar_x}
+                                y={bar_y}
+                                width={BAR_SIZE}
                                  rx="15"
                                  fill="white"
-                                 height={height}
+                                 height={bar_height}
                              />
                          )
                      })

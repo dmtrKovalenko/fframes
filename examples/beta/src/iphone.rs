@@ -20,17 +20,38 @@ fn render_discord_message<'a>(
         None => Svgr::default(),
         Some(image) => {
             svgr!(
-              <g>
-                <image x={x} y={y} width="80" height="80" href={image.href()} />
+                <g>
+                    // User avatar
+                    <image
+                        x={x}
+                        y={y}
+                        width="80"
+                        height="80"
+                        href={image.href()}
+                    />
 
-                <text font-weight="500" x={x + 80} y={y + 34} fill="white" font-size="18">
-                  {name}
-                </text>
+                    // Username
+                    <text
+                        x={x + 80}
+                        y={y + 34}
+                        font-weight="500"
+                        font-size="18"
+                        fill="white"
+                    >
+                        {name}
+                    </text>
 
-                <text font-weight="500" x={x + 80} y={y + 60} fill="#cbd5e1" font-size="15">
-                  {content}
-                </text>
-              </g>
+                    // Message content
+                    <text
+                        x={x + 80}
+                        y={y + 60}
+                        font-weight="500"
+                        font-size="15"
+                        fill="#cbd5e1"
+                    >
+                        {content}
+                    </text>
+                </g>
             )
         }
     }
@@ -62,22 +83,26 @@ impl Scene for IphoneScene {
         });
 
         svgr!(
-           <clipPath id="iphoneUi">
-             <rect width="380" height="820" rx="60" x="780" y="150"/>
-           </clipPath>
+            // iPhone screen clipping area
+            <clipPath id="iphoneUi">
+                <rect width="380" height="820" rx="60" x="780" y="150"/>
+            </clipPath>
 
             <g clip-path="url(#iphoneUi)">
-              <rect
-                 width="370"
-                 height="819"
-                 rx="60"
-                 x="790"
-                 y="154"
-                 fill="url(#pattern1)"
-             />
-              <image
-                 href={ctx.get_image("camera_ui.png").unwrap().href()}
-                 width="370"
+                // iPhone background
+                <rect
+                    width="370"
+                    height="819"
+                    rx="60"
+                    x="790"
+                    y="154"
+                    fill="url(#pattern1)"
+                />
+
+                // Camera interface overlay
+                <image
+                    href={ctx.get_image("camera_ui.png").unwrap().href()}
+                    width="370"
                  height="819"
                  rx="60"
                  x="790"

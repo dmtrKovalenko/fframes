@@ -33,27 +33,36 @@ impl Video for LowPolyVideo<'_> {
 
     fn render_frame<'a>(&self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         fframes::svgr!(
-           <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width={Self::WIDTH}
-            height={Self::HEIGHT}
-          >
-            <defs>
-              <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
-                <image href={ctx.get_image("white_noise.png").expect("missing white_noise.png").href()} x="0" y="0" width="230" height="177" />
-              </pattern>
-            </defs>
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={Self::WIDTH}
+                height={Self::HEIGHT}
+            >
+                <defs>
+                    // Noise texture pattern for visual effects
+                    <pattern id="scratch-pattern" patternUnits="userSpaceOnUse" width="230" height="177">
+                        <image
+                            href={ctx.get_image("white_noise.png").expect("missing white_noise.png").href()}
+                            x="0"
+                            y="0"
+                            width="230"
+                            height="177"
+                        />
+                    </pattern>
+                </defs>
 
-            <rect
-              width={Self::WIDTH}
-              height={Self::HEIGHT}
-              x="0"
-              y="0"
-              fill="#000"
-            />
+                // Black background canvas
+                <rect
+                    width={Self::WIDTH}
+                    height={Self::HEIGHT}
+                    x="0"
+                    y="0"
+                    fill="#000"
+                />
 
-            {ctx.render_scenes(&frame)}
-          </svg>
+                // Render the current scene (owl, pelican, etc.)
+                {ctx.render_scenes(&frame)}
+            </svg>
         )
     }
 }

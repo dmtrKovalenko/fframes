@@ -74,28 +74,45 @@ impl Video for PodcastVideo<'_> {
         svgr!(
             <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">
                 <defs>
-                    // Right section mask for character illustrations
+                    // Masks and clipping paths
                     <mask id="right-section-mask" maskUnits="userSpaceOnUse" x="970" y="-144" width="724" height="1447">
                         <rect x="970.797" y="-143.12" width="723" height="1446.02" fill="white"/>
                     </mask>
-
-                    // Character detail clipping path
                     <clipPath id="character-detail-clip">
                         <rect width="350.203" height="350.203" fill="white" transform="matrix(-1 0 0 1 1256.75 161.456)"/>
                     </clipPath>
 
-                    // Avatar image patterns
+                    // Podcast participant avatar patterns
                     <pattern id="goose-avatar-pattern" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                        <image x="0%" y="0%" width="480" height="480" href={ctx.get_image("goose.jpeg").expect("Missing goose image").href()}></image>
+                        <image
+                            x="0%"
+                            y="0%"
+                            width="480"
+                            height="480"
+                            href={ctx.get_image("goose.jpeg").expect("Missing goose image").href()}
+                        />
                     </pattern>
                     <pattern id="guest-avatar-pattern" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                        <image x="0%" y="0%" width="480" height="480" href={ctx.get_image("guest.jpg").expect("Missing guest image").href()}></image>
+                        <image
+                            x="0%"
+                            y="0%"
+                            width="480"
+                            height="480"
+                            href={ctx.get_image("guest.jpg").expect("Missing guest image").href()}
+                        />
                     </pattern>
                     <pattern id="duck-avatar-pattern" x="0%" y="0%" height="100%" width="100%" viewBox="0 0 480 480">
-                        <image x="0%" y="0%" width="480" height="480" href={ctx.get_image("duck.jpg").expect("Missing duck image").href()}></image>
+                        <image
+                            x="0%"
+                            y="0%"
+                            width="480"
+                            height="480"
+                            href={ctx.get_image("duck.jpg").expect("Missing duck image").href()}
+                        />
                     </pattern>
                 </defs>
 
+                // Background sections
                 <rect x="-648" y="-373" width="1946" height="2512" fill="#E7D850"/>
                 <rect width="723" height="722.346" transform="translate(598 -20)" fill="#E7D850"/>
 

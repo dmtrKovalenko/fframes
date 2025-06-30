@@ -39,6 +39,7 @@ pub trait FramedImage {
 impl FramedImage for ImageData<'_> {
     fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr {
         fframes::svgr!(
+            // Photo frame border
             <rect
                 x={frame.x}
                 y={frame.y}
@@ -51,8 +52,10 @@ impl FramedImage for ImageData<'_> {
                 opacity={frame.opacity}
                 transform={frame.transform}
                 transform-origin={frame.transform_origin.clone()}
+                fill="none"
             />
 
+            // Photo image
             <image
                 href={self.href()}
                 x={frame.x}

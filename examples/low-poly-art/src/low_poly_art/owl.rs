@@ -35,49 +35,80 @@ impl Scene for Owl<'_> {
         });
 
         svgr!(
-             <defs>
-               <clipPath id="clip-text">
-                 <text x="75%" y="35%" text-anchor="middle" font-size="100" font-family="Fredoka One">
-                   "EAGLE OWL"
-                 </text>
-               </clipPath>
-             </defs>
+            <defs>
+                // Text clipping path for "EAGLE OWL" title
+                <clipPath id="clip-text">
+                    <text
+                        x="75%"
+                        y="35%"
+                        text-anchor="middle"
+                        font-size="100"
+                        font-family="Fredoka One"
+                    >
+                        "EAGLE OWL"
+                    </text>
+                </clipPath>
+            </defs>
 
-             <g clip-path="url(#clip-text)">
-               <rect x="-100%" y="-100%" transform={Transform::translate(noise_x, noise_y)} width="300%" height="300%" fill="url(#scratch-pattern)" />
-             </g>
+            // Animated noise texture behind title text
+            <g clip-path="url(#clip-text)">
+                <rect
+                    x="-100%"
+                    y="-100%"
+                    transform={Transform::translate(noise_x, noise_y)}
+                    width="300%"
+                    height="300%"
+                    fill="url(#scratch-pattern)"
+                />
+            </g>
 
-             <text
-               x="75%" y="26%" text-anchor="middle" fill="#9f8866" font-size="45" font-family="Fredoka One"
-             > "BUBO BUBO" </text>
+            // Scientific name subtitle
+            <text
+                x="75%"
+                y="26%"
+                text-anchor="middle"
+                fill="#9f8866"
+                font-size="45"
+                font-family="Fredoka One"
+            >
+                "BUBO BUBO"
+            </text>
 
-             {
+            // Audio visualization bars
+            {
                 fframes::center_spectrum_low_frequencies(visualization.as_slice())
-                .iter()
-                .skip(2)
-                .enumerate()
-                .map(|(i, fr)|  {
-                  let save_height = fr.clamp(20.0, 100.0);
+                    .iter()
+                    .skip(2)
+                    .enumerate()
+                    .map(|(i, frequency)| {
+                        let bar_height = frequency.clamp(20.0, 100.0);
+                        let bar_x = 1220 + (i * 15);
+                        let bar_y = 550. - bar_height / 2.0;
 
-                  fframes::svgr!(
-                    <rect
-                      y={550. - save_height / 2.0}
-                      x={1220 + (i * 15)}
-                      fill="white"
-                      height={save_height}
-                      width="8"
-                      rx="3"
-                      ry="3"
-                    />
-                 )})
-                .collect::<Vec<_>>()
+                        fframes::svgr!(
+                            <rect
+                                x={bar_x}
+                                y={bar_y}
+                                width="8"
+                                height={bar_height}
+                                fill="white"
+                                rx="3"
+                                ry="3"
+                            />
+                        )
+                    })
+                    .collect::<Vec<_>>()
             }
 
-           <svg height="1080" x="-300" viewBox="0 0 2560 3840"
+            // Low-poly owl artwork (2,394 polygons)
+            <svg
+                height="1080"
+                x="-300"
+                viewBox="0 0 2560 3840"
                 xmlns="http://www.w3.org/2000/svg"
                 shape-rendering="crispEdges"
-           >
-               <polygon points="1234,1929 1194,1944 1221,1970" style="fill:rgb(44,33,22)"/>
+            >
+                <polygon points="1234,1929 1194,1944 1221,1970" fill="rgb(44,33,22)"/>
                <polygon points="1169,1849 1144,1946 1194,1944" style="fill:rgb(40,31,22)"/>
                <polygon points="1194,1944 1144,1975 1221,1970" style="fill:rgb(69,52,36)"/>
                <polygon points="1144,1946 1144,1975 1194,1944" style="fill:rgb(86,66,48)"/>
