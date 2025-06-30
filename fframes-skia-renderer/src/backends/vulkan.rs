@@ -72,9 +72,7 @@ impl SkiaVulkanCtx {
 
             let physical_device = {
                 let physical_devices = instance.enumerate_physical_devices().map_err(|e| {
-                    FFramesRendererError::Skia(format!(
-                        "Failed to enumerate physical devices: {e}"
-                    ))
+                    FFramesRendererError::Skia(format!("Failed to enumerate physical devices: {e}"))
                 })?;
 
                 physical_devices.iter().copied().next().ok_or_else(|| {
@@ -252,9 +250,7 @@ impl SkiaBackend for SkiaVulkanCtx {
             let image = self
                 .device
                 .create_image(&image_create_info, None)
-                .map_err(|e| {
-                    FFramesRendererError::Skia(format!("Failed to create image: {e}"))
-                })?;
+                .map_err(|e| FFramesRendererError::Skia(format!("Failed to create image: {e}")))?;
 
             // Allocate memory for the image
             let mem_requirements = self.device.get_image_memory_requirements(image);

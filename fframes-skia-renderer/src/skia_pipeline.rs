@@ -181,9 +181,7 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
         })??;
         encoder_handle
             .join()
-            .map_err(|e| {
-                FFramesRendererError::Internal(format!("Encoder thread panicked: {e:?}"))
-            })?
+            .map_err(|e| FFramesRendererError::Internal(format!("Encoder thread panicked: {e:?}")))?
             .map_err(|e| FFramesRendererError::RenderChunkError(0, e))?;
 
         Ok(())

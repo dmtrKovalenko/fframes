@@ -24,12 +24,12 @@ pub fn encode_video_resource(resource: &str, pts: i64) -> String {
     s.push_str(resource);
     s.push_str(FFRAMES_VIDEO_PATH_TAG);
     s.push_str(pts_str);
-    s.push_str(".jpg");
+    s.push_str(".png");
     s
 }
 
 pub fn decode_video_resource(s: &str) -> Option<(&str, i64)> {
-    let s = s.strip_suffix(".jpg")?;
+    let s = s.strip_suffix(".png")?;
     let (resource, pts_str) = s.split_once(FFRAMES_VIDEO_PATH_TAG)?;
     Some((resource, pts_str.parse().ok()?))
 }
@@ -233,6 +233,37 @@ impl Drop for FFmpegFrameBuf {
     }
 }
 
+/// Creates svgr preloaded image data with correctly blended color
+fn create_preloaded_image(
+    source_fmt: AVPixelFormat,
+    resource_name: String,
+    height: u32,
+    width: u32,
+    rgba_data: &'static [u8],
+) -> Arc<PreloadedImageData> {
+    let has_alpha_channel = unsafe {
+        let desc = av_pix_fmt_desc_get(source_fmt);
+
+        !desc.is_null() && (*desc).flags & AV_PIX_FMT_FLAG_ALPHA as u64 != 0
+    };
+
+    if has_alpha_channel {
+        Arc::new(PreloadedImageData::new(
+            resource_name,
+            width,
+            height,
+            rgba_data,
+        ))
+    } else {
+        Arc::new(PreloadedImageData::new_blended(
+            resource_name,
+            width,
+            height,
+            rgba_data,
+        ))
+    }
+}
+
 unsafe impl Send for FFmpegFrameBuf {}
 unsafe impl Sync for FFmpegFrameBuf {}
 
@@ -340,12 +371,13 @@ impl FFmpegFrameBuf {
             // e.g. the same video frame is requested from multiple scenes
             match self.data_buf.get().as_ref().and_then(|q| q.back()) {
                 Some(image) if image.pts == (*self.latest_av_frame).pts => {
-                    return Ok(Arc::new(PreloadedImageData::new_blended(
+                    return Ok(create_preloaded_image(
+                        scaler.video_stream_info.pixel_format,
                         encode_video_resource(&self.resource_name, image.pts),
                         self.get_width(),
                         self.get_height(),
                         &image.data,
-                    )));
+                    ));
                 }
                 _ => {}
             }
@@ -353,15 +385,13 @@ impl FFmpegFrameBuf {
             let image = self.write_new_frame().unwrap();
             scaler.convert(options.copied(), self.latest_av_frame, &mut image.data)?;
 
-            Ok(Arc::new(PreloadedImageData::new_blended(
+            Ok(create_preloaded_image(
+                scaler.video_stream_info.pixel_format,
                 encode_video_resource(&self.resource_name, image.pts),
                 scaler.width as u32,
                 scaler.height as u32,
-                // Possible unsafety here because we assume that the frame vec is allocated
-                // (and it actually is) till the end of the rendering worker lifetime and the data
-                // inside a datavec is always valid.
                 &image.data,
-            )))
+            ))
         }
     }
 
@@ -412,12 +442,13 @@ impl FFmpegDecoder {
         let buf = unsafe { self.frame_buf.data_buf.get().as_ref() }?;
         let image = buf.iter().find(|i| i.pts == pts)?;
 
-        Some(Arc::new(PreloadedImageData::new_blended(
+        Some(create_preloaded_image(
+            self.frame_buf.video_stream_info.pixel_format,
             encode_video_resource(&self.frame_buf.resource_name, image.pts),
             self.frame_buf.get_width(),
             self.frame_buf.get_height(),
             &image.data,
-        )))
+        ))
     }
 
     /// Creates a new decoder for the video file at the specified path

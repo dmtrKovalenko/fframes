@@ -42,7 +42,7 @@ pub struct ImageData<'a> {
     _marker: std::marker::PhantomData<&'a ()>,
 
     #[cfg(not(target_arch = "wasm32"))]
-    image: Arc<usvgr::PreloadedImageData>,
+    pub image: Arc<usvgr::PreloadedImageData>,
     #[allow(dead_code)]
     #[cfg(not(target_arch = "wasm32"))]
     container_bytes: Option<&'a [u8]>,

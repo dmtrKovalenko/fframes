@@ -73,7 +73,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-16 llvm ninja-build libgl1 libgl1-mesa-dev libgles2-mesa-dev libssl-dev libfontconfig1-dev mesa-common-dev libwayland-dev yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev
+          sudo apt-get install -y g++-16 llvm ninja-build libgl1 libgl1-mesa-dev libgles2-mesa-dev libssl-dev libfontconfig1-dev mesa-common-dev libwayland-dev yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libvpx-dev
 
       - name: Install Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.1

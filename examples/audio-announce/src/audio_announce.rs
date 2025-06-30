@@ -73,7 +73,7 @@ impl Video for AudioAnnounce<'_> {
 
     fn audio(&self) -> AudioMap {
         use fframes::AudioTimestamp::*;
-        AudioMap::from([("video.mp4", Second(0.)..Eof)])
+        AudioMap::from([("audio.mp3", Second(0.)..Eof)])
     }
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr<'a> {
@@ -82,13 +82,20 @@ impl Video for AudioAnnounce<'_> {
         const AVATAR_Y: usize = 100;
 
         let video_frame = {
-            frame.get_synced_video_frame(ctx, "video.mp4", &fframes::SyncVideoFrameInput::default())
+            frame.get_synced_video_frame(
+                ctx,
+                "transparent.mov",
+                &fframes::SyncVideoFrameInput {
+                    looping: true,
+                    ..Default::default()
+                },
+            )
         };
 
         let visualisation = frame.visualize_audio_frame(VisualizeFrameInput {
             smooth_level: 4,
             // safe to unwrap because used in the `audio` method
-            audio: ctx.get_audio("video.mp4").expect("video.mp4 not found"),
+            audio: ctx.get_audio("audio.mp3").expect("audio.mp3 not found"),
             sample_size: fframes::SampleSize::S512,
             window: Some(fframes::WindowFunction::Hann),
         });
@@ -104,11 +111,19 @@ impl Video for AudioAnnounce<'_> {
                  y="0"
                  width={Self::WIDTH}
                  height={Self::HEIGHT}
-                 href={self.media.background_png.href()}
+                 href="background.png"
              />
 
             {self.render_glowing_subtitles(frame, ctx)}
             {if let Some(video_frame) = video_frame {
+                let image = video_frame.into_resized_image(&FrameConvertOptions {
+                 resize: ResizeVideoFrame {
+                    width: AVATAR_SIZE,
+                    height: AVATAR_SIZE,
+                 }
+                }).unwrap().href();
+
+
                 fframes::svgr!(
                     <image
                      filter="url(#glow)"
@@ -117,12 +132,8 @@ impl Video for AudioAnnounce<'_> {
                      y={AVATAR_Y}
                      width={AVATAR_SIZE}
                      height={AVATAR_SIZE}
-                     href={video_frame.into_resized_image(&FrameConvertOptions {
-                         resize: ResizeVideoFrame {
-                            width: AVATAR_SIZE,
-                            height: AVATAR_SIZE,
-                         }
-                     }).unwrap().href()}
+                     // href={ctx.get_image("goose2.png").unwrap().href()}
+                     href={image}
                     />
                 )
             } else {

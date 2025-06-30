@@ -1,53 +1,51 @@
 WEBVTT
 
-00:00:00.880 --> 00:00:03.040
- Yes, this is what you've been waiting for!
+00:00:00.000 --> 00:00:04.120
+ It's crazy. Finally, I was able to support fully
 
-00:00:03.040 --> 00:00:04.920
- This is a proper video support
+00:00:04.120 --> 00:00:05.760
+ transparent videos in fframes.
 
-00:00:04.920 --> 00:00:07.720
- that is already in fframes,
+00:00:05.760 --> 00:00:09.680
+ This situation with transparent video is ridiculously
 
-00:00:07.720 --> 00:00:09.680
- few minutes from PR merge,
+00:00:09.680 --> 00:00:13.760
+ bad on the web and basically anything supports
 
-00:00:09.680 --> 00:00:11.440
- but you can see it works.
+00:00:13.760 --> 00:00:18.220
+ it correctly. It's madness. WebM, VP9 codec with
 
-00:00:11.440 --> 00:00:12.840
- It already works!
+00:00:18.220 --> 00:00:22.000
+ transparency mode, does not actually behave
 
-00:00:12.840 --> 00:00:14.560
- It's crazy, it didn't work all this time,
+00:00:22.000 --> 00:00:24.970
+ like it is a transparency mode just stores the alpha
 
-00:00:14.560 --> 00:00:16.240
- but that's why we're in beta.
+00:00:24.970 --> 00:00:29.200
+ channel separately. There is hevc (h265)
 
-00:00:16.240 --> 00:00:19.800
- And now we are much closer to the public release.
+00:00:29.200 --> 00:00:31.590
+ with support for the alpha channel which doesn't work
 
-00:00:19.800 --> 00:00:23.040
- This video that you see my face from
+00:00:31.590 --> 00:00:33.760
+ either because you need a specific build
 
-00:00:23.040 --> 00:00:26.680
- is decoded in runtime and passed as
+00:00:33.760 --> 00:00:37.510
+ of hevc encoder to actually have support of the alpha
 
-00:00:26.680 --> 00:00:28.320
- a native SVG image.
+00:00:37.510 --> 00:00:40.800
+ channel. There is Apple ProRes which actually
 
-00:00:28.320 --> 00:00:32.200
- So I can do any SVG manipulation if I want to.
+00:00:40.800 --> 00:00:45.000
+ supports alpha channel correctly but it is
 
-00:00:32.200 --> 00:00:36.320
- And it just like works out of the box really, really fast.
+00:00:45.000 --> 00:00:48.400
+Apple's vendor-locked codec and basically it is a nightmare and
 
-00:00:36.320 --> 00:00:40.200
- Doesn't harm parallelization at all and works in GPU and CPU
+00:00:48.400 --> 00:00:52.160
+ surprisingly fframes already supports them all
 
-00:00:40.200 --> 00:00:43.360
- all the modes and super, super useful.
+00:00:52.160 --> 00:00:58.160
+ out of the box and just works fine. I am SUPER excited
 
-00:00:43.360 --> 00:00:46.800
- Very excited about this feature and more to come.
 

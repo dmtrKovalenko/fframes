@@ -118,13 +118,8 @@ fn main() {
             },
         };
 
-        fframes::render(
-            format!("output/{filename}.mp4"),
-            &video,
-            backend,
-            &options,
-        )
-        .expect("Failed to render video");
+        fframes::render(format!("output/{filename}.mp4"), &video, backend, &options)
+            .expect("Failed to render video");
 
         // 330 is a frame that we want to use as a preview
         let preview_image = fframes::render_frame(330, &video, backend, &options).unwrap();
