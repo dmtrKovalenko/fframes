@@ -9,11 +9,11 @@ pub struct SponsorScene<'a> {
 }
 
 impl Scene for SponsorScene<'_> {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(3.8)
     }
 
-    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr<'_> {
         fframes::svgr!(
             <image
                 width={1920}

@@ -26,7 +26,7 @@ impl Scene for SpiralHeapGallery<'_> {
         fframes::Overlap::Next(0.5)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration)
     }
 
@@ -105,7 +105,7 @@ impl Scene for SpiralHeapGallery<'_> {
 impl<'a> SpiralHeapGallery<'a> {
     pub fn create(photos: &[&'a str], tempo: f32, rng: &mut impl Rng) -> Self {
         let photo_count = photos.len();
-        let photos = photos.iter().copied().collect::<Vec<_>>();
+        let photos = photos.to_vec();
 
         let last_photo_animation_end = ((photo_count - 1) as f32 * tempo * 4.0) + tempo * 4.0;
         let display_duration = rng.gen_range(5.0..8.0);

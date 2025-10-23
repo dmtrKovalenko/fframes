@@ -33,11 +33,11 @@ impl Default for PhotoFrame {
 }
 
 pub trait FramedImage {
-    fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr;
+    fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr<'_>;
 }
 
 impl FramedImage for ImageData<'_> {
-    fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr {
+    fn render_framed(&self, frame: PhotoFrame) -> fframes::Svgr<'_> {
         fframes::svgr!(
             // Photo frame border
             <rect

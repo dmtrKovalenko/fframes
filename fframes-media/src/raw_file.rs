@@ -9,7 +9,7 @@ pub enum RawMediaFile {
 }
 
 impl RawMediaFile {
-    pub fn read_bytes(&self) -> io::Result<Cow<[u8]>> {
+    pub fn read_bytes(&self) -> io::Result<Cow<'_, [u8]>> {
         match self {
             RawMediaFile::Stream(path) => Ok(fs::read(path)?.into()),
             RawMediaFile::Data(data) => Ok(Cow::Borrowed(data)),

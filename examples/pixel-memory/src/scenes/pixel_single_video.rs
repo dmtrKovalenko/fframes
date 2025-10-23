@@ -9,11 +9,11 @@ pub struct PixelSingleVideoScene<'a> {
 }
 
 impl Scene for PixelSingleVideoScene<'_> {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::FromAudio(self.video)
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
         AudioMap::from([(self.video, Second(0.)..Eof)])
     }

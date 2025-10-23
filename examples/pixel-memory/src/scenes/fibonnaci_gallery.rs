@@ -26,7 +26,7 @@ impl Scene for FibonacciSpiralGallery<'_> {
         fframes::Overlap::Next(self.spiral_out_duration * 0.3)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration)
     }
 

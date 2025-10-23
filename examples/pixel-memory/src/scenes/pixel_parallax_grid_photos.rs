@@ -19,7 +19,7 @@ impl Scene for ParallaxGridPhotos<'_> {
         fframes::Overlap::Next(0.3)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration)
     }
 
@@ -111,8 +111,8 @@ impl<'a> ParallaxGridPhotos<'a> {
         tempo: f32,
         rng: &mut impl Rng,
     ) -> Self {
-        let main_photos = main_photos.iter().copied().collect::<Vec<_>>();
-        let bg_photos = bg_photos.iter().copied().collect::<Vec<_>>();
+        let main_photos = main_photos.to_vec();
+        let bg_photos = bg_photos.to_vec();
 
         let pause = rng.gen_range(0.2..=0.3);
         let enter_duration = tempo * rng.gen_range(1.5..=2.5);

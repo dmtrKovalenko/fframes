@@ -506,10 +506,11 @@ fn to_valid_rust_identifier(input: &str) -> String {
 
     // Ensure the identifier starts with a letter or underscore
     let mut result = cleaned;
-    if let Some(first_char) = result.chars().next() {
-        if !first_char.is_alphabetic() && first_char != '_' {
-            result.insert(0, '_');
-        }
+    if let Some(first_char) = result.chars().next()
+        && !first_char.is_alphabetic()
+        && first_char != '_'
+    {
+        result.insert(0, '_');
     }
 
     result

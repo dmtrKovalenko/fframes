@@ -15,17 +15,17 @@ impl Video for ConferenceVideo<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::FromAudio("track.mp3")
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
 
         AudioMap::from([("track.mp3", (Frame(0)..Eof))])
     }
 
-    fn define_scenes(&self) -> fframes::Scenes {
+    fn define_scenes(&self) -> fframes::Scenes<'_> {
         let vec: Vec<&dyn Scene> = vec![&self.sponsor_scene, &self.speaker_scene];
 
         fframes::Scenes::from(vec)

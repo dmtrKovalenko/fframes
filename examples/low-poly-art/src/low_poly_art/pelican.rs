@@ -7,11 +7,11 @@ use fframes::svgr;
 pub(crate) struct Pelican {}
 
 impl Scene for Pelican {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr {
+    fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr<'_> {
         svgr!(
             <g filter="url(#f1)">
             <rect x="-2000" y="0" width="8000" height="3000" fill="#0d0d00"/>

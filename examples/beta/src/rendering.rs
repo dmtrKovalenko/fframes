@@ -8,11 +8,15 @@ use fframes::{
 pub struct RenderingScene {}
 
 impl Scene for RenderingScene {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Frames(140)
     }
 
-    fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> fframes::Svgr {
+    fn render_frame(
+        &self,
+        frame: fframes::Frame,
+        _ctx: &fframes::FFramesContext,
+    ) -> fframes::Svgr<'_> {
         const GPU_SECOND: f32 = 1.1;
 
         let gpu = frame.seconds() > GPU_SECOND;

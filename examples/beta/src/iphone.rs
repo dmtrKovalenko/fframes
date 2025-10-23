@@ -58,11 +58,15 @@ fn render_discord_message<'a>(
 }
 
 impl Scene for IphoneScene {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(8.)
     }
 
-    fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> fframes::Svgr {
+    fn render_frame(
+        &self,
+        frame: fframes::Frame,
+        ctx: &fframes::FFramesContext,
+    ) -> fframes::Svgr<'_> {
         const SEND_MESSAGE_TS: f32 = 4.8;
         const EXPAND_ISLAND_TS: f32 = 6.2;
 

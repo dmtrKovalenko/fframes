@@ -29,7 +29,7 @@ pub struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    pub fn new(config: ParserOptions, fframes_crate_ident: &Ident) -> Parser {
+    pub fn new(config: ParserOptions, fframes_crate_ident: &Ident) -> Parser<'_> {
         Parser {
             config,
             fframes_crate_ident,

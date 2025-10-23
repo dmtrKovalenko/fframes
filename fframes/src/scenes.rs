@@ -45,7 +45,7 @@ pub struct SceneInfo {
 
 #[allow(unused_variables)]
 pub trait Scene: Debug + Sync + Send {
-    fn duration(&self) -> crate::Duration;
+    fn duration(&self) -> crate::Duration<'_>;
     fn render_frame<'a>(
         &'a self,
         frame: crate::Frame,
@@ -56,7 +56,7 @@ pub trait Scene: Debug + Sync + Send {
         Overlap::None
     }
 
-    fn audio(&self) -> crate::audio_map::AudioMap {
+    fn audio(&self) -> crate::audio_map::AudioMap<'_> {
         crate::audio_map::AudioMap::none()
     }
 
@@ -83,7 +83,7 @@ impl Scenes<'_> {
 }
 
 impl<'a> From<Vec<&'a dyn Scene>> for Scenes<'a> {
-    fn from(arr: Vec<&'a (dyn Scene)>) -> Self {
+    fn from(arr: Vec<&'a dyn Scene>) -> Self {
         Self(Some(arr))
     }
 }

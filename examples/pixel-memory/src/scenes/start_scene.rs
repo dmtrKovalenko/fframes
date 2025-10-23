@@ -11,7 +11,7 @@ impl Scene for StartScene<'_> {
         fframes::Overlap::Next(3.0)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration)
     }
 

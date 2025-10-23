@@ -4,11 +4,11 @@ use fframes::{FFramesContext, Frame, Scene, Svgr, Transform, animation::Easing, 
 pub struct CodeDemoScene {}
 
 impl Scene for CodeDemoScene {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Frames(200)
     }
 
-    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr<'_> {
         let tilt_angle = frame.animate(&fframes::timeline!(
           at 0.3, duration 3.0, animate -0.4 => 1.2, Easing::Linear
         ));

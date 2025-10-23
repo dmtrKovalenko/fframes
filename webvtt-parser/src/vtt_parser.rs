@@ -15,7 +15,7 @@ use nom::{
 use crate::cue_settings_parser::parse_cue_settings;
 use crate::{START_MARKER, Time, Vtt, VttCue};
 
-fn parse_note(input: Span) -> IResult<Span, Option<&str>> {
+fn parse_note(input: Span<'_>) -> IResult<Span<'_>, Option<&str>> {
     let (rest, line) = take_until("\n")(input)?;
 
     if !line.contains("NOTE ") {
@@ -69,7 +69,7 @@ fn parse_time_with_hours(input: Span) -> IResult<Span, Time> {
     ))
 }
 
-fn parse_cue_identifier(input: Span) -> IResult<Span, Option<&str>> {
+fn parse_cue_identifier(input: Span<'_>) -> IResult<Span<'_>, Option<&str>> {
     let (rest, line) = take_until("\n")(input)?;
 
     if line.contains("-->") {

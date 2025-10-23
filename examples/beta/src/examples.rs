@@ -15,7 +15,7 @@ pub struct BetaExamples<'a> {
 }
 
 impl Scene for BetaExamples<'_> {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Frames(500)
     }
 

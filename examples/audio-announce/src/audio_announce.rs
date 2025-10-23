@@ -67,11 +67,11 @@ impl Video for AudioAnnounce<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Auto
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
         AudioMap::from([("video.mp4", Second(0.)..Eof)])
     }
@@ -106,13 +106,13 @@ impl Video for AudioAnnounce<'_> {
             width={Self::WIDTH}
             height={Self::HEIGHT}
           >
-             // <image
-             //     x="0"
-             //     y="0"
-             //     width={Self::WIDTH}
-             //     height={Self::HEIGHT}
-             //     href={self.media.background_png.href()}
-             // />
+             <image
+                 x="0"
+                 y="0"
+                 width={Self::WIDTH}
+                 height={Self::HEIGHT}
+                 href={self.media.background_png.href()}
+             />
 
             {self.render_glowing_subtitles(frame, ctx)}
             {if let Some(video_frame) = video_frame.and_then(|f| f.into_resized_image(&FrameConvertOptions {
@@ -130,7 +130,7 @@ impl Video for AudioAnnounce<'_> {
                      y={AVATAR_Y}
                      width={AVATAR_SIZE}
                      height={AVATAR_SIZE}
-i                    href={video_frame.href()}
+                        href={video_frame.href()}
                     />
                 )
             } else {

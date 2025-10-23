@@ -53,7 +53,7 @@ pub struct FFramesContext<'a, 'media: 'a> {
     /// Resolved scenes timeline if provided by the Video implementation
     pub scenes: Option<&'a ResolvedScenesTimeline<'a>>,
     /// Media source can be used to resolve audio, video, images, and any other supported media
-    pub media_source: Option<&'media (dyn MediaProvider<'media>)>,
+    pub media_source: Option<&'media dyn MediaProvider<'media>>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
     pub abort_signal: Option<&'media AbortSignal>,
 }

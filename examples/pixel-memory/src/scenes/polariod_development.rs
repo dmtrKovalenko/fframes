@@ -23,7 +23,7 @@ impl Scene for PolaroidDevelopment<'_> {
         fframes::Overlap::Next(0.3)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration)
     }
 
@@ -221,7 +221,7 @@ impl<'a> PolaroidDevelopment<'a> {
     pub fn create(photos: &[&'a str], tempo: f32, rng: &mut impl Rng) -> Self {
         const BLOW_OUT_DURATION: f32 = 0.5;
         let photo_count = photos.len();
-        let photos = photos.iter().copied().collect::<Vec<_>>();
+        let photos = photos.to_vec();
 
         let base_duration = tempo * 4.0;
         let total_duration = base_duration * photo_count as f32 + (tempo * rng.gen_range(1.0..2.0));

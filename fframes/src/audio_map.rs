@@ -208,7 +208,7 @@ impl<TUnit: AudioTimelineUnit + Copy> ResolvedAudioMap<TUnit> {
     pub fn calc_stream_duration(&self) -> usize {
         self.0
             .iter()
-            .map(|(_, range)| (range.start.as_usize() + range.end.as_usize()))
+            .map(|(_, range)| range.start.as_usize() + range.end.as_usize())
             .max()
             .unwrap_or(0)
     }

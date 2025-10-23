@@ -13,11 +13,11 @@ pub struct BetaVideo<'a> {
 struct HeadingScene {}
 
 impl Scene for HeadingScene {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(3.)
     }
 
-    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, _ctx: &FFramesContext) -> Svgr<'_> {
         svgr!(
             <text
                 font-family="DM Sans"
@@ -58,11 +58,11 @@ impl Video for BetaVideo<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Auto
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use AudioTimestamp::*;
 
         AudioMap::from([
@@ -72,7 +72,7 @@ impl Video for BetaVideo<'_> {
         ])
     }
 
-    fn define_scenes(&self) -> fframes::Scenes {
+    fn define_scenes(&self) -> fframes::Scenes<'_> {
         let vec: Vec<&dyn Scene> = vec![
             &HeadingScene {},
             &crate::code_demo::CodeDemoScene {},

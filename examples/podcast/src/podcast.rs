@@ -23,18 +23,18 @@ impl Video for PodcastVideo<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         AudioMap::from([(
             "final.mp3",
             (AudioTimestamp::Second(0.)..AudioTimestamp::Second(60.)),
         )])
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Auto
     }
 
-    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr<'_> {
         let goose_vis = ctx
             .get_audio(self.goose_audio)
             .map(|audio| {

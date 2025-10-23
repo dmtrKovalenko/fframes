@@ -358,7 +358,7 @@ impl FFmpegFrameBuf {
 
     /// Returns fframe image constructed from the underlying ffmpeg's frame
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// This is a libav based function which involves C ffi cals
     /// In addition it is manually transmutes the pointer owned by the decoder to the fframes
     /// images so it should not be used outside of the rendering worker.
     pub unsafe fn convert_last_decoded_frame_into_svg_image(
@@ -397,14 +397,14 @@ impl FFmpegFrameBuf {
 
     /// Returns the timestamp of the frame in the native frame timebase
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// This is a libav based function which involves C ffi cals
     pub unsafe fn get_pts(&self) -> i64 {
         unsafe { (*self.latest_av_frame).pts }
     }
 
     /// Returns the timestamp of the frame in seconds
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// This is a libav based function which involves C ffi cals
     pub unsafe fn timestamp_seconds(&self) -> f32 {
         unsafe {
             let timestamp =
@@ -416,7 +416,7 @@ impl FFmpegFrameBuf {
 
     /// Returns the duration of the stream in frames
     /// # Safety
-    /// This is a libav based function which involes C ffi cals
+    /// This is a libav based function which involves C ffi cals
     pub unsafe fn get_stream_duration_in_frames(&self) -> f32 {
         unsafe {
             let fps =

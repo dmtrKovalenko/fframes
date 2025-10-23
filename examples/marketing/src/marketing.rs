@@ -30,7 +30,7 @@ pub struct MarketingVideo<'a> {
 }
 
 impl MarketingVideo<'_> {
-    fn render_ferris(&self, frame: &Frame) -> Svgr {
+    fn render_ferris(&self, frame: &Frame) -> Svgr<'_> {
         if !(2.3f32..5.0f32).contains(&frame.seconds()) {
             return Svgr::default();
         }
@@ -240,11 +240,11 @@ impl Video for MarketingVideo<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Auto
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::{Eof, Second};
 
         AudioMap::from([
@@ -254,7 +254,7 @@ impl Video for MarketingVideo<'_> {
         ])
     }
 
-    fn render_frame(&self, frame: fframes::Frame, _ctx: &FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: fframes::Frame, _ctx: &FFramesContext) -> Svgr<'_> {
         let audio_visualization = frame.visualize_audio_frame(VisualizeFrameInput {
             audio: &self.media.marketing_mp3,
             sample_size: fframes::SampleSize::S16,

@@ -7,11 +7,11 @@ use fframes::svgr;
 pub(crate) struct SpektacledOwl {}
 
 impl Scene for SpektacledOwl {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr {
+    fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr<'_> {
         svgr!(
          <g filter="url(#f1)">
              <polygon points="528,833 483,810 445,860" style="fill:rgb(33,20,8)"/>

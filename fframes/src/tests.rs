@@ -7,7 +7,7 @@ use crate::{
 struct FakeScene {}
 
 impl Scene for FakeScene {
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use AudioTimestamp::*;
 
         AudioMap::from([
@@ -16,11 +16,11 @@ impl Scene for FakeScene {
         ])
     }
 
-    fn duration(&self) -> crate::Duration {
+    fn duration(&self) -> crate::Duration<'_> {
         crate::Duration::Seconds(30.)
     }
 
-    fn render_frame(&self, _: crate::Frame, _: &crate::FFramesContext) -> crate::Svgr {
+    fn render_frame(&self, _: crate::Frame, _: &crate::FFramesContext) -> crate::Svgr<'_> {
         unimplemented!()
     }
 }
@@ -32,11 +32,11 @@ impl Video for FakeVideo {
     const WIDTH: usize = 100;
     const HEIGHT: usize = 100;
 
-    fn duration(&self) -> crate::Duration {
+    fn duration(&self) -> crate::Duration<'_> {
         crate::Duration::Auto
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use AudioTimestamp::*;
 
         AudioMap::from([
@@ -45,14 +45,14 @@ impl Video for FakeVideo {
         ])
     }
 
-    fn define_scenes(&self) -> crate::Scenes {
+    fn define_scenes(&self) -> crate::Scenes<'_> {
         crate::Scenes::from(vec![
             &FakeScene {} as &dyn Scene,
             &FakeScene {} as &dyn Scene,
         ])
     }
 
-    fn render_frame(&self, _: Frame, _: &FFramesContext) -> crate::Svgr {
+    fn render_frame(&self, _: Frame, _: &FFramesContext) -> crate::Svgr<'_> {
         unimplemented!()
     }
 }

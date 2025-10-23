@@ -57,7 +57,7 @@ fn create_svgr_ident(
     nodes: Vec<Node>,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (html_string, values) =
-        crate::nodes_to_format::prepare_svg_nodes_for_format_statement(nodes, &fframes_crate_ident);
+        crate::nodes_to_format::prepare_svg_nodes_for_format_statement(nodes, fframes_crate_ident);
 
     Ok(quote! {
         #fframes_crate_ident::Svgr {

@@ -381,7 +381,7 @@ pub(crate) fn text_wrap_impl<
 
     for line in value.split('\n') {
         let mut is_first_word_in_line = true;
-        
+
         for word in line.split_whitespace() {
             let word_width = calc_text_width(word, font_face.as_ref(), font.size, font_variant);
             let (last_line, last_line_width) = structure.last_mut()?;
@@ -399,16 +399,17 @@ pub(crate) fn text_wrap_impl<
             }
             is_first_word_in_line = false;
         }
-        
+
         if !is_first_word_in_line {
             structure.push((vec![], 0usize));
         }
     }
 
-    if let Some((last_words, last_width)) = structure.last() {
-        if last_words.is_empty() && *last_width == 0 {
-            structure.pop();
-        }
+    if let Some((last_words, last_width)) = structure.last()
+        && last_words.is_empty()
+        && *last_width == 0
+    {
+        structure.pop();
     }
 
     let lines = structure

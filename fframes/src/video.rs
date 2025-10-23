@@ -1,8 +1,8 @@
 use crate::audio_map::AudioMap;
 use crate::error::Result;
 use crate::{
-    AudioTimelineUnit, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo, Svgr,
-    TimeBase, scenes::*, Color,
+    AudioTimelineUnit, Color, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo, Svgr,
+    TimeBase, scenes::*,
 };
 
 /// The base fframes video trait. It represents how to render a video for a struct which becomes an
@@ -16,7 +16,7 @@ pub trait Video: Sync + Sized {
     ///
     /// Make sure if you want to render a transparent video use `Color::TRANSPARENT` here
     /// **and** set the proper encoder and pixel_format that supports transparency
-    /// (e.g. encoder libx265 with yuva420p pixel format) when rendering the video. 
+    /// (e.g. encoder libx265 with yuva420p pixel format) when rendering the video.
     const BACKGROUND_COLOR: Color = Color::BLACK;
 
     /// Defines either dynamic or inferred duration of the video
@@ -48,7 +48,7 @@ pub trait Video: Sync + Sized {
     /// };
     ///
     /// impl Video for MyVideo {
-    ///     fn define_scenes(&self) -> Scenes {
+    ///     fn define_scenes(&self) -> Scenes<'_> {
     ///         let scenes: Vec<&dyn Scene> = vec![
     ///             // notice this is a zero sized type so we can create ref right here
     ///             &SceneZeroSize},
@@ -60,11 +60,11 @@ pub trait Video: Sync + Sized {
     ///     }
     /// }
     /// ```
-    fn define_scenes(&self) -> Scenes {
+    fn define_scenes(&self) -> Scenes<'_> {
         Scenes(None)
     }
 
-    /// This function is going to be called for each frame of the video and expects to return 
+    /// This function is going to be called for each frame of the video and expects to return
     /// a valid SVG rendering tree for the specific frame.
     ///
     /// This function is going to be called thousands of times per rendering, so it is important to reduce

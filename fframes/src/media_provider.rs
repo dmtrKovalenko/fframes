@@ -32,7 +32,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
         image_data: &mut HashMap<String, Arc<usvgr::PreloadedImageData>>,
     );
 
-    fn get_all_audio_data(&self) -> Vec<(&AudioData, &str)> {
+    fn get_all_audio_data(&self) -> Vec<(&AudioData<'_>, &str)> {
         Vec::with_capacity(0)
     }
 
@@ -40,7 +40,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
         Vec::with_capacity(0)
     }
 
-    fn get_all_image_data(&self) -> Vec<(&media::ImageData, &str)> {
+    fn get_all_image_data(&self) -> Vec<(&media::ImageData<'_>, &str)> {
         Vec::with_capacity(0)
     }
 
@@ -54,7 +54,7 @@ pub trait StaticMediaProvider<'a>: std::fmt::Debug + Sized + MediaProvider<'a> {
 }
 
 impl<'a> MediaProvider<'a> for () {
-    fn resolve_audio(&self, _name: &str) -> Option<&'a AudioData> {
+    fn resolve_audio(&self, _name: &str) -> Option<&'a AudioData<'_>> {
         None
     }
 
@@ -114,7 +114,7 @@ impl<'media> DynamicMediaProvider<'media> {
 }
 
 impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
-    fn resolve_audio(&self, name: &str) -> Option<&'a AudioData> {
+    fn resolve_audio(&self, name: &str) -> Option<&'a AudioData<'_>> {
         self.audio.get(name)
     }
 
@@ -153,14 +153,14 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
             .collect()
     }
 
-    fn get_all_audio_data(&self) -> Vec<(&AudioData, &str)> {
+    fn get_all_audio_data(&self) -> Vec<(&AudioData<'_>, &str)> {
         self.audio
             .iter()
             .map(|(name, data)| (data, name.as_str()))
             .collect()
     }
 
-    fn get_all_image_data(&self) -> Vec<(&media::ImageData, &str)> {
+    fn get_all_image_data(&self) -> Vec<(&media::ImageData<'_>, &str)> {
         self.images
             .iter()
             .map(|(name, data)| (data, name.as_str()))
@@ -195,7 +195,7 @@ impl<'a, const N: usize> From<[&'a (dyn MediaProvider<'a> + 'a); N]>
 }
 
 impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
-    fn resolve_audio(&self, name: &str) -> Option<&'a AudioData> {
+    fn resolve_audio(&self, name: &str) -> Option<&'a AudioData<'_>> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_audio(name))
@@ -207,7 +207,7 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
             .find_map(|provider| provider.resolve_image(name))
     }
 
-    fn resolve_subtitles(&self, name: &str) -> Option<&'a media::Subtitles> {
+    fn resolve_subtitles(&self, name: &str) -> Option<&'a media::Subtitles<'_>> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_subtitles(name))

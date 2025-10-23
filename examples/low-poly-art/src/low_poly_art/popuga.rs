@@ -7,11 +7,11 @@ use fframes::svgr;
 pub(crate) struct Popuga {}
 
 impl Scene for Popuga {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(15.)
     }
 
-    fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr {
+    fn render_frame(&self, _frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr<'_> {
         svgr!(
                 <g filter="url(#f1)">
                     <polygon points="1240,808 1214,762 1183,787" style="fill:rgb(2,6,9)"/>

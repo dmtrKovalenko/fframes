@@ -20,7 +20,7 @@ impl Scene for SinglePhotoFloat<'_> {
         fframes::Overlap::Next(0.4)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration)
     }
 

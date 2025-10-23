@@ -243,7 +243,7 @@ fn maybe_parse_svg_attribute(
         if attribute.value_as_string().as_deref() == Some(SVG_NS) {
             return Ok(None);
         } else {
-            return Err(syn::Error::new(attribute_span, format!("Found non svg namespace: {}, please make sure that only svg xml is suppoerted.\nPlease make sure to enter a valid SVG namespace => {SVG_NS}", attribute.value_as_string().unwrap_or_default())));
+            return Err(syn::Error::new(attribute_span, format!("Found non svg namespace: {}, please make sure that only svg xml is supported.\nPlease make sure to enter a valid SVG namespace => {SVG_NS}", attribute.value_as_string().unwrap_or_default())));
         }
     }
 

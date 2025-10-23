@@ -21,15 +21,15 @@ impl Video for LowPolyVideo<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Auto
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         AudioMap::none()
     }
 
-    fn define_scenes(&self) -> fframes::Scenes {
+    fn define_scenes(&self) -> fframes::Scenes<'_> {
         fframes::Scenes::from(vec![self.scene])
     }
 

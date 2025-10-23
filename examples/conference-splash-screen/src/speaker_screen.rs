@@ -15,7 +15,7 @@ pub struct SpeakerScene<'a> {
 }
 
 impl Scene for SpeakerScene<'_> {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(4.)
     }
 

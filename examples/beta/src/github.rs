@@ -8,11 +8,15 @@ impl Scene for GithubScene {
         Overlap::Previous(0.3)
     }
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(5.)
     }
 
-    fn render_frame(&self, frame: fframes::Frame, ctx: &fframes::FFramesContext) -> fframes::Svgr {
+    fn render_frame(
+        &self,
+        frame: fframes::Frame,
+        ctx: &fframes::FFramesContext,
+    ) -> fframes::Svgr<'_> {
         let github_image = if let Some(github_image) = ctx.get_image("github_screenshot.png") {
             github_image.href()
         } else {

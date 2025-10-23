@@ -204,7 +204,7 @@ impl<'a> From<&'a OwnedVttCue> for &'a str {
 }
 
 impl OwnedVttCue {
-    pub fn as_ref(&self) -> VttCue {
+    pub fn as_ref(&self) -> VttCue<'_> {
         VttCue {
             start: self.start,
             end: self.end,

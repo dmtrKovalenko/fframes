@@ -24,11 +24,11 @@ impl Video for TeejPodcast<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Auto
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
         AudioMap::from([
             ("left.mp4", Second(0.)..Eof),

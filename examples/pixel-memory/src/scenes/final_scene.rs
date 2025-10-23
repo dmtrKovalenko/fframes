@@ -24,7 +24,7 @@ impl FinalScene {
 }
 
 impl Scene for FinalScene {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.duration + 10.0)
     }
 

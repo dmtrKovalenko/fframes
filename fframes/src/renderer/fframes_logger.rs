@@ -135,7 +135,7 @@ pub fn make_logger(variant: FFramesLoggerVariant) -> Arc<dyn FFramesLogger> {
     match variant {
         FFramesLoggerVariant::Silent => Arc::new(SilentLogger) as Arc<dyn FFramesLogger>,
         FFramesLoggerVariant::Quiet => Arc::new(QuietLogger) as Arc<dyn FFramesLogger>,
-        // TODO: Implement custom verbose debugging loggger
+        // TODO: Implement custom verbose debugging logger
         FFramesLoggerVariant::Compact | FFramesLoggerVariant::Debug => {
             Arc::new(CompactFFramesLogger {
                 frames_progress_bar: OnceCell::new(),

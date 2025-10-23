@@ -22,15 +22,15 @@ impl Video for PixelVideo<'_> {
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(self.total_duration)
     }
 
-    fn define_scenes(&self) -> Scenes {
+    fn define_scenes(&self) -> Scenes<'_> {
         Scenes::from(self.scenes.as_slice())
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
 
         AudioMap::from([(self.music, Second(6.0)..Eof)])

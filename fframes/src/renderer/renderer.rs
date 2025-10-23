@@ -23,7 +23,7 @@ use super::renderer_font_source::RendererFontSource;
 /// All the final render-specific options applies to the final video rendering pipeline
 /// including media resolution, logging, rendering backend, and encoding.
 pub struct RenderOptions<'a, 'media> {
-    pub media: Option<&'media (dyn MediaProvider<'media>)>,
+    pub media: Option<&'media dyn MediaProvider<'media>>,
     pub logger: FFramesLoggerVariant,
     pub audio_encoder_options: EncoderOptions<'a>,
     pub video_encoder_options: EncoderOptions<'a>,

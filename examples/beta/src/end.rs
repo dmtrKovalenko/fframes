@@ -4,11 +4,15 @@ use fframes::{Rotate, Scene, Transform, animation, svgr};
 pub struct EndScene {}
 
 impl Scene for EndScene {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(2.)
     }
 
-    fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> fframes::Svgr {
+    fn render_frame(
+        &self,
+        frame: fframes::Frame,
+        _ctx: &fframes::FFramesContext,
+    ) -> fframes::Svgr<'_> {
         svgr!(
           <linearGradient id="text">
             <stop stop-color="#4338ca"/>

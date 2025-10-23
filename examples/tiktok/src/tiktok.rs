@@ -19,11 +19,11 @@ impl Video for GooseVideo<'_> {
     const HEIGHT: usize = 1920;
     const BACKGROUND_COLOR: fframes::Color = fframes::Color::TRANSPARENT;
 
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::FromAudio("thought.mp3")
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
 
         AudioMap::from([("thought.mp3", (Frame(0)..Eof))])

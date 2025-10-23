@@ -13,17 +13,17 @@ pub struct Owl<'a> {
 }
 
 impl Scene for Owl<'_> {
-    fn duration(&self) -> fframes::Duration {
+    fn duration(&self) -> fframes::Duration<'_> {
         fframes::Duration::Seconds(10.)
     }
 
-    fn audio(&self) -> AudioMap {
+    fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
 
         AudioMap::from([("owl.mp3", (Frame(0)..Second(10.)))])
     }
 
-    fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr {
+    fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr<'_> {
         let noise_x = (rand::random::<f64>() * 60.) as i32 - 30;
         let noise_y = (rand::random::<f64>() * 60.) as i32 - 30;
 
