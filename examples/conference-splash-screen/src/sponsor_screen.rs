@@ -23,11 +23,11 @@ impl Scene for SponsorScene<'_> {
                 href={self.media.background_gradient_jpg.href()}
             />
 
-            <image
-                x="66%"
-                y="10%"
-                width="600"
-                href={self.media.berlin_png.href()}
+            <text
+                x="70%"
+                y="12%"
+                font-size="70"
+                fill="#FFFFFF"
                 opacity={
                     frame.animate(&fframes::timeline!(
                         at 2.0 => 2.2, animate 0. => 1., Easing::Linear
@@ -40,7 +40,10 @@ impl Scene for SponsorScene<'_> {
                         &Easing::Spring { mass: 4., stiffness: 30., damping: 25. }
                     ))
                 }
-            />
+            >
+                <tspan font-weight="600" font-family="Montserrat">"Warsaw "</tspan>
+                <tspan font-family="JetBrains Mono">"2025"</tspan>
+            </text>
 
             <text
                 font-family="Montserrat"
@@ -59,7 +62,7 @@ impl Scene for SponsorScene<'_> {
                     ))
                 }
             >
-                "FUN " <tspan  fill="#C24F1E"> "OCaml" </tspan>
+                "FUN " <tspan fill="#C24F1E">"OCaml"</tspan>
             </text>
 
             <svg
@@ -82,20 +85,35 @@ impl Scene for SponsorScene<'_> {
                 />
             </svg>
 
+            <text
+                x="50%"
+                y="620"
+                font-size="60"
+                font-family="Inter 18pt"
+                font-weight="600"
+                fill="#d43f00"
+                dominant-baseline="middle"
+                opacity={
+                    frame.animate(&fframes::timeline!(
+                        at 1.2 => 1.4, animate 0. => 1., Easing::Linear
+                    ))
+                }
+            >
+                "Sponsors and Partners"
+            </text>
             <image
-                x="40"
-                y="800"
-                width="1840"
+                x="720"
+                y="670"
+                width="1150"
                 transform={
                     frame.animate(fframes::timeline!(
                         at 1.2,
-                        animate Transform::translate(0, 350) => Transform::translate(0, 0),
-                        &Easing::Spring { mass: 1.0, stiffness: 100., damping: 16. }
+                        animate Transform::translate(0, 600) => Transform::translate(0, 0),
+                        &Easing::Spring { mass: 0.8, stiffness: 100., damping: 16. }
                     ))
                 }
                 href={self.media.sponsors_png.href()}
             />
-
         )
     }
 }

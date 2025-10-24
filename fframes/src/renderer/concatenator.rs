@@ -116,8 +116,7 @@ unsafe fn create_encoder_copy_from_file(
             &mut output_format_ctx,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
-            output_file.as_ptr(),
-        );
+            output_file.as_ptr(),);
 
         let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
         let audio_stream =
@@ -214,19 +213,61 @@ impl Encoder {
         }
     }
 
-    unsafe fn fill_video_stream_from_files(
+    unsafe fn fill_streams_from_files(
         &self,
         files: &[PathBuf],
     ) -> Result<(), RenderEncodingError> {
         unsafe {
-            let mut last_mux_dts: Option<i64> = None;
+            let mut last_video_mux_dts: Option<i64> = None;
+            let mut last_audio_mux_dts: Option<i64> = None;
             let mut packet = AvPacketAutoFree::new();
 
             for file in files.iter() {
                 let mut input_format_ctx = std::ptr::null_mut();
 
-                let input_video_stream =
-                    open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_VIDEO)?;
+                // Open the file once and find both video and audio streams
+                let input_file = CString::new(file.to_string_lossy().as_ref())
+                    .map_err(RenderEncodingError::CStringError)?;
+
+                ffmpeg_action!(
+                    avformat_open_input(
+                        &mut input_format_ctx,
+                        input_file.as_ptr(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                    ),
+                    RenderEncodingError::CantOpenFile(file.to_owned())
+                );
+
+                ffmpeg_action!(
+                    avformat_find_stream_info(input_format_ctx, std::ptr::null_mut()),
+                    RenderEncodingError::CantOpenFile(file.to_owned())
+                );
+
+                let streams = std::slice::from_raw_parts_mut(
+                    (*input_format_ctx).streams,
+                    (*input_format_ctx).nb_streams as usize,
+                );
+
+                let mut input_video_stream = std::ptr::null_mut();
+                let mut input_audio_stream = std::ptr::null_mut();
+
+                // Find video and audio streams
+                for stream in streams {
+                    let codec = (*stream.to_owned()).codecpar;
+                    match (*codec).codec_type {
+                        AVMediaType::AVMEDIA_TYPE_VIDEO => input_video_stream = *stream,
+                        AVMediaType::AVMEDIA_TYPE_AUDIO => input_audio_stream = *stream,
+                        _ => {}
+                    }
+                }
+
+                if input_video_stream.is_null() {
+                    avformat_close_input(&mut input_format_ctx);
+                    return Err(RenderEncodingError::MissingVideoStreamInFile(
+                        file.to_owned(),
+                    ));
+                }
 
                 loop {
                     let res = av_read_frame(input_format_ctx, packet.get());
@@ -234,20 +275,58 @@ impl Encoder {
                         break;
                     }
 
-                    packet.get_mut().flags |= AV_PKT_FLAG_KEY;
-
-                    if let Some(last_mux_dts) = last_mux_dts.as_mut() {
-                        validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
-                    }
-
-                    last_mux_dts = Some((*packet.get()).dts);
-
-                    av_packet_rescale_ts(
-                        packet.get(),
-                        (*input_video_stream).time_base,
-                        (*self.video_stream.st).time_base,
+                    let packet_stream_index = (*packet.get()).stream_index;
+                    let input_streams = std::slice::from_raw_parts(
+                        (*input_format_ctx).streams,
+                        (*input_format_ctx).nb_streams as usize,
                     );
-                    av_interleaved_write_frame(self.oc, packet.get());
+                    let input_stream = input_streams[packet_stream_index as usize];
+                    let codec_type = (*(*input_stream).codecpar).codec_type;
+
+                    match codec_type {
+                        AVMediaType::AVMEDIA_TYPE_VIDEO => {
+                            // Handle video packet
+                            packet.get_mut().flags |= AV_PKT_FLAG_KEY;
+                            packet.get_mut().stream_index = (*self.video_stream.st).index;
+
+                            if let Some(last_mux_dts) = last_video_mux_dts.as_mut() {
+                                validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
+                            }
+                            last_video_mux_dts = Some((*packet.get()).dts);
+
+                            av_packet_rescale_ts(
+                                packet.get(),
+                                (*input_video_stream).time_base,
+                                (*self.video_stream.st).time_base,
+                            );
+                            av_interleaved_write_frame(self.oc, packet.get());
+                        },
+                        AVMediaType::AVMEDIA_TYPE_AUDIO => {
+                            // Handle audio packet if we have an audio stream
+                            if !input_audio_stream.is_null() && self.audio_stream.is_some() {
+                                let audio_stream = self.audio_stream.as_ref().unwrap();
+
+                                packet.get_mut().stream_index = (*audio_stream.st).index;
+
+                                // Apply DTS validation for audio packets too
+                                if let Some(last_mux_dts) = last_audio_mux_dts.as_mut() {
+                                    validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
+                                }
+                                last_audio_mux_dts = Some((*packet.get()).dts);
+
+                                // Rescale audio packet timestamps
+                                av_packet_rescale_ts(
+                                    packet.get(),
+                                    (*input_audio_stream).time_base,
+                                    (*audio_stream.st).time_base,
+                                );
+                                av_interleaved_write_frame(self.oc, packet.get());
+                            }
+                        },
+                        _ => {
+                            // Skip other types of packets
+                        }
+                    }
                 }
 
                 avformat_close_input(&mut input_format_ctx);
@@ -269,9 +348,16 @@ pub unsafe fn concat_video_files_with_audio(
     unsafe {
         let encoder = create_encoder_copy_from_file(&files[0], output, render_options)?;
 
-        encoder.fill_video_stream_from_files(files)?;
+        // Set thread count for audio encoding before processing
         if let Some(audio_stream) = &encoder.audio_stream {
             (*audio_stream.enc).thread_count = concurrency;
+        }
+
+        // Process both video and audio streams from files in synchronized order
+        encoder.fill_streams_from_files(files)?;
+
+        // Add any additional audio content from the audio map
+        if encoder.audio_stream.is_some() {
             encoder.fill_audio_stream(audio_map, ctx)?;
         }
 

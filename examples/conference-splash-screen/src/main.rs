@@ -73,9 +73,10 @@ fn main() {
     let options = RenderOptions {
         media: Some(&media_provider),
         load_system_fonts: true,
+        tmp_files_directory: Some(&PathBuf::from("./test_video")),
         logger: fframes_logger::FFramesLoggerVariant::Compact,
         video_encoder_options: EncoderOptions {
-            preferred_encoder: Some("libx265"),
+            preferred_encoder: Some("libx264"),
             qmin: 0,
             qmax: 69,
             qcompress: 0.6,
@@ -100,10 +101,11 @@ fn main() {
 
     let backend = fframes::cpu::CpuRenderingBackend {
         concurrency: 1,
-        cache_capacity: 40,
+        cache_capacity: 200,
         ..Default::default()
     };
 
+    println!("Rendering {} talks...", TALKS.len());
     TALKS.iter().enumerate().for_each(|(index, talk)| {
         let filename = format!("{}_{index}", talk.speaker_name.replace(" ", "_"));
         let video = ConferenceVideo {

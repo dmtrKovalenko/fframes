@@ -151,13 +151,25 @@ impl EncoderFrame {
             return self.av_frame;
         }
 
-        let mut fltp_audio_data = audio_data
+        let fltp_audio_bytes = audio_data
             .into_iter()
             .flat_map(|data| data.to_le_bytes())
             .collect::<Vec<u8>>();
 
         unsafe {
-            (*self.av_frame).data[0] = fltp_audio_data.as_mut_ptr();
+            // Copy data into the AVFrame's allocated buffer instead of assigning pointer
+            let frame_buffer = (*self.av_frame).data[0];
+            let buffer_size = (*self.av_frame).linesize[0] as usize;
+            let copy_size = fltp_audio_bytes.len().min(buffer_size);
+
+            std::ptr::copy_nonoverlapping(
+                fltp_audio_bytes.as_ptr(),
+                frame_buffer,
+                copy_size
+            );
+
+            // Update the actual number of samples in the frame
+            (*self.av_frame).nb_samples = (copy_size / 4) as i32; // 4 bytes per f32
         }
 
         self.av_frame
