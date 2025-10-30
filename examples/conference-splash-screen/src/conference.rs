@@ -11,7 +11,7 @@ pub struct ConferenceVideo<'a> {
 }
 
 impl Video for ConferenceVideo<'_> {
-    const FPS: usize = 60;
+    const FPS: usize = 24;
     const WIDTH: usize = 1920;
     const HEIGHT: usize = 1080;
 

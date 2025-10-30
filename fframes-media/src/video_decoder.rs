@@ -1,6 +1,7 @@
 use crate::FFramesMediaError;
 use crate::error::Result;
 use crate::video_types::FrameConvertOptions;
+use ffmpeg_sys_fframes::SwsFlags::{SWS_BICUBIC, SWS_BILINEAR};
 use ffmpeg_sys_fframes::*;
 use std::cell::UnsafeCell;
 use std::collections::VecDeque;
@@ -79,13 +80,13 @@ impl SwsScaler {
             let flags = if video_stream_info.width > target_width
                 || video_stream_info.height > target_height
             {
-                SWS_BICUBIC // Downscaling
+                SWS_BICUBIC as libc::c_int // Downscaling
             } else if video_stream_info.width < target_width
                 || video_stream_info.height < target_height
             {
-                SWS_BILINEAR // Upscaling
+                SWS_BILINEAR as libc::c_int // Upscaling
             } else {
-                0 // No scaling needed
+                0
             };
 
             Ok(sws_getContext(

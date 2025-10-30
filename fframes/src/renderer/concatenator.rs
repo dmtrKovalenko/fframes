@@ -116,7 +116,8 @@ unsafe fn create_encoder_copy_from_file(
             &mut output_format_ctx,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
-            output_file.as_ptr(),);
+            output_file.as_ptr(),
+        );
 
         let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
         let audio_stream =
@@ -213,10 +214,7 @@ impl Encoder {
         }
     }
 
-    unsafe fn fill_streams_from_files(
-        &self,
-        files: &[PathBuf],
-    ) -> Result<(), RenderEncodingError> {
+    unsafe fn fill_streams_from_files(&self, files: &[PathBuf]) -> Result<(), RenderEncodingError> {
         unsafe {
             let mut last_video_mux_dts: Option<i64> = None;
             let mut last_audio_mux_dts: Option<i64> = None;
@@ -300,7 +298,7 @@ impl Encoder {
                                 (*self.video_stream.st).time_base,
                             );
                             av_interleaved_write_frame(self.oc, packet.get());
-                        },
+                        }
                         AVMediaType::AVMEDIA_TYPE_AUDIO => {
                             // Handle audio packet if we have an audio stream
                             if !input_audio_stream.is_null() && self.audio_stream.is_some() {
@@ -322,7 +320,7 @@ impl Encoder {
                                 );
                                 av_interleaved_write_frame(self.oc, packet.get());
                             }
-                        },
+                        }
                         _ => {
                             // Skip other types of packets
                         }

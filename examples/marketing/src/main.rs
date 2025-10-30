@@ -20,7 +20,6 @@ fn main() {
             logger: fframes_logger::FFramesLoggerVariant::Compact,
             video_encoder_options: EncoderOptions {
                 preferred_encoder: Some("libx265"),
-                codec_params: Some(&[("log-level", "none"), ("crf", "23")]),
                 sample_rate: 44100,
                 ..Default::default()
             },

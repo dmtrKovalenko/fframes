@@ -1,6 +1,7 @@
 use super::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use super::stream;
 use crate::ffmpeg_action;
+use crate::media::ffmpeg_sys_fframes::SwsFlags::SWS_BICUBIC;
 use crate::media::ffmpeg_sys_fframes::*;
 
 #[derive(Clone)]
@@ -19,7 +20,7 @@ impl FrameFormatConvertor {
                 (*video_stream.enc).width,
                 (*video_stream.enc).height,
                 (*video_stream.enc).pix_fmt,
-                SWS_BICUBIC,
+                SWS_BICUBIC as i32,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
@@ -162,11 +163,7 @@ impl EncoderFrame {
             let buffer_size = (*self.av_frame).linesize[0] as usize;
             let copy_size = fltp_audio_bytes.len().min(buffer_size);
 
-            std::ptr::copy_nonoverlapping(
-                fltp_audio_bytes.as_ptr(),
-                frame_buffer,
-                copy_size
-            );
+            std::ptr::copy_nonoverlapping(fltp_audio_bytes.as_ptr(), frame_buffer, copy_size);
 
             // Update the actual number of samples in the frame
             (*self.av_frame).nb_samples = (copy_size / 4) as i32; // 4 bytes per f32

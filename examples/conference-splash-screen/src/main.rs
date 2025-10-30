@@ -76,24 +76,22 @@ fn main() {
         tmp_files_directory: Some(&PathBuf::from("./test_video")),
         logger: fframes_logger::FFramesLoggerVariant::Compact,
         video_encoder_options: EncoderOptions {
-            preferred_encoder: Some("libx264"),
+            preferred_encoder: Some("libx265"),
             qmin: 0,
             qmax: 69,
             qcompress: 0.6,
             max_qdiff: 4,
             gop_size: 250,
-            codec_params: Some(&[
-                ("crf", "18"),         // Constant Rate Factor: 18 for high quality
-                ("preset", "slow"),    // Slow preset for better compression
-                ("profile:v", "high"), // High profile as specified in the example
-                ("level:v", "5.1"),    // Level 5.1 as specified
-                ("b:v", "6000k"),      // Set video bitrate to 6000 kb/s
-                ("maxrate", "6600k"),  // Set max bitrate (10% higher than target)
-                ("bufsize", "12000k"), // Set buffer size (2 * bitrate)
-                ("g", "120"),          // Set keyframe interval to 120 (2 seconds at 60 fps)
-                ("keyint_min", "60"),  // Minimum keyframe interval (1 second at 60 fps)
-                ("sc_threshold", "0"), // Disable scene cut detection
-            ]),
+            // codec_params: Some(&[
+            //     ("x265-params", "log-level=none"), // ✅ Correct syntax
+            //     ("crf", "18"),                     // Constant Rate Factor: 18 for high quality
+            //     ("preset", "slow"),                // Slow preset for better compression
+            //     ("profile:v", "high"),             // High profile as specified in the example
+            //     ("level:v", "5.1"),                // Level 5.1 as specified
+            //     ("b:v", "6000k"),                  // Set video bitrate to 6000 kb/s
+            //     ("maxrate", "6600k"),              // Set max bitrate (10% higher than target)
+            //     ("bufsize", "12000k"),             // Set buffer size (2 * bitrate)
+            // ]),
             ..Default::default()
         },
         ..Default::default()
@@ -124,7 +122,7 @@ fn main() {
             .expect("Failed to render video");
 
         // 330 is a frame that we want to use as a preview
-        let preview_image = fframes::render_frame(330, &video, backend, &options).unwrap();
+        let preview_image = fframes::render_frame(145, &video, backend, &options).unwrap();
         let img_buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
             ConferenceVideo::WIDTH as u32,
             ConferenceVideo::HEIGHT as u32,

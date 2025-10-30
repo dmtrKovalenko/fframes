@@ -69,7 +69,6 @@ impl Stream {
             // in case encoder is not needed (remux) we won't allocate the encoder
             if !self.enc.is_null() {
                 avcodec_send_frame(self.enc, std::ptr::null_mut());
-                avcodec_close(self.enc);
                 avcodec_free_context(&mut self.enc);
 
                 if let StreamVariant::Audio(mut swr_ctx) = self.variant {
@@ -185,13 +184,6 @@ impl Stream {
             }
 
             let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
-            const DEFAULT_X264_X265_OPTIONS: &[(&str, &str)] = &[
-                ("preset", "ultrafast"),
-                ("tune", "animation"),
-                ("profile", "main"),
-                ("bframes", "2"),
-                ("crf", "23"),
-            ];
 
             let codec_options = match encoder_options.codec_params {
                 Some(options) => Some(options),
@@ -199,7 +191,26 @@ impl Stream {
                     let codec_name = CStr::from_ptr((*codec).name).to_string_lossy();
 
                     match codec_name.as_ref() {
-                        "libx264" | "libx265" => Some(DEFAULT_X264_X265_OPTIONS),
+                        "libx264" => Some(
+                            [
+                                ("preset", "ultrafast"),
+                                ("tune", "animation"),
+                                ("profile", "main"),
+                                ("bframes", "2"),
+                                ("crf", "23"),
+                            ]
+                            .as_slice(),
+                        ),
+                        "libx265" => Some(
+                            [
+                                ("preset", "ultrafast"),
+                                ("tune", "animation"),
+                                ("profile", "main"),
+                                ("crf", "23"),
+                                ("x265-params", "log-level=none"),
+                            ]
+                            .as_slice(),
+                        ),
                         _ => None,
                     }
                 }
