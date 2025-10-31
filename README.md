@@ -8,7 +8,7 @@ FFrames will install and compile ffmpeg during the development as we rely on the
 
 for debian based distros:
 ```sh
-sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libclang-dev
+sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libclang-dev clang ninja libvpx-dev
 ```
 
 for arch based distros:
