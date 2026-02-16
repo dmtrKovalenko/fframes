@@ -8,9 +8,8 @@ authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 
 [lib]
 doctest = false
-
 [dependencies]
-skia-safe = { version = "0.89.1", package = "fframes-skia-safe", features = [
+skia-safe = { version = "0.91.0", package = "fframes-skia-safe", features = [
     "svg",
 ] }
 thingbuf = "0.1.6"

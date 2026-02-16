@@ -31,7 +31,6 @@ impl Video for HelloWorldVideo<'_> {
                 width={ctx.current_video_size.width}
                 height={ctx.current_video_size.height}
             >
-                // Animated background with color transitions
                 <rect
                     width={ctx.current_video_size.width}
                     height={ctx.current_video_size.height}
@@ -45,18 +44,7 @@ impl Video for HelloWorldVideo<'_> {
                     ))}
                 />
 
-                // Main greeting text
-                <text
-                    x="99"
-                    y="300"
-                    font-family="DM Sans"
-                    font-size="150"
-                    fill="#000"
-                >
-                    "Hello " {self.slug}
-                </text>
-
-                // Animated moving rectangle
+                // renders under the text
                 <rect
                     x="400"
                     y="400"
@@ -70,7 +58,16 @@ impl Video for HelloWorldVideo<'_> {
                     ))}
                 />
 
-                // Frame information display
+                <text
+                    x="99"
+                    y="300"
+                    font-family="DM Sans"
+                    font-size="150"
+                    fill="#000"
+                >
+                    "Hello " {self.slug}
+                </text>
+
                 <text
                     x="100"
                     y="440"

@@ -6,7 +6,7 @@ use std::sync::Arc;
 pub(crate) struct RendererFont<'a> {
     pub(crate) index: u32,
     // We can not use the ttf_parser::Face directly because it can be a file
-    // which in theory not a big deal because "parse" here mostly not doing any data transofmrations
+    // which in theory not a big deal because "parse" here mostly not doing any data transformations
     pub(crate) data: Arc<dyn AsRef<[u8]> + Send + Sync + 'a>,
 }
 

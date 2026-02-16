@@ -7,7 +7,7 @@ use fframes::{
 /// This example shows how to load and use completely dynamic audio for the video file.
 /// File that are placed to the media folder will be used based on the parameters in the function.
 ///
-/// If audio file or the images are not present in the media folder video will be rendered withut
+/// If audio file or the images are not present in the media folder video will be rendered without
 /// them
 ///
 /// The only required audio file is `final.mp3` that will cause error if missing on startf

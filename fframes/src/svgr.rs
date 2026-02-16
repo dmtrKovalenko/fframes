@@ -73,6 +73,7 @@ impl From<String> for Svgr<'_> {
                     ),
                     attrs: vec![],
                     children: vec![],
+                    static_hash: None,
                 });
                 1
             ]),
@@ -132,6 +133,7 @@ impl<'a> From<&'a str> for Svgr<'a> {
                     ),
                     attrs: vec![],
                     children: vec![],
+                    static_hash: None,
                 });
                 1
             ]),

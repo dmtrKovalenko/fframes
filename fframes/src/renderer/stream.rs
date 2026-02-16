@@ -63,7 +63,7 @@ unsafe fn is_pixel_format_supported(
 }
 
 impl Stream {
-    /// Can't implement this as a triat cause it needs to be called in specific order
+    /// Can't implement this as a trait cause it needs to be called in specific order
     pub fn free(&mut self) {
         unsafe {
             // in case encoder is not needed (remux) we won't allocate the encoder

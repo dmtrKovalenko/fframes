@@ -1,0 +1,8 @@
+[env]
+MACOSX_DEPLOYMENT_TARGET = "15.0"
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-lc++", "-C", "link-arg=-Wl,-ld_classic"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-lc++", "-C", "link-arg=-Wl,-ld_classic"]

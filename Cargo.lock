@@ -752,6 +752,7 @@ dependencies = [
  "svgr",
  "svgr-macro",
  "ttf-parser 0.25.1",
+ "unicode-segmentation",
  "usvgr",
  "uuid",
  "wasm-bindgen",
@@ -805,9 +806,7 @@ dependencies = [
 
 [[package]]
 name = "fframes-skia-bindings"
-version = "0.89.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea076550513b3c4e9028a3a79c5c1d1b53b32c195d8f59c374ad60b8ece3d7ee"
+version = "0.91.1"
 dependencies = [
  "bindgen",
  "cc",
@@ -822,9 +821,7 @@ dependencies = [
 
 [[package]]
 name = "fframes-skia-safe"
-version = "0.89.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ed4679f4c88179259d841fb7ba27a8f7bac8cef8aeed8379af56860ba74bfaf"
+version = "0.91.0"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.9.0",
@@ -2345,8 +2342,6 @@ checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 [[package]]
 name = "skia-svg-macros"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "044dd2233c9717a74f75197f3e7f0a966db2127c0ffb5e05013b480a9b75b2c7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2400,9 +2395,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "svgr"
-version = "0.44.2"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b565151f9d28dcfe78c9570374d17fe7e4a906783cf91808b5eff41afd59081"
+checksum = "bc2638593bab87bc04d3866260b7e48f262b645b38bc92dea6b94a050b87ce04"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -2426,14 +2421,13 @@ dependencies = [
  "rust-fuzzy-search",
  "syn",
  "usvgr",
- "uuid",
 ]
 
 [[package]]
 name = "svgrtypes"
-version = "0.44.2"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acf81458bdd66ff62f7f6c48aed7647c4eb9acfcb4eb06ab152258c647e33e78"
+checksum = "836b3406b0a3174ac471bd1612cfc13a96824d3a36be1f1f058bfca79af777ee"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -2766,6 +2760,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fb421b350c9aff471779e262955939f565ec18b86c15364e6bdf0d662ca7c1f"
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
+
+[[package]]
 name = "unicode-vo"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2773,9 +2773,9 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 
 [[package]]
 name = "usvgr"
-version = "0.44.2"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "582c42609ddc66b015e3368e4696c2a4ba05d0f675b6562157b966aaa778515a"
+checksum = "865134e2fdbd7cd70d782e8eaa0be6d6705464ad29fad775ef935f9bc58d60b7"
 dependencies = [
  "ahash",
  "base64 0.21.7",

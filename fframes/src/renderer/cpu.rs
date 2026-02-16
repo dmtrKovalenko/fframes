@@ -167,6 +167,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     Ok(())
                                 },
                             )?;
+                            svgr_cache.print_stats();
 
                             encoder.submit_leftover_b_frames(
                                 &frame,

@@ -1,6 +1,10 @@
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::quote;
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::atomic::{AtomicU64, Ordering},
+};
 use syn::{
     braced,
     ext::IdentExt,
@@ -13,6 +17,16 @@ use syn::{
 };
 
 use crate::{node::*, punctuation::*};
+
+/// Global atomic counter for generating unique animation identifiers.
+/// This ensures uniqueness across all macro invocations in the same compilation unit.
+static ANIMATION_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Generate a unique animation identifier using an atomic counter.
+/// Much faster than UUID generation and guaranteed unique within a compilation.
+fn next_animation_id() -> u64 {
+    ANIMATION_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
 
 type TransformBlockFn = dyn Fn(ParseStream) -> Result<Option<TokenStream>>;
 
@@ -180,10 +194,7 @@ impl Parser<'_> {
             let mut punctuated = Punctuated::new();
             punctuated.push(PathSegment {
                 ident: Ident::new(
-                    &format!(
-                        "ANIMATION_{}",
-                        uuid::Uuid::new_v4().simple().to_string().to_uppercase()
-                    ),
+                    &format!("ANIMATION_{}", next_animation_id()),
                     Span::call_site(),
                 ),
                 arguments: PathArguments::None,
