@@ -5,13 +5,13 @@ use foreign_types_shared::ForeignType;
 pub use metal_rs;
 use metal_rs::{Device, MTLPixelFormat, TextureDescriptor};
 use metal_rs::{MTLStorageMode, MTLTextureUsage};
-use skia_safe::gpu::DirectContext;
 use skia_safe::gpu::ganesh::context_options::{Enable, ShaderCacheStrategy};
+use skia_safe::gpu::DirectContext;
+use skia_safe::{gpu, Surface};
 use skia_safe::{
+    gpu::{backend_render_targets, mtl, SurfaceOrigin},
     ColorType,
-    gpu::{SurfaceOrigin, backend_render_targets, mtl},
 };
-use skia_safe::{Surface, gpu};
 
 #[allow(dead_code)]
 pub struct SkiaMetalCtx {

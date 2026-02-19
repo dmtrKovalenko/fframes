@@ -3,18 +3,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::backends::SkiaBackend;
+use crate::skia_pipeline;
 use crate::skia_pipeline::Pipeline;
 pub use crate::skia_pipeline::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
-use crate::{resource_provider::SkiaFFramesProvider, skia_pipeline};
-use fframes::{
-    AudioTimelineSamples, ResolvedRenderingTimeline, Video,
-    usvgr::{self, WriteOptions},
-};
-use fframes::{
-    FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, VideoDecodersWorker,
-    concatenator,
-};
-use skia_safe::svg::Dom;
+use fframes::{concatenator, FFramesRenderBackend, FFramesRendererError, FFramesRendererResult};
+use fframes::{usvgr, AudioTimelineSamples, ResolvedRenderingTimeline, Video};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -65,12 +58,9 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
             font_db,
         )?;
 
-        let video_decoders_worker = VideoDecodersWorker::new(1);
-        let provider = SkiaFFramesProvider::new(video_decoders_worker, &ctx);
-        let raw_svg = rtree.to_string(&WriteOptions::default());
-
-        let dom = Dom::from_str(&raw_svg, provider).unwrap();
-        dom.render(surface.canvas());
+        // Direct canvas rendering: usvgr::Tree -> Skia Canvas (no string roundtrip)
+        let mut render_cache = crate::render::RenderCache::new();
+        crate::render::render_tree(&rtree, surface.canvas(), &mut render_cache);
 
         if let Some(gpu_context) = gpu_context.as_mut() {
             gpu_context.flush_and_submit();
@@ -195,6 +185,7 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
                     timeline.audio_map.as_ref(),
                     render_options,
                     ctx,
+                    &logger,
                 )
                 .map_err(FFramesRendererError::ConcatChunkError)?;
             }

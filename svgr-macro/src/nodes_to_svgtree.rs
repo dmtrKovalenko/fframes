@@ -1,122 +1,15 @@
 use crate::node::{Node, NodeType};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use syn::ExprBlock;
 
-use usvgr::svgtree::{self, parse::SVG_NS, AId, EId, NestedNodeKind};
+use usvgr::svgtree::{self, parse::SVG_NS, svgrtypes::PathSegment, AId, EId, NestedNodeKind};
 
-/// Check if a token stream contains a reference to `frame`, which indicates
-/// the expression depends on the current frame and changes between frames.
-/// Expressions that don't reference `frame` are considered "stable" -- their
-/// values remain constant across all frames and can be cached.
-fn is_frame_dependent(tokens: &TokenStream) -> bool {
-    for token in tokens.clone() {
-        match token {
-            proc_macro2::TokenTree::Ident(ref ident) if ident == "frame" => return true,
-            proc_macro2::TokenTree::Group(ref group) => {
-                if is_frame_dependent(&group.stream()) {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
-#[derive(Debug)]
-enum MaybeParsedValue<T: ToTokens> {
-    Value(T),
-    Expression(TokenStream),
-    /// A subtree expression that wraps an original value expression.
-    /// `generated` is the full expression (e.g., `Svgr::from(expr).as_subtree()`)
-    /// `original_expr` is the unwrapped expression (e.g., `expr`) used for hashing.
-    SubtreeExpression {
-        generated: TokenStream,
-        original_expr: TokenStream,
-    },
-}
-
-impl<T: ToTokens> ToTokens for MaybeParsedValue<T> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            MaybeParsedValue::Value(value) => value.to_tokens(tokens),
-            MaybeParsedValue::Expression(expr) => expr.to_tokens(tokens),
-            MaybeParsedValue::SubtreeExpression { generated, .. } => generated.to_tokens(tokens),
-        }
-    }
-}
-
-pub(crate) trait CompileTimeValue {
-    fn resolve_str(&self) -> Option<String>;
-    fn resolve_block(&self) -> Option<ExprBlock>;
-}
-
-impl CompileTimeValue for Node {
-    fn resolve_str(&self) -> Option<String> {
-        self.value_as_string()
-    }
-
-    fn resolve_block(&self) -> Option<ExprBlock> {
-        self.value_as_block()
-    }
-}
-
-fn maybe_value<T: ToTokens>(
-    value: &impl CompileTimeValue,
-    create_expression: impl FnOnce(ExprBlock) -> TokenStream,
-    get_value: impl FnOnce(&str) -> syn::Result<T>,
-) -> syn::Result<MaybeParsedValue<T>> {
-    let inlined_value: Option<String> = value.resolve_str();
-    let runtime_value: Option<syn::ExprBlock> = value.resolve_block();
-
-    match (inlined_value, runtime_value) {
-        (Some(value), _) => Ok(MaybeParsedValue::Value(get_value(value.as_str())?)),
-        (None, Some(block)) => Ok(MaybeParsedValue::Expression(create_expression(block))),
-        _ => Err(syn::Error::new(
-            Span::call_site(),
-            "Attribute must be either a string or a block",
-        )),
-    }
-}
-
-#[derive(Debug)]
-struct MaybeAttribute {
-    name: AId,
-    value: MaybeParsedValue<String>,
-}
-
-impl MaybeParsedValue<String> {
-    /// Check if this value contains a frame-dependent expression.
-    fn is_frame_dependent(&self) -> bool {
-        match self {
-            MaybeParsedValue::Value(_) => false,
-            MaybeParsedValue::Expression(expr) => is_frame_dependent(expr),
-            MaybeParsedValue::SubtreeExpression { original_expr, .. } => {
-                is_frame_dependent(original_expr)
-            }
-        }
-    }
-}
-
-impl MaybeParsedValue<MaybeNodeData> {
-    /// Check if this child node value contains a frame-dependent expression.
-    fn is_frame_dependent(&self) -> bool {
-        match self {
-            MaybeParsedValue::Value(node) => node.is_frame_dependent(),
-            MaybeParsedValue::Expression(expr) => is_frame_dependent(expr),
-            MaybeParsedValue::SubtreeExpression { original_expr, .. } => {
-                is_frame_dependent(original_expr)
-            }
-        }
-    }
-}
-
-fn path_segment_to_tokens(segment: &svgtree::svgrtypes::PathSegment) -> TokenStream {
-    use svgtree::svgrtypes::PathSegment;
+/// Convert a PathSegment to TokenStream manually since ToTokens impl
+/// from svgrtypes isn't visible in proc-macro context
+fn path_segment_to_tokens(segment: &PathSegment) -> TokenStream {
     match segment {
         PathSegment::MoveTo { abs, x, y } => {
             quote! { svgrtypes::PathSegment::MoveTo { abs: #abs, x: #x, y: #y } }
@@ -168,8 +61,83 @@ fn path_segment_to_tokens(segment: &svgtree::svgrtypes::PathSegment) -> TokenStr
     }
 }
 
+#[derive(Debug)]
+enum MaybeParsedValue<T: ToTokens> {
+    Value(T),
+    Expression(TokenStream),
+}
+
+impl<T: ToTokens> MaybeParsedValue<T> {
+    fn is_static(&self) -> bool {
+        matches!(self, MaybeParsedValue::Value(_))
+    }
+}
+
+impl<T: ToTokens> ToTokens for MaybeParsedValue<T> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            MaybeParsedValue::Value(value) => value.to_tokens(tokens),
+            MaybeParsedValue::Expression(expr) => expr.to_tokens(tokens),
+        }
+    }
+}
+
+pub(crate) trait CompileTimeValue {
+    fn resolve_str(&self) -> Option<String>;
+    fn resolve_block(&self) -> Option<ExprBlock>;
+}
+
+impl CompileTimeValue for Node {
+    fn resolve_str(&self) -> Option<String> {
+        self.value_as_string()
+    }
+
+    fn resolve_block(&self) -> Option<ExprBlock> {
+        self.value_as_block()
+    }
+}
+
+fn maybe_value<T: ToTokens>(
+    value: &impl CompileTimeValue,
+    create_expression: impl FnOnce(ExprBlock) -> TokenStream,
+    get_value: impl FnOnce(&str) -> syn::Result<T>,
+) -> syn::Result<MaybeParsedValue<T>> {
+    let inlined_value: Option<String> = value.resolve_str();
+    let runtime_value: Option<syn::ExprBlock> = value.resolve_block();
+
+    match (inlined_value, runtime_value) {
+        (Some(value), _) => Ok(MaybeParsedValue::Value(get_value(value.as_str())?)),
+        (None, Some(block)) => Ok(MaybeParsedValue::Expression(create_expression(block))),
+        _ => Err(syn::Error::new(
+            Span::call_site(),
+            "Attribute must be either a string or a block",
+        )),
+    }
+}
+
+#[derive(Debug)]
+struct MaybeAttribute {
+    name: AId,
+    value: MaybeParsedValue<String>,
+}
+
+impl MaybeAttribute {
+    fn is_static(&self) -> bool {
+        self.value.is_static()
+    }
+
+    /// Compute a hash of the attribute's static content for cache key generation
+    fn hash_static_content(&self, hasher: &mut impl Hasher) {
+        if let MaybeParsedValue::Value(ref s) = self.value {
+            // Hash the attribute ID and value
+            (self.name as u16).hash(hasher);
+            s.hash(hasher);
+        }
+    }
+}
+
 fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
-    // Special handling for path data - parse at compile time as a static slice
+    // Special handling for path data - parse at compile time
     if aid == AId::D {
         let segments: Vec<_> = svgtree::svgrtypes::PathParser::from(value)
             .filter_map(|s| s.ok())
@@ -177,9 +145,8 @@ fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
 
         if !segments.is_empty() {
             let segment_tokens: Vec<_> = segments.iter().map(path_segment_to_tokens).collect();
-            // Generate a static slice reference to avoid allocation
             return quote! {
-                SvgAttributeValue::PathData(std::borrow::Cow::Borrowed(&[#(#segment_tokens),*]))
+                SvgAttributeValue::PathData(vec![#(#segment_tokens),*])
             };
         }
         // Fall through to string if parsing fails
@@ -234,10 +201,7 @@ impl ToTokens for MaybeAttribute {
                     }
                 }
             }
-            MaybeParsedValue::Expression(block)
-            | MaybeParsedValue::SubtreeExpression {
-                generated: block, ..
-            } => {
+            MaybeParsedValue::Expression(block) => {
                 quote! {
                     Attribute {
                         name: #name_tokens,
@@ -269,18 +233,6 @@ struct MaybeNodeData {
     pub children: Vec<MaybeParsedValue<MaybeNodeData>>,
 }
 
-impl MaybeAttribute {
-    /// Check if this attribute is fully static (no runtime expressions)
-    fn is_static(&self) -> bool {
-        matches!(self.value, MaybeParsedValue::Value(_))
-    }
-
-    /// Check if this attribute depends on the current frame
-    fn is_frame_dependent(&self) -> bool {
-        self.value.is_frame_dependent()
-    }
-}
-
 impl MaybeNodeData {
     /// Check if this node and ALL its descendants are fully static (no runtime expressions)
     fn is_fully_static(&self) -> bool {
@@ -289,83 +241,55 @@ impl MaybeNodeData {
         // All children must be static Values (not Expressions) AND recursively static
         let children_static = self.children.iter().all(|c| match c {
             MaybeParsedValue::Value(node) => node.is_fully_static(),
-            MaybeParsedValue::Expression(_) | MaybeParsedValue::SubtreeExpression { .. } => false,
+            MaybeParsedValue::Expression(_) => false,
         });
 
         attrs_static && children_static
     }
 
-    /// Check if this node or any of its descendants depend on the current frame.
-    /// A node is "stable" (not frame-dependent) if all runtime expressions within it
-    /// do not reference `frame`. Stable nodes produce the same output for every frame
-    /// of the video, so they can be cached after first render.
-    fn is_frame_dependent(&self) -> bool {
-        let attrs_frame_dependent = self.attrs.iter().any(|a| a.is_frame_dependent());
-        let children_frame_dependent = self.children.iter().any(|c| c.is_frame_dependent());
-
-        attrs_frame_dependent || children_frame_dependent
-    }
-
-    /// Check if this node is "stable" -- it may contain runtime expressions, but none
-    /// of them depend on the current frame. Such nodes produce identical output across
-    /// all frames and can be cached permanently after the first render.
-    fn is_stable(&self) -> bool {
-        !self.is_frame_dependent()
-    }
-
-    /// The static hash used as id but is a hash just for the availability to avoid rendering
-    /// of potentially duplicated subtrees if they are literally duplicated.
-    /// Not sure how this is impact the compile times but should be pretty fast
+    /// Compute a compile-time hash of this node's content for static caching.
+    /// Only valid if is_fully_static() returns true.
     fn compute_static_hash(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+
         let mut hasher = DefaultHasher::new();
-        format!("{:?}", self.kind).hash(&mut hasher);
-
-        // Hash all attributes
-        for attr in &self.attrs {
-            format!("{:?}", attr.name).hash(&mut hasher);
-            if let MaybeParsedValue::Value(ref value) = attr.value {
-                value.hash(&mut hasher);
-            }
-        }
-
-        // Hash children recursively
-        for child in &self.children {
-            if let MaybeParsedValue::Value(node) = child {
-                node.compute_static_hash().hash(&mut hasher);
-            }
-        }
-
+        self.hash_content(&mut hasher);
         hasher.finish()
     }
 
-    /// Compute a seed hash from the compile-time-known parts of this node.
-    /// This seed is combined with runtime expression values to produce a full
-    /// hash for stable-but-not-fully-static nodes.
-    fn compute_stable_seed_hash(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        format!("{:?}", self.kind).hash(&mut hasher);
-
-        // Hash all attribute names, and values for static ones
-        for attr in &self.attrs {
-            format!("{:?}", attr.name).hash(&mut hasher);
-            if let MaybeParsedValue::Value(ref value) = attr.value {
-                value.hash(&mut hasher);
+    fn hash_content(&self, hasher: &mut impl Hasher) {
+        // Hash the node kind
+        match &self.kind {
+            NestedNodeKind::Root => {
+                2u8.hash(hasher); // discriminant for Root
             }
-        }
-
-        // Hash children recursively where possible
-        for child in &self.children {
-            if let MaybeParsedValue::Value(node) = child {
-                if node.is_fully_static() {
-                    node.compute_static_hash().hash(&mut hasher);
-                } else {
-                    // For stable-but-not-static child nodes, include their seed
-                    node.compute_stable_seed_hash().hash(&mut hasher);
+            NestedNodeKind::Element { tag_name } => {
+                0u8.hash(hasher); // discriminant
+                (*tag_name as u16).hash(hasher);
+            }
+            NestedNodeKind::Text(storage) => {
+                1u8.hash(hasher); // discriminant
+                                  // Hash the text content
+                match storage {
+                    svgtree::roxmltree::StringStorage::Borrowed(s) => s.hash(hasher),
+                    svgtree::roxmltree::StringStorage::Owned(s) => s.as_ref().hash(hasher),
                 }
             }
         }
 
-        hasher.finish()
+        // Hash all attributes
+        self.attrs.len().hash(hasher);
+        for attr in &self.attrs {
+            attr.hash_static_content(hasher);
+        }
+
+        // Recursively hash children
+        self.children.len().hash(hasher);
+        for child in &self.children {
+            if let MaybeParsedValue::Value(node) = child {
+                node.hash_content(hasher);
+            }
+        }
     }
 }
 
@@ -379,55 +303,23 @@ impl ToTokens for MaybeNodeData {
 
         let children_tokens = tokenize_nodes(children);
 
-        if self.is_fully_static() {
-            // Case 1: Fully static -- all values known at compile time.
-            // Compute hash at compile time (zero runtime cost).
+        // Compute static hash if this node is fully static
+        let static_hash_token = if self.is_fully_static() {
             let hash = self.compute_static_hash();
-            quote::quote! {
-                Some(NestedNodeData {
-                    kind: #kind,
-                    attrs: vec![#(#attrs),*],
-                    children: #children_tokens,
-                    static_hash: Some(#hash),
-                })
-            }
-            .to_tokens(tokens)
-        } else if self.is_stable() {
-            // Case 2: Stable but not fully static -- contains runtime expressions
-            // that don't depend on frame (e.g., {self.slug}, {ctx.video_size}).
-            // Build the node first, then compute a runtime hash from its actual values.
-            let seed = self.compute_stable_seed_hash();
-
-            quote::quote! {
-                {
-                    let mut __svgr_node = NestedNodeData {
-                        kind: #kind,
-                        attrs: vec![#(#attrs),*],
-                        children: #children_tokens,
-                        static_hash: None,
-                    };
-
-                    __svgr_node.static_hash = Some(
-                        __svgr_node.compute_runtime_hash(#seed)
-                    );
-
-                    Some(__svgr_node)
-                }
-            }
-            .to_tokens(tokens)
+            quote! { Some(#hash) }
         } else {
-            // Case 3: Frame-dependent -- contains expressions that reference `frame`.
-            // Cannot be cached, hash must be None.
-            quote::quote! {
-                Some(NestedNodeData {
-                    kind: #kind,
-                    attrs: vec![#(#attrs),*],
-                    children: #children_tokens,
-                    static_hash: None,
-                })
-            }
-            .to_tokens(tokens)
+            quote! { None }
         };
+
+        quote::quote! {
+            Some(NestedNodeData {
+                kind: #kind,
+                attrs: vec![#(#attrs),*],
+                children: #children_tokens,
+                static_hash: #static_hash_token,
+            })
+        }
+        .to_tokens(tokens)
     }
 }
 
@@ -448,12 +340,6 @@ fn tokenize_nodes(nodes: &[MaybeParsedValue<MaybeNodeData>]) -> TokenStream {
                 MaybeParsedValue::Expression(expr) => {
                     subtrees.push(last_inlined_tree.to_token_stream());
                     subtrees.push(expr.clone());
-
-                    last_inlined_tree = TokenizeableVec(vec![]);
-                }
-                MaybeParsedValue::SubtreeExpression { generated, .. } => {
-                    subtrees.push(last_inlined_tree.to_token_stream());
-                    subtrees.push(generated.clone());
 
                     last_inlined_tree = TokenizeableVec(vec![]);
                 }
@@ -615,14 +501,9 @@ fn parse_svgr_subtree(
     fframes_crate_ident: &syn::Ident,
 ) -> Option<Result<MaybeParsedValue<MaybeNodeData>, syn::Error>> {
     node.value_as_block().map(|block| {
-        let original_expr = block.to_token_stream();
-        let generated = quote! {
+        Ok(MaybeParsedValue::Expression(quote! {
             #fframes_crate_ident::Svgr::from(#block).as_subtree()
-        };
-        Ok(MaybeParsedValue::SubtreeExpression {
-            generated,
-            original_expr,
-        })
+        }))
     })
 }
 

@@ -5,10 +5,19 @@ use crate::constants::*;
 #[derive(Debug)]
 pub struct Chapter<'a> {
     pub start: &'a str,
+    pub start_seconds: u64,
     pub title: &'a str,
 }
 
-impl Chapter<'_> {
+impl<'a> Chapter<'a> {
+    pub fn new(title: &'a str, start: &'a str) -> Chapter<'a> {
+        Chapter {
+            title,
+            start,
+            start_seconds: parse_duration_to_seconds(start),
+        }
+    }
+
     pub fn get_y_position(index: usize) -> u64 {
         CHAPTERS_START_Y + (index as u64 * (CHAPTER_HEIGHT + CHAPTER_PADDING))
     }
@@ -29,7 +38,7 @@ pub(crate) fn create_transition_keyframes_for_chapters(
             .iter()
             .enumerate()
             .map(|(index, chapter)| {
-                let start = parse_duration_to_seconds(chapter.start) as f32;
+                let start = chapter.start_seconds as f32;
                 let new_position = Chapter::get_y_position(index) - CHAPTERS_START_Y;
 
                 let keyframe = KeyFrame {
@@ -49,10 +58,7 @@ pub(crate) fn create_transition_keyframes_for_chapters(
     )
 }
 
-/// PANICS in case of parsing error but it's okay because the idea
-/// of the project is to render it from cli and not to be used in production,
-/// do the normal error handling if you deploy this somewhere
-fn parse_duration_to_seconds(time_str: &str) -> u64 {
+pub fn parse_duration_to_seconds(time_str: &str) -> u64 {
     let parts: Vec<&str> = time_str.split(':').collect();
     match parts.len() {
         // mm:ss

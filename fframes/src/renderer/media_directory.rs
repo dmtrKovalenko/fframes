@@ -1,7 +1,7 @@
 use super::renderer_error::FFramesRendererResult;
 use crate::{
-    DynamicMediaProvider, RawFontData,
     media::{RawMediaFile, Subtitles, VideoMedia},
+    DynamicMediaProvider, RawFontData,
 };
 use rayon::prelude::*;
 use std::{
@@ -60,20 +60,12 @@ impl MediaDirectory {
         Ok(MediaDirectory(folder_content))
     }
 
-    pub fn process_media_source(
-        &self,
-        // logger: &Arc<dyn FFramesLogger>,
-    ) -> FFramesRendererResult<DynamicMediaProvider<'_>> {
-        // todo pull out to the options
-        const SAMPLE_RATE: u32 = 44100;
-
+    pub fn process_media_source(&self) -> FFramesRendererResult<DynamicMediaProvider<'_>> {
         let audio_hash = Mutex::new(HashMap::new());
         let subtitles_hash = Mutex::new(HashMap::new());
         let image_hash = Mutex::new(HashMap::new());
         let fontdata = Mutex::new(Vec::new());
         let video_paths = Mutex::new(HashMap::new());
-
-        // logger.init_media_processing(self.0.len())?;
 
         self.0
             .par_iter()
@@ -83,13 +75,10 @@ impl MediaDirectory {
                     .and_then(OsStr::to_str)
                     .zip(path.file_name().and_then(OsStr::to_str))
                 {
-                    // logger.log_media_processing_start(filename, &path);
                     match (extension, raw_file) {
                         ("mp3" | "wav" | "flac" | "aac" | "pcm" | "ogg" | "mp2", _) => {
-                            let audio_data = crate::media::PreloadedAudioData::decode_raw_file(
-                                Some(SAMPLE_RATE),
-                                path,
-                            )?;
+                            let audio_data =
+                                crate::media::PreloadedAudioData::decode_raw_file(None, path)?;
 
                             audio_hash.lock()?.insert(
                                 filename.to_owned(),
@@ -128,10 +117,7 @@ impl MediaDirectory {
                             );
 
                             if let Ok(audio_data) =
-                                crate::media::PreloadedAudioData::decode_raw_file(
-                                    Some(SAMPLE_RATE),
-                                    path,
-                                )
+                                crate::media::PreloadedAudioData::decode_raw_file(None, path)
                             {
                                 audio_hash.lock()?.insert(
                                     filename.to_owned(),
@@ -140,13 +126,10 @@ impl MediaDirectory {
                             }
                         }
                         ("DS_Store", _) => (),
-                        _ => {
-                            // logger.log_unprocessed_media_file(filename);
-                        }
+                        _ => {}
                     };
                 };
 
-                // logger.log_processed_media(&path);
                 Ok(())
             })?;
 

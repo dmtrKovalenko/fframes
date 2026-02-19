@@ -4,7 +4,7 @@ pub mod metal;
 pub mod vulkan;
 
 use fframes::FFramesRendererResult;
-use skia_safe::{Surface, gpu::DirectContext, surfaces};
+use skia_safe::{gpu::DirectContext, surfaces, Surface};
 
 use crate::SkiaFFramesRenderer;
 

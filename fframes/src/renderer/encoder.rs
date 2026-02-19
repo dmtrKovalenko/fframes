@@ -1,12 +1,12 @@
+pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use super::{
-    FFramesLogger,
     renderer_error::{self, RenderEncodingError},
     stream,
     stream::Stream,
+    FFramesLogger,
 };
-pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use crate::ffmpeg_sys_fframes::*;
-use crate::{RenderOptions, ffmpeg_action};
+use crate::{ffmpeg_action, RenderOptions};
 use std::ops::Range;
 use std::path::Path;
 use std::{
@@ -314,21 +314,35 @@ impl Encoder {
             if status < 0 {
                 let error_description = av_error_to_string(status);
 
-                return Err(renderer_error::RenderEncodingError::CantWriteFrame(
-                    error_description,
-                ));
+                return Err(renderer_error::RenderEncodingError::CantEncodeFrame {
+                    error: error_description,
+                    pts: Some((*(*frame)).pts),
+                });
             }
 
             while status >= 0 {
                 status = avcodec_receive_packet(stream.enc, *packet);
 
-                match status {
-                    status if status == AVERROR_EOF => break,
-                    status if status == FFMPEG_AVERROR(EAGAIN) => {
-                        break;
-                    }
-                    _ => status = customize_frame(*packet),
+                if status == AVERROR_EOF || status == FFMPEG_AVERROR(EAGAIN) {
+                    break;
                 }
+
+                if status < 0 {
+                    let error_description = av_error_to_string(status);
+                    return Err(renderer_error::RenderEncodingError::CantEncodeFrame {
+                        error: format!("avcodec_receive_packet failed: {error_description}"),
+                        pts: Some((*(*frame)).pts),
+                    });
+                }
+
+                let write_status = customize_frame(*packet);
+                if write_status < 0 {
+                    let error_description = av_error_to_string(write_status);
+                    return Err(renderer_error::RenderEncodingError::CantWriteFrame(
+                        error_description,
+                    ));
+                }
+                status = write_status;
             }
 
             Ok(())

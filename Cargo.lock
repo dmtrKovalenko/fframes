@@ -807,6 +807,8 @@ dependencies = [
 [[package]]
 name = "fframes-skia-bindings"
 version = "0.91.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05df6915f25d413d30e5003b7f98c12d79b3490c70affcce3b30caaf4384b750"
 dependencies = [
  "bindgen",
  "cc",
@@ -822,6 +824,8 @@ dependencies = [
 [[package]]
 name = "fframes-skia-safe"
 version = "0.91.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef6f090c160ed785fa8a5239f6b761785db70c0cb49a448e427f493211c4cc0"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.9.0",
@@ -2342,6 +2346,8 @@ checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 [[package]]
 name = "skia-svg-macros"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "044dd2233c9717a74f75197f3e7f0a966db2127c0ffb5e05013b480a9b75b2c7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2396,8 +2402,6 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "svgr"
 version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc2638593bab87bc04d3866260b7e48f262b645b38bc92dea6b94a050b87ce04"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -2426,8 +2430,6 @@ dependencies = [
 [[package]]
 name = "svgrtypes"
 version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "836b3406b0a3174ac471bd1612cfc13a96824d3a36be1f1f058bfca79af777ee"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -2504,6 +2506,7 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_skia_renderer",
+ "image",
 ]
 
 [[package]]
@@ -2774,8 +2777,6 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 [[package]]
 name = "usvgr"
 version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "865134e2fdbd7cd70d782e8eaa0be6d6705464ad29fad775ef935f9bc58d60b7"
 dependencies = [
  "ahash",
  "base64 0.21.7",

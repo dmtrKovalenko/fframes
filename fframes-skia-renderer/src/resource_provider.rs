@@ -1,11 +1,11 @@
 use fframes::{
-    FFramesContext, VideoDecodersWorker, media::decode_video_resource, usvgr::PreloadedImageData,
+    media::decode_video_resource, usvgr::PreloadedImageData, FFramesContext, VideoDecodersWorker,
 };
 use skia_safe::{
-    AlphaType, ColorType, Data, FontMgr, ISize, Image, ImageInfo, Matrix, SamplingOptions,
-    image_asset::{CustomImageAsset, ImageSizeFit, create_image_frame_data},
+    image_asset::{create_image_frame_data, CustomImageAsset, ImageSizeFit},
     images::raster_from_data,
     resources::{ImageAsset, ImageFrameData, ResourceProvider},
+    AlphaType, ColorType, Data, FontMgr, ISize, Image, ImageInfo, Matrix, SamplingOptions,
 };
 
 #[derive(Debug, Clone)]
@@ -66,9 +66,9 @@ impl ResourceProvider for SkiaFFramesProvider {
     }
 }
 
-struct FFramesSkiaImage(Image);
+pub(crate) struct FFramesSkiaImage(Image);
 impl FFramesSkiaImage {
-    fn new(image: &PreloadedImageData) -> Option<Self> {
+    pub(crate) fn new(image: &PreloadedImageData) -> Option<Self> {
         let image_info = ImageInfo::new(
             ISize::new(image.width as i32, image.height as i32),
             ColorType::RGBA8888,
@@ -83,6 +83,11 @@ impl FFramesSkiaImage {
         )?;
 
         Some(Self(sk_image))
+    }
+
+    /// Returns a reference to the underlying Skia image.
+    pub(crate) fn image(&self) -> &Image {
+        &self.0
     }
 }
 

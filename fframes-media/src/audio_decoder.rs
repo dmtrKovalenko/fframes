@@ -1,5 +1,5 @@
-use crate::FFramesMediaError;
 use crate::error::Result;
+use crate::FFramesMediaError;
 use ffmpeg_sys_fframes::*;
 use std::ffi::CString;
 use std::path::Path;
@@ -236,7 +236,6 @@ impl AudioDecoder {
                     (*self.frame).data.as_mut_ptr() as *mut _ as *mut *const u8,
                     (*self.frame).nb_samples,
                 );
-                samples.set_len(current_length + nb_samples as usize);
 
                 if ret < 0 {
                     return Err(FFramesMediaError::LibAVAudioDecodingError((
@@ -244,6 +243,8 @@ impl AudioDecoder {
                         "Error while resampling".to_string(),
                     )));
                 }
+
+                samples.set_len(current_length + ret as usize);
             }
 
             Ok(())

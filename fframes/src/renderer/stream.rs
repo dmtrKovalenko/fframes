@@ -1,6 +1,6 @@
-use super::EncoderOptions;
 use super::ffmpeg_helper::MONO_CH_LAYOUT;
 use super::renderer_error::{RenderEncodingError, RenderEncodingResult};
+use super::EncoderOptions;
 use crate::ffmpeg_action;
 use crate::ffmpeg_loggable_action;
 use crate::media::ffmpeg_sys_fframes::*;
@@ -268,7 +268,7 @@ impl Stream {
             (*c).bit_rate = encoder_options.bitrate.unwrap_or(192000);
             (*st).time_base = AVRational {
                 num: 1,
-                den: sample_rate,
+                den: validated_sample_rate,
             };
 
             (*c).ch_layout = MONO_CH_LAYOUT;

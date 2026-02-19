@@ -30,6 +30,7 @@ impl Video for TeejPodcast<'_> {
 
     fn audio(&self) -> AudioMap<'_> {
         use fframes::AudioTimestamp::*;
+
         AudioMap::from([
             ("left.mp4", Second(0.)..Eof),
             ("right.mp4", Second(0.)..Eof),
@@ -131,7 +132,7 @@ impl Video for TeejPodcast<'_> {
                     fill="#fff"
                     font-family="Berkeley Mono"
                 >
-                    "LUNCHBYTES"
+                    "2D: Rust"
                 </text>
 
                 <g>
@@ -154,26 +155,36 @@ impl Video for TeejPodcast<'_> {
                         y={CHAPTERS_START_Y}
                         width={CHAPTER_WIDTH}
                         height={CHAPTER_HEIGHT}
-                        fill="#E5484D"
+                        fill="#ff6900"
                         rx="5"
                         ry="5"
                         transform={Transform::translate(0, frame.animate(&self.chapters_animation))}
                     />
 
                     // The text is rendered on top of either highlighter or rectangle
-                    {self.chapters.iter().enumerate().map(|(i, chapter)| fframes::svgr!(
+                    {self.chapters.iter().enumerate().map(|(i, chapter)| {
+                        let active_index = self.chapters.windows(2).enumerate().find(|(_, w)| {
+                            let start = w[0].start_seconds;
+                            let next = w[1].start_seconds;
+                            let t = frame.seconds() as u64;
+                            t >= start && t < next
+                        }).map(|(idx, _)| idx).unwrap_or(self.chapters.len().saturating_sub(1));
+                        let text_color = if i == active_index { "#000" } else { "#fff" };
+                        fframes::svgr!(
                         <text
                             x={CHAPTERS_START_X + 10}
                             y={Chapter::get_y_position(i) + CHAPTER_HEIGHT / 2 + 5}
                             dominant-baseline="middle"
-                            fill="#fff"
-                            font-family="Avenir Next Condensed"
-                            font-weight="light"
-                            font-size="24"
+                            fill={text_color}
+                            font-family="Sofia Sans Semi Condensed"
+                            font-weight="medium"
+                            font-size="26"
                         >
-                            {chapter.start}{"  "}{chapter.title}
+                            <tspan >{chapter.start}</tspan>
+                            <tspan>{"  "}</tspan>
+                            <tspan >{chapter.title}</tspan>
                         </text>
-                    )).collect::<Vec<_>>()}
+                    )}).collect::<Vec<_>>()}
                 </g>
             </svg>
         )

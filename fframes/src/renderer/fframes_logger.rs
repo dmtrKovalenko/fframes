@@ -24,6 +24,12 @@ pub trait FFramesLogger: Sync + Send {
     }
     fn log_frame(&self, index: usize, thread_number: usize) {}
 
+    fn init_audio_encoding(&self, duration_in_samples: usize) -> FFramesRendererResult<()> {
+        Ok(())
+    }
+    fn log_audio_frame(&self) {}
+    fn finish_audio_encoding(&self) {}
+
     fn get_libav_log_level(&self) -> c_int {
         AV_LOG_FATAL
     }
@@ -38,6 +44,7 @@ pub trait FFramesLogger: Sync + Send {
 pub struct CompactFFramesLogger {
     frames_progress_bar: OnceCell<ProgressBar>,
     media_progress_bar: OnceCell<ProgressBar>,
+    audio_progress_bar: OnceCell<ProgressBar>,
 }
 
 impl FFramesLogger for CompactFFramesLogger {
@@ -70,6 +77,27 @@ impl FFramesLogger for CompactFFramesLogger {
 
     fn log_unprocessed_media_file(&self, filename: &str) {
         println!("Can not process media file {filename}.")
+    }
+
+    fn init_audio_encoding(&self, duration_in_samples: usize) -> FFramesRendererResult<()> {
+        let pb = ProgressBar::new(duration_in_samples as u64);
+        println!("Encoding audio stream");
+        self.audio_progress_bar
+            .set(pb)
+            .map_err(|_| FFramesRendererError::ConcurrencyError)?;
+        Ok(())
+    }
+
+    fn log_audio_frame(&self) {
+        if let Some(pb) = self.audio_progress_bar.get() {
+            pb.inc(1);
+        }
+    }
+
+    fn finish_audio_encoding(&self) {
+        if let Some(pb) = self.audio_progress_bar.get() {
+            pb.finish_and_clear();
+        }
     }
 
     fn init_media_processing(&self, medias_count: usize) -> FFramesRendererResult<()> {
@@ -140,6 +168,7 @@ pub fn make_logger(variant: FFramesLoggerVariant) -> Arc<dyn FFramesLogger> {
             Arc::new(CompactFFramesLogger {
                 frames_progress_bar: OnceCell::new(),
                 media_progress_bar: OnceCell::new(),
+                audio_progress_bar: OnceCell::new(),
             }) as Arc<dyn FFramesLogger>
         }
         FFramesLoggerVariant::Custom(logger) => logger,

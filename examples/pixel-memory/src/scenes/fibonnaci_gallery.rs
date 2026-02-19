@@ -4,10 +4,11 @@ use crate::{FramedImage, PixelVideo};
 use fframes::{Scene, Svgr, Transform, Video};
 use rand::Rng;
 use std::f32::consts::PI;
+
+/// The golden ratio (φ = (1 + √5) / 2)
+const PHI: f32 = 1.618_034;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::sync::atomic::AtomicBool;
-
-const GOLDEN_RATIO: f32 = 1.618034;
 
 pub struct FibonacciSpiralGallery<'a> {
     duration: f32,
@@ -89,7 +90,7 @@ impl Scene for FibonacciSpiralGallery<'_> {
             let theta = self.spiral_direction * angle_progress * self.spiral_revolutions * 2.0 * PI;
 
             // The golden ratio growth factor b = ln(φ)/(2π)
-            let b = GOLDEN_RATIO.ln() / (2.0 * PI);
+            let b = PHI.ln() / (2.0 * PI);
             let base_radius = (b * theta.abs()).exp();
             let max_radius_factor = (b * self.spiral_revolutions * 2.0 * PI).exp();
 

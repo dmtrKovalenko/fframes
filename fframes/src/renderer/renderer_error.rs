@@ -9,6 +9,12 @@ pub enum RenderEncodingError {
     CantOpenFile(PathBuf),
     CantAllocate(String),
     CantWriteFrame(String),
+    /// The encoder (avcodec_send_frame) rejected the frame. Contains the ffmpeg
+    /// error description along with optional context about which frame failed.
+    CantEncodeFrame {
+        error: String,
+        pts: Option<i64>,
+    },
     UnknownExtension(PathBuf),
     FFmpegError(i32, String),
     InvalidPixFmt(AVPixelFormat),
@@ -39,7 +45,15 @@ impl fmt::Display for RenderEncodingError {
                 Self::FFmpegError(code, description) =>
                     format!("libav error {code}: {description}"),
                 Self::CantWriteFrame(file) =>
-                    format!("Can not write frame to file {}", file.cyan()),
+                    format!("Can not write frame to file: {}", file.cyan()),
+                Self::CantEncodeFrame { error, pts } => match pts {
+                    Some(pts) => format!(
+                        "Encoder rejected frame at PTS {}: {}",
+                        pts.to_string().cyan(),
+                        error.cyan()
+                    ),
+                    None => format!("Encoder rejected frame: {}", error.cyan()),
+                },
                 Self::Internal(message) => message.to_owned(),
                 Self::CannotLocateCodec => "Couldn't locate audio or video codec neither from render_options nor from the output file extension. Make sure that extension is a valid video file and you have installed appropriate codecs for this specific container. E.g. in order to output the .webm extension you should have vp9 and opus codecs installed".to_owned(),
                 Self::InvalidArgument(argument) => format!("Argument {argument} that was provided is not valid or not supported for the current codec."),
@@ -96,7 +110,7 @@ impl fmt::Debug for FFramesRendererError {
                     chunk = chunk.to_string().cyan().bold()
                 ),
                 Self::ConcatChunkError(error)=>  format!(
-                    "Concatenation of rendered video chunks failed failed.\nReason: {error}",
+                    "Concatenation of rendered video chunks failed.\nReason: {error}",
                 ),
                 Self::IOError(err) => format!("{}\n{err}", "FS error:".bold()),
                 Self::MissingRequiredMedia(required_media) => format!(

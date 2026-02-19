@@ -1,14 +1,14 @@
 use super::{
-    RenderEncodingResult, get_thread_count, render_backend::FFramesRenderBackend,
-    renderer_error::RenderEncodingError,
+    get_thread_count, render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError,
+    RenderEncodingResult,
 };
 use crate::{
-    AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, TextCache,
-    Video, VideoDecodersWorker, usvgr,
+    usvgr, AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline,
+    TextCache, Video, VideoDecodersWorker,
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};
-use svgr::{PixmapPool, SvgrCache, tiny_skia::Color};
+use svgr::{tiny_skia::Color, PixmapPool, SvgrCache};
 use usvgr::fontdb;
 use uuid::Uuid;
 
@@ -196,6 +196,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                 timeline.audio_map.as_ref(),
                 render_options,
                 ctx,
+                &logger,
             )
             .map_err(FFramesRendererError::ConcatChunkError)?;
         }

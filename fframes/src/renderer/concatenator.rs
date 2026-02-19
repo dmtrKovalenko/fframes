@@ -6,11 +6,12 @@ use super::{
     stream::StreamVariant,
 };
 pub use crate::ffmpeg_action;
+use crate::{ffmpeg_sys_fframes::*, RenderOptions};
 use crate::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
-use crate::{RenderOptions, ffmpeg_sys_fframes::*};
 use std::{
     ffi::CString,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub struct AvPacketAutoFree {
@@ -186,6 +187,7 @@ impl Encoder {
         &self,
         audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
         ctx: &FFramesContext,
+        logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
     ) -> Result<(), RenderEncodingError> {
         unsafe {
             if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
@@ -195,6 +197,9 @@ impl Encoder {
                 let mut audio_frame = EncoderFrame::new(audio_stream)?;
                 let mut audio_frame_pts = 0usize;
                 let frame_size = (*audio_stream.enc).frame_size as usize;
+
+                let _ = logger
+                    .init_audio_encoding(stream_duration_in_samples.as_usize() / frame_size.max(1));
 
                 while audio_frame_pts <= stream_duration_in_samples.as_usize() {
                     let audio_data = ctx.get_mixed_audio_data_in_fltp(
@@ -206,8 +211,66 @@ impl Encoder {
                     audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
                     self.send_frame(audio_stream, &audio_frame)?;
 
+                    logger.log_audio_frame();
                     audio_frame_pts += frame_size;
                 }
+
+                logger.finish_audio_encoding();
+            }
+
+            Ok(())
+        }
+    }
+
+    /// Encode-only test: sends frames to the encoder and drains packets,
+    /// but does NOT write to the muxer. Used to isolate encoder failures.
+    pub unsafe fn fill_audio_stream_encode_only(
+        &self,
+        audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
+        ctx: &FFramesContext,
+    ) -> Result<(), RenderEncodingError> {
+        unsafe {
+            if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
+                let stream_duration_in_samples =
+                    AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
+
+                let mut audio_frame = EncoderFrame::new(audio_stream)?;
+                let mut audio_frame_pts = 0usize;
+                let frame_size = (*audio_stream.enc).frame_size as usize;
+                let packet = av_packet_alloc();
+
+                while audio_frame_pts <= stream_duration_in_samples.as_usize() {
+                    let audio_data = ctx.get_mixed_audio_data_in_fltp(
+                        audio_map,
+                        AudioTimelineSamples::from_usize(audio_frame_pts),
+                        frame_size,
+                    );
+
+                    audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
+
+                    let send_ret = avcodec_send_frame(audio_stream.enc, audio_frame.av_frame);
+                    if send_ret < 0 {
+                        av_packet_free(&mut { packet });
+                        let desc = crate::renderer::encoder::av_error_to_string(send_ret);
+                        return Err(RenderEncodingError::CantEncodeFrame {
+                            error: desc,
+                            pts: Some(audio_frame_pts as i64),
+                        });
+                    }
+
+                    // Drain packets but don't write them - just unref
+                    loop {
+                        let recv_ret = avcodec_receive_packet(audio_stream.enc, packet);
+                        if recv_ret < 0 {
+                            break;
+                        }
+                        av_packet_unref(packet);
+                    }
+
+                    audio_frame_pts += frame_size;
+                }
+
+                av_packet_free(&mut { packet });
             }
 
             Ok(())
@@ -297,7 +360,13 @@ impl Encoder {
                                 (*input_video_stream).time_base,
                                 (*self.video_stream.st).time_base,
                             );
-                            av_interleaved_write_frame(self.oc, packet.get());
+                            let ret = av_interleaved_write_frame(self.oc, packet.get());
+                            if ret < 0 {
+                                avformat_close_input(&mut input_format_ctx);
+                                let error_description =
+                                    crate::renderer::encoder::av_error_to_string(ret);
+                                return Err(RenderEncodingError::CantWriteFrame(error_description));
+                            }
                         }
                         AVMediaType::AVMEDIA_TYPE_AUDIO => {
                             // Handle audio packet if we have an audio stream
@@ -312,13 +381,21 @@ impl Encoder {
                                 }
                                 last_audio_mux_dts = Some((*packet.get()).dts);
 
-                                // Rescale audio packet timestamps
                                 av_packet_rescale_ts(
                                     packet.get(),
                                     (*input_audio_stream).time_base,
                                     (*audio_stream.st).time_base,
                                 );
-                                av_interleaved_write_frame(self.oc, packet.get());
+                                let ret = av_interleaved_write_frame(self.oc, packet.get());
+                                if ret < 0 {
+                                    avformat_close_input(&mut input_format_ctx);
+                                    let error_description =
+                                        crate::renderer::encoder::av_error_to_string(ret);
+
+                                    return Err(RenderEncodingError::CantWriteFrame(
+                                        error_description,
+                                    ));
+                                }
                             }
                         }
                         _ => {
@@ -338,26 +415,23 @@ impl Encoder {
 pub unsafe fn concat_video_files_with_audio(
     files: &[PathBuf],
     output: &Path,
-    concurrency: i32,
+    _concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     render_options: &RenderOptions,
     ctx: &FFramesContext,
+    logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
 ) -> Result<(), RenderEncodingError> {
     unsafe {
         let encoder = create_encoder_copy_from_file(&files[0], output, render_options)?;
 
-        // Set thread count for audio encoding before processing
-        if let Some(audio_stream) = &encoder.audio_stream {
-            (*audio_stream.enc).thread_count = concurrency;
-        }
-
-        // Process both video and audio streams from files in synchronized order
-        encoder.fill_streams_from_files(files)?;
-
-        // Add any additional audio content from the audio map
+        // Encode and write audio FIRST, before writing video packets.
+        // av_interleaved_write_frame will handle proper interleaving.
         if encoder.audio_stream.is_some() {
-            encoder.fill_audio_stream(audio_map, ctx)?;
+            encoder.fill_audio_stream(audio_map, ctx, logger)?;
         }
+
+        // Process video streams from files
+        encoder.fill_streams_from_files(files)?;
 
         Ok(())
     }

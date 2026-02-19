@@ -43,7 +43,20 @@ render example *ARGS:
   cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}
 
 play example:
-  cd examples/{{example}} && ffplay out.mp4
+  #! /bin/bash
+  cd examples/{{example}}
+  if command -v iina >/dev/null 2>&1; then
+    iina out.mp4
+  elif command -v mpv >/dev/null 2>&1; then
+    mpv out.mp4
+  elif command -v vlc >/dev/null 2>&1; then
+    vlc out.mp4
+  elif command -v ffplay >/dev/null 2>&1; then
+    ffplay out.mp4
+  else
+    echo "No supported media player found. Please install iina, mpv, or vlc."
+    exit 1
+  fi
 
 bench example *ARGS:
   cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release {{ARGS}}

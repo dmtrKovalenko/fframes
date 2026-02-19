@@ -1,23 +1,27 @@
-use crate::{SkiaBackend, SkiaFFramesRenderer, resource_provider::SkiaFFramesProvider};
+use crate::{SkiaBackend, SkiaFFramesRenderer};
 use fframes::{
-    FFramesContext, FFramesRendererError, FFramesRendererResult, FFramesRendererRuntime,
-    MediaProvider, TextCache, TimeBase, Video, VideoDecodersWorker, usvgr,
+    usvgr, FFramesContext, FFramesRendererError, FFramesRendererResult, FFramesRendererRuntime,
+    MediaProvider, TextCache, TimeBase, Video, VideoDecodersWorker,
 };
-use skia_safe::{Surface, svg::Dom};
-use std::sync::Mutex;
+use skia_safe::Surface;
 
 /// Creates a new GPU context that can be used for instant rendering.
 /// Recommended for use with externally provided textures to minimize the copying overhead.
+///
+/// Each `InstantRenderingGPUBackend` owns its own render caches, so multiple backends can
+/// render frames concurrently without contention.
 pub struct InstantRenderingGPUBackend<TBackend: SkiaBackend> {
     #[allow(dead_code)] // this is required for lifetime in case of ffi usage
     backend: TBackend,
     surface: Surface,
     gpu_context: skia_safe::gpu::DirectContext,
+    converter_cache: usvgr::Cache,
+    render_cache: crate::render::RenderCache,
 }
 
 impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
     pub fn new(backend: TBackend) -> FFramesRendererResult<Self> {
-        let (surface, gpu_context) = backend.create_skia_surface().unwrap();
+        let (surface, gpu_context) = backend.create_skia_surface()?;
 
         let gpu_context = gpu_context.ok_or_else(|| {
             FFramesRendererError::Skia(
@@ -29,6 +33,8 @@ impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
             backend,
             surface,
             gpu_context,
+            converter_cache: usvgr::Cache::default(),
+            render_cache: crate::render::RenderCache::new(),
         })
     }
 
@@ -41,6 +47,8 @@ impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
             backend,
             surface,
             gpu_context,
+            converter_cache: usvgr::Cache::default(),
+            render_cache: crate::render::RenderCache::new(),
         }
     }
 }
@@ -53,7 +61,6 @@ pub struct InstantRenderingVideoCtx<'a> {
     pub runtime: fframes::FFramesRendererRuntime<'a>,
     usvg_options: usvgr::Options<'a>,
     break_lines_cache: Option<TextCache>,
-    converter_cache: Mutex<usvgr::Cache>,
     video_decoders: VideoDecodersWorker,
 }
 
@@ -79,13 +86,11 @@ impl InstantRenderingVideoCtx<'_> {
         };
 
         let break_lines_cache = TextCache::new(1000);
-        let converter_cache = Mutex::new(usvgr::Cache::default());
 
         Ok(Self {
             runtime,
             usvg_options,
             break_lines_cache,
-            converter_cache,
             video_decoders: VideoDecodersWorker::new(1),
         })
     }
@@ -122,32 +127,26 @@ impl<TBackend: SkiaBackend> SkiaFFramesRenderer<'_, TBackend> {
             font_source: Some(&fframes_ctx.runtime.font_source),
         };
 
-        let provider = SkiaFFramesProvider::new(fframes_ctx.video_decoders.clone(), &ctx);
         let fframe = fframes::Frame::__internal_make_for_renderer(
             frame_index,
             frame_index,
             ctx.time_base.fps,
             fframes_ctx.break_lines_cache.clone(),
-            provider.worker_local_decoders.clone(),
+            fframes_ctx.video_decoders.clone(),
         );
 
-        let mut converter_cache = fframes_ctx.converter_cache.lock().unwrap();
-        let svg = {
-            video
-                .render_frame(fframe, &ctx)
-                .into_svg_tree(
-                    &fframes_ctx.usvg_options,
-                    &mut converter_cache,
-                    fframes_ctx.runtime.font_source.as_db_ref(),
-                )?
-                .to_string(&usvgr::WriteOptions::default())
-        };
+        let tree = video.render_frame(fframe, &ctx).into_svg_tree(
+            &fframes_ctx.usvg_options,
+            &mut native_ctx.converter_cache,
+            fframes_ctx.runtime.font_source.as_db_ref(),
+        )?;
 
         native_ctx.surface.canvas().clear(skia_safe::Color::BLACK);
-        let dom = Dom::from_str(&svg, provider.clone())
-            .map_err(|_| FFramesRendererError::Custom("Failed to create dom".to_string()))?;
-
-        dom.render(native_ctx.surface.canvas());
+        crate::render::render_tree(
+            &tree,
+            native_ctx.surface.canvas(),
+            &mut native_ctx.render_cache,
+        );
         native_ctx.gpu_context.flush_and_submit();
 
         Ok(frame_index < fframes_ctx.runtime.timeline.duration_in_frames - 1)

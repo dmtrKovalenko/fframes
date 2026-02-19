@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 mod resource_provider;
 mod skia_pipeline;
 
@@ -12,6 +13,8 @@ pub use skia_backend::*;
 
 mod instant_rendering;
 pub use instant_rendering::*;
+
+pub mod render;
 
 #[cfg(feature = "debug")]
 mod metrics;
