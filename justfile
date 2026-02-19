@@ -45,12 +45,12 @@ render example *ARGS:
 play example:
   #! /bin/bash
   cd examples/{{example}}
-  if command -v iina >/dev/null 2>&1; then
+  if command -v vlc >/dev/null 2>&1; then
+  vlc out.mp4
+  elif command -v iina >/dev/null 2>&1; then
     iina out.mp4
   elif command -v mpv >/dev/null 2>&1; then
     mpv out.mp4
-  elif command -v vlc >/dev/null 2>&1; then
-    vlc out.mp4
   elif command -v ffplay >/dev/null 2>&1; then
     ffplay out.mp4
   else

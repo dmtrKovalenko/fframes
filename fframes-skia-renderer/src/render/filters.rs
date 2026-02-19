@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use fframes::usvgr;
 use fframes::usvgr::filter::{self, Input, Kind};
-use skia_safe::{self, image_filters, ImageFilter};
+use skia_safe::{self, ImageFilter, image_filters};
 use std::collections::HashMap;
 #[allow(unused_imports)]
 use std::sync::Arc;
@@ -265,7 +265,7 @@ fn convert_primitive(
                 prim_rect.width(),
                 prim_rect.height(),
             );
-            image_filters::tile(&src, &src, input)
+            image_filters::tile(src, src, input)
         }
 
         // Filter types not commonly used in fframes - log and skip for now

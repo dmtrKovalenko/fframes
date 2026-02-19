@@ -60,6 +60,12 @@ pub struct RenderCache {
     prev_stroke_paints: HashMap<u64, skia_safe::Paint>,
 }
 
+impl Default for RenderCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RenderCache {
     pub fn new() -> Self {
         Self {
@@ -234,14 +240,14 @@ fn render_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut RenderCache) 
     // Fast path: replay a cached Picture for fully-static groups.
     // This skips the entire subtree traversal, paint creation, filter
     // chain building, and all Skia draw calls — replaying a single Picture instead.
-    if let Some(hash) = group.static_hash() {
-        if let Some(picture) = cache.get_picture(hash) {
-            canvas.save();
-            canvas.concat(&to_matrix(group.transform()));
-            canvas.draw_picture(picture, None, None);
-            canvas.restore();
-            return;
-        }
+    if let Some(hash) = group.static_hash()
+        && let Some(picture) = cache.get_picture(hash)
+    {
+        canvas.save();
+        canvas.concat(&to_matrix(group.transform()));
+        canvas.draw_picture(picture, None, None);
+        canvas.restore();
+        return;
     }
 
     canvas.save();
@@ -266,12 +272,10 @@ fn render_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut RenderCache) 
             canvas.draw_picture(&picture, None, None);
             cache.insert_picture(hash, picture);
         }
+    } else if group.should_isolate() {
+        render_isolated_group(group, canvas, cache);
     } else {
-        if group.should_isolate() {
-            render_isolated_group(group, canvas, cache);
-        } else {
-            render_nodes(group, canvas, cache);
-        }
+        render_nodes(group, canvas, cache);
     }
 
     canvas.restore();
@@ -297,10 +301,8 @@ fn render_isolated_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut Rend
         layer_paint.set_alpha_f(group.opacity().get());
         layer_paint.set_blend_mode(convert_blend_mode(group.blend_mode()));
 
-        if has_filters {
-            if let Some(filter) = filters::build_filter_chain(group.filters()) {
-                layer_paint.set_image_filter(filter);
-            }
+        if has_filters && let Some(filter) = filters::build_filter_chain(group.filters()) {
+            layer_paint.set_image_filter(filter);
         }
 
         let bbox = group.layer_bounding_box();
@@ -465,11 +467,11 @@ fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
 
     // Fast path: use a cached Paint for static paths (avoids recreating
     // gradient shaders, dash effects, and other expensive paint state per frame)
-    if let Some(hash) = path.static_hash() {
-        if let Some(paint) = cache.get_fill_paint(hash) {
-            canvas.draw_path(&sk_path, paint);
-            return;
-        }
+    if let Some(hash) = path.static_hash()
+        && let Some(paint) = cache.get_fill_paint(hash)
+    {
+        canvas.draw_path(&sk_path, paint);
+        return;
     }
 
     let anti_alias = path.rendering_mode().use_shape_antialiasing();
@@ -491,11 +493,11 @@ fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
     let sk_path = cached_convert_path(cache, path.static_hash(), path.data());
 
     // Fast path: use a cached Paint for static paths
-    if let Some(hash) = path.static_hash() {
-        if let Some(paint) = cache.get_stroke_paint(hash) {
-            canvas.draw_path(&sk_path, paint);
-            return;
-        }
+    if let Some(hash) = path.static_hash()
+        && let Some(paint) = cache.get_stroke_paint(hash)
+    {
+        canvas.draw_path(&sk_path, paint);
+        return;
     }
 
     let anti_alias = path.rendering_mode().use_shape_antialiasing();
@@ -590,7 +592,7 @@ fn render_raster_image(
     canvas.draw_image_rect(
         sk_image,
         Some((&rect, skia_safe::canvas::SrcRectConstraint::Strict)),
-        &rect,
+        rect,
         &skia_safe::Paint::default(),
     );
 

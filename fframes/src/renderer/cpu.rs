@@ -1,14 +1,14 @@
 use super::{
-    get_thread_count, render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError,
-    RenderEncodingResult,
+    RenderEncodingResult, get_thread_count, render_backend::FFramesRenderBackend,
+    renderer_error::RenderEncodingError,
 };
 use crate::{
-    usvgr, AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline,
-    TextCache, Video, VideoDecodersWorker,
+    AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, TextCache,
+    Video, VideoDecodersWorker, usvgr,
 };
 use rayon::prelude::*;
 use std::{path::Path, sync::Arc};
-use svgr::{tiny_skia::Color, PixmapPool, SvgrCache};
+use svgr::{PixmapPool, SvgrCache, tiny_skia::Color};
 use usvgr::fontdb;
 use uuid::Uuid;
 

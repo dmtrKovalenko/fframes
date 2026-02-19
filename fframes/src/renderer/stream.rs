@@ -1,6 +1,6 @@
+use super::EncoderOptions;
 use super::ffmpeg_helper::MONO_CH_LAYOUT;
 use super::renderer_error::{RenderEncodingError, RenderEncodingResult};
-use super::EncoderOptions;
 use crate::ffmpeg_action;
 use crate::ffmpeg_loggable_action;
 use crate::media::ffmpeg_sys_fframes::*;

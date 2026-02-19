@@ -41,10 +41,10 @@ members = [
 [workspace.dependencies]
 # If you are working locally on renderer, just clone https://github.com/dmtrKovalenko/svgr
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
-svgr = { path = "../svgr/crates/svgr" }
-usvgr = { path = "../svgr/crates/usvgr" }
-# svgr = "0.44.1"
-# usvgr = "0.44.1"
+# svgr = { path = "../svgr/crates/svgr" }
+# usvgr = { path = "../svgr/crates/usvgr" }
+svgr = "0.45.1"
+usvgr = "0.45.1"
 ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "8.0.1", features = [
     "build",
     "static",

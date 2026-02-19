@@ -1,7 +1,7 @@
 use super::renderer_error::FFramesRendererResult;
 use crate::{
-    media::{RawMediaFile, Subtitles, VideoMedia},
     DynamicMediaProvider, RawFontData,
+    media::{RawMediaFile, Subtitles, VideoMedia},
 };
 use rayon::prelude::*;
 use std::{

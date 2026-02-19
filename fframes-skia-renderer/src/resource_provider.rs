@@ -1,11 +1,11 @@
 use fframes::{
-    media::decode_video_resource, usvgr::PreloadedImageData, FFramesContext, VideoDecodersWorker,
+    FFramesContext, VideoDecodersWorker, media::decode_video_resource, usvgr::PreloadedImageData,
 };
 use skia_safe::{
-    image_asset::{create_image_frame_data, CustomImageAsset, ImageSizeFit},
+    AlphaType, ColorType, Data, FontMgr, ISize, Image, ImageInfo, Matrix, SamplingOptions,
+    image_asset::{CustomImageAsset, ImageSizeFit, create_image_frame_data},
     images::raster_from_data,
     resources::{ImageAsset, ImageFrameData, ResourceProvider},
-    AlphaType, ColorType, Data, FontMgr, ISize, Image, ImageInfo, Matrix, SamplingOptions,
 };
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,5 @@
-use crate::error::Result;
 use crate::FFramesMediaError;
+use crate::error::Result;
 use ffmpeg_sys_fframes::*;
 use std::ffi::CString;
 use std::path::Path;

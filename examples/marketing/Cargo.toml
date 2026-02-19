@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 fframes = { workspace = true, features = ["h265", "libav-agree-gpl"] }
+svgr = { workspace = true }
+usvgr = { workspace = true }
 
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }
@@ -13,13 +15,3 @@ futures = "0.3.17"
 [features]
 default=["renderer"]
 renderer=["fframes/compile-time-svgtree"]
-
-[lib]
-name = "marketing_example"
-path = "src/lib.rs"
-doctest = false
-
-[[bin]]
-name = "marketing_example_bin"
-path = "src/main.rs"
-required-features=["renderer"]

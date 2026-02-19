@@ -1,11 +1,11 @@
+use crate::FFramesMediaError;
 use crate::error::Result;
 use crate::video_types::FrameConvertOptions;
-use crate::FFramesMediaError;
 use ffmpeg_sys_fframes::SwsFlags::{SWS_BICUBIC, SWS_BILINEAR};
 use ffmpeg_sys_fframes::*;
 use std::cell::UnsafeCell;
 use std::collections::VecDeque;
-use std::ffi::{c_void, CString};
+use std::ffi::{CString, c_void};
 use std::mem::size_of;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;

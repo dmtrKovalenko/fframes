@@ -1,8 +1,8 @@
 use crate::SkiaBackend;
 use fframes::get_thread_count;
 use fframes::{
-    usvgr, AudioTimelineSamples, FFramesContext, RenderOptions, ResolvedRenderingTimeline,
-    TextCache, Video, VideoDecodersWorker,
+    AudioTimelineSamples, FFramesContext, RenderOptions, ResolvedRenderingTimeline, TextCache,
+    Video, VideoDecodersWorker, usvgr,
 };
 use fframes::{
     Encoder, EncoderFrame, FFramesLogger, FFramesRendererError, FFramesRendererResult,
@@ -10,10 +10,10 @@ use fframes::{
 };
 use std::ops::Range;
 use std::path::Path;
+use std::sync::Arc;
 #[cfg(feature = "debug")]
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{self, Receiver, SyncSender};
-use std::sync::Arc;
 use std::thread;
 #[cfg(feature = "debug")]
 use std::time::Instant;

@@ -1,12 +1,12 @@
-pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use super::{
+    FFramesLogger,
     renderer_error::{self, RenderEncodingError},
     stream,
     stream::Stream,
-    FFramesLogger,
 };
+pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
 use crate::ffmpeg_sys_fframes::*;
-use crate::{ffmpeg_action, RenderOptions};
+use crate::{RenderOptions, ffmpeg_action};
 use std::ops::Range;
 use std::path::Path;
 use std::{

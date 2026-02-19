@@ -6,8 +6,8 @@ use super::{
     stream::StreamVariant,
 };
 pub use crate::ffmpeg_action;
-use crate::{ffmpeg_sys_fframes::*, RenderOptions};
 use crate::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
+use crate::{RenderOptions, ffmpeg_sys_fframes::*};
 use std::{
     ffi::CString,
     path::{Path, PathBuf},
@@ -415,7 +415,7 @@ impl Encoder {
 pub unsafe fn concat_video_files_with_audio(
     files: &[PathBuf],
     output: &Path,
-    _concurrency: i32,
+    concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     render_options: &RenderOptions,
     ctx: &FFramesContext,
@@ -424,14 +424,13 @@ pub unsafe fn concat_video_files_with_audio(
     unsafe {
         let encoder = create_encoder_copy_from_file(&files[0], output, render_options)?;
 
-        // Encode and write audio FIRST, before writing video packets.
-        // av_interleaved_write_frame will handle proper interleaving.
-        if encoder.audio_stream.is_some() {
-            encoder.fill_audio_stream(audio_map, ctx, logger)?;
-        }
-
         // Process video streams from files
         encoder.fill_streams_from_files(files)?;
+
+        if let Some(audio_stream) = &encoder.audio_stream {
+            (*audio_stream.enc).thread_count = concurrency;
+            encoder.fill_audio_stream(audio_map, ctx, logger)?;
+        }
 
         Ok(())
     }

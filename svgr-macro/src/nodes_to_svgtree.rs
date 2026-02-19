@@ -146,7 +146,10 @@ fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
         if !segments.is_empty() {
             let segment_tokens: Vec<_> = segments.iter().map(path_segment_to_tokens).collect();
             return quote! {
-                SvgAttributeValue::PathData(vec![#(#segment_tokens),*])
+                {
+                    static SEGMENTS: &[svgrtypes::PathSegment] = &[#(#segment_tokens),*];
+                    SvgAttributeValue::PathData(std::borrow::Cow::Borrowed(SEGMENTS))
+                }
             };
         }
         // Fall through to string if parsing fails
@@ -314,7 +317,7 @@ impl ToTokens for MaybeNodeData {
         quote::quote! {
             Some(NestedNodeData {
                 kind: #kind,
-                attrs: vec![#(#attrs),*],
+                attrs: vec![#(#attrs),*].into_boxed_slice(),
                 children: #children_tokens,
                 static_hash: #static_hash_token,
             })
@@ -365,25 +368,23 @@ lazy_static::lazy_static! {
 }
 
 fn detailed_attribute_error(attribute: &str, span: Span) -> syn::Error {
-    syn::Error::new(
-        span,
-        match attribute {
-            "xlink:href" => "FFrames svg does not support custom namespaces. Use `href` instead.".to_owned(),
-            attribute if attribute.starts_with("xmlns:") => {
-                "The `xmlns:` attributes and dynamic xml namespaces are not supported.\n\nMost of that popular namespaces are deprecated and will be resolved without namespace,\ne.g. the `xlink:href` will be resolved exactly the same as `href`.".to_owned()
-            },
-            "xml:space" => "xml:space attribute is used to control string trimming in XML and makes no sense in svgr macro,\nwhere you explicitly control the child string length, so if you need to trim the string just add `{text.trim()}` as children of `<text>`\n\nPlease remove this attribute.".to_owned(),
-            _ => {
-                let fuzzy_match = rust_fuzzy_search::fuzzy_search_best_n(attribute, &ATTRIBUTE_NAMES_LIST, 1);
-                let suggestion = match fuzzy_match.first() {
-                    Some((suggestion, value)) if *value > 0.6 => format!(" Did you mean `{suggestion}`?"),
-                    _ => "".to_owned()
-                };
-
-                format!("{attribute} attribute is not supported or not valid for this element.{suggestion}")
-            },
+    use std::borrow::Cow;
+    let msg: Cow<'static, str> = match attribute {
+        "xlink:href" => Cow::Borrowed("FFrames svg does not support custom namespaces. Use `href` instead."),
+        attribute if attribute.starts_with("xmlns:") => Cow::Borrowed(
+            "The `xmlns:` attributes and dynamic xml namespaces are not supported.\n\nMost of that popular namespaces are deprecated and will be resolved without namespace,\ne.g. the `xlink:href` will be resolved exactly the same as `href`.",
+        ),
+        "xml:space" => Cow::Borrowed("xml:space attribute is used to control string trimming in XML and makes no sense in svgr macro,\nwhere you explicitly control the child string length, so if you need to trim the string just add `{text.trim()}` as children of `<text>`\n\nPlease remove this attribute."),
+        _ => {
+            let fuzzy_match = rust_fuzzy_search::fuzzy_search_best_n(attribute, &ATTRIBUTE_NAMES_LIST, 1);
+            let suggestion = match fuzzy_match.first() {
+                Some((suggestion, value)) if *value > 0.6 => format!(" Did you mean `{suggestion}`?"),
+                _ => String::new(),
+            };
+            Cow::Owned(format!("{attribute} attribute is not supported or not valid for this element.{suggestion}"))
         },
-    )
+    };
+    syn::Error::new(span, msg)
 }
 
 // TODO: parse and precache attribute value instead of always inlining as string
@@ -399,7 +400,7 @@ fn maybe_parse_svg_attribute(
         syn::Error::new(attribute_span, "Dynamic attribute names are not supported.")
     })?;
 
-    if attribute.name_as_string() == Some("xmlns".to_string()) {
+    if attribute.name_as_string().as_deref() == Some("xmlns") {
         if attribute.value_as_string().as_deref() == Some(SVG_NS) {
             return Ok(None);
         } else {
@@ -435,18 +436,17 @@ fn map_text_node_children(
 
     for node in nodes {
         if node.node_type == NodeType::Text {
+            let text_content = node.value_as_string().ok_or_else(|| {
+                syn::Error::new(
+                    node.name_span().unwrap(),
+                    "Failed to parse text element tag",
+                )
+            })?;
             parsed_nodes.push(MaybeParsedValue::Value(MaybeNodeData {
                 attrs: vec![],
                 children: vec![],
                 kind: svgtree::NestedNodeKind::Text(svgtree::roxmltree::StringStorage::new_owned(
-                    node.value_as_string()
-                        .ok_or_else(|| {
-                            syn::Error::new(
-                                node.name_span().unwrap(),
-                                "Failed to parse text element tag",
-                            )
-                        })?
-                        .as_str(),
+                    text_content.as_str(),
                 )),
             }));
 

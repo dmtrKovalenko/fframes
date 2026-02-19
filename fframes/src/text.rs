@@ -396,10 +396,14 @@ pub(crate) fn text_wrap_impl<
 
         for (idx, (start, _word)) in word_indices.iter().enumerate() {
             // Include trailing punctuation/characters until the next word or end of line
-            let next_start = word_indices.get(idx + 1).map(|(s, _)| *s).unwrap_or(line.len());
+            let next_start = word_indices
+                .get(idx + 1)
+                .map(|(s, _)| *s)
+                .unwrap_or(line.len());
             let word_with_punct = line[*start..next_start].trim_end();
 
-            let word_width = calc_text_width(word_with_punct, font_face.as_ref(), font.size, font_variant);
+            let word_width =
+                calc_text_width(word_with_punct, font_face.as_ref(), font.size, font_variant);
             let (last_line, last_line_width) = structure.last_mut()?;
 
             if *last_line_width + space_width + word_width > width {

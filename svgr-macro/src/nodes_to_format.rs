@@ -34,9 +34,9 @@ pub(crate) fn prepare_svg_nodes_for_format_statement(
             }
             NodeType::Attribute => {
                 out.push_str(&format!(" {}", node.name_as_string().unwrap()));
-                if node.value.is_some() {
+                if let Some(node_value) = node.value  {
                     out.push_str(r#"="{}""#);
-                    values.push(node.value.unwrap().into_token_stream());
+                    values.push(node_value.into_token_stream());
                 }
             }
             NodeType::Text => {

@@ -1470,6 +1470,8 @@ dependencies = [
  "fframes",
  "fframes_test_utils",
  "futures",
+ "svgr",
+ "usvgr",
 ]
 
 [[package]]
@@ -2374,9 +2376,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.15.0"
+version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
+checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "static_assertions"
@@ -2401,7 +2403,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "svgr"
-version = "0.45.0"
+version = "0.45.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dfcea2ffe8b9a59a4b3b5ed35c6c75f788fc479026057bcc7826f783bf9ee47"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -2423,13 +2427,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rust-fuzzy-search",
+ "smallvec",
  "syn",
  "usvgr",
 ]
 
 [[package]]
 name = "svgrtypes"
-version = "0.45.0"
+version = "0.45.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bbcde848db2bd5401c349f18d0377f2ef64f6a0a509b6820e1856f716d67137"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -2776,7 +2783,9 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 
 [[package]]
 name = "usvgr"
-version = "0.45.0"
+version = "0.45.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfb96de3ca33ec7947688e0bfdbfdf621099bbe112296f374c362548410bfe85"
 dependencies = [
  "ahash",
  "base64 0.21.7",
@@ -2793,6 +2802,7 @@ dependencies = [
  "self-rust-tokenize",
  "simplecss",
  "siphasher 1.0.1",
+ "smallvec",
  "strict-num",
  "svgrtypes",
  "tiny-skia-path",
