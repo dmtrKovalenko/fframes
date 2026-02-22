@@ -8,7 +8,7 @@ impl_wasm_bridge_for!(TeejPodcast<'static>);
 pub fn create_wasm_bridge() -> WasmBridge {
     console_error_panic_hook::set_once();
 
-    WasmBridge::new(TeejPodcast::new(&[
+    let chapters: &'static [Chapter<'static>] = Box::leak(Box::new([
         Chapter::new("Introduction to Lunch Bites Podcast", "00:00"),
         Chapter::new("Tech Sponsorships and Streaming Quality", "01:51"),
         Chapter::new("Flexing in LA: The Casa Bonita Experience", "02:33"),
@@ -21,5 +21,6 @@ pub fn create_wasm_bridge() -> WasmBridge {
         Chapter::new("Fart Coin: The AI Millionaire", "21:50"),
         Chapter::new("OpenAI and the Future of AI Models", "25:46"),
         Chapter::new("Influencers and the Coding Landscape", "30:10"),
-    ]))
+    ]));
+    WasmBridge::new(TeejPodcast::new(chapters))
 }

@@ -87,6 +87,7 @@ impl Video for AudioAnnounce<'_> {
                 "transparent.mov",
                 &fframes::SyncVideoFrameInput {
                     looping: true,
+                    editor_fallback_image: ctx.get_image("video.mp4_fallback.png"),
                     ..Default::default()
                 },
             )
@@ -130,7 +131,7 @@ impl Video for AudioAnnounce<'_> {
                      y={AVATAR_Y}
                      width={AVATAR_SIZE}
                      height={AVATAR_SIZE}
-                        href={video_frame.href()}
+                    href={video_frame.href()}
                     />
                 )
             } else {

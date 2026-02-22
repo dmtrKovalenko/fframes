@@ -9,6 +9,7 @@ import * as Dom_storage from "rescript/lib/es6/dom_storage.js";
 import * as MediaLoader from "./services/mediaLoader.bs.js";
 import * as UseObservable from "./hooks/useObservable.bs.js";
 import * as AnimationRuntime from "./services/AnimationRuntime.bs.js";
+import * as VideoFrameBufferManager from "./services/VideoFrameBufferManager";
 
 var currentFps = {
   contents: undefined
@@ -30,7 +31,13 @@ function validateZoom(param) {
   return Curry._3(func$1, param, 0.1, 10.0);
 }
 
+function initVideoFrameBufferManager(prim) {
+  VideoFrameBufferManager.initVideoFrameBufferManager(prim);
+  
+}
+
 function MakePlayer(Wasm) {
+  VideoFrameBufferManager.initVideoFrameBufferManager(Wasm.videoMeta.fps);
   var sceneIndex = Belt_Option.flatMap(Dom_storage.getItem("ffscene", localStorage), Js__Int.fromString);
   var savedMagnet = Belt_Option.flatMap(Dom_storage.getItem(Wasm.videoMeta.name + "_ffmagnet", localStorage), Js__Int.fromString);
   var savedZoom = Belt_Option.getWithDefault(Belt_Option.flatMap(Dom_storage.getItem("ffzoom", localStorage), (function (str) {
@@ -398,6 +405,7 @@ export {
   min_zoom ,
   max_zoom ,
   validateZoom ,
+  initVideoFrameBufferManager ,
   MakePlayer ,
   
 }

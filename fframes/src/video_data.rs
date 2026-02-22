@@ -10,6 +10,36 @@ pub use fframes_media::{FrameConvertOptions, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
 
+#[cfg(target_arch = "wasm32")]
+use std::cell::Cell;
+
+/// Data returned by the video frame resolver callback.
+#[cfg(target_arch = "wasm32")]
+pub struct VideoFrameData {
+    pub url: String,
+    /// Data URL fallback for timeline preview rendering (works inside SVG-as-image)
+    pub preview_url: Option<String>,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Function pointer type for resolving video frames from JS.
+/// Called synchronously during render_frame to get a decoded frame.
+#[cfg(target_arch = "wasm32")]
+pub type VideoFrameResolver = fn(&str, i64) -> Option<VideoFrameData>;
+
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    static VIDEO_FRAME_RESOLVER: Cell<Option<VideoFrameResolver>> = Cell::new(None);
+}
+
+/// Set the video frame resolver callback. Called once during editor setup.
+/// The resolver is invoked synchronously from WASM during render_frame.
+#[cfg(target_arch = "wasm32")]
+pub fn set_video_frame_resolver(resolver: VideoFrameResolver) {
+    VIDEO_FRAME_RESOLVER.with(|r| r.set(Some(resolver)));
+}
+
 pub trait FFramesSyncedVideoFrame<'media> {
     /// Gets the original image from the frame
     /// This will perform color space conversion but will preserve the original frame
@@ -198,29 +228,60 @@ impl VideoDecodersWorker {
         &self,
         media_ref: &VideoMedia,
         offset: i64,
-        ctx: &FFramesContext,
+        ctx: &FFramesContext<'_, 'media>,
         options: &SyncVideoFrameInput<'media>,
     ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>>> {
-        let Some(fallback_image) = options.editor_fallback_image else {
-            return Ok(None);
-        };
+        use crate::media::{ImageMetadata, OwnedSharedString};
 
         let Some(metadata) = media_ref.metadata else {
             return Ok(None);
         };
 
         let last_frame_to_display_image = metadata.duration * ctx.time_base.fps as f32;
-        if offset <= last_frame_to_display_image as i64 || options.looping {
-            Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
-                // this is only editor code + the image data is a smartpointer so it is okay to clone
-                fallback_image: fallback_image.clone(),
-                video_metadata: media_ref
-                    .metadata
-                    .expect("Failed precodition: Missing editor video file metadata"),
-            })))
-        } else {
-            Ok(None)
+        if offset > last_frame_to_display_image as i64 && !options.looping {
+            return Ok(None);
         }
+
+        // Call into JS to get a decoded video frame from the buffer manager.
+        // The callback is synchronous — it returns a buffered frame or None.
+        if let Some(filename) = media_ref.path.file_name().map(|f| f.to_string_lossy()) {
+            let frame_data = VIDEO_FRAME_RESOLVER.with(|resolver| {
+                resolver.get().and_then(|resolve| resolve(&filename, offset))
+            });
+
+            if let Some(data) = frame_data {
+                // preview_url (data URL) is used for timeline canvas rendering
+                // where SVG-as-image blocks blob URL resolution.
+                // Falls back to the main url if no preview_url is provided.
+                let preview_source = data
+                    .preview_url
+                    .as_deref()
+                    .unwrap_or(&data.url);
+
+                return Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
+                    fallback_image: ImageData::new_from_web_source(
+                        OwnedSharedString::new_owned(preview_source.to_owned()),
+                        data.url,
+                        format!("__video_frame_{}_{}", filename, offset),
+                        ImageMetadata {
+                            width: data.width,
+                            height: data.height,
+                        },
+                    ),
+                    video_metadata: metadata,
+                })));
+            }
+        }
+
+        // Fall back to static fallback image (no decoded frames available yet)
+        let Some(fallback_image) = options.editor_fallback_image else {
+            return Ok(None);
+        };
+
+        Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
+            fallback_image: fallback_image.clone(),
+            video_metadata: metadata,
+        })))
     }
 
     #[cfg(not(target_arch = "wasm32"))]

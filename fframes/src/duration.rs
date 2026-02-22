@@ -9,6 +9,9 @@ use std::rc::Rc;
 pub enum Duration<'a> {
     /// Resolves duration from the audio file, the string is the file name in the media folder.
     FromAudio(&'a str),
+    /// Resolves duration from the video file metadata. Falls back to audio track resolution
+    /// if video metadata is not available.
+    FromVideo(&'a str),
     /// Duration in seconds
     Seconds(f32),
     /// Duration in pure frames, not recommended to use because the value must keep in sync with FPS.
@@ -43,7 +46,7 @@ impl<'a> Sub for Duration<'a> {
 impl<'a> Duration<'a> {
     pub fn used_audio_files(&self) -> Option<Vec<&'a str>> {
         match self {
-            Duration::FromAudio(audio) => Some(vec![audio]),
+            Duration::FromAudio(audio) | Duration::FromVideo(audio) => Some(vec![audio]),
             Duration::Seconds(_) => None,
             Duration::Frames(_) => None,
             Duration::Auto => None,
@@ -69,7 +72,9 @@ impl<'a> Duration<'a> {
         resolve_audio_duration: &'a TFun,
     ) -> crate::error::Result<usize> {
         match self {
-            Duration::FromAudio(audio) => resolve_audio_duration(audio),
+            Duration::FromAudio(audio) | Duration::FromVideo(audio) => {
+                resolve_audio_duration(audio)
+            }
             Duration::Seconds(seconds) => Ok((seconds * fps as f32) as usize),
             Duration::Frames(frames) => Ok(*frames),
             Duration::Auto => {

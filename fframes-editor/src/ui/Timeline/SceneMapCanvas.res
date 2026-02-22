@@ -1,8 +1,10 @@
 open Belt
 open CanvasSize
+open Webapi
 
 module Canvas = Webapi.Canvas
 module Canvas2d = Webapi.Canvas.Canvas2d
+module DocumentEvent = Dom.EventTarget.Impl(Dom.Window)
 
 let previewImageCache = ref(Belt.Map.String.empty)
 let maxCacheSize = 500
@@ -646,7 +648,27 @@ let make = (~size: canvasSize) => {
   let (player, _) = editorContext.usePlayer()
 
   let (throttledViewportOffset, _) = UseDebounce.useThrottle(player.viewportOffset, ~ms=16)
+  let (posterVersion, setPosterVersion) = React.useState(() => 0)
   useCanvasScale(canvasRef, size)
+
+  // Listen for poster frame ready events to invalidate cached broken previews
+  React.useEffect0(() => {
+    let handlePosterReady = _ => {
+      previewImageCache := Belt.Map.String.empty
+      setPosterVersion(v => v + 1)
+    }
+
+    Dom.window
+    |> DocumentEvent.asEventTarget
+    |> Dom.EventTarget.addEventListener("fframes-poster-ready", handlePosterReady)
+
+    Some(
+      () =>
+        Dom.window
+        |> DocumentEvent.asEventTarget
+        |> Dom.EventTarget.removeEventListener("fframes-poster-ready", handlePosterReady),
+    )
+  })
 
   // Separate effect for fast elements (time slots, scenes, audio)
   React.useEffect2(() => {
@@ -672,7 +694,8 @@ let make = (~size: canvasSize) => {
   }, (size, player.viewportOffset))
 
   // Separate throttled effect for main scene (expensive preview frames)
-  React.useEffect2(() => {
+  // posterVersion triggers re-render when poster frames become available
+  React.useEffect3(() => {
     canvasRef.current
     ->Js.Nullable.toOption
     ->Belt.Option.map(element => {
@@ -683,7 +706,7 @@ let make = (~size: canvasSize) => {
     ->ignore
 
     None
-  }, (size, throttledViewportOffset))
+  }, (size, throttledViewportOffset, posterVersion))
 
   <canvas
     className="absolute inset-0"

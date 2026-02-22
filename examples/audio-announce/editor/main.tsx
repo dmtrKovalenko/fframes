@@ -1,13 +1,14 @@
-import * as videoWasmBinding from "./editor-bridge/pkg";
+import initWasm, { create_wasm_bridge } from "./editor-bridge/pkg";
 import { renderEditor } from "@fframes/editor";
 import "@fframes/editor/dist/fframes-editor.css";
 
-const dynamicMediaFolder = import.meta.glob("../dynamic_media/*", {
-  query: "url",
-  import: "default",
-  eager: true,
-});
+await initWasm();
+const bridge = create_wasm_bridge();
 
-renderEditor(videoWasmBinding, {
-  dynamicMediaFolder,
+renderEditor(bridge, {
+  dynamicMediaFolder: import.meta.glob("../dynamic_media/*", {
+    query: "url",
+    import: "default",
+    eager: true,
+  }),
 });

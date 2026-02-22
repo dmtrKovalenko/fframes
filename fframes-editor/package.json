@@ -27,6 +27,7 @@
     "bs-webapi": "^0.19.1",
     "gentype": "^4.3.0",
     "html-react-parser": "^5.2.2",
+    "mediabunny": "^1.1.1",
     "minimp3-wasm": "^0.1.0",
     "react": "^19.x",
     "react-dom": "^19.x",

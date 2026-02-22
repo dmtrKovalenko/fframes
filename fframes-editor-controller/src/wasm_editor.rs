@@ -1,8 +1,46 @@
 use fframes::{FFramesContext, FFramesMode, Frame, StaticMediaProvider, Video, VideoSize};
 use std::{cell::RefCell, collections::HashMap, marker::PhantomPinned, pin::Pin, sync::Mutex};
-use wasm_bindgen::JsValue;
+use wasm_bindgen::prelude::*;
 
 use crate::{video_metadata, wasm_audio, wasm_font_source};
+
+#[wasm_bindgen]
+extern "C" {
+    /// Calls into JS to get a decoded video frame from the buffer manager.
+    /// Returns an object { url: string, width: number, height: number } or null/undefined.
+    fn __fframes_get_video_frame(filename: &str, pts: f64) -> JsValue;
+}
+
+/// Resolve a video frame by calling into JS. Used as the VideoFrameResolver callback.
+fn resolve_video_frame(filename: &str, pts: i64) -> Option<fframes::VideoFrameData> {
+    let result = __fframes_get_video_frame(filename, pts as f64);
+    if result.is_null() || result.is_undefined() {
+        return None;
+    }
+
+    let url = js_sys::Reflect::get(&result, &"url".into())
+        .ok()?
+        .as_string()?;
+    let width = js_sys::Reflect::get(&result, &"width".into())
+        .ok()?
+        .as_f64()? as u32;
+    let height = js_sys::Reflect::get(&result, &"height".into())
+        .ok()?
+        .as_f64()? as u32;
+
+    // If a poster data URL is available, use it as the preview-safe source
+    // (data URLs work inside SVG-as-image for timeline canvas rendering)
+    let preview_url = js_sys::Reflect::get(&result, &"posterUrl".into())
+        .ok()
+        .and_then(|v| v.as_string());
+
+    Some(fframes::VideoFrameData {
+        url,
+        preview_url,
+        width,
+        height,
+    })
+}
 
 struct VideoCtx<T: Video> {
     video: T,
@@ -194,6 +232,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
 
     pub fn render_frame(&self, frame: i64) -> String {
         use std::ops::Deref;
+        fframes::set_video_frame_resolver(resolve_video_frame);
         let time_base = self
             .time_base
             .lock()
@@ -230,6 +269,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
 
     pub fn render_preview_frame(&self, frame: i64) -> String {
         use std::ops::Deref;
+        fframes::set_video_frame_resolver(resolve_video_frame);
         let time_base = self
             .time_base
             .lock()

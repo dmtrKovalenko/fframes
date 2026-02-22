@@ -3,7 +3,16 @@ import {
   StaticMediaResolver,
   resolveMedia,
 } from "../../src/services/mediaLoader.gen";
-import { fontInfo, generalVideoFileMetadata } from "src/WasmController.gen";
+import { fontInfo } from "src/WasmController.gen";
+import { Input, UrlSource, ALL_FORMATS } from "mediabunny";
+import { warmupVideoDecoder } from "./VideoFrameBufferManager";
+
+interface VideoMetadata {
+  width: number;
+  height: number;
+  duration: number;
+  fps: number;
+}
 
 const audioContext = new AudioContext();
 
@@ -198,21 +207,21 @@ export const resolveImage: MediaResolver = async ({
   });
 };
 
-type VideoMetadata = {
-  width: number;
-  height: number;
-  duration: number;
-};
-
-function loadVideoMetadata(url: string) {
+function loadVideoMetadataViaElement(url: string) {
   return new Promise<VideoMetadata>((resolve, reject) => {
     const videoElement = document.createElement("video");
     videoElement.src = url;
 
+    const timeout = setTimeout(() => {
+      videoElement.src = "";
+      reject(new Error(`Video metadata load timeout for ${url}`));
+    }, 10000);
+
     videoElement.addEventListener(
       "loadedmetadata",
       () => {
-        const metadata: generalVideoFileMetadata = {
+        clearTimeout(timeout);
+        const metadata: VideoMetadata = {
           width: videoElement.videoWidth,
           height: videoElement.videoHeight,
           duration: videoElement.duration,
@@ -224,13 +233,49 @@ function loadVideoMetadata(url: string) {
       { once: true }
     );
 
-    videoElement.addEventListener("error", reject, { once: true });
+    videoElement.addEventListener("error", e => {
+      clearTimeout(timeout);
+      reject(e);
+    }, { once: true });
   });
+}
+
+async function loadVideoMetadataViaMediabunny(url: string): Promise<VideoMetadata> {
+  const source = new UrlSource(url);
+  const input = new Input({ source, formats: ALL_FORMATS });
+  try {
+    const videoTrack = await input.getPrimaryVideoTrack();
+    if (!videoTrack) throw new Error("No video track found");
+    const duration = await input.computeDuration();
+    return {
+      width: videoTrack.codedWidth,
+      height: videoTrack.codedHeight,
+      duration,
+      fps: 30,
+    };
+  } finally {
+    input.dispose();
+  }
+}
+
+async function loadVideoMetadata(url: string): Promise<VideoMetadata> {
+  try {
+    return await loadVideoMetadataViaElement(url);
+  } catch {
+    return await loadVideoMetadataViaMediabunny(url);
+  }
 }
 
 export const resolveVideo: MediaResolver = async options => {
   const { url, wasmController, name } = options;
-  const { width, height, duration } = await loadVideoMetadata(url);
+
+  let width: number, height: number, duration: number;
+  try {
+    ({ width, height, duration } = await loadVideoMetadata(url));
+  } catch (e) {
+    console.warn(`Could not load video metadata for ${name}, skipping.`, e);
+    return "MediaResolved" as any;
+  }
 
   wasmController.add_video_source_placeholder(
     name,
@@ -240,5 +285,19 @@ export const resolveVideo: MediaResolver = async options => {
     duration
   );
 
-  return resolveAudio(options);
+  // Store URL in a global map for VideoDecoderManager access
+  if (!(window as any).__fframes_video_urls) {
+    (window as any).__fframes_video_urls = {};
+  }
+  (window as any).__fframes_video_urls[name] = url;
+
+  warmupVideoDecoder(name, url);
+
+  // Try to extract audio from the video file.
+  // Some videos (e.g. YUVA420P) may not have a decodable audio track.
+  try {
+    return await resolveAudio(options);
+  } catch {
+    return "MediaResolved" as any;
+  }
 };

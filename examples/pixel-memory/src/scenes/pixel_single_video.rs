@@ -10,7 +10,7 @@ pub struct PixelSingleVideoScene<'a> {
 
 impl Scene for PixelSingleVideoScene<'_> {
     fn duration(&self) -> fframes::Duration<'_> {
-        fframes::Duration::FromAudio(self.video)
+        fframes::Duration::FromVideo(self.video)
     }
 
     fn audio(&self) -> AudioMap<'_> {

@@ -14,7 +14,11 @@ import * as MediaLoader from "../../services/mediaLoader.bs.js";
 import * as UseDebounce from "../../bindings/UseDebounce.bs.js";
 import * as EditorContext from "../../EditorContext.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
+import * as Webapi__Dom__Window from "bs-webapi/src/Webapi/Dom/Webapi__Dom__Window.bs.js";
 import * as Webapi__Canvas__Canvas2d from "bs-webapi/src/Webapi/Canvas/Webapi__Canvas__Canvas2d.bs.js";
+import * as Webapi__Dom__EventTarget from "bs-webapi/src/Webapi/Dom/Webapi__Dom__EventTarget.bs.js";
+
+var DocumentEvent = Webapi__Dom__EventTarget.Impl({});
 
 var previewImageCache = {
   contents: undefined
@@ -370,7 +374,24 @@ function SceneMapCanvas(Props) {
   var match = Curry._1(editorContext.usePlayer, undefined);
   var player = match[0];
   var match$1 = UseDebounce.useThrottle(player.viewportOffset, 16);
+  var match$2 = React.useState(function () {
+        return 0;
+      });
+  var setPosterVersion = match$2[1];
   CanvasSize.useCanvasScale(canvasRef, size);
+  React.useEffect((function () {
+          var handlePosterReady = function (param) {
+            previewImageCache.contents = undefined;
+            return Curry._1(setPosterVersion, (function (v) {
+                          return v + 1 | 0;
+                        }));
+          };
+          window.addEventListener("fframes-poster-ready", handlePosterReady);
+          return (function (param) {
+                    window.removeEventListener("fframes-poster-ready", handlePosterReady);
+                    
+                  });
+        }), []);
   React.useEffect((function () {
           Belt_Option.map(Caml_option.nullable_to_opt(canvasRef.current), (function (element) {
                   var ctx = element.getContext("2d");
@@ -396,7 +417,8 @@ function SceneMapCanvas(Props) {
           
         }), [
         size,
-        match$1[0]
+        match$1[0],
+        match$2[0]
       ]);
   return React.createElement("canvas", {
               ref: canvasRef,
@@ -421,6 +443,7 @@ var make = SceneMapCanvas;
 export {
   Canvas ,
   Canvas2d ,
+  DocumentEvent ,
   previewImageCache ,
   maxCacheSize ,
   cleanupCache ,
@@ -438,4 +461,4 @@ export {
   make ,
   
 }
-/* Utils Not a pure module */
+/* DocumentEvent Not a pure module */

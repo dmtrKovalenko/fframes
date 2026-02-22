@@ -77,7 +77,11 @@ impl<'a> PixelVideo<'a> {
                     let audio = provider.resolve_audio(audio)?;
                     Some(audio.duration_in_seconds())
                 }
-                (fframes::Duration::FromAudio(_), None) => {
+                (fframes::Duration::FromVideo(video), Some(provider)) => {
+                    let video = provider.resolve_video(video)?;
+                    Some(video.metadata?.duration)
+                }
+                (fframes::Duration::FromAudio(_) | fframes::Duration::FromVideo(_), None) => {
                     Some(9.0) // for editor fallback
                 }
                 _ => None,

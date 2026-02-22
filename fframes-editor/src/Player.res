@@ -51,7 +51,12 @@ let min_zoom = 0.1
 let max_zoom = 10.0
 let validateZoom = Utils.Math.minMax(~min=min_zoom, ~max=max_zoom)
 
+@module("./services/VideoFrameBufferManager")
+external initVideoFrameBufferManager: int => unit = "initVideoFrameBufferManager"
+
 module MakePlayer = (Wasm: WasmController.WasmBridge) => {
+  initVideoFrameBufferManager(Wasm.videoMeta.fps)
+
   module PlayerState = {
     type t = state
     open WasmController
