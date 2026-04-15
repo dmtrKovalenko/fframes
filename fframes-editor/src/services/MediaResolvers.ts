@@ -285,7 +285,6 @@ export const resolveVideo: MediaResolver = async options => {
     duration
   );
 
-  // Store URL in a global map for VideoDecoderManager access
   if (!(window as any).__fframes_video_urls) {
     (window as any).__fframes_video_urls = {};
   }
@@ -293,8 +292,6 @@ export const resolveVideo: MediaResolver = async options => {
 
   warmupVideoDecoder(name, url);
 
-  // Try to extract audio from the video file.
-  // Some videos (e.g. YUVA420P) may not have a decodable audio track.
   try {
     return await resolveAudio(options);
   } catch {

@@ -693,8 +693,6 @@ let make = (~size: canvasSize) => {
     None
   }, (size, player.viewportOffset))
 
-  // Separate throttled effect for main scene (expensive preview frames)
-  // posterVersion triggers re-render when poster frames become available
   React.useEffect3(() => {
     canvasRef.current
     ->Js.Nullable.toOption

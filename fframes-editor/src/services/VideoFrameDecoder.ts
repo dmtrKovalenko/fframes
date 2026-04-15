@@ -60,9 +60,6 @@ export class VideoFrameDecoder {
       if (!wrapped) return null;
 
       const srcCanvas = wrapped.canvas as HTMLCanvasElement;
-
-      // Synchronously copy pixels to a temp canvas to prevent race conditions
-      // with concurrent getCanvas() calls that may overwrite the pooled canvas.
       const tmp = document.createElement("canvas");
       tmp.width = srcCanvas.width;
       tmp.height = srcCanvas.height;
@@ -118,11 +115,7 @@ export class VideoFrameDecoder {
     this.activeBlobUrls.clear();
 
     if (this.input) {
-      try {
-        this.input.dispose();
-      } catch (e) {
-        // Input disposal may throw if already disposed
-      }
+      try { this.input.dispose(); } catch {}
       this.input = null;
     }
 

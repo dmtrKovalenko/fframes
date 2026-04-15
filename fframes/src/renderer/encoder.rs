@@ -260,7 +260,26 @@ impl Encoder {
                 .then(|| Stream::make_audio(oc, &render_options.audio_encoder_options))
                 .transpose()?;
 
-            avformat_write_header(oc, std::ptr::null_mut());
+            // Set movflags +faststart for mp4/mov containers so the moov atom
+            // is placed at the beginning of the file (required for NLE compatibility)
+            let format_name = if !(*(*oc).oformat).name.is_null() {
+                CStr::from_ptr((*(*oc).oformat).name).to_string_lossy()
+            } else {
+                std::borrow::Cow::Borrowed("")
+            };
+
+            let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
+            if format_name.contains("mp4")
+                || format_name.contains("mov")
+                || format_name.contains("3gp")
+            {
+                let key = CString::new("movflags").unwrap();
+                let val = CString::new("+faststart").unwrap();
+                av_dict_set(opts, key.as_ptr(), val.as_ptr(), 0);
+            }
+
+            avformat_write_header(oc, opts);
+            av_dict_free(opts);
 
             Ok(Encoder {
                 oc,

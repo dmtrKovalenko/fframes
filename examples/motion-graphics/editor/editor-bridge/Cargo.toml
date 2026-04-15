@@ -1,0 +1,18 @@
+[package]
+name = "motion-graphics-editor-bridge-example"
+version = "1.0.0-beta.6.rc-3.2"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "./lib.rs"
+
+[dependencies]
+wasm-bindgen = "0.2.100"
+fframes-editor-controller = { path = "../../../../fframes-editor-controller" }
+motion-graphics-example = { path = "../../", default-features = false }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+	'cfg(wasm_bindgen_unstable_test_coverage)',
+] }

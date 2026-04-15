@@ -40,7 +40,6 @@ export class VideoFrameBufferManager {
 
     const posterUrl = state.posterFrame?.url;
 
-    // Try exact match first
     const exactFrame = state.buffer.get(pts);
     if (exactFrame) {
       state.lastHeldFrame = { pts, url: exactFrame };
@@ -52,7 +51,6 @@ export class VideoFrameBufferManager {
       };
     }
 
-    // Frame holding: find most recent frame with pts <= requested
     let bestPts = -1;
     let bestUrl: string | null = null;
 
@@ -73,7 +71,6 @@ export class VideoFrameBufferManager {
       };
     }
 
-    // Fall back to last held frame if available
     if (state.lastHeldFrame) {
       return {
         url: state.lastHeldFrame.url,
@@ -83,7 +80,6 @@ export class VideoFrameBufferManager {
       };
     }
 
-    // Fall back to poster frame (data URL, works everywhere including SVG-as-image)
     if (state.posterFrame) {
       return state.posterFrame;
     }
@@ -97,7 +93,6 @@ export class VideoFrameBufferManager {
     let state = this.videos.get(filename);
 
     if (!state) {
-      // Create new video state
       const decoder = new VideoFrameDecoder();
       state = {
         decoder,
@@ -113,13 +108,10 @@ export class VideoFrameBufferManager {
       this.videos.set(filename, state);
     }
 
-    // Initialize decoder if needed
     if (!state.initPromise && state.decoder.isAvailable()) {
       state.initPromise = this.initializeDecoder(state);
     }
 
-    // Schedule decode for current frame and next 8 frames,
-    // but cap concurrent in-flight decodes to avoid overwhelming the decoder
     for (let i = 0; i <= 8; i++) {
       if (state.inFlightDecodes.size >= this.maxInFlight) {
         break;
@@ -127,17 +119,14 @@ export class VideoFrameBufferManager {
 
       const targetPts = currentPts + i;
 
-      // Skip if already in buffer or in flight
       if (state.buffer.has(targetPts) || state.inFlightDecodes.has(targetPts)) {
         continue;
       }
 
-      // Mark as in flight and start decode
       state.inFlightDecodes.add(targetPts);
       this.decodeFrame(filename, state, targetPts);
     }
 
-    // Evict frames far from current position
     this.evictOldFrames(state, currentPts);
   }
 
@@ -148,8 +137,6 @@ export class VideoFrameBufferManager {
         state.width = state.decoder.getWidth();
         state.height = state.decoder.getHeight();
 
-        // Decode frame 0 as a data URL poster for universal fallback
-        // (data URLs work inside SVG-as-image for timeline canvas rendering)
         const posterUrl = await state.decoder.decodeFrameAsDataUrl(0);
         if (posterUrl) {
           state.posterFrame = {
@@ -158,7 +145,6 @@ export class VideoFrameBufferManager {
             height: state.height
           };
 
-          // Notify timeline to re-render now that poster is available
           window.dispatchEvent(new Event('fframes-poster-ready'));
         }
       }
@@ -173,7 +159,6 @@ export class VideoFrameBufferManager {
     pts: number
   ): Promise<void> {
     try {
-      // Wait for initialization if needed
       if (state.initPromise) {
         await state.initPromise;
       }
@@ -182,7 +167,6 @@ export class VideoFrameBufferManager {
         return;
       }
 
-      // Staleness check: skip if user has scrubbed far away from this target
       const latestPts = this.lastRequestedPts.get(filename) ?? pts;
       if (Math.abs(pts - latestPts) > this.fps) {
         return;
@@ -206,8 +190,7 @@ export class VideoFrameBufferManager {
       return;
     }
 
-    // Evict frames far from current position in either direction
-    const keepRadius = this.fps; // Keep ~1 second around current position
+    const keepRadius = this.fps;
     const toEvict: number[] = [];
 
     for (const [pts, url] of state.buffer) {
@@ -224,30 +207,14 @@ export class VideoFrameBufferManager {
 
   dispose(): void {
     for (const state of this.videos.values()) {
-      // Revoke all blob URLs
       for (const url of state.buffer.values()) {
         URL.revokeObjectURL(url);
       }
       state.buffer.clear();
-
-      // Dispose decoder
       state.decoder.dispose();
     }
     this.videos.clear();
   }
-}
-
-export function setupGlobalVideoFrameCallback(bufferManager: VideoFrameBufferManager): void {
-  (window as any).__fframes_get_video_frame = (filename: string, pts: number) => {
-    // Auto-trigger preloading when WASM requests a frame
-    const videoUrls: Record<string, string> = (window as any).__fframes_video_urls || {};
-    const videoUrl = videoUrls[filename];
-    if (videoUrl) {
-      bufferManager.schedulePreload(filename, videoUrl, pts);
-    }
-
-    return bufferManager.getFrame(filename, pts);
-  };
 }
 
 let globalBufferManager: VideoFrameBufferManager | null = null;
@@ -257,7 +224,15 @@ export function initVideoFrameBufferManager(fps: number): void {
     globalBufferManager.dispose();
   }
   globalBufferManager = new VideoFrameBufferManager(fps);
-  setupGlobalVideoFrameCallback(globalBufferManager);
+
+  (window as any).__fframes_get_video_frame = (filename: string, pts: number) => {
+    const videoUrls: Record<string, string> = (window as any).__fframes_video_urls || {};
+    const videoUrl = videoUrls[filename];
+    if (videoUrl) {
+      globalBufferManager!.schedulePreload(filename, videoUrl, pts);
+    }
+    return globalBufferManager!.getFrame(filename, pts);
+  };
 }
 
 export function warmupVideoDecoder(filename: string, videoUrl: string): void {

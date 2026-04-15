@@ -20,6 +20,7 @@ fframes-renderer/c_render_bin
 .idea
 fframes-editor/tw.css
 examples/**/output/
+.playwright-mcp/
 
 # this is my own remix of the song but I am not sure if this is legal lol
 passenger.mp3

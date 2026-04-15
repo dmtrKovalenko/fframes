@@ -6,12 +6,9 @@ use crate::{video_metadata, wasm_audio, wasm_font_source};
 
 #[wasm_bindgen]
 extern "C" {
-    /// Calls into JS to get a decoded video frame from the buffer manager.
-    /// Returns an object { url: string, width: number, height: number } or null/undefined.
     fn __fframes_get_video_frame(filename: &str, pts: f64) -> JsValue;
 }
 
-/// Resolve a video frame by calling into JS. Used as the VideoFrameResolver callback.
 fn resolve_video_frame(filename: &str, pts: i64) -> Option<fframes::VideoFrameData> {
     let result = __fframes_get_video_frame(filename, pts as f64);
     if result.is_null() || result.is_undefined() {
@@ -28,8 +25,6 @@ fn resolve_video_frame(filename: &str, pts: i64) -> Option<fframes::VideoFrameDa
         .ok()?
         .as_f64()? as u32;
 
-    // If a poster data URL is available, use it as the preview-safe source
-    // (data URLs work inside SVG-as-image for timeline canvas rendering)
     let preview_url = js_sys::Reflect::get(&result, &"posterUrl".into())
         .ok()
         .and_then(|v| v.as_string());

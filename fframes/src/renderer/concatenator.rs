@@ -9,7 +9,7 @@ pub use crate::ffmpeg_action;
 use crate::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
 use crate::{RenderOptions, ffmpeg_sys_fframes::*};
 use std::{
-    ffi::CString,
+    ffi::{CStr, CString},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -147,7 +147,23 @@ unsafe fn create_encoder_copy_from_file(
             AVIO_FLAG_WRITE,
         );
 
-        avformat_write_header(encoder.oc, std::ptr::null_mut());
+        // Set movflags +faststart for mp4/mov containers (NLE compatibility)
+        let format_name = if !(*(*output_format_ctx).oformat).name.is_null() {
+            CStr::from_ptr((*(*output_format_ctx).oformat).name).to_string_lossy()
+        } else {
+            std::borrow::Cow::Borrowed("")
+        };
+
+        let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
+        if format_name.contains("mp4") || format_name.contains("mov") || format_name.contains("3gp")
+        {
+            let key = CString::new("movflags").unwrap();
+            let val = CString::new("+faststart").unwrap();
+            av_dict_set(opts, key.as_ptr(), val.as_ptr(), 0);
+        }
+
+        avformat_write_header(encoder.oc, opts);
+        av_dict_free(opts);
 
         Ok(encoder)
     }
@@ -346,8 +362,7 @@ impl Encoder {
 
                     match codec_type {
                         AVMediaType::AVMEDIA_TYPE_VIDEO => {
-                            // Handle video packet
-                            packet.get_mut().flags |= AV_PKT_FLAG_KEY;
+                            // Handle video packet (preserve original keyframe flags)
                             packet.get_mut().stream_index = (*self.video_stream.st).index;
 
                             if let Some(last_mux_dts) = last_video_mux_dts.as_mut() {

@@ -9,8 +9,7 @@ use std::rc::Rc;
 pub enum Duration<'a> {
     /// Resolves duration from the audio file, the string is the file name in the media folder.
     FromAudio(&'a str),
-    /// Resolves duration from the video file metadata. Falls back to audio track resolution
-    /// if video metadata is not available.
+    /// Resolves duration from the video file metadata.
     FromVideo(&'a str),
     /// Duration in seconds
     Seconds(f32),
