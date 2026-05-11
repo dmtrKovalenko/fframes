@@ -11,7 +11,7 @@ env:
 jobs:
   spellcheck:
     name: Spellcheck
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-default
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -23,7 +23,7 @@ jobs:
 
   build-rescript:
     name: Build ReScript
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-default
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
@@ -58,7 +58,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [namespace-profile-default]
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -136,7 +136,7 @@ jobs:
   release:
     name: Publish nightly release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-default
     steps:
       - name: Checkout
         uses: actions/checkout@v4
