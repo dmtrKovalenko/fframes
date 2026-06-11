@@ -843,7 +843,10 @@ dependencies = [
  "fframes",
  "fframes-skia-safe",
  "foreign-types-shared",
+ "low-poly-art-example",
  "metal",
+ "png",
+ "svgr",
  "thingbuf",
  "uuid",
 ]

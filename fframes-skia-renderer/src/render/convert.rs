@@ -38,6 +38,7 @@ pub fn to_skia_paint(
     paint: &usvgr::Paint,
     opacity: usvgr::Opacity,
     anti_alias: bool,
+    cache: &mut super::RenderCache,
 ) -> Option<Paint> {
     let mut sk_paint = Paint::default();
     sk_paint.set_anti_alias(anti_alias);
@@ -59,11 +60,11 @@ pub fn to_skia_paint(
             let shader = convert_radial_gradient(rg, opacity)?;
             sk_paint.set_shader(shader);
         }
-        usvgr::Paint::Pattern(_pattern) => {
-            // Pattern support requires rendering the pattern to an offscreen surface
-            // and creating a tiled image shader. For now, fall back to a solid color.
-            // TODO: Implement pattern rendering
-            sk_paint.set_color(skia_safe::Color::from_argb(opacity.to_u8(), 128, 128, 128));
+        usvgr::Paint::Pattern(pattern) => {
+            let shader = super::render_pattern_shader(pattern, cache)?;
+            sk_paint.set_shader(shader);
+            // fill-opacity / stroke-opacity multiplies the pattern content.
+            sk_paint.set_alpha_f(opacity.get());
         }
     }
 
@@ -71,8 +72,12 @@ pub fn to_skia_paint(
 }
 
 /// Convert a usvgr Stroke to a Skia Paint configured for stroking.
-pub fn to_skia_stroke_paint(stroke: &usvgr::Stroke, anti_alias: bool) -> Option<Paint> {
-    let mut paint = to_skia_paint(stroke.paint(), stroke.opacity(), anti_alias)?;
+pub fn to_skia_stroke_paint(
+    stroke: &usvgr::Stroke,
+    anti_alias: bool,
+    cache: &mut super::RenderCache,
+) -> Option<Paint> {
+    let mut paint = to_skia_paint(stroke.paint(), stroke.opacity(), anti_alias, cache)?;
     paint.set_style(skia_safe::PaintStyle::Stroke);
     paint.set_stroke_width(stroke.width().get());
     paint.set_stroke_cap(convert_line_cap(stroke.linecap()));

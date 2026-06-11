@@ -295,19 +295,38 @@ fn render_isolated_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut Rend
         apply_clip_path(clip_path, canvas, cache);
     }
 
-    // Step 2: Create an isolation layer for opacity, blend, and filters
-    if has_filters || has_opacity || has_blend || has_mask {
+    // Step 2: Create an isolation layer for opacity, blend, filters, or an
+    // explicit `isolation: isolate` (which confines children's
+    // mix-blend-mode to the group's own backdrop).  Clip-only groups skip
+    // the layer — it would not change their output.
+    if has_filters || has_opacity || has_blend || has_mask || group.isolate() {
         let mut layer_paint = skia_safe::Paint::default();
         layer_paint.set_alpha_f(group.opacity().get());
         layer_paint.set_blend_mode(convert_blend_mode(group.blend_mode()));
 
-        if has_filters && let Some(filter) = filters::build_filter_chain(group.filters()) {
-            layer_paint.set_image_filter(filter);
-        }
+        let filter = if has_filters {
+            filters::build_filter_chain(group.filters(), cache)
+        } else {
+            None
+        };
 
         let bbox = group.layer_bounding_box();
         let layer_bounds =
             skia_safe::Rect::from_xywh(bbox.x(), bbox.y(), bbox.width(), bbox.height());
+
+        // SVG rendering order is filter -> clip -> mask -> opacity.  When a
+        // mask is present the filter goes into an inner layer so the mask
+        // (DstIn in the outer layer) operates on the *filtered* output, not
+        // the raw content.  Without a mask the filter rides on the outer
+        // layer's paint directly.
+        let inner_filter = if has_mask {
+            filter
+        } else {
+            if let Some(filter) = filter {
+                layer_paint.set_image_filter(filter);
+            }
+            None
+        };
 
         canvas.save_layer(
             &skia_safe::canvas::SaveLayerRec::default()
@@ -315,13 +334,22 @@ fn render_isolated_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut Rend
                 .bounds(&layer_bounds),
         );
 
-        if has_mask {
+        if let Some(filter) = inner_filter {
+            let mut filter_paint = skia_safe::Paint::default();
+            filter_paint.set_image_filter(filter);
+            canvas.save_layer(
+                &skia_safe::canvas::SaveLayerRec::default()
+                    .paint(&filter_paint)
+                    .bounds(&layer_bounds),
+            );
             render_nodes(group, canvas, cache);
-            if let Some(mask) = group.mask() {
-                apply_mask(mask, canvas, cache);
-            }
+            canvas.restore();
         } else {
             render_nodes(group, canvas, cache);
+        }
+
+        if let Some(mask) = group.mask() {
+            apply_mask(mask, canvas, cache);
         }
 
         canvas.restore();
@@ -334,62 +362,128 @@ fn render_isolated_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut Rend
     }
 }
 
-fn apply_clip_path(clip: &usvgr::ClipPath, canvas: &Canvas, cache: &mut RenderCache) {
-    let clip_transform = to_matrix(clip.transform());
-
-    for child in clip.root().children() {
-        clip_child(child, canvas, cache, &clip_transform);
-    }
-
-    if let Some(nested_clip) = clip.clip_path() {
-        apply_clip_path(nested_clip, canvas, cache);
-    }
-}
-
-fn apply_clip_from_group(
-    group: &usvgr::Group,
-    canvas: &Canvas,
+/// Build a tiling Skia shader from an SVG `<pattern>` paint server.
+///
+/// The pattern content is recorded into a `Picture` once per use and replayed
+/// as a picture shader.  `usvgr` resolves `patternUnits`/`patternContentUnits`
+/// to user space at parse time, so `rect()`, `transform()` and the content are
+/// already in user coordinates here.
+pub(super) fn render_pattern_shader(
+    pattern: &usvgr::Pattern,
     cache: &mut RenderCache,
-    transform: &Matrix,
-) {
-    for child in group.children() {
-        clip_child(child, canvas, cache, transform);
+) -> Option<skia_safe::Shader> {
+    let rect = pattern.rect();
+    let tile = skia_safe::Rect::from_wh(rect.width(), rect.height());
+
+    let mut recorder = skia_safe::PictureRecorder::new();
+    let rec_canvas = recorder.begin_recording(tile, false);
+
+    if let Some(view_box) = pattern.view_box() {
+        let viewport = usvgr::Size::from_wh(rect.width(), rect.height())?;
+        rec_canvas.concat(&to_matrix(view_box.to_transform(viewport)));
+    }
+    render_nodes(pattern.root(), rec_canvas, cache);
+    let picture = recorder.finish_recording_as_picture(Some(&tile))?;
+
+    // Pattern tiles are placed starting at rect's origin, then transformed by
+    // patternTransform.
+    let mut local_matrix = to_matrix(pattern.transform());
+    local_matrix.pre_translate((rect.x(), rect.y()));
+
+    Some(picture.to_shader(
+        Some((skia_safe::TileMode::Repeat, skia_safe::TileMode::Repeat)),
+        skia_safe::FilterMode::Linear,
+        Some(&local_matrix),
+        Some(&tile),
+    ))
+}
+
+fn apply_clip_path(clip: &usvgr::ClipPath, canvas: &Canvas, cache: &mut RenderCache) {
+    match build_clip_path(clip, cache) {
+        Some(path) => {
+            canvas.clip_path(&path, skia_safe::ClipOp::Intersect, true);
+        }
+        None => {
+            // A clip path with no usable geometry clips everything away.
+            canvas.clip_rect(
+                skia_safe::Rect::new_empty(),
+                skia_safe::ClipOp::Intersect,
+                false,
+            );
+        }
     }
 }
 
-fn clip_child(child: &usvgr::Node, canvas: &Canvas, cache: &mut RenderCache, transform: &Matrix) {
-    match child {
-        usvgr::Node::Path(path) => {
-            if path.visibility() != usvgr::Visibility::Visible {
-                return;
-            }
-            let fill_type = path
-                .fill()
-                .map(|f| match f.rule() {
-                    usvgr::FillRule::NonZero => skia_safe::PathFillType::Winding,
-                    usvgr::FillRule::EvenOdd => skia_safe::PathFillType::EvenOdd,
-                })
-                .unwrap_or(skia_safe::PathFillType::Winding);
+/// Resolve a clipPath into a single Skia path: the *union* of its children's
+/// geometry, intersected with the clipPath's own nested clip-path.
+///
+/// SVG composes sibling clip shapes additively, so they cannot be applied as
+/// sequential canvas clips (which intersect).  Returns None when no geometry
+/// contributes — per spec that hides the clipped element entirely.
+fn build_clip_path(clip: &usvgr::ClipPath, cache: &mut RenderCache) -> Option<skia_safe::Path> {
+    let result = build_clip_group(clip.root(), &to_matrix(clip.transform()), cache)?;
 
-            let mut sk_path = cached_convert_path(cache, path.static_hash(), path.data());
-            sk_path.set_fill_type(fill_type);
-            // Transform the clip path geometry directly instead of using
-            // canvas.concat + save/restore.  The old approach (save, concat,
-            // clip_path, restore) undid the clip because Skia's restore pops
-            // the entire canvas state including clip regions.
-            let sk_path = sk_path.make_transform(transform);
-            canvas.clip_path(&sk_path, skia_safe::ClipOp::Intersect, true);
-        }
-        usvgr::Node::Text(text) => {
-            apply_clip_from_group(text.flattened(), canvas, cache, transform);
-        }
-        usvgr::Node::Group(group) => {
-            let mut combined = *transform;
-            combined.pre_concat(&to_matrix(group.transform()));
-            apply_clip_from_group(group, canvas, cache, &combined);
-        }
-        _ => {}
+    if let Some(nested) = clip.clip_path() {
+        let nested_path = build_clip_path(nested, cache)?;
+        return result.op(&nested_path, skia_safe::PathOp::Intersect);
     }
+
+    Some(result)
+}
+
+/// Union of the clip geometry contributed by a group's children.
+fn build_clip_group(
+    group: &usvgr::Group,
+    transform: &Matrix,
+    cache: &mut RenderCache,
+) -> Option<skia_safe::Path> {
+    let mut result: Option<skia_safe::Path> = None;
+
+    for child in group.children() {
+        let contribution = match child {
+            usvgr::Node::Path(path) => {
+                if path.visibility() != usvgr::Visibility::Visible {
+                    continue;
+                }
+                let fill_type = path
+                    .fill()
+                    .map(|f| match f.rule() {
+                        usvgr::FillRule::NonZero => skia_safe::PathFillType::Winding,
+                        usvgr::FillRule::EvenOdd => skia_safe::PathFillType::EvenOdd,
+                    })
+                    .unwrap_or(skia_safe::PathFillType::Winding);
+
+                let mut sk_path = cached_convert_path(cache, path.static_hash(), path.data());
+                sk_path.set_fill_type(fill_type);
+                Some(sk_path.make_transform(transform))
+            }
+            usvgr::Node::Text(text) => build_clip_group(text.flattened(), transform, cache),
+            usvgr::Node::Group(child_group) => {
+                let mut combined = *transform;
+                combined.pre_concat(&to_matrix(child_group.transform()));
+                let sub = build_clip_group(child_group, &combined, cache);
+                // A clip-path on a clip child intersects that child's
+                // contribution before it joins the union.
+                match (sub, child_group.clip_path()) {
+                    (Some(sub), Some(nested)) => build_clip_path(nested, cache)
+                        .and_then(|nested| sub.op(&nested, skia_safe::PathOp::Intersect)),
+                    (sub, None) => sub,
+                    (None, _) => None,
+                }
+            }
+            _ => None,
+        };
+
+        result = match (result, contribution) {
+            (None, contribution) => contribution,
+            (result, None) => result,
+            (Some(result), Some(contribution)) => {
+                result.op(&contribution, skia_safe::PathOp::Union)
+            }
+        };
+    }
+
+    result
 }
 
 /// Apply a mask to the current layer content using DstIn blending.
@@ -410,6 +504,9 @@ fn apply_mask(mask: &usvgr::Mask, canvas: &Canvas, cache: &mut RenderCache) {
             .paint(&mask_paint)
             .bounds(&bounds),
     );
+    // The mask region (x/y/width/height) hard-clips the mask content;
+    // save_layer bounds are only a sizing hint and do not clip.
+    canvas.clip_rect(bounds, skia_safe::ClipOp::Intersect, true);
 
     if mask.kind() == usvgr::MaskType::Luminance {
         let luma_cf = skia_safe::ColorFilter::luma();
@@ -475,7 +572,7 @@ fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
     }
 
     let anti_alias = path.rendering_mode().use_shape_antialiasing();
-    let Some(mut paint) = to_skia_paint(fill.paint(), fill.opacity(), anti_alias) else {
+    let Some(mut paint) = to_skia_paint(fill.paint(), fill.opacity(), anti_alias, cache) else {
         return;
     };
     paint.set_style(skia_safe::PaintStyle::Fill);
@@ -501,7 +598,7 @@ fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
     }
 
     let anti_alias = path.rendering_mode().use_shape_antialiasing();
-    let Some(paint) = to_skia_stroke_paint(stroke, anti_alias) else {
+    let Some(paint) = to_skia_stroke_paint(stroke, anti_alias, cache) else {
         return;
     };
 
@@ -517,12 +614,31 @@ fn render_image(image: &usvgr::Image, canvas: &Canvas, cache: &mut RenderCache) 
         return;
     }
 
-    match image.kind() {
+    render_image_kind(
+        image.kind(),
+        image.view_box(),
+        image.rendering_mode(),
+        canvas,
+        cache,
+    );
+}
+
+/// Render an image payload (raster or nested SVG) into the `view_box`.
+///
+/// Shared between `<image>` elements and the `feImage` filter primitive.
+pub(super) fn render_image_kind(
+    kind: &usvgr::ImageKind,
+    view_box: usvgr::ViewBox,
+    rendering_mode: usvgr::ImageRendering,
+    canvas: &Canvas,
+    cache: &mut RenderCache,
+) {
+    match kind {
         usvgr::ImageKind::DATA(data) => {
-            render_raster_image(data, image.view_box(), canvas, cache);
+            render_raster_image(data, view_box, rendering_mode, canvas, cache);
         }
         usvgr::ImageKind::SVG { tree, .. } => {
-            render_svg_image(tree, image.view_box(), canvas, cache);
+            render_svg_image(tree, view_box, canvas, cache);
         }
     }
 }
@@ -530,6 +646,7 @@ fn render_image(image: &usvgr::Image, canvas: &Canvas, cache: &mut RenderCache) 
 fn render_raster_image(
     img: &Arc<usvgr::PreloadedImageData>,
     view_box: usvgr::ViewBox,
+    rendering_mode: usvgr::ImageRendering,
     canvas: &Canvas,
     cache: &mut RenderCache,
 ) {
@@ -578,6 +695,13 @@ fn render_raster_image(
     let ts = content_vb.to_transform(viewport_size);
 
     canvas.save();
+    // Clip to the element's viewport: with preserveAspectRatio="...slice" the
+    // scaled content overflows the element rect and must not leak outside it.
+    canvas.clip_rect(
+        skia_safe::Rect::from_xywh(vb_rect.x(), vb_rect.y(), vb_rect.width(), vb_rect.height()),
+        skia_safe::ClipOp::Intersect,
+        true,
+    );
     // translate(x, y) * ts — left-multiplying a translate just offsets tx, ty.
     canvas.concat(&to_matrix(usvgr::Transform::from_row(
         ts.sx,
@@ -588,11 +712,23 @@ fn render_raster_image(
         ts.ty + vb_rect.y(),
     )));
 
+    let sampling = match rendering_mode {
+        usvgr::ImageRendering::OptimizeQuality => skia_safe::SamplingOptions::new(
+            skia_safe::FilterMode::Linear,
+            skia_safe::MipmapMode::None,
+        ),
+        usvgr::ImageRendering::OptimizeSpeed => skia_safe::SamplingOptions::new(
+            skia_safe::FilterMode::Nearest,
+            skia_safe::MipmapMode::None,
+        ),
+    };
+
     let rect = skia_safe::Rect::from_wh(img.width as f32, img.height as f32);
-    canvas.draw_image_rect(
+    canvas.draw_image_rect_with_sampling_options(
         sk_image,
         Some((&rect, skia_safe::canvas::SrcRectConstraint::Strict)),
         rect,
+        sampling,
         &skia_safe::Paint::default(),
     );
 
@@ -608,7 +744,23 @@ fn render_svg_image(
     canvas.save();
 
     let vb = view_box.rect;
+    // Nested SVG content is clipped to the element's viewport.
+    canvas.clip_rect(
+        skia_safe::Rect::from_xywh(vb.x(), vb.y(), vb.width(), vb.height()),
+        skia_safe::ClipOp::Intersect,
+        true,
+    );
     canvas.translate((vb.x(), vb.y()));
+
+    // Scale the SVG's intrinsic size to the element's rect, honoring
+    // preserveAspectRatio, then apply the tree's own viewBox transform.
+    if let Some(viewport_size) = usvgr::Size::from_wh(vb.width(), vb.height()) {
+        let content_vb = usvgr::ViewBox {
+            rect: tree.size().to_non_zero_rect(0.0, 0.0),
+            aspect: view_box.aspect,
+        };
+        canvas.concat(&to_matrix(content_vb.to_transform(viewport_size)));
+    }
 
     let ts = tree.view_box().to_transform(tree.size());
     canvas.concat(&to_matrix(ts));

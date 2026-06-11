@@ -370,8 +370,9 @@ impl Encoder {
                         }
                         AVMediaType::AVMEDIA_TYPE_AUDIO => {
                             // Handle audio packet if we have an audio stream
-                            if !input_audio_stream.is_null() && self.audio_stream.is_some() {
-                                let audio_stream = self.audio_stream.as_ref().unwrap();
+                            if !input_audio_stream.is_null()
+                                && let Some(audio_stream) = self.audio_stream.as_ref()
+                            {
 
                                 packet.get_mut().stream_index = (*audio_stream.st).index;
 
