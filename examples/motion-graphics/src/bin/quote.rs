@@ -25,7 +25,7 @@ fn main() {
 
     let output = args
         .output
-        .unwrap_or_else(|| format!("quote_{}.mp4", text.to_lowercase().replace('\n', "_").replace(' ', "_")));
+        .unwrap_or_else(|| format!("quote_{}.mp4", text.to_lowercase().replace(['\n', ' '], "_")));
 
     let backend = fframes::cpu::CpuRenderingBackend {
         concurrency: args.concurrency.unwrap_or(1),

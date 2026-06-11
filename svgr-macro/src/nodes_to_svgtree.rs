@@ -146,14 +146,10 @@ fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
         if !segments.is_empty() {
             let segment_tokens: Vec<_> = segments.iter().map(path_segment_to_tokens).collect();
             return quote! {
-<<<<<<< Updated upstream
                 {
                     static SEGMENTS: &[svgrtypes::PathSegment] = &[#(#segment_tokens),*];
                     SvgAttributeValue::PathData(std::borrow::Cow::Borrowed(SEGMENTS))
                 }
-=======
-                SvgAttributeValue::PathData(vec![#(#segment_tokens),*])
->>>>>>> Stashed changes
             };
         }
         // Fall through to string if parsing fails

@@ -120,7 +120,7 @@ impl fframes::Video for InstallSceneVideo<'_> {
         ));
         // Blink cursor after typing is done using frame number
         let blink = if typed_chars >= total_chars {
-            if (frame.index / 30) % 2 == 0 { 1.0_f32 } else { 0.0 }
+            if (frame.index / 30).is_multiple_of(2) { 1.0_f32 } else { 0.0 }
         } else {
             cursor_visible
         };
