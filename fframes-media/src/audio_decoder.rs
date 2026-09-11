@@ -256,14 +256,14 @@ impl AudioDecoder {
             let mut samples = Vec::new();
 
             while av_read_frame(self.fmt_context, self.avpkt) >= 0 {
-                if (*self.avpkt).stream_index == self.stream_idx {
-                    let decode_result = self.decode_packet(&mut samples);
-                    if let Err(err) = decode_result {
-                        // A truncated buffer must not be reported as success:
-                        // durations are derived from `samples.len()`.
-                        av_packet_unref(self.avpkt);
-                        return Err(err);
-                    }
+                if (*self.avpkt).stream_index == self.stream_idx
+                    && self.decode_packet(&mut samples).is_err()
+                {
+                    // Trailing garbage (ID3 tags, truncated downloads) is
+                    // common; keep what decoded so far instead of failing
+                    // the whole file.
+                    av_packet_unref(self.avpkt);
+                    break;
                 }
 
                 av_packet_unref(self.avpkt);
