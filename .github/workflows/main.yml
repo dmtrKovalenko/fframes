@@ -61,9 +61,23 @@ jobs:
         os: [ubuntu-latest]
     env:
       DEBIAN_FRONTEND: noninteractive
+      # Skia and FFmpeg are built from source and every example is compiled
+      # twice (check + test); debuginfo and incremental artifacts alone push
+      # the target dir past the runner's disk.
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift \
+            "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force > /dev/null 2>&1 || true
+          df -h /
 
       - uses: extractions/setup-just@v1
         env:
@@ -120,6 +134,10 @@ jobs:
 
       - name: Test
         run: just test
+
+      - name: Disk usage
+        if: always()
+        run: df -h /
 
       - name: Upload visual regression results and diff
         uses: actions/upload-artifact@v4
