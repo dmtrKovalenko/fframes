@@ -125,7 +125,6 @@ impl MediaDirectory {
                                 );
                             }
                         }
-                        ("DS_Store", _) => (),
                         _ => {}
                     };
                 };

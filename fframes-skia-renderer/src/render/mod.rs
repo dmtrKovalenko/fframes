@@ -157,7 +157,6 @@ impl RenderCache {
 
 /// Render a `usvgr::Tree` directly onto a Skia `Canvas`.
 ///
-/// This is the main entry point replacing the old `tree.to_string()` + `Dom::from_str()` path.
 /// Pass a `RenderCache` that persists across frames to get cross-frame caching of
 /// Skia paths and image assets.
 pub fn render_tree(tree: &usvgr::Tree, canvas: &Canvas, cache: &mut RenderCache) {

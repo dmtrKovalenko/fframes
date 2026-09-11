@@ -11,7 +11,6 @@ interface VideoMetadata {
   width: number;
   height: number;
   duration: number;
-  fps: number;
 }
 
 const audioContext = new AudioContext();
@@ -225,7 +224,6 @@ function loadVideoMetadataViaElement(url: string) {
           width: videoElement.videoWidth,
           height: videoElement.videoHeight,
           duration: videoElement.duration,
-          fps: 30,
         };
 
         resolve(metadata);
@@ -257,7 +255,6 @@ async function loadVideoMetadataViaMediabunny(
       width: videoTrack.codedWidth,
       height: videoTrack.codedHeight,
       duration,
-      fps: 30,
     };
   } finally {
     input.dispose();
