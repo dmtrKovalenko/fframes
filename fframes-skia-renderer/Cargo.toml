@@ -20,6 +20,7 @@ uuid = "1.12.1"
 foreign-types-shared = "0.3.1"
 
 [dev-dependencies]
+fframes = { workspace = true, features = ["compile-time-svgtree"] }
 png = "0.17"
 svgr.workspace = true
 low-poly-art-example = { path = "../examples/low-poly-art" }

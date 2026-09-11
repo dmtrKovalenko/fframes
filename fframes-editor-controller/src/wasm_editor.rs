@@ -6,11 +6,17 @@ use crate::{video_metadata, wasm_audio, wasm_font_source};
 
 #[wasm_bindgen]
 extern "C" {
-    fn __fframes_get_video_frame(filename: &str, pts: f64) -> JsValue;
+    #[wasm_bindgen(catch)]
+    fn __fframes_get_video_frame(
+        filename: &str,
+        pts: f64,
+        preview: bool,
+    ) -> Result<JsValue, JsValue>;
 }
 
-fn resolve_video_frame(filename: &str, pts: i64) -> Option<fframes::VideoFrameData> {
-    let result = __fframes_get_video_frame(filename, pts as f64);
+fn resolve_video_frame(filename: &str, pts: i64, preview: bool) -> Option<fframes::VideoFrameData> {
+    // A JS exception must not unwind through the editor's `RefCell` borrows.
+    let result = __fframes_get_video_frame(filename, pts as f64, preview).ok()?;
     if result.is_null() || result.is_undefined() {
         return None;
     }
@@ -82,6 +88,7 @@ pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> 
 
 impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<TVideo, TMedia> {
     pub fn new(video: TVideo, static_media: &'static TMedia) -> Self {
+        fframes::set_video_frame_resolver(resolve_video_frame);
         Self {
             video_ctx: RefCell::new(VideoCtx::new(video)),
             static_media,
@@ -227,7 +234,6 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
 
     pub fn render_frame(&self, frame: i64) -> String {
         use std::ops::Deref;
-        fframes::set_video_frame_resolver(resolve_video_frame);
         let time_base = self
             .time_base
             .lock()
@@ -264,7 +270,6 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
 
     pub fn render_preview_frame(&self, frame: i64) -> String {
         use std::ops::Deref;
-        fframes::set_video_frame_resolver(resolve_video_frame);
         let time_base = self
             .time_base
             .lock()

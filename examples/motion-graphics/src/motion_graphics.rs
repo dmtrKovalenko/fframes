@@ -1,6 +1,5 @@
 use fframes::{
-    AudioMap, Color, FFramesContext, Frame, Svgr, Transform, include_media_dir,
-    animation::Easing,
+    AudioMap, Color, FFramesContext, Frame, Svgr, Transform, animation::Easing, include_media_dir,
 };
 
 include_media_dir!(pub struct MotionGraphicsMedia, "examples/motion-graphics/media");

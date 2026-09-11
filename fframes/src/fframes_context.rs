@@ -137,47 +137,34 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
                     }
 
                     if source_rate == encoder_rate {
-                        // Fast path: same sample rate, direct indexing
-                        let range = audio.get_range(
-                            start_of_this_frame_in_file..start_of_this_frame_in_file + frame_size,
-                        );
-
-                        if let Some(range) = range {
+                        // The last frame of a file is usually partial: mix what is left.
+                        let end = (start_of_this_frame_in_file + frame_size)
+                            .min(audio.duration_in_samples());
+                        if let Some(range) = audio.get_range(start_of_this_frame_in_file..end) {
                             Self::mix_audio_samples(&mut audio_data, range);
                         }
                     } else {
-                        // Resampling path: source and encoder have different sample rates.
-                        // Use linear interpolation to produce frame_size output samples from the
-                        // corresponding span of source samples.
+                        // The source runs at a different rate: linearly interpolate
+                        // the encoder's sample positions from the source samples.
                         let ratio = source_rate as f64 / encoder_rate as f64;
                         let source_start = (start_of_this_frame_in_file as f64 * ratio) as usize;
-                        let source_needed = ((frame_size as f64 * ratio).ceil() as usize) + 1;
+                        let source_needed = ((frame_size as f64 * ratio).ceil() as usize) + 2;
+                        let source_len = audio.duration_in_samples();
+                        let source_end = (source_start + source_needed).min(source_len);
 
-                        let range = audio.get_range(source_start..source_start + source_needed);
-
-                        if let Some(range) = range {
-                            for (i, output_sample) in
-                                audio_data.iter_mut().enumerate().take(frame_size)
-                            {
-                                let exact_pos = i as f64 * ratio;
-                                let idx = exact_pos as usize;
-                                let frac = (exact_pos - idx as f64) as f32;
-
-                                let sample = if idx + 1 < range.len() {
-                                    range[idx] * (1.0 - frac) + range[idx + 1] * frac
-                                } else if idx < range.len() {
-                                    range[idx]
-                                } else {
-                                    0.0
-                                };
-
-                                if *output_sample == 0. {
-                                    *output_sample = sample;
-                                } else {
-                                    *output_sample =
-                                        *output_sample + sample - (*output_sample * sample);
-                                }
-                            }
+                        if let Some(range) = audio.get_range(source_start..source_end) {
+                            let source_at = |index: usize| range.get(index).copied().unwrap_or(0.0);
+                            let resampled: Vec<f32> = (0..frame_size)
+                                .map(|i| {
+                                    // Positions are computed from the file start so
+                                    // consecutive encoder frames stay phase aligned.
+                                    let exact = (start_of_this_frame_in_file + i) as f64 * ratio;
+                                    let index = exact as usize - source_start;
+                                    let frac = (exact - exact.floor()) as f32;
+                                    source_at(index) * (1.0 - frac) + source_at(index + 1) * frac
+                                })
+                                .collect();
+                            Self::mix_audio_samples(&mut audio_data, &resampled);
                         }
                     }
                 }
@@ -187,17 +174,20 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         audio_data
     }
 
+    /// Mixes `range` into `audio_data` so that overlapping tracks stay within
+    /// `[-1, 1]` without hard clipping: `a + b - a*b` when both samples have
+    /// the same sign (mirrored for negative values), a plain sum otherwise.
     #[inline]
     fn mix_audio_samples(audio_data: &mut [f32], range: &[f32]) {
-        range.iter().enumerate().for_each(|(i, sample)| {
-            let filled_sample = audio_data[i];
-
-            if filled_sample == 0. {
-                audio_data[i] = *sample
+        for (mixed, sample) in audio_data.iter_mut().zip(range) {
+            let a = *mixed;
+            let b = *sample;
+            *mixed = if a * b > 0.0 {
+                a + b - a * b * a.signum()
             } else {
-                audio_data[i] = filled_sample + *sample - (filled_sample * *sample)
-            }
-        });
+                a + b
+            };
+        }
     }
 }
 

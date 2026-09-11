@@ -25,8 +25,10 @@ pub struct VideoFrameData {
 
 /// Function pointer type for resolving video frames from JS.
 /// Called synchronously during render_frame to get a decoded frame.
+/// The last argument tells whether the frame is requested for a timeline
+/// preview (which only needs the poster and must not steer the decode queue).
 #[cfg(target_arch = "wasm32")]
-pub type VideoFrameResolver = fn(&str, i64) -> Option<VideoFrameData>;
+pub type VideoFrameResolver = fn(&str, i64, bool) -> Option<VideoFrameData>;
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -245,18 +247,18 @@ impl VideoDecodersWorker {
         // Call into JS to get a decoded video frame from the buffer manager.
         // The callback is synchronous — it returns a buffered frame or None.
         if let Some(filename) = media_ref.path.file_name().map(|f| f.to_string_lossy()) {
+            let is_preview = matches!(ctx.mode, crate::FFramesMode::EditorTimelinePreview);
             let frame_data = VIDEO_FRAME_RESOLVER.with(|resolver| {
-                resolver.get().and_then(|resolve| resolve(&filename, offset))
+                resolver
+                    .get()
+                    .and_then(|resolve| resolve(&filename, offset, is_preview))
             });
 
             if let Some(data) = frame_data {
                 // preview_url (data URL) is used for timeline canvas rendering
                 // where SVG-as-image blocks blob URL resolution.
                 // Falls back to the main url if no preview_url is provided.
-                let preview_source = data
-                    .preview_url
-                    .as_deref()
-                    .unwrap_or(&data.url);
+                let preview_source = data.preview_url.as_deref().unwrap_or(&data.url);
 
                 return Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
                     fallback_image: ImageData::new_from_web_source(

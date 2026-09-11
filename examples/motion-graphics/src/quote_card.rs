@@ -1,8 +1,7 @@
 use std::sync::OnceLock;
 
 use fframes::{
-    AudioMap, Color, FFramesContext, FontQuery, Frame, Svgr, Transform,
-    animation::Easing,
+    AudioMap, Color, FFramesContext, FontQuery, Frame, Svgr, Transform, animation::Easing,
 };
 
 use crate::MotionGraphicsMedia;
@@ -79,7 +78,10 @@ impl fframes::Video for QuoteCardVideo<'_> {
     fn render_frame<'a>(&'a self, mut frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         let lines: Vec<&str> = self.text.lines().collect();
         let font_sizes = self.resolved_font_sizes.get_or_init(|| {
-            lines.iter().map(|line| resolve_font_size(&mut frame, ctx, line)).collect()
+            lines
+                .iter()
+                .map(|line| resolve_font_size(&mut frame, ctx, line))
+                .collect()
         });
 
         // Calculate total block height to center vertically

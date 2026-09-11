@@ -51,7 +51,9 @@ export class VideoFrameDecoder {
     }
   }
 
-  private decodeToCanvas(timeSeconds: number): Promise<HTMLCanvasElement | null> {
+  private decodeToCanvas(
+    timeSeconds: number
+  ): Promise<HTMLCanvasElement | null> {
     if (!this.initialized || !this.sink) {
       return Promise.resolve(null);
     }
@@ -75,7 +77,7 @@ export class VideoFrameDecoder {
       const canvas = await this.decodeToCanvas(timeSeconds);
       if (!canvas) return null;
 
-      const blob = await new Promise<Blob | null>((resolve) =>
+      const blob = await new Promise<Blob | null>(resolve =>
         canvas.toBlob(resolve, "image/jpeg", 0.85)
       );
       if (!blob) return null;
@@ -115,7 +117,9 @@ export class VideoFrameDecoder {
     this.activeBlobUrls.clear();
 
     if (this.input) {
-      try { this.input.dispose(); } catch {}
+      try {
+        this.input.dispose();
+      } catch {}
       this.input = null;
     }
 

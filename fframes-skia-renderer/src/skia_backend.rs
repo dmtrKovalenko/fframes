@@ -58,7 +58,6 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
             font_db,
         )?;
 
-        // Direct canvas rendering: usvgr::Tree -> Skia Canvas (no string roundtrip)
         let mut render_cache = crate::render::RenderCache::new();
         crate::render::render_tree(&rtree, surface.canvas(), &mut render_cache);
 

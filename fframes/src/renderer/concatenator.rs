@@ -9,7 +9,7 @@ pub use crate::ffmpeg_action;
 use crate::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
 use crate::{RenderOptions, ffmpeg_sys_fframes::*};
 use std::{
-    ffi::{CStr, CString},
+    ffi::CString,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -147,23 +147,7 @@ unsafe fn create_encoder_copy_from_file(
             AVIO_FLAG_WRITE,
         );
 
-        // Set movflags +faststart for mp4/mov containers (NLE compatibility)
-        let format_name = if !(*(*output_format_ctx).oformat).name.is_null() {
-            CStr::from_ptr((*(*output_format_ctx).oformat).name).to_string_lossy()
-        } else {
-            std::borrow::Cow::Borrowed("")
-        };
-
-        let opts: *mut *mut AVDictionary = &mut std::ptr::null_mut();
-        if format_name.contains("mp4") || format_name.contains("mov") || format_name.contains("3gp")
-        {
-            let key = CString::new("movflags").unwrap();
-            let val = CString::new("+faststart").unwrap();
-            av_dict_set(opts, key.as_ptr(), val.as_ptr(), 0);
-        }
-
-        avformat_write_header(encoder.oc, opts);
-        av_dict_free(opts);
+        crate::renderer::encoder::write_header(encoder.oc, true)?;
 
         Ok(encoder)
     }
@@ -214,10 +198,12 @@ impl Encoder {
                 let mut audio_frame_pts = 0usize;
                 let frame_size = (*audio_stream.enc).frame_size as usize;
 
-                let _ = logger
-                    .init_audio_encoding(stream_duration_in_samples.as_usize() / frame_size.max(1));
+                // Progress reporting must never abort the encoding itself.
+                let _ = logger.init_audio_encoding(
+                    stream_duration_in_samples.as_usize().div_ceil(frame_size),
+                );
 
-                while audio_frame_pts <= stream_duration_in_samples.as_usize() {
+                while audio_frame_pts < stream_duration_in_samples.as_usize() {
                     let audio_data = ctx.get_mixed_audio_data_in_fltp(
                         audio_map,
                         AudioTimelineSamples::from_usize(audio_frame_pts),
@@ -232,61 +218,6 @@ impl Encoder {
                 }
 
                 logger.finish_audio_encoding();
-            }
-
-            Ok(())
-        }
-    }
-
-    /// Encode-only test: sends frames to the encoder and drains packets,
-    /// but does NOT write to the muxer. Used to isolate encoder failures.
-    pub unsafe fn fill_audio_stream_encode_only(
-        &self,
-        audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
-        ctx: &FFramesContext,
-    ) -> Result<(), RenderEncodingError> {
-        unsafe {
-            if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
-                let stream_duration_in_samples =
-                    AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
-
-                let mut audio_frame = EncoderFrame::new(audio_stream)?;
-                let mut audio_frame_pts = 0usize;
-                let frame_size = (*audio_stream.enc).frame_size as usize;
-                let packet = av_packet_alloc();
-
-                while audio_frame_pts <= stream_duration_in_samples.as_usize() {
-                    let audio_data = ctx.get_mixed_audio_data_in_fltp(
-                        audio_map,
-                        AudioTimelineSamples::from_usize(audio_frame_pts),
-                        frame_size,
-                    );
-
-                    audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
-
-                    let send_ret = avcodec_send_frame(audio_stream.enc, audio_frame.av_frame);
-                    if send_ret < 0 {
-                        av_packet_free(&mut { packet });
-                        let desc = crate::renderer::encoder::av_error_to_string(send_ret);
-                        return Err(RenderEncodingError::CantEncodeFrame {
-                            error: desc,
-                            pts: Some(audio_frame_pts as i64),
-                        });
-                    }
-
-                    // Drain packets but don't write them - just unref
-                    loop {
-                        let recv_ret = avcodec_receive_packet(audio_stream.enc, packet);
-                        if recv_ret < 0 {
-                            break;
-                        }
-                        av_packet_unref(packet);
-                    }
-
-                    audio_frame_pts += frame_size;
-                }
-
-                av_packet_free(&mut { packet });
             }
 
             Ok(())
@@ -388,7 +319,6 @@ impl Encoder {
                             if !input_audio_stream.is_null()
                                 && let Some(audio_stream) = self.audio_stream.as_ref()
                             {
-
                                 packet.get_mut().stream_index = (*audio_stream.st).index;
 
                                 // Apply DTS validation for audio packets too
@@ -440,11 +370,10 @@ pub unsafe fn concat_video_files_with_audio(
     unsafe {
         let encoder = create_encoder_copy_from_file(&files[0], output, render_options)?;
 
-        // Process video streams from files
         encoder.fill_streams_from_files(files)?;
 
         if let Some(audio_stream) = &encoder.audio_stream {
-            (*audio_stream.enc).thread_count = concurrency;
+            audio_stream.set_encoder_threads_count(concurrency as usize);
             encoder.fill_audio_stream(audio_map, ctx, logger)?;
         }
 

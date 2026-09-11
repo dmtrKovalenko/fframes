@@ -236,12 +236,9 @@ impl Drop for FFmpegFrameBuf {
 
 /// Creates svgr preloaded image data with correctly blended color.
 ///
-/// IMPORTANT: The `rgba_data` parameter borrows from the video decoder's internal
-/// ring buffer with a fabricated `'static` lifetime. The returned `PreloadedImageData`
-/// must OWN its pixel data (`Cow::Owned`) because the ring buffer slot will be
-/// recycled by subsequent decode calls. Using `Cow::Borrowed` here would create a
-/// dangling pointer when the `PreloadedImageData` outlives the ring buffer slot
-/// (e.g., when a `usvgr::Tree` is sent across threads in the rendering pipeline).
+/// `rgba_data` borrows a slot of the decoder's ring buffer (with a fabricated
+/// `'static` lifetime) that is recycled by later decodes, so the returned
+/// image always owns a copy of the pixels.
 fn create_preloaded_image(
     source_fmt: AVPixelFormat,
     resource_name: String,
@@ -256,7 +253,7 @@ fn create_preloaded_image(
     };
 
     if has_alpha_channel {
-        // Alpha path: blend_rgba_slice pre-multiplies alpha and returns Cow::Owned.
+        // Pre-multiplies alpha and returns an owned copy.
         Arc::new(PreloadedImageData::new(
             resource_name,
             width,
@@ -264,9 +261,7 @@ fn create_preloaded_image(
             rgba_data,
         ))
     } else {
-        // Non-alpha path: data is already correctly blended by the FFmpeg scaler
-        // (opaque pixels, alpha=255). Copy into an owned Vec to decouple from the
-        // ring buffer — the copy cost is negligible vs the decode cost.
+        // Opaque pixels are already final; only the copy is needed.
         Arc::new(PreloadedImageData {
             id: resource_name,
             data: std::borrow::Cow::Owned(rgba_data.to_vec()),
@@ -908,7 +903,7 @@ unsafe fn find_hw_out_source_format(frame: *mut AVFrame) -> Option<AVPixelFormat
             | AVPixelFormat::AV_PIX_FMT_RGBA
             | AVPixelFormat::AV_PIX_FMT_BGRA => {
                 let res = *fmt;
-                av_freep(formats as *mut c_void);
+                av_freep(&mut formats as *mut *mut _ as *mut c_void);
 
                 return Some(res);
             }

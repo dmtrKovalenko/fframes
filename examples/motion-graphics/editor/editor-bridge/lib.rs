@@ -16,8 +16,5 @@ lazy_static! {
 pub fn create_wasm_bridge() -> WasmBridge {
     console_error_panic_hook::set_once();
 
-    WasmBridge::new(
-        QuoteCardVideo::new(&MEDIA, "PERFORMANCE"),
-        &MEDIA,
-    )
+    WasmBridge::new(QuoteCardVideo::new(&MEDIA, "PERFORMANCE"), &MEDIA)
 }

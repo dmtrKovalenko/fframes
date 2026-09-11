@@ -114,7 +114,9 @@ fn assert_similar(name: &str, direct: &[u8], reference: &[u8]) {
     if mean > 2.0 || bad_frac > 0.012 {
         dump_ppm(name, "direct", direct);
         dump_ppm(name, "reference", reference);
-        panic!("{name}: renders diverge (mean channel diff {mean:.3}, {bad_frac:.4} of pixels differ by >40)");
+        panic!(
+            "{name}: renders diverge (mean channel diff {mean:.3}, {bad_frac:.4} of pixels differ by >40)"
+        );
     }
 }
 
@@ -566,7 +568,14 @@ fn fe_convolve_matrix_shift_kernel_moves_content() {
     let direct = render_direct(&tree);
     // Original rect spans 80..120; shifted up-left by 2 it spans 78..118.
     assert_px_near(&direct, 79, 79, [255, 0, 0, 255], 4, "shifted up-left");
-    assert_px_near(&direct, 119, 119, [255, 255, 255, 255], 4, "vacated bottom-right");
+    assert_px_near(
+        &direct,
+        119,
+        119,
+        [255, 255, 255, 255],
+        4,
+        "vacated bottom-right",
+    );
 }
 
 #[test]
@@ -629,7 +638,14 @@ fn fe_image_use_reference_renders() {
     );
     let direct = render_direct(&tree);
     assert_px_near(&direct, 50, 50, [114, 9, 183, 255], 4, "feImage content");
-    assert_px_near(&direct, 100, 100, [255, 255, 255, 255], 4, "outside feImage");
+    assert_px_near(
+        &direct,
+        100,
+        100,
+        [255, 255, 255, 255],
+        4,
+        "outside feImage",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -676,8 +692,22 @@ fn raster_image_scales_and_clips() {
     // Second image: slice scales to cover 100x100, vertically centered, so the
     // visible 50px band is the middle of the image; content must not leak
     // outside the 100x50 element rect.
-    assert_px_near(&direct, 120, 110, [255, 0, 0, 255], 2, "slice top-left quadrant");
-    assert_px_near(&direct, 120, 160, [255, 255, 255, 255], 4, "no overflow below rect");
+    assert_px_near(
+        &direct,
+        120,
+        110,
+        [255, 0, 0, 255],
+        2,
+        "slice top-left quadrant",
+    );
+    assert_px_near(
+        &direct,
+        120,
+        160,
+        [255, 255, 255, 255],
+        4,
+        "no overflow below rect",
+    );
 }
 
 #[test]
@@ -723,6 +753,40 @@ fn nested_svg_image_scales_to_viewport() {
 // ---------------------------------------------------------------------------
 
 #[test]
+fn mask_region_hides_content_outside_it() {
+    // Everything outside the mask's x/y/width/height is masked away, even
+    // when the mask content itself would cover it.
+    let tree = parse(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+            <defs>
+                <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+                    <rect width="200" height="200" fill="white"/>
+                </mask>
+            </defs>
+            <rect width="200" height="200" fill="#ff0000" mask="url(#m)"/>
+        </svg>"##,
+    );
+    let direct = render_direct(&tree);
+    assert_px_near(&direct, 50, 50, [255, 0, 0, 255], 2, "inside mask region");
+    assert_px_near(
+        &direct,
+        150,
+        150,
+        [255, 255, 255, 255],
+        2,
+        "outside mask region",
+    );
+    assert_px_near(
+        &direct,
+        150,
+        50,
+        [255, 255, 255, 255],
+        2,
+        "outside mask region",
+    );
+}
+
+#[test]
 fn mask_applies_after_filter() {
     // The filter dilates a small green square into a larger one; the mask then
     // reveals only the left half.  If the mask were (incorrectly) applied
@@ -745,8 +809,22 @@ fn mask_applies_after_filter() {
     );
     let direct = render_direct(&tree);
     // Dilated rect spans 60..140; mask cuts at x=100.
-    assert_px_near(&direct, 90, 100, [0, 255, 0, 255], 2, "filtered content inside mask");
-    assert_px_near(&direct, 110, 100, [255, 255, 255, 255], 2, "filtered content masked out");
+    assert_px_near(
+        &direct,
+        90,
+        100,
+        [0, 255, 0, 255],
+        2,
+        "filtered content inside mask",
+    );
+    assert_px_near(
+        &direct,
+        110,
+        100,
+        [255, 255, 255, 255],
+        2,
+        "filtered content masked out",
+    );
 }
 
 #[test]
@@ -782,8 +860,14 @@ fn render_cache_is_stable_across_frames() {
         frames.push(read_pixels(&mut surface, &info));
     }
 
-    assert_eq!(frames[0], frames[1], "frame 2 (cached) differs from frame 1");
-    assert_eq!(frames[0], frames[2], "frame 3 (cached) differs from frame 1");
+    assert_eq!(
+        frames[0], frames[1],
+        "frame 2 (cached) differs from frame 1"
+    );
+    assert_eq!(
+        frames[0], frames[2],
+        "frame 3 (cached) differs from frame 1"
+    );
 }
 
 #[test]
@@ -801,5 +885,12 @@ fn linear_rgb_roundtrip_preserves_flat_colors() {
         </svg>"##,
     );
     let direct = render_direct(&tree);
-    assert_px_near(&direct, 100, 100, [58, 134, 255, 255], 6, "interior color preserved");
+    assert_px_near(
+        &direct,
+        100,
+        100,
+        [58, 134, 255, 255],
+        6,
+        "interior color preserved",
+    );
 }

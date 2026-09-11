@@ -37,7 +37,16 @@ fn main() {
         tmp_files_directory: Some(&PathBuf::from("test_render")),
         video_encoder_options: EncoderOptions {
             preferred_encoder: args.video_codec.as_deref(),
-            codec_params: Some(&[("crf", "18"), ("preset", "slow"), ("profile", "high"), ("level", "4.2"), ("bframes", "0"), ("colorprim", "bt709"), ("transfer", "bt709"), ("colormatrix", "bt709")]),
+            codec_params: Some(&[
+                ("crf", "18"),
+                ("preset", "slow"),
+                ("profile", "high"),
+                ("level", "4.2"),
+                ("bframes", "0"),
+                ("colorprim", "bt709"),
+                ("transfer", "bt709"),
+                ("colormatrix", "bt709"),
+            ]),
             ..Default::default()
         },
         ..Default::default()

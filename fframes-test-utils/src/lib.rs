@@ -1,3 +1,6 @@
+// Static hashes only exist when the macro emits compile-time trees.
+#[cfg(all(test, feature = "compile-time-svgtree"))]
+mod static_hash_spec;
 #[cfg(test)]
 mod svgr_spec;
 use std::{

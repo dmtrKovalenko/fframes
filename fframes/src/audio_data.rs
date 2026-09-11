@@ -22,6 +22,13 @@ impl AudioData<'_> {
         }
     }
 
+    pub fn duration_in_samples(&self) -> usize {
+        match self {
+            AudioData::Lazy => 0,
+            AudioData::Preloaded(data) => data.samples.len(),
+        }
+    }
+
     pub fn sample_rate(&self) -> u32 {
         match self {
             AudioData::Lazy => 0,

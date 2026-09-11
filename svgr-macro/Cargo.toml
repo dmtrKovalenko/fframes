@@ -17,7 +17,6 @@ usvgr = { workspace = true, features = ["proc-macro"] }
 proc-macro-crate = "3.2.0"
 lazy_static = "1.4.0"
 rust-fuzzy-search = "0.1.0"
-smallvec = "1.15.1"
 
 [features]
 compile-time-svgtree = []

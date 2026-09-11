@@ -5,8 +5,8 @@ use fframes::{
     Video, VideoDecodersWorker, usvgr,
 };
 use fframes::{
-    Encoder, EncoderFrame, FFramesLogger, FFramesRendererError, FFramesRendererResult,
-    RenderEncodingResult,
+    Encoder, EncoderFrame, EncoderOutput, FFramesLogger, FFramesRendererError,
+    FFramesRendererResult, RenderEncodingResult,
 };
 use std::ops::Range;
 use std::path::Path;
@@ -18,7 +18,6 @@ use std::thread;
 #[cfg(feature = "debug")]
 use std::time::Instant;
 
-// Pipeline data structures - now sends the usvgr::Tree directly instead of a Skia Dom
 struct FrameRequest {
     frame: usize,
     tree: usvgr::Tree,
@@ -119,7 +118,13 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
 
     let encoder = unsafe {
         Encoder::new(
-            include_audio && timeline.audio_map.is_some(),
+            if include_audio {
+                EncoderOutput::Final {
+                    with_audio: timeline.audio_map.is_some(),
+                }
+            } else {
+                EncoderOutput::IntermediateChunk
+            },
             ctx.current_video_size.width as i32,
             ctx.current_video_size.height as i32,
             ctx.time_base.fps as i32,
@@ -308,9 +313,7 @@ fn spawn_renderer<TBackend: SkiaBackend>(
 
             surface.canvas().clear(background_color);
 
-            // Direct canvas rendering: usvgr::Tree -> Skia Canvas (no string roundtrip)
             crate::render::render_tree(&tree, surface.canvas(), &mut render_cache);
-            drop(tree);
 
             if let Some(gpu_context) = gpu_context.as_mut() {
                 gpu_context.flush_submit_and_sync_cpu();
@@ -327,6 +330,10 @@ fn spawn_renderer<TBackend: SkiaBackend>(
                     "Failed to read pixels from Skia image".to_string(),
                 ));
             };
+
+            // Video-frame images view the tree's pixel buffers without
+            // copying, so the tree has to outlive the flush and readback.
+            drop(tree);
         }
 
         #[cfg(feature = "debug")]

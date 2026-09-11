@@ -232,7 +232,11 @@ fn svgr_corpus_compat() {
     let mut files = Vec::new();
     collect_svgs(&corpus.join("tests"), &mut files);
     files.sort();
-    assert!(!files.is_empty(), "no SVG files found in {}", corpus.display());
+    assert!(
+        !files.is_empty(),
+        "no SVG files found in {}",
+        corpus.display()
+    );
 
     let dump_dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("svgr_corpus_failures");
     let _ = std::fs::remove_dir_all(&dump_dir);
@@ -284,15 +288,14 @@ fn svgr_corpus_compat() {
 
         // Stage 2: divergence from the old path — check against svgr's own
         // expected PNG at its native resolution.
-        let gt_fraction = if let Some((expected, gw, gh)) =
-            load_ground_truth(&file.with_extension("png"))
-        {
-            let scale = gw as f32 / tree.size().width();
-            let direct_scaled = render_direct_over_white(&tree, gw, gh, scale);
-            bad_pixel_fraction(&direct_scaled, &expected, GROUND_TRUTH_TOLERANCE)
-        } else {
-            1.0
-        };
+        let gt_fraction =
+            if let Some((expected, gw, gh)) = load_ground_truth(&file.with_extension("png")) {
+                let scale = gw as f32 / tree.size().width();
+                let direct_scaled = render_direct_over_white(&tree, gw, gh, scale);
+                bad_pixel_fraction(&direct_scaled, &expected, GROUND_TRUTH_TOLERANCE)
+            } else {
+                1.0
+            };
         if gt_fraction <= GROUND_TRUTH_BAD_FRACTION {
             improved.push(rel);
             continue;
@@ -301,7 +304,13 @@ fn svgr_corpus_compat() {
         let safe = rel.replace('/', "_");
         dump_ppm(&dump_dir, &format!("{safe}.direct.ppm"), &direct, w, h);
         if let Some(reference) = render_reference(&tree, w, h) {
-            dump_ppm(&dump_dir, &format!("{safe}.reference.ppm"), &reference, w, h);
+            dump_ppm(
+                &dump_dir,
+                &format!("{safe}.reference.ppm"),
+                &reference,
+                w,
+                h,
+            );
         }
         failed.push((rel, dom_fraction, gt_fraction));
     }
@@ -332,7 +341,9 @@ fn svgr_corpus_compat() {
         }
     }
     for (rel, dom_fraction, gt_fraction) in &failed {
-        eprintln!("  FAILED {rel} (vs old path: {dom_fraction:.4}, vs ground truth: {gt_fraction:.4})");
+        eprintln!(
+            "  FAILED {rel} (vs old path: {dom_fraction:.4}, vs ground truth: {gt_fraction:.4})"
+        );
     }
 
     assert!(

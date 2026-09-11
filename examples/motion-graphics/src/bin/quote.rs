@@ -4,7 +4,10 @@ use motion_graphics_example::{MotionGraphicsMedia, QuoteCardVideo};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[clap(name = "quote", about = "Render a quote card video with auto-sized text")]
+#[clap(
+    name = "quote",
+    about = "Render a quote card video with auto-sized text"
+)]
 struct Args {
     /// The text to render, e.g. "PERFORMANCE" or "SPEED\n!=\nFAST" for multi-line
     text: String,
@@ -23,9 +26,12 @@ fn main() {
     // Support literal \n in shell args as line breaks
     let text = args.text.replace("\\n", "\n");
 
-    let output = args
-        .output
-        .unwrap_or_else(|| format!("quote_{}.mp4", text.to_lowercase().replace(['\n', ' '], "_")));
+    let output = args.output.unwrap_or_else(|| {
+        format!(
+            "quote_{}.mp4",
+            text.to_lowercase().replace(['\n', ' '], "_")
+        )
+    });
 
     let backend = fframes::cpu::CpuRenderingBackend {
         concurrency: args.concurrency.unwrap_or(1),

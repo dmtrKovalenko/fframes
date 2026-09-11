@@ -449,7 +449,7 @@ impl Video for MarketingVideo<'_> {
                                         at 18.7, duration 0.3, animate -40. => 0.0, Easing::Linear
                                     ))}
                                     stroke-dasharray={
-                                        format!("{}, 137px", &frame.animate(
+                                        format!("{}, 137px", frame.animate(
                                             &fframes::timeline!(
                                                 at 18.7, duration 0.3, animate 30.0 => 12.0, Easing::Linear
                                             )

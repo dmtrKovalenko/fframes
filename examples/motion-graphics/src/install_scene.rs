@@ -1,6 +1,5 @@
 use fframes::{
-    AudioMap, Color, FFramesContext, FontQuery, Frame, Svgr, Transform,
-    animation::Easing,
+    AudioMap, Color, FFramesContext, FontQuery, Frame, Svgr, Transform, animation::Easing,
 };
 use std::sync::OnceLock;
 
@@ -36,7 +35,12 @@ impl<'a> InstallSceneVideo<'a> {
     }
 }
 
-fn resolve_monospace_font_size<'a>(frame: &mut Frame, ctx: &FFramesContext<'a, '_>, text: &'a str, max_width: usize) -> usize {
+fn resolve_monospace_font_size<'a>(
+    frame: &mut Frame,
+    ctx: &FFramesContext<'a, '_>,
+    text: &'a str,
+    max_width: usize,
+) -> usize {
     let mut size = 42;
     loop {
         let query = FontQuery {
@@ -120,7 +124,11 @@ impl fframes::Video for InstallSceneVideo<'_> {
         ));
         // Blink cursor after typing is done using frame number
         let blink = if typed_chars >= total_chars {
-            if (frame.index / 30).is_multiple_of(2) { 1.0_f32 } else { 0.0 }
+            if (frame.index / 30).is_multiple_of(2) {
+                1.0_f32
+            } else {
+                0.0
+            }
         } else {
             cursor_visible
         };
@@ -154,7 +162,9 @@ impl fframes::Video for InstallSceneVideo<'_> {
         let typed_width = if visible_cmd.is_empty() {
             0.0
         } else {
-            frame.text_width(ctx, cursor_query, visible_cmd).unwrap_or(0) as f32
+            frame
+                .text_width(ctx, cursor_query, visible_cmd)
+                .unwrap_or(0) as f32
         };
         let cursor_x = prompt_x + prefix_width + typed_width + 2.0;
 

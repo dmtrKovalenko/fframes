@@ -1,5 +1,3 @@
-#[allow(dead_code)]
-mod resource_provider;
 mod skia_pipeline;
 
 mod backends;

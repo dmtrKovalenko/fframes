@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use super::{
     concatenator,
-    encoder::Encoder,
+    encoder::{Encoder, EncoderOutput},
     encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     renderer_error::{FFramesRendererError, FFramesRendererResult},
@@ -98,7 +98,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
                 unsafe {
                     Encoder::with_output(
-                        /* with audio */ false,
+                        EncoderOutput::IntermediateChunk,
                         ctx.current_video_size.width as i32,
                         ctx.current_video_size.height as i32,
                         ctx.time_base.fps as i32,
@@ -167,7 +167,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                                     Ok(())
                                 },
                             )?;
-                            svgr_cache.print_stats();
 
                             encoder.submit_leftover_b_frames(
                                 &frame,

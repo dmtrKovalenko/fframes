@@ -5,7 +5,7 @@ import {
 } from "../../src/services/mediaLoader.gen";
 import { fontInfo } from "src/WasmController.gen";
 import { Input, UrlSource, ALL_FORMATS } from "mediabunny";
-import { warmupVideoDecoder } from "./VideoFrameBufferManager";
+import { registerVideo } from "./VideoFrameBufferManager";
 
 interface VideoMetadata {
   width: number;
@@ -233,14 +233,20 @@ function loadVideoMetadataViaElement(url: string) {
       { once: true }
     );
 
-    videoElement.addEventListener("error", e => {
-      clearTimeout(timeout);
-      reject(e);
-    }, { once: true });
+    videoElement.addEventListener(
+      "error",
+      e => {
+        clearTimeout(timeout);
+        reject(e);
+      },
+      { once: true }
+    );
   });
 }
 
-async function loadVideoMetadataViaMediabunny(url: string): Promise<VideoMetadata> {
+async function loadVideoMetadataViaMediabunny(
+  url: string
+): Promise<VideoMetadata> {
   const source = new UrlSource(url);
   const input = new Input({ source, formats: ALL_FORMATS });
   try {
@@ -274,7 +280,7 @@ export const resolveVideo: MediaResolver = async options => {
     ({ width, height, duration } = await loadVideoMetadata(url));
   } catch (e) {
     console.warn(`Could not load video metadata for ${name}, skipping.`, e);
-    return "MediaResolved" as any;
+    return "MediaResolved";
   }
 
   wasmController.add_video_source_placeholder(
@@ -285,16 +291,13 @@ export const resolveVideo: MediaResolver = async options => {
     duration
   );
 
-  if (!(window as any).__fframes_video_urls) {
-    (window as any).__fframes_video_urls = {};
-  }
-  (window as any).__fframes_video_urls[name] = url;
-
-  warmupVideoDecoder(name, url);
+  registerVideo(name, url);
 
   try {
     return await resolveAudio(options);
-  } catch {
-    return "MediaResolved" as any;
+  } catch (e) {
+    // Videos without an audio track still render; only their audio is skipped.
+    console.warn(`Could not decode the audio track of ${name}.`, e);
+    return "MediaResolved";
   }
 };

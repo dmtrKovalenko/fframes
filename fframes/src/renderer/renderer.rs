@@ -92,16 +92,27 @@ impl<'a, 'media: 'a> FFramesRendererRuntime<'a> {
             &time_base,
             &video.audio(),
             |name| {
-                media
-                    .ok_or_else(|| {
-                        crate::error::FFramesError::RequiredAudioNotFound(name.to_owned())
-                    })?
-                    .resolve_audio(name)
-                    .and_then(|main_audio| match main_audio {
-                        AudioData::Preloaded(data) => {
-                            Some(data.samples.len() * TVideo::FPS / data.sample_rate as usize)
-                        }
-                        _ => None,
+                let media = media.ok_or_else(|| {
+                    crate::error::FFramesError::RequiredAudioNotFound(name.to_owned())
+                })?;
+
+                // A video file's own duration wins over its (possibly shorter
+                // or missing) audio track.
+                let video_duration = media
+                    .resolve_video(name)
+                    .and_then(|video| video.metadata)
+                    .map(|metadata| (metadata.duration * TVideo::FPS as f32).round() as usize);
+
+                video_duration
+                    .or_else(|| {
+                        media
+                            .resolve_audio(name)
+                            .and_then(|main_audio| match main_audio {
+                                AudioData::Preloaded(data) => Some(
+                                    data.samples.len() * TVideo::FPS / data.sample_rate as usize,
+                                ),
+                                _ => None,
+                            })
                     })
                     .ok_or_else(|| {
                         crate::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())

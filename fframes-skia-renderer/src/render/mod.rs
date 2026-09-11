@@ -4,195 +4,154 @@
 //! and issuing Skia Canvas draw calls directly. This eliminates the
 //! serialize-to-string + reparse overhead that the SVG DOM path requires.
 //!
-//! A [`RenderCache`] is used to avoid rebuilding Skia paths and images from
-//! scratch on every frame.  Image assets are pre-registered as
-//! [`FFramesSkiaImage`](crate::resource_provider::FFramesSkiaImage) instances
-//! (the same type used by the `ResourceProvider` in the old SVG-DOM path) so
-//! that the `skia_safe::Image` is created once and reused across frames.
+//! A [`RenderCache`] is used to avoid rebuilding Skia paths, paints, images
+//! and whole recorded pictures from scratch on every frame.
 
 mod convert;
 mod filters;
+mod fingerprint;
+mod image;
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use fframes::usvgr;
-use fframes::usvgr::tiny_skia_path;
 use skia_safe::{Canvas, Matrix};
 
-use crate::resource_provider::FFramesSkiaImage;
 use convert::{convert_blend_mode, convert_path, to_skia_paint, to_skia_stroke_paint};
+use fingerprint::{
+    fill_fingerprint, group_fingerprint, image_fingerprint, path_geometry_fingerprint,
+    stroke_fingerprint,
+};
+use image::SkiaImage;
+
+/// A cached Skia object together with the fingerprint of the resolved
+/// `usvgr` state it was built from.  See [`fingerprint`] for why the
+/// `static_hash` key alone is not enough to prove an entry is still valid.
+struct Cached<T> {
+    fingerprint: u64,
+    value: T,
+}
+
+/// Two-generation map: entries used during the current frame live in
+/// `current`; at the start of a frame the previous `current` becomes
+/// `previous`, and whatever was still in `previous` (not used for a whole
+/// frame) is dropped.  Truly static entries are touched every frame and keep
+/// getting stolen back into `current`, so the cache is bounded by roughly two
+/// frames worth of entries.
+struct Generational<T> {
+    current: HashMap<u64, Cached<T>>,
+    previous: HashMap<u64, Cached<T>>,
+}
+
+impl<T> Default for Generational<T> {
+    fn default() -> Self {
+        Self {
+            current: HashMap::new(),
+            previous: HashMap::new(),
+        }
+    }
+}
+
+impl<T> Generational<T> {
+    fn begin_frame(&mut self) {
+        std::mem::swap(&mut self.current, &mut self.previous);
+        self.current.clear();
+    }
+
+    /// Look up `key` in both generations.  An entry whose fingerprint does not
+    /// match the node being rendered is stale and is treated as a miss (and
+    /// replaced by the following `insert`).
+    fn get(&mut self, key: u64, fingerprint: u64) -> Option<&T> {
+        if !self.current.contains_key(&key)
+            && let Some(entry) = self.previous.remove(&key)
+        {
+            self.current.insert(key, entry);
+        }
+
+        self.current
+            .get(&key)
+            .filter(|entry| entry.fingerprint == fingerprint)
+            .map(|entry| &entry.value)
+    }
+
+    fn insert(&mut self, key: u64, fingerprint: u64, value: T) -> &T {
+        &self
+            .current
+            .entry(key)
+            .insert_entry(Cached { fingerprint, value })
+            .into_mut()
+            .value
+    }
+}
 
 /// Caches expensive Skia objects across frames so they are not rebuilt every
 /// time `render_tree` is called.
 ///
-/// - **Paths**: keyed by `static_hash` (a stable content-identity hash set at
-///   compile-time by the `svgr!` macro).  Only paths with a `static_hash` are
-///   cached — frame-dependent paths (`static_hash == None`) are converted
-///   fresh each frame since their geometry changes.
-/// - **Images**: keyed by `Arc<PreloadedImageData>` pointer identity (static
-///   images only — ephemeral video frames bypass the cache entirely).
-///
-/// Hash-keyed caches (paths, pictures, paints) use a two-generation eviction
-/// scheme: entries from the current frame live in the primary map; at the
-/// start of each frame, last frame's primaries become `prev_*` and entries
-/// that survive two frames without a hit are dropped.  This bounds memory
-/// to roughly 2 frames worth of "stable-but-changing" entries (nodes whose
-/// `static_hash` changes every frame because they contain expressions that
-/// don't lexically reference `frame`).
+/// Paths, paints and pictures are keyed by `static_hash` — a stable
+/// content-identity hash assigned at compile time by the `svgr!` macro to
+/// nodes whose lexical content never changes.  Nodes without a `static_hash`
+/// are frame-dependent and are converted fresh each frame.  Images are keyed
+/// by the address of their `Arc<PreloadedImageData>`; the cache entry holds
+/// a clone of the `Arc`, so the address can not be recycled while the entry
+/// exists.  Every entry is validated with a runtime [`fingerprint`] of the
+/// resolved node before reuse and evicted after two frames without a hit
+/// (see [`Generational`]).
+#[derive(Default)]
 pub struct RenderCache {
-    /// `static_hash` (u64) → converted `skia_safe::Path`
-    paths: HashMap<u64, skia_safe::Path>,
-    prev_paths: HashMap<u64, skia_safe::Path>,
-    /// `Arc<PreloadedImageData>` raw-pointer → pre-registered `FFramesSkiaImage`
-    /// (only static images; ephemeral images are created fresh)
-    images: HashMap<usize, FFramesSkiaImage>,
-    /// `static_hash` (u64) → recorded `skia_safe::Picture` for entire static groups.
-    /// Replaying a Picture is dramatically cheaper than re-traversing and re-drawing
-    /// the entire subtree on every frame.
-    pictures: HashMap<u64, skia_safe::Picture>,
-    prev_pictures: HashMap<u64, skia_safe::Picture>,
-    /// `static_hash` (u64) → cached fill `Paint` (avoids recreating gradient shaders per frame)
-    fill_paints: HashMap<u64, skia_safe::Paint>,
-    prev_fill_paints: HashMap<u64, skia_safe::Paint>,
-    /// `static_hash` (u64) → cached stroke `Paint`
-    stroke_paints: HashMap<u64, skia_safe::Paint>,
-    prev_stroke_paints: HashMap<u64, skia_safe::Paint>,
-}
-
-impl Default for RenderCache {
-    fn default() -> Self {
-        Self::new()
-    }
+    /// `static_hash` → converted `skia_safe::Path`
+    paths: Generational<skia_safe::Path>,
+    /// `static_hash` → recorded `skia_safe::Picture` of an entire static
+    /// group.  Replaying a picture is dramatically cheaper than re-traversing
+    /// the subtree and re-issuing every draw call.
+    pictures: Generational<skia_safe::Picture>,
+    /// `static_hash` → fill `Paint` (avoids recreating gradient shaders per frame)
+    fill_paints: Generational<skia_safe::Paint>,
+    /// `static_hash` → stroke `Paint`
+    stroke_paints: Generational<skia_safe::Paint>,
+    /// `Arc<PreloadedImageData>` address → Skia image viewing its pixels.
+    /// Video frames come as a fresh `Arc` every frame and simply age out.
+    images: Generational<SkiaImage>,
 }
 
 impl RenderCache {
     pub fn new() -> Self {
-        Self {
-            paths: HashMap::new(),
-            prev_paths: HashMap::new(),
-            images: HashMap::new(),
-            pictures: HashMap::new(),
-            prev_pictures: HashMap::new(),
-            fill_paints: HashMap::new(),
-            prev_fill_paints: HashMap::new(),
-            stroke_paints: HashMap::new(),
-            prev_stroke_paints: HashMap::new(),
-        }
+        Self::default()
     }
 
-    /// Rotate the generational caches at the start of each frame.
-    ///
-    /// Current-frame entries become "previous".  Whatever was in "previous"
-    /// (entries not accessed during the last frame) is dropped.
-    ///
-    /// Truly static entries are accessed every frame and are always stolen
-    /// back from `prev_*` into the current map on first access.
-    /// "Stable-but-changing" entries get a *new* hash each frame so the old
-    /// hash is never looked up again — it survives one generation in `prev_*`
-    /// and is dropped on the next rotation.
     fn begin_frame(&mut self) {
-        std::mem::swap(&mut self.pictures, &mut self.prev_pictures);
-        self.pictures.clear();
-
-        std::mem::swap(&mut self.fill_paints, &mut self.prev_fill_paints);
-        self.fill_paints.clear();
-
-        std::mem::swap(&mut self.stroke_paints, &mut self.prev_stroke_paints);
-        self.stroke_paints.clear();
-
-        std::mem::swap(&mut self.paths, &mut self.prev_paths);
-        self.paths.clear();
+        self.paths.begin_frame();
+        self.pictures.begin_frame();
+        self.fill_paints.begin_frame();
+        self.stroke_paints.begin_frame();
+        self.images.begin_frame();
     }
 
-    /// Look up or create a [`FFramesSkiaImage`] asset from `PreloadedImageData`.
-    ///
-    /// Uses `Arc` pointer identity as the cache key so that the same `Arc`
-    /// (i.e. the same static image) always returns the same pre-built
-    /// `skia_safe::Image`.
-    fn get_or_create_image_asset(
-        &mut self,
-        arc_img: &Arc<usvgr::PreloadedImageData>,
-    ) -> Option<&FFramesSkiaImage> {
-        let key = Arc::as_ptr(arc_img) as usize;
-        match self.images.entry(key) {
-            std::collections::hash_map::Entry::Occupied(e) => Some(e.into_mut()),
-            std::collections::hash_map::Entry::Vacant(e) => {
-                let asset = FFramesSkiaImage::new(arc_img)?;
-                Some(e.insert(asset))
-            }
+    /// Look up or create the Skia image for a `PreloadedImageData`.
+    fn image(&mut self, pixels: &Arc<usvgr::PreloadedImageData>) -> Option<&SkiaImage> {
+        let key = Arc::as_ptr(pixels) as u64;
+        let fingerprint = image_fingerprint(pixels);
+        if self.images.get(key, fingerprint).is_some() {
+            return self.images.get(key, fingerprint);
         }
+        let image = SkiaImage::new(pixels)?;
+        Some(self.images.insert(key, fingerprint, image))
     }
 
-    /// Look up a cached Picture, checking both current and previous generation.
-    /// If found in the previous generation, steals it into the current map.
-    fn get_picture(&mut self, hash: u64) -> Option<&skia_safe::Picture> {
-        if self.pictures.contains_key(&hash) {
-            return self.pictures.get(&hash);
-        }
-        if let Some(pic) = self.prev_pictures.remove(&hash) {
-            self.pictures.insert(hash, pic);
-            return self.pictures.get(&hash);
-        }
-        None
-    }
+    /// Convert a path, reusing the cached conversion for static paths.
+    fn convert_path(&mut self, path: &usvgr::Path) -> skia_safe::Path {
+        let Some(hash) = path.static_hash() else {
+            return convert_path(path.data());
+        };
 
-    /// Insert a Picture into the current-frame cache.
-    fn insert_picture(&mut self, hash: u64, picture: skia_safe::Picture) {
-        self.pictures.insert(hash, picture);
-    }
+        let fingerprint = path_geometry_fingerprint(path.data());
+        if let Some(cached) = self.paths.get(hash, fingerprint) {
+            return cached.clone();
+        }
 
-    /// Look up a cached fill paint, checking both generations.
-    fn get_fill_paint(&mut self, hash: u64) -> Option<&skia_safe::Paint> {
-        if self.fill_paints.contains_key(&hash) {
-            return self.fill_paints.get(&hash);
-        }
-        if let Some(paint) = self.prev_fill_paints.remove(&hash) {
-            self.fill_paints.insert(hash, paint);
-            return self.fill_paints.get(&hash);
-        }
-        None
-    }
-
-    /// Look up a cached stroke paint, checking both generations.
-    fn get_stroke_paint(&mut self, hash: u64) -> Option<&skia_safe::Paint> {
-        if self.stroke_paints.contains_key(&hash) {
-            return self.stroke_paints.get(&hash);
-        }
-        if let Some(paint) = self.prev_stroke_paints.remove(&hash) {
-            self.stroke_paints.insert(hash, paint);
-            return self.stroke_paints.get(&hash);
-        }
-        None
-    }
-}
-
-/// Convert a path, using the cache if a `static_hash` is available.
-///
-/// Paths with a `static_hash` are structurally identical across frames and
-/// their converted `skia_safe::Path` can be safely reused.  Paths without a
-/// hash are frame-dependent and must be converted every time.
-fn cached_convert_path(
-    cache: &mut RenderCache,
-    static_hash: Option<u64>,
-    path_data: &tiny_skia_path::Path,
-) -> skia_safe::Path {
-    if let Some(hash) = static_hash {
-        // Check current frame cache
-        if let Some(p) = cache.paths.get(&hash) {
-            return p.clone();
-        }
-        // Steal from previous frame
-        if let Some(p) = cache.prev_paths.remove(&hash) {
-            cache.paths.insert(hash, p);
-            return cache.paths.get(&hash).unwrap().clone();
-        }
-        // Convert and insert into current frame
-        let converted = convert_path(path_data);
-        cache.paths.insert(hash, converted);
-        cache.paths.get(&hash).unwrap().clone()
-    } else {
-        convert_path(path_data)
+        self.paths
+            .insert(hash, fingerprint, convert_path(path.data()))
+            .clone()
     }
 }
 
@@ -237,23 +196,23 @@ fn render_node(node: &usvgr::Node, canvas: &Canvas, cache: &mut RenderCache) {
 }
 
 fn render_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut RenderCache) {
-    // Fast path: replay a cached Picture for fully-static groups.
-    // This skips the entire subtree traversal, paint creation, filter
-    // chain building, and all Skia draw calls — replaying a single Picture instead.
-    if let Some(hash) = group.static_hash()
-        && let Some(picture) = cache.get_picture(hash)
-    {
-        canvas.save();
-        canvas.concat(&to_matrix(group.transform()));
+    // Static groups are recorded into a Picture once and replayed on later
+    // frames, skipping the subtree traversal, paint creation, filter chain
+    // building and every individual draw call.
+    let static_group = group
+        .static_hash()
+        .map(|hash| (hash, group_fingerprint(group)));
+
+    canvas.save();
+    canvas.concat(&to_matrix(group.transform()));
+
+    if let Some(picture) = static_group.and_then(|(hash, fp)| cache.pictures.get(hash, fp)) {
         canvas.draw_picture(picture, None, None);
         canvas.restore();
         return;
     }
 
-    canvas.save();
-    canvas.concat(&to_matrix(group.transform()));
-
-    if let Some(hash) = group.static_hash() {
+    if let Some((hash, fingerprint)) = static_group {
         // First encounter of this static group: record all child draw commands
         // into a Picture so subsequent frames can replay them in a single call.
         let bbox = group.layer_bounding_box();
@@ -270,7 +229,7 @@ fn render_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut RenderCache) 
 
         if let Some(picture) = recorder.finish_recording_as_picture(Some(&bounds)) {
             canvas.draw_picture(&picture, None, None);
-            cache.insert_picture(hash, picture);
+            cache.pictures.insert(hash, fingerprint, picture);
         }
     } else if group.should_isolate() {
         render_isolated_group(group, canvas, cache);
@@ -453,7 +412,7 @@ fn build_clip_group(
                     })
                     .unwrap_or(skia_safe::PathFillType::Winding);
 
-                let mut sk_path = cached_convert_path(cache, path.static_hash(), path.data());
+                let mut sk_path = cache.convert_path(path);
                 sk_path.set_fill_type(fill_type);
                 Some(sk_path.make_transform(transform))
             }
@@ -499,13 +458,12 @@ fn apply_mask(mask: &usvgr::Mask, canvas: &Canvas, cache: &mut RenderCache) {
         mask_rect.height(),
     );
 
-    canvas.save_layer(
-        &skia_safe::canvas::SaveLayerRec::default()
-            .paint(&mask_paint)
-            .bounds(&bounds),
-    );
-    // The mask region (x/y/width/height) hard-clips the mask content;
-    // save_layer bounds are only a sizing hint and do not clip.
+    // The DstIn layer has to cover everything the group drew, since on
+    // restore only the pixels under the layer are multiplied by the mask.
+    // Skia expands a bounded layer to the clip for blend modes that affect
+    // transparent pixels anyway, so no bounds hint is given here.
+    canvas.save_layer(&skia_safe::canvas::SaveLayerRec::default().paint(&mask_paint));
+    // The mask region (x/y/width/height) hard-clips the mask content.
     canvas.clip_rect(bounds, skia_safe::ClipOp::Intersect, true);
 
     if mask.kind() == usvgr::MaskType::Luminance {
@@ -558,20 +516,21 @@ fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
         usvgr::FillRule::EvenOdd => skia_safe::PathFillType::EvenOdd,
     };
 
-    // Get or convert the Skia path (cached for static paths)
-    let mut sk_path = cached_convert_path(cache, path.static_hash(), path.data());
+    let mut sk_path = cache.convert_path(path);
     sk_path.set_fill_type(fill_type);
 
-    // Fast path: use a cached Paint for static paths (avoids recreating
-    // gradient shaders, dash effects, and other expensive paint state per frame)
-    if let Some(hash) = path.static_hash()
-        && let Some(paint) = cache.get_fill_paint(hash)
-    {
+    let anti_alias = path.rendering_mode().use_shape_antialiasing();
+    let cache_key = path
+        .static_hash()
+        .map(|hash| (hash, fill_fingerprint(fill, anti_alias)));
+
+    // Static paths reuse their Paint, which avoids recreating gradient
+    // shaders and other expensive paint state every frame.
+    if let Some(paint) = cache_key.and_then(|(hash, fp)| cache.fill_paints.get(hash, fp)) {
         canvas.draw_path(&sk_path, paint);
         return;
     }
 
-    let anti_alias = path.rendering_mode().use_shape_antialiasing();
     let Some(mut paint) = to_skia_paint(fill.paint(), fill.opacity(), anti_alias, cache) else {
         return;
     };
@@ -579,33 +538,34 @@ fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
 
     canvas.draw_path(&sk_path, &paint);
 
-    if let Some(hash) = path.static_hash() {
-        cache.fill_paints.insert(hash, paint);
+    if let Some((hash, fingerprint)) = cache_key {
+        cache.fill_paints.insert(hash, fingerprint, paint);
     }
 }
 
 fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
     let Some(stroke) = path.stroke() else { return };
 
-    let sk_path = cached_convert_path(cache, path.static_hash(), path.data());
+    let sk_path = cache.convert_path(path);
 
-    // Fast path: use a cached Paint for static paths
-    if let Some(hash) = path.static_hash()
-        && let Some(paint) = cache.get_stroke_paint(hash)
-    {
+    let anti_alias = path.rendering_mode().use_shape_antialiasing();
+    let cache_key = path
+        .static_hash()
+        .map(|hash| (hash, stroke_fingerprint(stroke, anti_alias)));
+
+    if let Some(paint) = cache_key.and_then(|(hash, fp)| cache.stroke_paints.get(hash, fp)) {
         canvas.draw_path(&sk_path, paint);
         return;
     }
 
-    let anti_alias = path.rendering_mode().use_shape_antialiasing();
     let Some(paint) = to_skia_stroke_paint(stroke, anti_alias, cache) else {
         return;
     };
 
     canvas.draw_path(&sk_path, &paint);
 
-    if let Some(hash) = path.static_hash() {
-        cache.stroke_paints.insert(hash, paint);
+    if let Some((hash, fingerprint)) = cache_key {
+        cache.stroke_paints.insert(hash, fingerprint, paint);
     }
 }
 
@@ -650,28 +610,8 @@ fn render_raster_image(
     canvas: &Canvas,
     cache: &mut RenderCache,
 ) {
-    // Static images (from include_media_dir!) have strong_count > 1 because
-    // the image_source HashMap holds a persistent Arc clone. These are safe
-    // to cache by Arc pointer identity — the pointer is stable across frames.
-    //
-    // Ephemeral images (video frames) have strong_count == 1 — only the
-    // usvgr::Tree owns them. After `drop(tree)` the allocator may reuse
-    // the address for a new Arc, causing a stale cache hit (returning the
-    // previous frame's Skia Image) or, worse, a use-after-free when the
-    // PreloadedImageData used Cow::Owned. Create the Skia Image fresh
-    // for these — the cost is negligible compared to video decode + resize.
-    let ephemeral_asset;
-    let sk_image = if Arc::strong_count(img) > 1 {
-        let Some(asset) = cache.get_or_create_image_asset(img) else {
-            return;
-        };
-        asset.image()
-    } else {
-        let Some(asset) = FFramesSkiaImage::new(img) else {
-            return;
-        };
-        ephemeral_asset = asset;
-        ephemeral_asset.image()
+    let Some(sk_image) = cache.image(img).map(SkiaImage::image) else {
+        return;
     };
 
     let Some(img_size) = usvgr::Size::from_wh(img.width as f32, img.height as f32) else {

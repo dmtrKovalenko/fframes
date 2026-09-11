@@ -81,11 +81,7 @@ pub fn frequencies_to_path<FreqIter: Iterator<Item = f32>>(
         1080. - y
     }
 
-    for (index, (x, y)) in base_x_points
-        .into_iter()
-        .zip(base_y_points.into_iter())
-        .enumerate()
-    {
+    for (index, (x, y)) in base_x_points.into_iter().zip(base_y_points).enumerate() {
         if index == 0 {
             write!(path, " M {} {}", x, align_y(y)).expect("Failed to write to string");
             continue;

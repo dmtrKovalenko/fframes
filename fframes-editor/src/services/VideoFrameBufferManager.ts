@@ -1,4 +1,4 @@
-import { VideoFrameDecoder } from './VideoFrameDecoder';
+import { VideoFrameDecoder } from "./VideoFrameDecoder";
 
 interface VideoState {
   decoder: VideoFrameDecoder;
@@ -25,11 +25,38 @@ export class VideoFrameBufferManager {
   private readonly maxInFlight: number;
   private readonly videos: Map<string, VideoState> = new Map();
   private readonly lastRequestedPts: Map<string, number> = new Map();
+  private readonly videoUrls: Map<string, string> = new Map();
 
-  constructor(fps: number, maxBufferSize: number = 48, maxInFlight: number = 4) {
+  constructor(
+    fps: number,
+    maxBufferSize: number = 48,
+    maxInFlight: number = 4
+  ) {
     this.fps = fps;
     this.maxBufferSize = maxBufferSize;
     this.maxInFlight = maxInFlight;
+  }
+
+  /** Makes a video known to the manager and starts decoding its first frames. */
+  registerVideo(filename: string, videoUrl: string): void {
+    this.videoUrls.set(filename, videoUrl);
+    this.schedulePreload(filename, videoUrl, 0);
+  }
+
+  /**
+   * Frame to display for `pts`. Playback requests also steer the decode
+   * queue; timeline previews only read what is already buffered.
+   */
+  requestFrame(
+    filename: string,
+    pts: number,
+    preview: boolean
+  ): FrameData | null {
+    const videoUrl = this.videoUrls.get(filename);
+    if (videoUrl && !preview) {
+      this.schedulePreload(filename, videoUrl, pts);
+    }
+    return this.getFrame(filename, pts);
   }
 
   getFrame(filename: string, pts: number): FrameData | null {
@@ -38,22 +65,22 @@ export class VideoFrameBufferManager {
       return null;
     }
 
-    const posterUrl = state.posterFrame?.url;
+    const frameData = (url: string): FrameData => ({
+      url,
+      posterUrl: state.posterFrame?.url,
+      width: state.width,
+      height: state.height,
+    });
 
     const exactFrame = state.buffer.get(pts);
     if (exactFrame) {
       state.lastHeldFrame = { pts, url: exactFrame };
-      return {
-        url: exactFrame,
-        posterUrl,
-        width: state.width,
-        height: state.height
-      };
+      return frameData(exactFrame);
     }
 
+    // Otherwise hold the latest decoded frame before `pts`.
     let bestPts = -1;
     let bestUrl: string | null = null;
-
     for (const [framePts, url] of state.buffer) {
       if (framePts <= pts && framePts > bestPts) {
         bestPts = framePts;
@@ -63,31 +90,21 @@ export class VideoFrameBufferManager {
 
     if (bestUrl) {
       state.lastHeldFrame = { pts: bestPts, url: bestUrl };
-      return {
-        url: bestUrl,
-        posterUrl,
-        width: state.width,
-        height: state.height
-      };
+      return frameData(bestUrl);
     }
 
     if (state.lastHeldFrame) {
-      return {
-        url: state.lastHeldFrame.url,
-        posterUrl,
-        width: state.width,
-        height: state.height
-      };
+      return frameData(state.lastHeldFrame.url);
     }
 
-    if (state.posterFrame) {
-      return state.posterFrame;
-    }
-
-    return null;
+    return state.posterFrame;
   }
 
-  schedulePreload(filename: string, videoUrl: string, currentPts: number): void {
+  schedulePreload(
+    filename: string,
+    videoUrl: string,
+    currentPts: number
+  ): void {
     this.lastRequestedPts.set(filename, currentPts);
 
     let state = this.videos.get(filename);
@@ -103,7 +120,7 @@ export class VideoFrameBufferManager {
         lastHeldFrame: null,
         posterFrame: null,
         initPromise: null,
-        videoUrl
+        videoUrl,
       };
       this.videos.set(filename, state);
     }
@@ -142,14 +159,14 @@ export class VideoFrameBufferManager {
           state.posterFrame = {
             url: posterUrl,
             width: state.width,
-            height: state.height
+            height: state.height,
           };
 
-          window.dispatchEvent(new Event('fframes-poster-ready'));
+          window.dispatchEvent(new Event("fframes-poster-ready"));
         }
       }
     } catch (error) {
-      console.error('Failed to initialize video decoder:', error);
+      console.error("Failed to initialize video decoder:", error);
     }
   }
 
@@ -179,7 +196,10 @@ export class VideoFrameBufferManager {
         state.buffer.set(pts, blobUrl);
       }
     } catch (error) {
-      console.error(`Failed to decode frame at pts ${pts} for ${filename}:`, error);
+      console.error(
+        `Failed to decode frame at pts ${pts} for ${filename}:`,
+        error
+      );
     } finally {
       state.inFlightDecodes.delete(pts);
     }
@@ -197,6 +217,10 @@ export class VideoFrameBufferManager {
       if (Math.abs(pts - currentPts) > keepRadius) {
         toEvict.push(pts);
         URL.revokeObjectURL(url);
+        if (state.lastHeldFrame?.pts === pts) {
+          // Never hand out a revoked blob URL.
+          state.lastHeldFrame = null;
+        }
       }
     }
 
@@ -214,29 +238,34 @@ export class VideoFrameBufferManager {
       state.decoder.dispose();
     }
     this.videos.clear();
+    this.videoUrls.clear();
   }
 }
 
 let globalBufferManager: VideoFrameBufferManager | null = null;
+// Videos registered before the player (and thus the manager) exists.
+const pendingVideos = new Map<string, string>();
 
+/**
+ * Creates the manager the WASM bridge calls into. The WASM side imports
+ * `__fframes_get_video_frame` as a global function, so it is installed on
+ * `window`; see `wasm_editor.rs`.
+ */
 export function initVideoFrameBufferManager(fps: number): void {
-  if (globalBufferManager) {
-    globalBufferManager.dispose();
-  }
+  globalBufferManager?.dispose();
   globalBufferManager = new VideoFrameBufferManager(fps);
+  for (const [filename, url] of pendingVideos) {
+    globalBufferManager.registerVideo(filename, url);
+  }
 
-  (window as any).__fframes_get_video_frame = (filename: string, pts: number) => {
-    const videoUrls: Record<string, string> = (window as any).__fframes_video_urls || {};
-    const videoUrl = videoUrls[filename];
-    if (videoUrl) {
-      globalBufferManager!.schedulePreload(filename, videoUrl, pts);
-    }
-    return globalBufferManager!.getFrame(filename, pts);
-  };
+  (window as any).__fframes_get_video_frame = (
+    filename: string,
+    pts: number,
+    preview: boolean
+  ) => globalBufferManager?.requestFrame(filename, pts, preview) ?? null;
 }
 
-export function warmupVideoDecoder(filename: string, videoUrl: string): void {
-  if (globalBufferManager) {
-    globalBufferManager.schedulePreload(filename, videoUrl, 0);
-  }
+export function registerVideo(filename: string, videoUrl: string): void {
+  pendingVideos.set(filename, videoUrl);
+  globalBufferManager?.registerVideo(filename, videoUrl);
 }

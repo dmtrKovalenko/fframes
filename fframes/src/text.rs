@@ -9,7 +9,6 @@ use std::{
     num::NonZeroUsize,
     rc::Rc,
 };
-use unicode_segmentation::UnicodeSegmentation;
 use usvgr::svgtree::SvgAttributeValue;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -383,39 +382,22 @@ pub(crate) fn text_wrap_impl<
     for line in value.split('\n') {
         let mut is_first_word_in_line = true;
 
-        // Collect words with their positions to preserve punctuation
-        let word_indices: Vec<(usize, &str)> = line.unicode_word_indices().collect();
-
-        if word_indices.is_empty() {
-            // Empty line
-            if !is_first_word_in_line {
-                structure.push((vec![], 0usize));
-            }
-            continue;
-        }
-
-        for (idx, (start, _word)) in word_indices.iter().enumerate() {
-            // Include trailing punctuation/characters until the next word or end of line
-            let next_start = word_indices
-                .get(idx + 1)
-                .map(|(s, _)| *s)
-                .unwrap_or(line.len());
-            let word_with_punct = line[*start..next_start].trim_end();
-
-            let word_width =
-                calc_text_width(word_with_punct, font_face.as_ref(), font.size, font_variant);
+        for word in line.split_whitespace() {
+            let word_width = calc_text_width(word, font_face.as_ref(), font.size, font_variant);
             let (last_line, last_line_width) = structure.last_mut()?;
 
-            if *last_line_width + space_width + word_width > width {
-                structure.push((vec![word_with_punct.to_owned()], word_width));
+            // The first word of a line is never preceded by a space.
+            let separator_width = if *last_line_width == 0 {
+                0
             } else {
-                if *last_line_width != 0 {
-                    *last_line_width += space_width;
-                }
+                space_width
+            };
 
-                last_line.push(word_with_punct.to_owned());
-
-                *last_line_width += word_width;
+            if *last_line_width + separator_width + word_width > width && !last_line.is_empty() {
+                structure.push((vec![word.to_owned()], word_width));
+            } else {
+                *last_line_width += separator_width + word_width;
+                last_line.push(word.to_owned());
             }
             is_first_word_in_line = false;
         }
@@ -438,8 +420,8 @@ pub(crate) fn text_wrap_impl<
         .map(|(index, (words, line_width))| {
             let dx = match align {
                 TextAlign::Left => 0,
-                TextAlign::Center => (width - line_width) / 2,
-                TextAlign::Right => width - line_width,
+                TextAlign::Center => width.saturating_sub(line_width) / 2,
+                TextAlign::Right => width.saturating_sub(line_width),
             };
 
             WrappedTextLine {

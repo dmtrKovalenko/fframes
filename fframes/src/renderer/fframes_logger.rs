@@ -24,7 +24,9 @@ pub trait FFramesLogger: Sync + Send {
     }
     fn log_frame(&self, index: usize, thread_number: usize) {}
 
-    fn init_audio_encoding(&self, duration_in_samples: usize) -> FFramesRendererResult<()> {
+    /// Called once before audio encoding starts with the number of audio
+    /// frames that will be reported through `log_audio_frame`.
+    fn init_audio_encoding(&self, frames_count: usize) -> FFramesRendererResult<()> {
         Ok(())
     }
     fn log_audio_frame(&self) {}
@@ -79,8 +81,8 @@ impl FFramesLogger for CompactFFramesLogger {
         println!("Can not process media file {filename}.")
     }
 
-    fn init_audio_encoding(&self, duration_in_samples: usize) -> FFramesRendererResult<()> {
-        let pb = ProgressBar::new(duration_in_samples as u64);
+    fn init_audio_encoding(&self, frames_count: usize) -> FFramesRendererResult<()> {
+        let pb = ProgressBar::new(frames_count as u64);
         println!("Encoding audio stream");
         self.audio_progress_bar
             .set(pb)

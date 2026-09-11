@@ -62,8 +62,15 @@ fn build_single_filter(filter: &filter::Filter, cache: &mut RenderCache) -> Opti
     for primitive in primitives {
         let crop_rect = primitive_crop_rect(primitive, filter);
         let cs = primitive_colorspace(primitive, &results, &last_result);
-        let image_filter =
-            convert_primitive(primitive, cs, filter, &results, &last_result, crop_rect, cache);
+        let image_filter = convert_primitive(
+            primitive,
+            cs,
+            filter,
+            &results,
+            &last_result,
+            crop_rect,
+            cache,
+        );
 
         if let Some(f) = image_filter {
             let result = PrimitiveResult {
@@ -101,12 +108,8 @@ fn primitive_crop_rect(primitive: &filter::Primitive, filter: &filter::Filter) -
     let rect = primitive.rect();
     let region = filter.rect();
     let mut crop = skia_safe::Rect::from_xywh(rect.x(), rect.y(), rect.width(), rect.height());
-    let region = skia_safe::Rect::from_xywh(
-        region.x(),
-        region.y(),
-        region.width(),
-        region.height(),
-    );
+    let region =
+        skia_safe::Rect::from_xywh(region.x(), region.y(), region.width(), region.height());
     if !crop.intersect(region) {
         // A subregion entirely outside the filter region produces nothing.
         return skia_safe::Rect::new_empty();
@@ -159,11 +162,9 @@ fn resolve_input(
             image_filters::color_filter(cf, None, None)
         }
         Input::Reference(name) => match results.get(name.as_str()).or(last_result.as_ref()) {
-            Some(res) => convert_colorspace(
-                Some(res.filter.clone()),
-                res.color_interpolation,
-                target_cs,
-            ),
+            Some(res) => {
+                convert_colorspace(Some(res.filter.clone()), res.color_interpolation, target_cs)
+            }
             None => convert_colorspace(None, ColorInterpolation::SRGB, target_cs),
         },
     }
@@ -473,8 +474,7 @@ fn convert_primitive(
             // so reverse the kernel values; the target point then maps to
             // Skia's kernel offset directly.
             let kernel: Vec<f32> = m.data().iter().rev().copied().collect();
-            let kernel_offset =
-                skia_safe::IPoint::new(m.target_x() as i32, m.target_y() as i32);
+            let kernel_offset = skia_safe::IPoint::new(m.target_x() as i32, m.target_y() as i32);
             let tile_mode = match fe.edge_mode() {
                 filter::EdgeMode::Duplicate => skia_safe::TileMode::Clamp,
                 filter::EdgeMode::Wrap => skia_safe::TileMode::Repeat,
@@ -532,11 +532,7 @@ fn convert_primitive(
                 ),
                 filter::LightSource::SpotLight(light) => image_filters::spot_lit_diffuse(
                     skia_safe::Point3::new(light.x, light.y, light.z),
-                    skia_safe::Point3::new(
-                        light.points_at_x,
-                        light.points_at_y,
-                        light.points_at_z,
-                    ),
+                    skia_safe::Point3::new(light.points_at_x, light.points_at_y, light.points_at_z),
                     light.specular_exponent.get(),
                     light.limiting_cone_angle.unwrap_or(180.0),
                     color,
@@ -572,11 +568,7 @@ fn convert_primitive(
                 ),
                 filter::LightSource::SpotLight(light) => image_filters::spot_lit_specular(
                     skia_safe::Point3::new(light.x, light.y, light.z),
-                    skia_safe::Point3::new(
-                        light.points_at_x,
-                        light.points_at_y,
-                        light.points_at_z,
-                    ),
+                    skia_safe::Point3::new(light.points_at_x, light.points_at_y, light.points_at_z),
                     light.specular_exponent.get(),
                     light.limiting_cone_angle.unwrap_or(180.0),
                     color,
