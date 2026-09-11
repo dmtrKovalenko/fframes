@@ -361,7 +361,7 @@ impl Encoder {
 pub unsafe fn concat_video_files_with_audio(
     files: &[PathBuf],
     output: &Path,
-    concurrency: i32,
+    _concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     render_options: &RenderOptions,
     ctx: &FFramesContext,
@@ -372,8 +372,7 @@ pub unsafe fn concat_video_files_with_audio(
 
         encoder.fill_streams_from_files(files)?;
 
-        if let Some(audio_stream) = &encoder.audio_stream {
-            audio_stream.set_encoder_threads_count(concurrency as usize);
+        if encoder.audio_stream.is_some() {
             encoder.fill_audio_stream(audio_map, ctx, logger)?;
         }
 

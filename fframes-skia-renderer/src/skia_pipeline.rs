@@ -188,8 +188,7 @@ pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBack
         Ok(())
     })?;
 
-    if let Some(audio_stream) = encoder.audio_stream.as_ref() {
-        audio_stream.set_encoder_threads_count(pipeline_config.encoder_threads);
+    if encoder.audio_stream.is_some() {
         unsafe { encoder.fill_audio_stream(timeline.audio_map.as_ref(), ctx, &logger) }
             .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
     }

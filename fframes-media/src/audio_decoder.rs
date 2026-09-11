@@ -258,10 +258,11 @@ impl AudioDecoder {
             while av_read_frame(self.fmt_context, self.avpkt) >= 0 {
                 if (*self.avpkt).stream_index == self.stream_idx {
                     let decode_result = self.decode_packet(&mut samples);
-                    if decode_result.is_err() {
+                    if let Err(err) = decode_result {
+                        // A truncated buffer must not be reported as success:
+                        // durations are derived from `samples.len()`.
                         av_packet_unref(self.avpkt);
-
-                        break;
+                        return Err(err);
                     }
                 }
 
@@ -271,6 +272,27 @@ impl AudioDecoder {
             // Flush the decoder
             self.decode_packet(&mut samples)?;
             av_frame_unref(self.frame);
+
+            // Drain samples the resampler still buffers.
+            let delay = swr_get_delay(self.swr_ctx, self.out_sample_rate as i64);
+            if delay > 0 {
+                let current_length = samples.len();
+                samples.reserve(delay as usize);
+                let ret = swr_convert(
+                    self.swr_ctx,
+                    [samples.as_mut_ptr().add(current_length)].as_ptr() as *mut *mut _,
+                    delay as i32,
+                    std::ptr::null_mut(),
+                    0,
+                );
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error while draining the resampler".to_string(),
+                    )));
+                }
+                samples.set_len(current_length + ret as usize);
+            }
 
             Ok((self.out_sample_rate, samples))
         }

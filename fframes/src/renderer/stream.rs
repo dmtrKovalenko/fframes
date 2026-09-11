@@ -82,12 +82,6 @@ impl Stream {
         unsafe { (*self.st).nb_frames }
     }
 
-    pub fn set_encoder_threads_count(&self, count: usize) {
-        unsafe {
-            (*self.enc).thread_count = count as i32;
-        }
-    }
-
     pub(crate) unsafe fn prepare_stream_codec(
         preferred_encoder: Option<&str>,
         codec_id: AVCodecID,

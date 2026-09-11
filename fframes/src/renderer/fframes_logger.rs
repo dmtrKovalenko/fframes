@@ -7,7 +7,7 @@ use once_cell::sync::OnceCell;
 use std::{
     ffi::c_int,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 #[allow(unused_variables)]
@@ -46,7 +46,8 @@ pub trait FFramesLogger: Sync + Send {
 pub struct CompactFFramesLogger {
     frames_progress_bar: OnceCell<ProgressBar>,
     media_progress_bar: OnceCell<ProgressBar>,
-    audio_progress_bar: OnceCell<ProgressBar>,
+    // Reset on every render so a logger instance can be reused.
+    audio_progress_bar: Mutex<Option<ProgressBar>>,
 }
 
 impl FFramesLogger for CompactFFramesLogger {
@@ -82,22 +83,30 @@ impl FFramesLogger for CompactFFramesLogger {
     }
 
     fn init_audio_encoding(&self, frames_count: usize) -> FFramesRendererResult<()> {
-        let pb = ProgressBar::new(frames_count as u64);
         println!("Encoding audio stream");
-        self.audio_progress_bar
-            .set(pb)
+        let mut slot = self
+            .audio_progress_bar
+            .lock()
             .map_err(|_| FFramesRendererError::ConcurrencyError)?;
+        if let Some(previous) = slot.take() {
+            previous.finish_and_clear();
+        }
+        *slot = Some(ProgressBar::new(frames_count as u64));
         Ok(())
     }
 
     fn log_audio_frame(&self) {
-        if let Some(pb) = self.audio_progress_bar.get() {
+        if let Ok(slot) = self.audio_progress_bar.lock()
+            && let Some(pb) = slot.as_ref()
+        {
             pb.inc(1);
         }
     }
 
     fn finish_audio_encoding(&self) {
-        if let Some(pb) = self.audio_progress_bar.get() {
+        if let Ok(mut slot) = self.audio_progress_bar.lock()
+            && let Some(pb) = slot.take()
+        {
             pb.finish_and_clear();
         }
     }
@@ -170,7 +179,7 @@ pub fn make_logger(variant: FFramesLoggerVariant) -> Arc<dyn FFramesLogger> {
             Arc::new(CompactFFramesLogger {
                 frames_progress_bar: OnceCell::new(),
                 media_progress_bar: OnceCell::new(),
-                audio_progress_bar: OnceCell::new(),
+                audio_progress_bar: Mutex::new(None),
             }) as Arc<dyn FFramesLogger>
         }
         FFramesLoggerVariant::Custom(logger) => logger,

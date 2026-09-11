@@ -276,8 +276,11 @@ export const resolveVideo: MediaResolver = async options => {
   try {
     ({ width, height, duration } = await loadVideoMetadata(url));
   } catch (e) {
-    console.warn(`Could not load video metadata for ${name}, skipping.`, e);
-    return "MediaResolved";
+    // Surface it like every other resolver does instead of silently
+    // dropping the video from the composition.
+    throw new Error(`Could not load video metadata for ${name} (${url})`, {
+      cause: e,
+    });
   }
 
   wasmController.add_video_source_placeholder(

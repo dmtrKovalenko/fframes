@@ -7,7 +7,6 @@ export class VideoFrameDecoder {
   private height: number = 0;
   private initialized: boolean = false;
   private failed: boolean = false;
-  private activeBlobUrls: Set<string> = new Set();
 
   isAvailable(): boolean {
     return typeof VideoDecoder !== "undefined";
@@ -82,9 +81,8 @@ export class VideoFrameDecoder {
       );
       if (!blob) return null;
 
-      const url = URL.createObjectURL(blob);
-      this.activeBlobUrls.add(url);
-      return url;
+      // Ownership of the URL passes to the caller, which revokes it.
+      return URL.createObjectURL(blob);
     } catch (error) {
       console.warn(`Frame decode error at ${timeSeconds}s:`, error);
       return null;
@@ -111,11 +109,6 @@ export class VideoFrameDecoder {
   }
 
   dispose(): void {
-    for (const url of this.activeBlobUrls) {
-      URL.revokeObjectURL(url);
-    }
-    this.activeBlobUrls.clear();
-
     if (this.input) {
       try {
         this.input.dispose();

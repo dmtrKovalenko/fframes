@@ -193,6 +193,12 @@ export class VideoFrameBufferManager {
       const blobUrl = await state.decoder.decodeFrameAtTime(timeSeconds);
 
       if (blobUrl) {
+        if (this.videos.get(filename) !== state) {
+          // The manager was disposed/reset while decoding; nothing owns
+          // this frame any more.
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
         state.buffer.set(pts, blobUrl);
       }
     } catch (error) {
