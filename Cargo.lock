@@ -1472,8 +1472,6 @@ dependencies = [
  "fframes",
  "fframes_test_utils",
  "futures",
- "svgr",
- "usvgr",
 ]
 
 [[package]]

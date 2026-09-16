@@ -177,11 +177,8 @@ impl Parser<'_> {
                 _ => return Ok(None),
             };
 
-            // Use atomic counter instead of UUID for animation identifier generation.
-            // This is safe because:
-            // 1. Proc-macros run in a single compiler process
-            // 2. AtomicUsize with SeqCst ordering ensures uniqueness across threads
-            // 3. The counter persists for the entire compilation
+            // A process-wide counter gives every animation a unique, deterministic
+            // identifier for the whole compilation.
             use std::sync::atomic::{AtomicUsize, Ordering};
             static ANIMATION_COUNTER: AtomicUsize = AtomicUsize::new(0);
 

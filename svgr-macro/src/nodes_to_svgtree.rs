@@ -116,10 +116,9 @@ struct MaybeAttribute {
 }
 
 impl MaybeAttribute {
-    /// Compute a hash of the attribute's static content for cache key generation
+    /// Mix the attribute into a node's static hash; dynamic values contribute nothing.
     fn hash_static_content(&self, hasher: &mut impl Hasher) {
         if let MaybeParsedValue::Value(ref s) = self.value {
-            // Hash the attribute ID and value
             (self.name as u16).hash(hasher);
             s.hash(hasher);
         }
@@ -590,6 +589,11 @@ fn write_static_hashes(node: &mut MaybeNodeData, hashes: &[Option<u64>], cursor:
 /// frames: its own attributes and inline children, the attributes it
 /// inherits from ancestors in this invocation, the viewport its percentage
 /// lengths resolve against, and every element it references by id.
+///
+/// What the macro can not see — a parent from another invocation that sets
+/// `fill`, or the `<use>` site a `<symbol>` clone is rendered under — is
+/// covered at runtime: renderers validate every cached entry with a
+/// fingerprint of the resolved node before reusing it.
 fn assign_static_hashes(nodes: &mut [MaybeParsedValue<MaybeNodeData>]) {
     let mut candidates = Vec::new();
     let mut ids = std::collections::HashMap::new();

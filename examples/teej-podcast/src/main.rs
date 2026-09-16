@@ -52,9 +52,6 @@ fn main() {
         media: Some(&dynamic_media),
         load_system_fonts: true,
         logger: fframes_logger::FFramesLoggerVariant::Compact,
-        audio_encoder_options: EncoderOptions {
-            ..Default::default()
-        },
         video_encoder_options: EncoderOptions {
             #[cfg(target_os = "macos")]
             preferred_encoder: Some("hevc_videotoolbox"),

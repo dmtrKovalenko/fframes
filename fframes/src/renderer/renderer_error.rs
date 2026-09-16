@@ -44,8 +44,8 @@ impl fmt::Display for RenderEncodingError {
                 Self::CantAllocate(what) => format!("Can not allocate {what}"),
                 Self::FFmpegError(code, description) =>
                     format!("libav error {code}: {description}"),
-                Self::CantWriteFrame(file) =>
-                    format!("Can not write frame to file: {}", file.cyan()),
+                Self::CantWriteFrame(error) =>
+                    format!("Can not write frame: {}", error.cyan()),
                 Self::CantEncodeFrame { error, pts } => match pts {
                     Some(pts) => format!(
                         "Encoder rejected frame at PTS {}: {}",

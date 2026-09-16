@@ -3,9 +3,9 @@ use std::sync::Arc;
 use usvgr::svgtree::SvgAttributeValue;
 
 use crate::{
-    FontQuery, Svgr, SyncVideoFrameInput, TextCache, VisualizeFrameInput, WrappedTextStructure,
-    animation, get_visualization,
-    text::{BreakLinesOpts, text_wrap_impl},
+    FontQuery, Svgr, SyncVideoFrameInput, TextCache, TextOverflow, VisualizeFrameInput,
+    WrappedTextStructure, animation, get_visualization,
+    text::{BreakLinesOpts, text_fit_impl, text_wrap_impl},
     text_get_width_impl,
     video_data::{FFramesSyncedVideoFrame, VideoDecodersWorker},
 };
@@ -278,17 +278,22 @@ impl Frame {
         opts: BreakLinesOpts<'a, X, Y>,
     ) -> Option<WrappedTextStructure> {
         let font_source = ctx.font_source?;
-        let hash = opts.hash_with_value(value);
+        let Some(text_cache) = self.text_cache.as_ref() else {
+            return text_wrap_impl(opts.hash_with_value(value), value, font_source, opts);
+        };
 
-        if let Some(breaks_cache) = self.text_cache.as_ref() {
-            breaks_cache
-                .breaks_cache
-                .borrow_mut()
-                .get_or_insert(hash, || text_wrap_impl(hash, value, font_source, opts))
-                .clone()
-        } else {
-            text_wrap_impl(hash, value, font_source, opts)
+        let hash = opts.hash_with_value(value);
+        if let Some(structure) = text_cache.breaks_cache.borrow_mut().get(&hash) {
+            return Some(structure.clone());
         }
+
+        // See `text_width`: unresolved fonts are retried on the next frame.
+        let structure = text_wrap_impl(hash, value, font_source, opts)?;
+        text_cache
+            .breaks_cache
+            .borrow_mut()
+            .put(hash, structure.clone());
+        Some(structure)
     }
 
     /// Wraps the text string into the lines according to the provided content area width.
@@ -327,19 +332,8 @@ impl Frame {
         value: &str,
         opts: BreakLinesOpts<'a, X, Y>,
     ) -> Option<Svgr<'a>> {
-        let font_source = ctx.font_source?;
-        let hash = opts.hash_with_value(value);
-
-        if let Some(breaks_cache) = self.text_cache.as_ref() {
-            breaks_cache
-                .breaks_cache
-                .borrow_mut()
-                .get_or_insert(hash, || text_wrap_impl(hash, value, font_source, opts))
-                .as_ref()
-                .map(|text| text.as_svgr(opts))
-        } else {
-            text_wrap_impl(hash, value, font_source, opts).map(|text| text.as_svgr(opts))
-        }
+        self.text_break_lines_structure(ctx, value, opts)
+            .map(|text| text.as_svgr(opts))
     }
 
     /// Returns the actual text width in pixels of the provided text for a certain font query.
@@ -352,16 +346,48 @@ impl Frame {
         value: &'a str,
     ) -> Option<usize> {
         let font_source = ctx.font_source?;
+        let Some(text_cache) = self.text_cache.as_ref() else {
+            return text_get_width_impl(font_query, value, font_source);
+        };
 
-        if let Some(text_cache) = self.text_cache.as_ref() {
-            let hash = font_query.hash_with_value(value);
-            *text_cache
-                .text_width_cache
-                .borrow_mut()
-                .get_or_insert(hash, || text_get_width_impl(font_query, value, font_source))
-        } else {
-            text_get_width_impl(font_query, value, font_source)
+        let hash = font_query.hash_with_value(value);
+        if let Some(width) = text_cache.text_width_cache.borrow_mut().get(&hash) {
+            return Some(*width);
         }
+
+        // A font that can not be measured yet (the editor is still loading
+        // fonts) must not be remembered, or it never gets measured at all.
+        let width = text_get_width_impl(font_query, value, font_source)?;
+        text_cache.text_width_cache.borrow_mut().put(hash, width);
+        Some(width)
+    }
+
+    /// Shortens the text so that it fits into `max_width` pixels, the equivalent of
+    /// css `text-overflow`. Text that already fits is returned as is; otherwise the
+    /// characters that do not fit are dropped and, depending on `overflow`, the text
+    /// ends with an ellipsis (`…`) or a custom marker.
+    ///
+    /// If the font is not resolved returns `None` (make sure that system fonts are not
+    /// resolvable in the web preview editor), so a caller that wants to keep rendering
+    /// falls back to the full text:
+    ///
+    /// ```no_run
+    /// let font = fframes::FontQuery { family: "Roboto", size: 26, ..Default::default() };
+    /// let title = frame
+    ///     .text_fit(&ctx, font, chapter.title, 400, fframes::TextOverflow::Ellipsis)
+    ///     .map(std::borrow::Cow::into_owned)
+    ///     .unwrap_or_else(|| chapter.title.to_owned());
+    /// ```
+    pub fn text_fit<'a>(
+        &mut self,
+        ctx: &crate::FFramesContext<'a, '_>,
+        font_query: FontQuery,
+        value: &'a str,
+        max_width: usize,
+        overflow: TextOverflow,
+    ) -> Option<std::borrow::Cow<'a, str>> {
+        let font_source = ctx.font_source?;
+        text_fit_impl(font_query, value, max_width, overflow, font_source)
     }
 
     /// Returns a phrase that must be rendered by time in this frame.

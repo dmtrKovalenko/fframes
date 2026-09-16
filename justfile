@@ -43,10 +43,10 @@ render example *ARGS:
   cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}
 
 play example:
-  #! /bin/bash
+  #!/bin/bash
   cd examples/{{example}}
   if command -v vlc >/dev/null 2>&1; then
-  vlc out.mp4
+    vlc out.mp4
   elif command -v iina >/dev/null 2>&1; then
     iina out.mp4
   elif command -v mpv >/dev/null 2>&1; then
@@ -76,7 +76,7 @@ check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown
 
 check-examples:
-  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast
+  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast && just check-wasm motion-graphics
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg

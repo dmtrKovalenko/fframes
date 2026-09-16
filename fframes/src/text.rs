@@ -3,6 +3,7 @@ use crate::{
 };
 use lru::LruCache;
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -197,8 +198,8 @@ where
 #[doc(hidden)]
 #[derive(Debug, Clone)]
 pub struct TextCache {
-    pub(crate) breaks_cache: Rc<RefCell<LruCache<u64, Option<WrappedTextStructure>>>>,
-    pub(crate) text_width_cache: Rc<RefCell<LruCache<u64, Option<usize>>>>,
+    pub(crate) breaks_cache: Rc<RefCell<LruCache<u64, WrappedTextStructure>>>,
+    pub(crate) text_width_cache: Rc<RefCell<LruCache<u64, usize>>>,
 }
 
 impl TextCache {
@@ -300,6 +301,43 @@ impl WrappedTextStructure {
     }
 }
 
+/// How text that does not fit into its box is shortened, the equivalent of
+/// the css `text-overflow` property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum TextOverflow<'a> {
+    /// Drop the characters that do not fit; the result borrows from the input.
+    Clip,
+    /// Drop the characters that do not fit and end the text with `…`.
+    #[default]
+    Ellipsis,
+    /// Like [`TextOverflow::Ellipsis`] with a custom marker, e.g. `"..."`.
+    Marker(&'a str),
+}
+
+impl TextOverflow<'_> {
+    fn marker(&self) -> &str {
+        match self {
+            TextOverflow::Clip => "",
+            TextOverflow::Ellipsis => "…",
+            TextOverflow::Marker(marker) => marker,
+        }
+    }
+}
+
+fn char_width(
+    char: char,
+    font_face: &dyn FontFace,
+    font_size: usize,
+    font_variant: FontVariant,
+) -> usize {
+    match font_variant {
+        FontVariant::Monospaced(mono_width) => mono_width,
+        FontVariant::Variable => font_face
+            .resolve_char_width(font_size, char)
+            .unwrap_or_default(),
+    }
+}
+
 fn calc_text_width(
     text: &str,
     font_face: &dyn FontFace,
@@ -309,14 +347,62 @@ fn calc_text_width(
     match text {
         "" => 0,
         "\n" | "\r" => 0,
-        text => match font_variant {
-            FontVariant::Monospaced(mono_width) => text.len() * mono_width,
-            FontVariant::Variable => text
-                .chars()
-                .filter_map(|char| font_face.resolve_char_width(font_size, char))
-                .sum(),
-        },
+        text => text
+            .chars()
+            .map(|char| char_width(char, font_face, font_size, font_variant))
+            .sum(),
     }
+}
+
+/// Shortens `value` so it fits into `max_width` pixels, see
+/// [`crate::Frame::text_fit`].
+pub(crate) fn text_fit_impl<'a>(
+    font_query: FontQuery,
+    value: &'a str,
+    max_width: usize,
+    overflow: TextOverflow,
+    font_source: &'a (dyn FontSource<'a> + 'a),
+) -> Option<Cow<'a, str>> {
+    let font_face = font_source.resolve_font(
+        font_query.family,
+        font_query.weight,
+        font_query.style,
+        font_query.stretch,
+    )?;
+    let font_variant = font_face.font_variant(font_query.size)?;
+    let width =
+        |text: &str| calc_text_width(text, font_face.as_ref(), font_query.size, font_variant);
+
+    let marker = overflow.marker();
+    let marker_width = width(marker);
+
+    // One pass over the glyphs: `fits_end` is the end of the longest prefix
+    // that leaves room for the marker, `total` the width of the whole text.
+    let mut total = 0;
+    let mut fits_end = 0;
+    for (index, char) in value.char_indices() {
+        total += char_width(char, font_face.as_ref(), font_query.size, font_variant);
+        if total + marker_width <= max_width {
+            fits_end = index + char.len_utf8();
+        }
+    }
+
+    if total <= max_width {
+        return Some(Cow::Borrowed(value));
+    }
+    if marker_width > max_width {
+        // Not even the marker fits.
+        return Some(Cow::Borrowed(""));
+    }
+
+    let kept = &value[..fits_end];
+    if marker.is_empty() {
+        return Some(Cow::Borrowed(kept));
+    }
+
+    // A marker right after a space reads as a typo ("and …"), so the kept
+    // part ends on a visible character.
+    Some(Cow::Owned(format!("{}{marker}", kept.trim_end())))
 }
 
 pub(crate) fn text_get_width_impl<'a>(
@@ -471,15 +557,167 @@ pub fn estimate_text_width<'a>(
             .resolve_font(font_family, font_weight, font_style, font_stretch)?;
 
     let font_variant = font_face.font_variant(font_size)?;
+    Some(calc_text_width(
+        text,
+        font_face.as_ref(),
+        font_size,
+        font_variant,
+    ))
+}
 
-    match font_variant {
-        FontVariant::Monospaced(mono_width) => Some(text.len() * mono_width),
-        FontVariant::Variable => {
-            let total_width = text
-                .chars()
-                .filter_map(|char| font_face.resolve_char_width(font_size, char))
-                .sum();
-            Some(total_width)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    /// Every glyph is `CHAR_WIDTH` pixels wide at any size, which keeps the
+    /// expected values below readable.
+    const CHAR_WIDTH: usize = 10;
+
+    #[derive(Debug)]
+    struct FixedWidthFace {
+        monospaced: bool,
+    }
+
+    impl FontFace<'_> for FixedWidthFace {
+        fn is_monospaced(&self) -> Option<bool> {
+            Some(self.monospaced)
         }
+
+        fn resolve_char_width(&self, _font_size: usize, _char: char) -> Option<usize> {
+            Some(CHAR_WIDTH)
+        }
+    }
+
+    #[derive(Debug)]
+    struct FixedWidthFonts {
+        monospaced: bool,
+    }
+
+    impl<'a> FontSource<'a> for FixedWidthFonts {
+        fn add_font(&mut self, _: String, _: Arc<dyn AsRef<[u8]> + Sync + Send>) {}
+
+        fn resolve_font(
+            &'a self,
+            _: &str,
+            _: u16,
+            _: FontStyle,
+            _: FontStretch,
+        ) -> Option<Box<dyn FontFace<'a> + 'a>> {
+            Some(Box::new(FixedWidthFace {
+                monospaced: self.monospaced,
+            }))
+        }
+    }
+
+    const VARIABLE: FixedWidthFonts = FixedWidthFonts { monospaced: false };
+    const MONOSPACED: FixedWidthFonts = FixedWidthFonts { monospaced: true };
+
+    fn fit<'a>(
+        fonts: &'a FixedWidthFonts,
+        value: &'a str,
+        max_width: usize,
+        overflow: TextOverflow,
+    ) -> Cow<'a, str> {
+        text_fit_impl(FontQuery::default(), value, max_width, overflow, fonts)
+            .expect("the fixed width font always resolves")
+    }
+
+    #[test]
+    fn text_that_fits_is_returned_untouched() {
+        let fitted = fit(
+            &VARIABLE,
+            "Hello world",
+            11 * CHAR_WIDTH,
+            TextOverflow::Ellipsis,
+        );
+        assert!(matches!(fitted, Cow::Borrowed("Hello world")));
+    }
+
+    #[test]
+    fn ellipsis_replaces_the_characters_that_do_not_fit() {
+        // 9 cells: 8 characters + the ellipsis.
+        assert_eq!(
+            fit(
+                &VARIABLE,
+                "Hello world",
+                9 * CHAR_WIDTH,
+                TextOverflow::Ellipsis
+            ),
+            "Hello wo…"
+        );
+    }
+
+    #[test]
+    fn ellipsis_never_follows_whitespace() {
+        // 7 cells would keep "Hello " and the trailing space is dropped.
+        assert_eq!(
+            fit(
+                &VARIABLE,
+                "Hello world",
+                7 * CHAR_WIDTH,
+                TextOverflow::Ellipsis
+            ),
+            "Hello…"
+        );
+    }
+
+    #[test]
+    fn clip_drops_the_overflow_without_a_marker() {
+        let clipped = fit(&VARIABLE, "Hello world", 8 * CHAR_WIDTH, TextOverflow::Clip);
+        assert!(matches!(clipped, Cow::Borrowed("Hello wo")));
+        // Clip cuts exactly at the box edge, whitespace included.
+        assert_eq!(
+            fit(&VARIABLE, "Hello world", 6 * CHAR_WIDTH, TextOverflow::Clip),
+            "Hello "
+        );
+    }
+
+    #[test]
+    fn custom_marker_width_is_accounted_for() {
+        assert_eq!(
+            fit(
+                &VARIABLE,
+                "Hello world",
+                8 * CHAR_WIDTH,
+                TextOverflow::Marker("...")
+            ),
+            "Hello..."
+        );
+    }
+
+    #[test]
+    fn marker_wider_than_the_box_yields_nothing() {
+        assert_eq!(
+            fit(
+                &VARIABLE,
+                "Hello world",
+                2 * CHAR_WIDTH,
+                TextOverflow::Marker("...")
+            ),
+            ""
+        );
+        assert_eq!(
+            fit(&VARIABLE, "Hello world", CHAR_WIDTH, TextOverflow::Ellipsis),
+            "…"
+        );
+    }
+
+    #[test]
+    fn monospaced_fonts_count_characters_not_bytes() {
+        // "…" is three bytes but one cell.
+        assert_eq!(
+            fit(
+                &MONOSPACED,
+                "Ünïcödé text",
+                6 * CHAR_WIDTH,
+                TextOverflow::Ellipsis
+            ),
+            "Ünïcö…"
+        );
+        assert_eq!(
+            text_get_width_impl(FontQuery::default(), "Ünïcödé", &MONOSPACED),
+            Some(7 * CHAR_WIDTH)
+        );
     }
 }

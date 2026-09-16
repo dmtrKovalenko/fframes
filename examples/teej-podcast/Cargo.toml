@@ -11,6 +11,11 @@ image = "0.25.5"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
 
+# `main.rs` asks for `hevc_videotoolbox` on macOS, which only exists when
+# ffmpeg is built with VideoToolbox.
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes = { workspace = true, features = ["videotoolbox"] }
+
 [features]
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree"]

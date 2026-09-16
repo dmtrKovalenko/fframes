@@ -1,7 +1,6 @@
 use clap::Parser;
-use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, fframes_logger};
-use motion_graphics_example::{MotionGraphicsMedia, QuoteCardVideo};
-use std::path::PathBuf;
+use fframes::StaticMediaProvider;
+use motion_graphics_example::{MotionGraphicsMedia, QuoteCardVideo, render_options};
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -17,6 +16,8 @@ struct Args {
     video_codec: Option<String>,
     #[clap(short, long)]
     concurrency: Option<usize>,
+    #[clap(short, long)]
+    verbose: bool,
 }
 
 fn main() {
@@ -43,27 +44,7 @@ fn main() {
         output.as_str(),
         &QuoteCardVideo::new(&media, &text),
         backend,
-        &RenderOptions {
-            media: Some(&media),
-            load_system_fonts: true,
-            logger: fframes_logger::FFramesLoggerVariant::Compact,
-            tmp_files_directory: Some(&PathBuf::from("test_render")),
-            video_encoder_options: EncoderOptions {
-                preferred_encoder: args.video_codec.as_deref(),
-                codec_params: Some(&[
-                    ("crf", "18"),
-                    ("preset", "slow"),
-                    ("profile", "high"),
-                    ("level", "4.2"),
-                    ("bframes", "0"),
-                    ("colorprim", "bt709"),
-                    ("transfer", "bt709"),
-                    ("colormatrix", "bt709"),
-                ]),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
+        &render_options(&media, args.video_codec.as_deref(), args.verbose),
     )
     .unwrap();
 }

@@ -3,13 +3,7 @@ use fframes::{
 };
 use std::sync::OnceLock;
 
-use crate::MotionGraphicsMedia;
-
-const SPRING_SNAPPY: Easing = Easing::Spring {
-    mass: 1.0,
-    stiffness: 300.0,
-    damping: 26.0,
-};
+use crate::{MotionGraphicsMedia, SPRING_SNAPPY};
 
 const SHELL_CMD: &str = "curl -L https://dmtrkovalenko.dev/install-fff-mcp.sh | bash";
 const GITHUB_URL: &str = "https://github.com/dmtrKovalenko/fff.nvim";
@@ -35,13 +29,20 @@ impl<'a> InstallSceneVideo<'a> {
     }
 }
 
+const MAX_CMD_FONT_SIZE: usize = 42;
+const MIN_CMD_FONT_SIZE: usize = 16;
+
+/// Largest monospace font size (down to [`MIN_CMD_FONT_SIZE`]) at which
+/// `text` fits into `max_width`.  `None` when the font can not be measured
+/// yet (fonts are resolved lazily in the editor), so the caller must not
+/// cache the result.
 fn resolve_monospace_font_size<'a>(
     frame: &mut Frame,
     ctx: &FFramesContext<'a, '_>,
     text: &'a str,
     max_width: usize,
-) -> usize {
-    let mut size = 42;
+) -> Option<usize> {
+    let mut size = MAX_CMD_FONT_SIZE;
     loop {
         let query = FontQuery {
             family: "JetBrains Mono",
@@ -49,9 +50,9 @@ fn resolve_monospace_font_size<'a>(
             weight: 400,
             ..Default::default()
         };
-        match frame.text_width(ctx, query, text) {
-            Some(w) if w <= max_width => break size,
-            _ if size <= 16 => break 16,
+        match frame.text_width(ctx, query, text)? {
+            w if w <= max_width => break Some(size),
+            _ if size <= MIN_CMD_FONT_SIZE => break Some(MIN_CMD_FONT_SIZE),
             _ => size -= 2,
         }
     }
@@ -72,10 +73,15 @@ impl fframes::Video for InstallSceneVideo<'_> {
     }
 
     fn render_frame<'a>(&'a self, mut frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
-        let cmd_font_size = *self.resolved_cmd_font_size.get_or_init(|| {
-            // Terminal box has ~80px padding on each side inside 1520px wide box
-            resolve_monospace_font_size(&mut frame, ctx, SHELL_CMD, 1360)
-        });
+        // Terminal box has ~80px padding on each side inside 1520px wide box.
+        // The size is only cached once the font could actually be measured.
+        let cmd_font_size = match self.resolved_cmd_font_size.get() {
+            Some(size) => *size,
+            None => match resolve_monospace_font_size(&mut frame, ctx, SHELL_CMD, 1360) {
+                Some(size) => *self.resolved_cmd_font_size.get_or_init(|| size),
+                None => MIN_CMD_FONT_SIZE,
+            },
+        };
 
         // === Title "INSTALL FFF" ===
         // Scale punch
@@ -108,7 +114,6 @@ impl fframes::Video for InstallSceneVideo<'_> {
 
         // Prompt "$ " prefix
         let prompt_x = box_x + 50.0;
-        let text_x = prompt_x + 30.0;
         let text_y = box_y + box_h / 2.0 + 6.0;
 
         // Typing animation: reveal characters over time
@@ -159,6 +164,9 @@ impl fframes::Video for InstallSceneVideo<'_> {
             ..Default::default()
         };
         let prefix_width = frame.text_width(ctx, cursor_query, "$ ").unwrap_or(40) as f32;
+        // The typed command starts right after the measured prefix so the
+        // cursor below lines up with its end.
+        let text_x = prompt_x + prefix_width;
         let typed_width = if visible_cmd.is_empty() {
             0.0
         } else {

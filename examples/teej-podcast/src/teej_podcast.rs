@@ -1,12 +1,19 @@
 use crate::Chapter;
 use crate::{constants::*, create_transition_keyframes_for_chapters};
 use fframes::animation::KeyFramesAnimation;
-use fframes::{AudioMap, FFramesContext, FFramesSyncedVideoFrame, Frame, Transform, Video};
+use fframes::{
+    AudioMap, FFramesContext, FFramesSyncedVideoFrame, FontQuery, Frame, TextOverflow, Transform,
+    Video,
+};
+use std::borrow::Cow;
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct TeejPodcast<'a> {
     chapters: &'a [Chapter<'a>],
     chapters_animation: KeyFramesAnimation<f32>,
+    /// Chapter titles shortened to their rectangle, see [`Self::fit_titles`].
+    fitted_titles: OnceLock<Vec<String>>,
 }
 
 impl TeejPodcast<'_> {
@@ -15,7 +22,41 @@ impl TeejPodcast<'_> {
         TeejPodcast {
             chapters,
             chapters_animation,
+            fitted_titles: OnceLock::new(),
         }
+    }
+
+    /// Every chapter title cut with an ellipsis to the width left after the
+    /// "mm:ss" prefix, or `None` while the font can not be measured.
+    fn fit_titles<'a>(
+        &'a self,
+        frame: &mut Frame,
+        ctx: &FFramesContext<'a, '_>,
+    ) -> Option<Vec<String>> {
+        let font = FontQuery {
+            family: CHAPTER_FONT_FAMILY,
+            size: CHAPTER_FONT_SIZE,
+            weight: CHAPTER_FONT_WEIGHT,
+            ..Default::default()
+        };
+        let separator_width = frame.text_width(ctx, font, "  ")?;
+        let max_width = (CHAPTER_WIDTH - CHAPTER_TEXT_PADDING * 2) as usize;
+
+        self.chapters
+            .iter()
+            .map(|chapter| {
+                let prefix_width = frame.text_width(ctx, font, chapter.start)? + separator_width;
+                frame
+                    .text_fit(
+                        ctx,
+                        font,
+                        chapter.title,
+                        max_width.saturating_sub(prefix_width),
+                        TextOverflow::Ellipsis,
+                    )
+                    .map(Cow::into_owned)
+            })
+            .collect()
     }
 }
 
@@ -38,6 +79,7 @@ impl Video for TeejPodcast<'_> {
     }
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr<'a> {
+        let mut frame = frame;
         let left_frame = frame
             .get_synced_video_frame(
                 ctx,
@@ -61,6 +103,32 @@ impl Video for TeejPodcast<'_> {
                 },
             )
             .map(|fr| fr.into_image());
+
+        // The chapter whose time range contains the current frame; the last
+        // chapter stays active until the end.
+        let t = frame.seconds() as u64;
+        let active_index = self
+            .chapters
+            .windows(2)
+            .position(|w| t >= w[0].start_seconds && t < w[1].start_seconds)
+            .unwrap_or(self.chapters.len().saturating_sub(1));
+
+        // Chapter titles are cut with an ellipsis so they stay inside their
+        // rectangle after the "mm:ss" prefix. They never change, so they are
+        // measured once; until the fonts can be measured (the editor loads
+        // them lazily) the full titles are shown.
+        let titles = match self.fitted_titles.get() {
+            Some(titles) => Cow::Borrowed(titles),
+            None => match self.fit_titles(&mut frame, ctx) {
+                Some(titles) => Cow::Borrowed(self.fitted_titles.get_or_init(|| titles)),
+                None => Cow::Owned(
+                    self.chapters
+                        .iter()
+                        .map(|chapter| chapter.title.to_owned())
+                        .collect(),
+                ),
+            },
+        };
 
         fframes::svgr!(
             <svg
@@ -162,27 +230,21 @@ impl Video for TeejPodcast<'_> {
                     />
 
                     // The text is rendered on top of either highlighter or rectangle
-                    {self.chapters.iter().enumerate().map(|(i, chapter)| {
-                        let active_index = self.chapters.windows(2).enumerate().find(|(_, w)| {
-                            let start = w[0].start_seconds;
-                            let next = w[1].start_seconds;
-                            let t = frame.seconds() as u64;
-                            t >= start && t < next
-                        }).map(|(idx, _)| idx).unwrap_or(self.chapters.len().saturating_sub(1));
+                    {self.chapters.iter().zip(titles.iter()).enumerate().map(|(i, (chapter, title))| {
                         let text_color = if i == active_index { "#000" } else { "#fff" };
                         fframes::svgr!(
                         <text
-                            x={CHAPTERS_START_X + 10}
+                            x={CHAPTERS_START_X + CHAPTER_TEXT_PADDING}
                             y={Chapter::get_y_position(i) + CHAPTER_HEIGHT / 2 + 5}
                             dominant-baseline="middle"
                             fill={text_color}
-                            font-family="Sofia Sans Semi Condensed"
-                            font-weight="medium"
-                            font-size="26"
+                            font-family={CHAPTER_FONT_FAMILY}
+                            font-weight={CHAPTER_FONT_WEIGHT}
+                            font-size={CHAPTER_FONT_SIZE}
                         >
-                            <tspan >{chapter.start}</tspan>
+                            <tspan>{chapter.start}</tspan>
                             <tspan>{"  "}</tspan>
-                            <tspan >{chapter.title}</tspan>
+                            <tspan>{title.clone()}</tspan>
                         </text>
                     )}).collect::<Vec<_>>()}
                 </g>

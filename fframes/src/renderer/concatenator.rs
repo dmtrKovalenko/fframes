@@ -121,24 +121,21 @@ unsafe fn create_encoder_copy_from_file(
         );
 
         let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
-        let audio_stream =
-            Stream::make_audio(output_format_ctx, &render_options.audio_encoder_options)?;
-
-        let encoder = Encoder {
-            video_stream: Stream {
-                st: output_video_stream,
-                enc: std::ptr::null_mut(),
-                variant: StreamVariant::Video,
-            },
-            audio_stream: Some(audio_stream),
-            oc: output_format_ctx,
-        };
+        let mut audio_stream =
+            match Stream::make_audio(output_format_ctx, &render_options.audio_encoder_options) {
+                Ok(audio_stream) => audio_stream,
+                Err(err) => {
+                    avformat_close_input(&mut input_format_ctx);
+                    avformat_free_context(output_format_ctx);
+                    return Err(err);
+                }
+            };
 
         avcodec_parameters_copy(
             (*output_video_stream).codecpar,
             (*input_video_stream).codecpar,
         );
-        (*encoder.video_stream.st).time_base = (*input_video_stream).time_base;
+        (*output_video_stream).time_base = (*input_video_stream).time_base;
 
         avformat_close_input(&mut input_format_ctx);
         avio_open(
@@ -147,9 +144,27 @@ unsafe fn create_encoder_copy_from_file(
             AVIO_FLAG_WRITE,
         );
 
-        crate::renderer::encoder::write_header(encoder.oc, true)?;
+        // `Encoder::drop` writes the trailer, which libavformat only allows
+        // after a successful header write, so the encoder is only built once
+        // the header is out and a failed header releases the context by hand.
+        if let Err(err) = crate::renderer::encoder::write_header(output_format_ctx, true) {
+            audio_stream.free();
+            if !(*output_format_ctx).pb.is_null() {
+                avio_closep(&mut (*output_format_ctx).pb);
+            }
+            avformat_free_context(output_format_ctx);
+            return Err(err);
+        }
 
-        Ok(encoder)
+        Ok(Encoder {
+            video_stream: Stream {
+                st: output_video_stream,
+                enc: std::ptr::null_mut(),
+                variant: StreamVariant::Video,
+            },
+            audio_stream: Some(audio_stream),
+            oc: output_format_ctx,
+        })
     }
 }
 

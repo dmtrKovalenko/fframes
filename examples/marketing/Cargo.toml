@@ -5,8 +5,6 @@ edition = "2024"
 
 [dependencies]
 fframes = { workspace = true, features = ["h265", "libav-agree-gpl"] }
-svgr = { workspace = true }
-usvgr = { workspace = true }
 
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }

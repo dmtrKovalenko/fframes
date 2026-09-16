@@ -50,27 +50,32 @@ export class VideoFrameDecoder {
     }
   }
 
-  private decodeToCanvas(
+  private async decodeToCanvas(
     timeSeconds: number
   ): Promise<HTMLCanvasElement | null> {
     if (!this.initialized || !this.sink) {
-      return Promise.resolve(null);
+      return null;
     }
 
-    return this.sink.getCanvas(timeSeconds).then(wrapped => {
-      if (!wrapped) return null;
+    const wrapped = await this.sink.getCanvas(timeSeconds);
+    if (!wrapped) return null;
 
-      const srcCanvas = wrapped.canvas as HTMLCanvasElement;
-      const tmp = document.createElement("canvas");
-      tmp.width = srcCanvas.width;
-      tmp.height = srcCanvas.height;
-      const ctx = tmp.getContext("2d");
-      if (!ctx) return null;
-      ctx.drawImage(srcCanvas, 0, 0);
-      return tmp;
-    });
+    // The sink recycles its canvases (`poolSize`), so copy the frame out
+    // before the next decode overwrites it.
+    const srcCanvas = wrapped.canvas as HTMLCanvasElement;
+    const tmp = document.createElement("canvas");
+    tmp.width = srcCanvas.width;
+    tmp.height = srcCanvas.height;
+    const ctx = tmp.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(srcCanvas, 0, 0);
+    return tmp;
   }
 
+  /**
+   * Decodes one frame into a blob URL. The caller owns the URL and must
+   * revoke it (see `VideoFrameBufferManager.evictOldFrames`).
+   */
   async decodeFrameAtTime(timeSeconds: number): Promise<string | null> {
     try {
       const canvas = await this.decodeToCanvas(timeSeconds);

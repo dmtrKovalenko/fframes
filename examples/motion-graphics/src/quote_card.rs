@@ -4,15 +4,10 @@ use fframes::{
     AudioMap, Color, FFramesContext, FontQuery, Frame, Svgr, Transform, animation::Easing,
 };
 
-use crate::MotionGraphicsMedia;
-
-const SPRING_SNAPPY: Easing = Easing::Spring {
-    mass: 1.0,
-    stiffness: 300.0,
-    damping: 26.0,
-};
+use crate::{MotionGraphicsMedia, SPRING_SNAPPY};
 
 const MAX_FONT_SIZE: usize = 500;
+const MIN_FONT_SIZE: usize = 60;
 const HORIZONTAL_PADDING: usize = 200;
 const TARGET_WIDTH: usize = 1920 - HORIZONTAL_PADDING * 2;
 const LINE_HEIGHT_RATIO: f32 = 0.9;
@@ -44,7 +39,14 @@ impl<'a> QuoteCardVideo<'a> {
     }
 }
 
-fn resolve_font_size<'a>(frame: &mut Frame, ctx: &FFramesContext<'a, '_>, line: &'a str) -> usize {
+/// Largest font size (down to [`MIN_FONT_SIZE`]) at which `line` fits into
+/// [`TARGET_WIDTH`].  `None` when the font can not be measured yet (fonts are
+/// resolved lazily in the editor), so the caller must not cache the result.
+fn resolve_font_size<'a>(
+    frame: &mut Frame,
+    ctx: &FFramesContext<'a, '_>,
+    line: &'a str,
+) -> Option<usize> {
     let mut size = MAX_FONT_SIZE;
     loop {
         let query = FontQuery {
@@ -53,9 +55,9 @@ fn resolve_font_size<'a>(frame: &mut Frame, ctx: &FFramesContext<'a, '_>, line: 
             weight: 400,
             ..Default::default()
         };
-        match frame.text_width(ctx, query, line) {
-            Some(w) if w <= TARGET_WIDTH => break size,
-            _ if size <= 60 => break 60,
+        match frame.text_width(ctx, query, line)? {
+            w if w <= TARGET_WIDTH => break Some(size),
+            _ if size <= MIN_FONT_SIZE => break Some(MIN_FONT_SIZE),
             _ => size -= 10,
         }
     }
@@ -77,12 +79,19 @@ impl fframes::Video for QuoteCardVideo<'_> {
 
     fn render_frame<'a>(&'a self, mut frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         let lines: Vec<&str> = self.text.lines().collect();
-        let font_sizes = self.resolved_font_sizes.get_or_init(|| {
-            lines
+        // Measuring text is only cached once the fonts could actually be
+        // measured; until then every line falls back to the minimum size.
+        let font_sizes = match self.resolved_font_sizes.get() {
+            Some(sizes) => sizes.clone(),
+            None => match lines
                 .iter()
                 .map(|line| resolve_font_size(&mut frame, ctx, line))
-                .collect()
-        });
+                .collect::<Option<Vec<usize>>>()
+            {
+                Some(sizes) => self.resolved_font_sizes.get_or_init(|| sizes).clone(),
+                None => vec![MIN_FONT_SIZE; lines.len()],
+            },
+        };
 
         // Calculate total block height to center vertically
         let total_height: f32 = font_sizes

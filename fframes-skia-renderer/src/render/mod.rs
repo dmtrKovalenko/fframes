@@ -13,6 +13,7 @@ mod fingerprint;
 mod image;
 
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
 use fframes::usvgr;
@@ -59,16 +60,21 @@ impl<T> Generational<T> {
         self.current.clear();
     }
 
-    /// Look up `key` in both generations.  An entry whose fingerprint does not
-    /// match the node being rendered is stale and is treated as a miss (and
-    /// replaced by the following `insert`).
-    fn get(&mut self, key: u64, fingerprint: u64) -> Option<&T> {
+    /// Move `key` from the previous generation into the current one, so an
+    /// entry used this frame survives the next `begin_frame`.
+    fn promote(&mut self, key: u64) {
         if !self.current.contains_key(&key)
             && let Some(entry) = self.previous.remove(&key)
         {
             self.current.insert(key, entry);
         }
+    }
 
+    /// Look up `key` in both generations.  An entry whose fingerprint does not
+    /// match the node being rendered is stale and is treated as a miss (and
+    /// replaced by the following `insert`).
+    fn get(&mut self, key: u64, fingerprint: u64) -> Option<&T> {
+        self.promote(key);
         self.current
             .get(&key)
             .filter(|entry| entry.fingerprint == fingerprint)
@@ -82,6 +88,25 @@ impl<T> Generational<T> {
             .insert_entry(Cached { fingerprint, value })
             .into_mut()
             .value
+    }
+
+    /// `get`, building and inserting the value when it is missing or stale.
+    /// Returns `None` only when `build` does.
+    fn try_get_or_insert_with(
+        &mut self,
+        key: u64,
+        fingerprint: u64,
+        build: impl FnOnce() -> Option<T>,
+    ) -> Option<&T> {
+        self.promote(key);
+        let entry = match self.current.entry(key) {
+            Entry::Occupied(entry) if entry.get().fingerprint == fingerprint => entry,
+            entry => entry.insert_entry(Cached {
+                fingerprint,
+                value: build()?,
+            }),
+        };
+        Some(&entry.into_mut().value)
     }
 }
 
@@ -129,13 +154,11 @@ impl RenderCache {
 
     /// Look up or create the Skia image for a `PreloadedImageData`.
     fn image(&mut self, pixels: &Arc<usvgr::PreloadedImageData>) -> Option<&SkiaImage> {
-        let key = Arc::as_ptr(pixels) as u64;
-        let fingerprint = image_fingerprint(pixels);
-        if self.images.get(key, fingerprint).is_some() {
-            return self.images.get(key, fingerprint);
-        }
-        let image = SkiaImage::new(pixels)?;
-        Some(self.images.insert(key, fingerprint, image))
+        self.images.try_get_or_insert_with(
+            Arc::as_ptr(pixels) as u64,
+            image_fingerprint(pixels),
+            || SkiaImage::new(pixels),
+        )
     }
 
     /// Convert a path, reusing the cached conversion for static paths.

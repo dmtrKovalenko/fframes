@@ -124,13 +124,36 @@ impl<'a> ScenesWithAudio<'a> {
     }
 }
 
-impl ScenesWithAudio<'_> {
+impl<'a> ScenesWithAudio<'a> {
+    /// Audio files referenced by the scenes' audio maps and durations.
     pub fn used_audio_files(&self) -> Option<Vec<&str>> {
-        self.0.as_ref().map(|s| {
-            s.iter()
-                .flat_map(|s| s.audio_map.used_audio_files::<Vec<&str>>())
+        self.0.as_ref().map(|scenes| {
+            scenes
+                .iter()
+                .flat_map(|scene| {
+                    let from_audio_map = scene.audio_map.used_audio_files::<Vec<&str>>();
+                    let scene: &'a dyn Scene = scene.scene;
+                    let from_duration = scene.duration().used_audio_files();
+                    from_audio_map
+                        .into_iter()
+                        .flatten()
+                        .chain(from_duration.into_iter().flatten())
+                })
+                .collect()
+        })
+    }
+
+    /// Video files whose metadata the scenes' durations are resolved from.
+    pub fn used_video_files(&self) -> Option<Vec<&str>> {
+        self.0.as_ref().map(|scenes| {
+            scenes
+                .iter()
+                .flat_map(|scene| {
+                    let scene: &'a dyn Scene = scene.scene;
+                    scene.duration().used_video_files()
+                })
                 .flatten()
-                .collect::<Vec<_>>()
+                .collect()
         })
     }
 }

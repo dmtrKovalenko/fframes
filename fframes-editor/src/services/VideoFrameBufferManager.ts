@@ -19,8 +19,12 @@ interface FrameData {
   height: number;
 }
 
+/** Frames after `currentPts` that a playback request queues for decoding. */
+const LOOKAHEAD_FRAMES = 8;
+
 export class VideoFrameBufferManager {
   private readonly fps: number;
+  /** Upper bound on decoded frames kept per video; see `evictOldFrames`. */
   private readonly maxBufferSize: number;
   private readonly maxInFlight: number;
   private readonly videos: Map<string, VideoState> = new Map();
@@ -125,11 +129,16 @@ export class VideoFrameBufferManager {
       this.videos.set(filename, state);
     }
 
-    if (!state.initPromise && state.decoder.isAvailable()) {
+    if (!state.decoder.isAvailable()) {
+      // Without WebCodecs nothing can ever be decoded; don't queue work.
+      return;
+    }
+
+    if (!state.initPromise) {
       state.initPromise = this.initializeDecoder(state);
     }
 
-    for (let i = 0; i <= 8; i++) {
+    for (let i = 0; i <= LOOKAHEAD_FRAMES; i++) {
       if (state.inFlightDecodes.size >= this.maxInFlight) {
         break;
       }
@@ -211,27 +220,27 @@ export class VideoFrameBufferManager {
     }
   }
 
+  /** Drops the frames furthest from `currentPts` until the buffer fits. */
   private evictOldFrames(state: VideoState, currentPts: number): void {
     if (state.buffer.size <= this.maxBufferSize) {
       return;
     }
 
-    const keepRadius = this.fps;
-    const toEvict: number[] = [];
+    const byDistance = [...state.buffer.keys()].sort(
+      (a, b) => Math.abs(b - currentPts) - Math.abs(a - currentPts)
+    );
+    const excess = state.buffer.size - this.maxBufferSize;
 
-    for (const [pts, url] of state.buffer) {
-      if (Math.abs(pts - currentPts) > keepRadius) {
-        toEvict.push(pts);
+    for (const pts of byDistance.slice(0, excess)) {
+      const url = state.buffer.get(pts);
+      if (url) {
         URL.revokeObjectURL(url);
-        if (state.lastHeldFrame?.pts === pts) {
-          // Never hand out a revoked blob URL.
-          state.lastHeldFrame = null;
-        }
       }
-    }
-
-    for (const pts of toEvict) {
       state.buffer.delete(pts);
+      if (state.lastHeldFrame?.pts === pts) {
+        // Never hand out a revoked blob URL.
+        state.lastHeldFrame = null;
+      }
     }
   }
 

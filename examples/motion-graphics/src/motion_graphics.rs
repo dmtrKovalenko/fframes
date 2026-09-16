@@ -2,18 +2,14 @@ use fframes::{
     AudioMap, Color, FFramesContext, Frame, Svgr, Transform, animation::Easing, include_media_dir,
 };
 
+use crate::SPRING_SNAPPY;
+
 include_media_dir!(pub struct MotionGraphicsMedia, "examples/motion-graphics/media");
 
 #[derive(Debug)]
 pub struct MotionGraphicsVideo<'a> {
     pub media: &'a MotionGraphicsMedia,
 }
-
-const SPRING_SNAPPY: Easing = Easing::Spring {
-    mass: 1.0,
-    stiffness: 300.0,
-    damping: 26.0,
-};
 
 impl fframes::Video for MotionGraphicsVideo<'_> {
     const FPS: usize = 60;

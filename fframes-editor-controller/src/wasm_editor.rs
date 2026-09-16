@@ -132,6 +132,15 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             &tb,
             self.static_media,
             &video_ctx.raw_scenes,
+            |file| {
+                self.media_provider
+                    .lock()
+                    .unwrap()
+                    .videos
+                    .get(file)
+                    .and_then(|video| video.metadata.as_ref())
+                    .map(|metadata| metadata.duration)
+            },
         )
         .await;
 
