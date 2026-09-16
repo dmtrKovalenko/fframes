@@ -191,7 +191,6 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             concatenator::concat_video_files_with_audio(
                 files.as_slice(),
                 output,
-                self.concurrency as i32,
                 timeline.audio_map.as_ref(),
                 render_options,
                 ctx,

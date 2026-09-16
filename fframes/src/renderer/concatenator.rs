@@ -376,7 +376,6 @@ impl Encoder {
 pub unsafe fn concat_video_files_with_audio(
     files: &[PathBuf],
     output: &Path,
-    _concurrency: i32,
     audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
     render_options: &RenderOptions,
     ctx: &FFramesContext,

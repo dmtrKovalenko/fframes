@@ -180,7 +180,6 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
                 concatenator::concat_video_files_with_audio(
                     files.as_slice(),
                     output,
-                    concurrent_pipelines as i32,
                     timeline.audio_map.as_ref(),
                     render_options,
                     ctx,

@@ -89,3 +89,7 @@ install-ffmpeg version:
 test *ARGS: 
   cargo test {{ARGS}}
   cargo test -p fframes_test_utils --no-default-features {{ARGS}}
+
+# Render a markdown file in the terminal (defaults to the agent guidelines)
+md file="AGENTS.md":
+  bat {{file}}
