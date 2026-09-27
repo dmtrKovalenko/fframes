@@ -9,6 +9,7 @@ members = [
     "fframes-test-utils",
     "fframes-media",
     "fframes-skia-renderer",
+    "fframes-native-player",
     "media-dir-macro",
     "render-bench",
     # Examples
@@ -48,10 +49,7 @@ members = [
 # usvgr = { path = "../svgr/crates/usvgr" }
 svgr = { git = "https://github.com/dmtrKovalenko/svgr", branch = "perf" }
 usvgr = { git = "https://github.com/dmtrKovalenko/svgr", branch = "perf" }
-ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "8.0.1", features = [
-    "build",
-    "static",
-] }
+ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "9.0.0" }
 wasm-bindgen = "0.2.100"
 kamadak-exif = "0.6.1"
 
@@ -63,3 +61,4 @@ fframes-media-dir-macro = { path = "media-dir-macro", version = "1.0.0-beta.6.rc
 fframes = { path = "fframes", version = "1.0.0-beta.6.rc-3.2" }
 webvtt-parser = { path = "webvtt-parser", version = "1.0.0-beta.6.rc-3.2" }
 fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.0.0-beta.6.rc-3.2" }
+fframes_native_player = { path = "fframes-native-player", version = "1.0.0-beta.6.rc-3.2" }

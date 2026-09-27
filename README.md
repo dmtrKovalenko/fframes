@@ -8,7 +8,7 @@ FFrames will install and compile ffmpeg during the development as we rely on the
 
 for debian based distros:
 ```sh
-sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libclang-dev clang ninja libvpx-dev
+sudo apt-get install -y yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libclang-dev clang ninja libvpx-dev libasound2-dev
 ```
 
 for arch based distros:
@@ -24,6 +24,24 @@ nix-shell
 ```sh
 brew install pkg-config ffmpeg x264 x265 opus nasm ninja
 ```
+
+#### Windows:
+
+On Windows ffmpeg is not compiled from source. Instead fframes links a prebuilt **FFmpeg 9.0** shared build
+(for example `ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip` from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest))
+and needs LLVM for bindgen:
+
+```powershell
+winget install LLVM.LLVM
+# unzip the ffmpeg build somewhere, then point the build to it:
+$env:FFMPEG_DIR = "C:\ffmpeg-n9.0-latest-win64-gpl-shared-9.0"
+$env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
+# the ffmpeg DLLs must be reachable when building (proc macros load them) and running
+$env:PATH = "$env:FFMPEG_DIR\bin;$env:PATH"
+```
+
+`vcpkg install ffmpeg` works as well instead of `FFMPEG_DIR`. Codecs come from the prebuilt build, so leave the
+codec features (`h264`, `h265`, ...) off: they request a from-source ffmpeg build which is not supported on Windows.
 
 ## Beta testing
 

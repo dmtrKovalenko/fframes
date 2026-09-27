@@ -4,6 +4,16 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # GitHub evicts caches that were not used for 7 days, rebuild them before that
+  # happens so the first PR after a quiet week does not rebuild Skia and FFmpeg.
+  schedule:
+    - cron: "0 5 * * 1,4"
+
+# A new push to a PR supersedes its running build. Other runs get a unique group:
+# a shared one would drop queued main runs (and their nightly release).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,7 +34,6 @@ jobs:
   build-rescript:
     name: Build ReScript
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -50,7 +59,6 @@ jobs:
 
   build-rust:
     name: Build and Test
-    if: github.event_name == 'pull_request'
     continue-on-error: true
     defaults:
       run:
@@ -87,7 +95,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-16 llvm ninja-build libgl1 libgl1-mesa-dev libgles2-mesa-dev libssl-dev libfontconfig1-dev mesa-common-dev libwayland-dev yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libvpx-dev
+          sudo apt-get install -y g++-16 llvm ninja-build libgl1 libgl1-mesa-dev libgles2-mesa-dev libssl-dev libfontconfig1-dev mesa-common-dev libwayland-dev yasm nasm ffmpeg libx264-dev libx265-dev libopus-dev libvpx-dev libasound2-dev
 
       - name: Install Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.1
@@ -118,19 +126,16 @@ jobs:
           cache: true
           cache-on-failure: true
           cache-key: "v3-rust"
+          # PR scoped caches are only visible to that PR and push main's cache out
+          # of the 10GB quota, so only main saves. PRs restore main's cache.
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
           components: rustfmt, clippy
-          target: wasm32-unknown-unknown
 
       - name: Check format
         run: cargo fmt --check
 
       - name: Build
         run: just clippy
-
-      - name: Check examples wasm build
-        run: |
-          rustup target add wasm32-unknown-unknown
-          just check-examples
 
       - name: Test
         run: just test
@@ -150,6 +155,39 @@ jobs:
             e2e/frames/diff
             e2e/out.mp4
             */**/_svgr_snapshots/*
+
+  # Runs in parallel with `build-rust`: it needs no Skia, only FFmpeg for the
+  # `include_media_dir!` proc-macro on the host.
+  check-wasm:
+    name: Check examples wasm build
+    runs-on: ubuntu-latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install apt-deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm yasm nasm libx264-dev libx265-dev libopus-dev libvpx-dev
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+          cache-on-failure: true
+          cache-key: "v3-rust-wasm"
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+          target: wasm32-unknown-unknown
+
+      - name: Check examples wasm build
+        run: just check-examples
 
   release:
     name: Publish nightly release
@@ -188,19 +226,52 @@ jobs:
           git fetch --tags
           bash release.sh "$(git describe --tags $(git rev-list --tags --max-count=1)).rc-$(printf "%02d" $(git rev-list --count $(git describe --tags --abbrev=0)..HEAD))"  
 
-  # not now
-  # check-windows-build: 
-  #   runs-on: windows-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #
-  #     - name: Install nasm
-  #       run: choco install nasm
-  #
-  #     - uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         override: true
-  #
-  #     - run: cargo check
+  build-windows:
+    name: Windows build and render test
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      # Windows links a prebuilt FFmpeg instead of compiling it (see README). The
+      # codec features of the examples request a from-source build, so only the
+      # core crates are built here.
+      FFMPEG_BUILD: ffmpeg-n9.0-latest-win64-gpl-shared-9.0
+      PACKAGES: -p fframes -p fframes-media -p webvtt-parser -p fframes-media-dir-macro -p svgr-macro -p e2e-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg 9
+        run: |
+          TMP_DIR="$(cygpath -u "$RUNNER_TEMP")"
+          curl -fsSL -o "$TMP_DIR/ffmpeg.zip" \
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$FFMPEG_BUILD.zip"
+          7z x "$TMP_DIR/ffmpeg.zip" -o"$TMP_DIR" > /dev/null
+          FFMPEG_DIR="$(cygpath -w "$TMP_DIR/$FFMPEG_BUILD")"
+          echo "FFMPEG_DIR=$FFMPEG_DIR" >> "$GITHUB_ENV"
+          # DLLs are loaded by the tests and by proc macros during compilation
+          echo "$FFMPEG_DIR\bin" >> "$GITHUB_PATH"
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> "$GITHUB_ENV"
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+          cache-on-failure: true
+          cache-key: "v1-rust-windows"
+          components: clippy
+
+      - name: Clippy
+        run: |
+          cargo clippy $PACKAGES --tests -- -D warnings -A clippy::option-map-unit-fn \
+            -A clippy::module_inception -A clippy::single-match -A clippy::single-range-in-vec-init
+
+      - name: Unit tests
+        run: cargo test -p fframes -p fframes-media -p webvtt-parser -p fframes-media-dir-macro
+
+      - name: Render a video
+        run: cargo test -p e2e-tests --test render_smoke -- --nocapture

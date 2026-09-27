@@ -1,0 +1,29 @@
+[package]
+name = "fframes_native_player"
+description = "Real-time native preview window for fframes videos, rendered with Skia"
+version = "1.0.0-beta.6.rc-3.2"
+edition = "2024"
+license = "MIT"
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+
+[lib]
+doctest = false
+
+[dependencies]
+fframes.workspace = true
+fframes_skia_renderer.workspace = true
+winit = "0.30"
+softbuffer = "0.4"
+cpal = { version = "0.18", optional = true }
+
+[dev-dependencies]
+fframes = { workspace = true, features = ["compile-time-svgtree"] }
+hello-world-example = { path = "../examples/hello-world" }
+
+[features]
+default = ["vulkan", "audio"]
+audio = ["cpal"]
+# At least one GPU backend is required to build Skia with Ganesh. The player falls back
+# to the Skia CPU raster backend at runtime if the GPU backend can not be initialized.
+vulkan = ["fframes_skia_renderer/vulkan"]
+metal = ["fframes_skia_renderer/metal"]

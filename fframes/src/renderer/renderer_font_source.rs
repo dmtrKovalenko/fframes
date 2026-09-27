@@ -50,7 +50,7 @@ impl RendererFontSource {
         self.fontdb.load_fonts_dir(path);
     }
 
-    /// Locates and loads the fonts installed on this machine.
+    /// Loads the fonts installed on the system (see `RenderOptions::load_system_fonts`).
     pub fn load_system_fonts(&mut self) {
         self.fontdb.load_system_fonts();
     }
