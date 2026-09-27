@@ -231,6 +231,7 @@ impl Encoder {
                     logger.log_audio_frame();
                     audio_frame_pts += frame_size;
                 }
+                self.flush_stream(audio_stream)?;
 
                 logger.finish_audio_encoding();
             }

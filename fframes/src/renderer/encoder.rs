@@ -156,6 +156,13 @@ pub struct EncoderOptions<'a> {
 impl EncoderOptions<'_> {
     /// Split video for concurrent rendering taking into account the GOP size
     /// to make sure that individual chunks are never less than 2xGOP size.
+    /// The shortest part of a video the renderers encode separately. Every part starts
+    /// with a keyframe, so it is never shorter than a GOP or than a second of video,
+    /// whichever is smaller.
+    pub fn min_segment_frames(&self, fps: usize) -> usize {
+        (self.gop_size.max(1) as usize).min(fps.max(1))
+    }
+
     pub fn split_gop_chunks(
         &self,
         duration_in_frames: usize,
@@ -410,23 +417,58 @@ impl Encoder {
         }
     }
 
-    pub unsafe fn submit_leftover_b_frames(
-        &self,
-        frame: &EncoderFrame,
-        stream: &stream::Stream,
-        expected_frames_in_stream: usize,
-    ) -> RenderEncodingResult<()> {
+    /// Signals the end of the stream to the codec and writes every packet it still
+    /// holds (lookahead, frame threads, B-frames). The stream can not receive frames
+    /// afterwards.
+    pub unsafe fn flush_stream(&self, stream: &stream::Stream) -> RenderEncodingResult<()> {
         unsafe {
-            let submitted_frames = self.video_stream.get_frames_in_stream() as usize;
-
-            if submitted_frames < expected_frames_in_stream {
-                for _ in 0..expected_frames_in_stream - submitted_frames {
-                    self.send_frame(stream, frame)?;
-                }
+            let status = avcodec_send_frame(stream.enc, std::ptr::null());
+            if status < 0 && status != AVERROR_EOF {
+                return Err(renderer_error::RenderEncodingError::CantEncodeFrame {
+                    error: av_error_to_string(status),
+                    pts: None,
+                });
             }
 
-            Ok(())
+            let mut packet = av_packet_alloc();
+            let result = loop {
+                let status = avcodec_receive_packet(stream.enc, packet);
+                if status == AVERROR_EOF || status == FFMPEG_AVERROR(EAGAIN) {
+                    break Ok(());
+                }
+                if status < 0 {
+                    break Err(renderer_error::RenderEncodingError::CantEncodeFrame {
+                        error: format!(
+                            "avcodec_receive_packet failed: {}",
+                            av_error_to_string(status)
+                        ),
+                        pts: None,
+                    });
+                }
+
+                av_packet_rescale_ts(packet, (*stream.enc).time_base, (*stream.st).time_base);
+                (*packet).stream_index = (*stream.st).index;
+                let status = av_interleaved_write_frame(self.oc, packet);
+                if status < 0 {
+                    break Err(renderer_error::RenderEncodingError::CantWriteFrame(
+                        av_error_to_string(status),
+                    ));
+                }
+            };
+            av_packet_free(&mut packet);
+
+            result
         }
+    }
+
+    /// Finishes the video stream, see [`Self::flush_stream`].
+    pub unsafe fn submit_leftover_b_frames(
+        &self,
+        _frame: &EncoderFrame,
+        stream: &stream::Stream,
+        _expected_frames_in_stream: usize,
+    ) -> RenderEncodingResult<()> {
+        unsafe { self.flush_stream(stream) }
     }
 }
 
