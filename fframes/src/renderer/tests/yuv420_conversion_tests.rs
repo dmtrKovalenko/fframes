@@ -24,7 +24,7 @@ impl TestImage {
 
     fn with_solid_color(width: i32, height: i32, r: u8, g: u8, b: u8, a: u8) -> Self {
         let mut img = Self::new(width, height);
-        for chunk in img.rgba_pixels.chunks_exact_mut(4) {
+        for chunk in img.rgba_pixels.as_chunks_mut::<4>().0 {
             chunk[0] = r;
             chunk[1] = g;
             chunk[2] = b;
@@ -35,7 +35,7 @@ impl TestImage {
 
     fn random(width: i32, height: i32) -> Self {
         let mut img = Self::new(width, height);
-        for chunk in img.rgba_pixels.chunks_exact_mut(4) {
+        for chunk in img.rgba_pixels.as_chunks_mut::<4>().0 {
             chunk[0] = rand::random();
             chunk[1] = rand::random();
             chunk[2] = rand::random();
