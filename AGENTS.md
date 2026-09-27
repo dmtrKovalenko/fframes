@@ -227,6 +227,7 @@ cargo test -- --nocapture
 /fframes                   # Core: Video/Scene traits, svgr! trees, animation, text, CPU renderer, encoding
 /fframes-media             # Audio/video decoding (ffmpeg), fonts, images, subtitles
 /fframes-skia-renderer     # Optional Skia backend (GPU via vulkan/metal, or Skia CPU)
+/fframes-native-player     # Real-time preview window: fframes_native_player::play(&video, &PlayerOptions)
 /fframes-editor            # Web editor UI (ReScript + React), published as @fframes/editor
 /fframes-editor-controller # WASM bridge between a Video impl and the editor
 /fframes-test-utils        # Snapshot helpers for svgr! trees

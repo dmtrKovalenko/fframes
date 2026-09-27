@@ -49,6 +49,11 @@ impl RendererFontSource {
     pub fn read_folder(&mut self, path: impl AsRef<Path>) {
         self.fontdb.load_fonts_dir(path);
     }
+
+    /// Loads the fonts installed on the system (see `RenderOptions::load_system_fonts`).
+    pub fn load_system_fonts(&mut self) {
+        self.fontdb.load_system_fonts();
+    }
 }
 
 impl<'a> crate::FontSource<'a> for RendererFontSource {
