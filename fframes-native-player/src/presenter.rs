@@ -4,24 +4,14 @@ use std::rc::Rc;
 use fframes::usvgr;
 use fframes_skia_renderer::render::RenderCache;
 use fframes_skia_renderer::skia_safe::{
-    self, AlphaType, Color, ColorType, ImageInfo, Paint, Rect, Surface, gpu,
+    self, AlphaType, Color, ColorType, ImageInfo, Rect, Surface, gpu,
 };
 use fframes_skia_renderer::{SkiaBackend, SkiaCpuCtx};
 use winit::window::Window;
 
+use crate::controls::{Controls, ControlsLayout, ControlsState};
 use crate::error::{PlayerError, PlayerResult};
 use crate::options::PlayerBackend;
-
-/// Everything drawn over the video.
-pub(crate) struct Overlay {
-    pub visible: bool,
-    /// Playback progress in `0.0..=1.0`.
-    pub progress: f32,
-    pub paused: bool,
-}
-
-/// Height of the seek area at the bottom of the window in logical pixels.
-pub(crate) const SEEK_BAR_HIT_HEIGHT: f64 = 32.0;
 
 // Fields drop in declaration order: skia resources first, then the context, then the
 // backend that owns the device.
@@ -33,6 +23,10 @@ pub(crate) struct Presenter {
     window_surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
     window: Rc<Window>,
     background: Color,
+    controls: Controls,
+    layout: ControlsLayout,
+    /// The longest time label, sizes the time slots of the control bar.
+    duration_label: String,
 }
 
 impl Presenter {
@@ -40,10 +34,20 @@ impl Presenter {
         window: Rc<Window>,
         backend: PlayerBackend,
         background: fframes::Color,
+        duration_label: String,
     ) -> PlayerResult<Self> {
         let context = softbuffer::Context::new(window.clone())?;
         let window_surface = softbuffer::Surface::new(&context, window.clone())?;
         let (backend, gpu_context) = create_backend(backend)?;
+        let controls = Controls::new();
+        let size = window.inner_size();
+        let layout = ControlsLayout::new(
+            &controls,
+            &duration_label,
+            size.width as f32,
+            size.height as f32,
+            window.scale_factor() as f32,
+        );
 
         let mut presenter = Self {
             surface: None,
@@ -53,6 +57,9 @@ impl Presenter {
             window_surface,
             window,
             background: Color::from_argb(background.a, background.r, background.g, background.b),
+            controls,
+            layout,
+            duration_label,
         };
 
         presenter.resize()?;
@@ -61,6 +68,11 @@ impl Presenter {
 
     pub(crate) fn is_gpu(&self) -> bool {
         self.gpu_context.is_some()
+    }
+
+    /// Where the control bar is for the current window size, in physical pixels.
+    pub(crate) fn controls_layout(&self) -> &ControlsLayout {
+        &self.layout
     }
 
     /// Recreates the surfaces for the current window size.
@@ -74,6 +86,13 @@ impl Presenter {
         };
 
         self.window_surface.resize(width, height)?;
+        self.layout = ControlsLayout::new(
+            &self.controls,
+            &self.duration_label,
+            size.width as f32,
+            size.height as f32,
+            self.window.scale_factor() as f32,
+        );
 
         let info = surface_image_info(size.width, size.height);
         let surface = match self.gpu_context.as_mut() {
@@ -100,13 +119,12 @@ impl Presenter {
         Ok(())
     }
 
-    /// Renders `tree` letterboxed into the window with the overlay on top and presents it.
+    /// Renders `tree` letterboxed into the window with the controls on top and presents it.
     pub(crate) fn present(
         &mut self,
         tree: Option<&usvgr::Tree>,
-        overlay: &Overlay,
+        controls: &ControlsState,
     ) -> PlayerResult<()> {
-        let scale_factor = self.window.scale_factor() as f32;
         let Some(surface) = self.surface.as_mut() else {
             return Ok(());
         };
@@ -134,9 +152,7 @@ impl Presenter {
             canvas.restore();
         }
 
-        if overlay.visible {
-            draw_overlay(canvas, overlay, width as f32, height as f32, scale_factor);
-        }
+        self.controls.draw(canvas, &self.layout, controls);
 
         // Video frame images point into the tree's pixel buffers: wait for the GPU so the
         // tree can be dropped as soon as the next frame replaces it.
@@ -173,40 +189,6 @@ fn surface_image_info(width: u32, height: u32) -> ImageInfo {
         AlphaType::Premul,
         None,
     )
-}
-
-fn draw_overlay(
-    canvas: &skia_safe::Canvas,
-    overlay: &Overlay,
-    width: f32,
-    height: f32,
-    scale_factor: f32,
-) {
-    let bar_height = 4. * scale_factor;
-    let top = height - bar_height;
-
-    let mut paint = Paint::default();
-    paint.set_anti_alias(true);
-
-    paint.set_color(Color::from_argb(110, 255, 255, 255));
-    canvas.draw_rect(Rect::from_xywh(0., top, width, bar_height), &paint);
-
-    paint.set_color(Color::from_rgb(255, 72, 72));
-    canvas.draw_rect(
-        Rect::from_xywh(0., top, width * overlay.progress.clamp(0., 1.), bar_height),
-        &paint,
-    );
-
-    if overlay.paused {
-        // Two vertical bars in the bottom-left corner.
-        let size = 14. * scale_factor;
-        let left = 12. * scale_factor;
-        let bottom = top - 10. * scale_factor;
-        paint.set_color(Color::from_argb(200, 255, 255, 255));
-        for x in [left, left + size * 0.6] {
-            canvas.draw_rect(Rect::from_xywh(x, bottom - size, size * 0.35, size), &paint);
-        }
-    }
 }
 
 type Backend = (Box<dyn SkiaBackend>, Option<gpu::DirectContext>);

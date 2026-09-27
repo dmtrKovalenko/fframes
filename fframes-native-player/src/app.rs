@@ -7,12 +7,16 @@ use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::{Key, NamedKey};
-use winit::window::{Window, WindowId};
+use winit::window::{CursorIcon, Fullscreen, Window, WindowId};
 
+use crate::controls::{Control, ControlsState, format_time};
 use crate::error::PlayerError;
 use crate::options::PlayerBackend;
-use crate::presenter::{Overlay, Presenter, SEEK_BAR_HIT_HEIGHT};
+use crate::presenter::Presenter;
 use crate::scheduler::Scheduler;
+
+/// The control bar hides after this long without pointer movement while playing.
+const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
 
 /// Sent by the frame workers whenever a frame becomes available.
 #[derive(Debug, Clone, Copy)]
@@ -80,10 +84,15 @@ pub(crate) struct App<'s> {
     clock: Clock,
     looping: bool,
     current: Option<(u64, usvgr::Tree)>,
-    show_overlay: bool,
+    /// Toggled with `b`.
+    controls_enabled: bool,
+    controls_visible: bool,
     needs_redraw: bool,
 
     cursor: PhysicalPosition<f64>,
+    cursor_inside: bool,
+    last_pointer_activity: Instant,
+    hovered: Option<Control>,
     seeking_with_mouse: bool,
 
     stats_since: Instant,
@@ -115,9 +124,13 @@ impl<'s> App<'s> {
             error: None,
             clock,
             current: None,
-            show_overlay: true,
+            controls_enabled: true,
+            controls_visible: true,
             needs_redraw: true,
             cursor: PhysicalPosition::default(),
+            cursor_inside: false,
+            last_pointer_activity: now,
+            hovered: None,
             seeking_with_mouse: false,
             stats_since: now,
             frames_shown: 0,
@@ -185,6 +198,12 @@ impl<'s> App<'s> {
         if let Some(frame) = self.scheduler.take(position) {
             self.current = Some(frame);
             self.frames_shown += 1;
+            self.needs_redraw = true;
+        }
+
+        let controls_visible = self.controls_should_be_visible();
+        if controls_visible != self.controls_visible {
+            self.controls_visible = controls_visible;
             self.needs_redraw = true;
         }
 
@@ -267,9 +286,10 @@ impl<'s> App<'s> {
                 self.seek_to(frame as u64, playing);
             }
             Key::Character("b") => {
-                self.show_overlay = !self.show_overlay;
+                self.controls_enabled = !self.controls_enabled;
                 self.needs_redraw = true;
             }
+            Key::Character("f") => self.toggle_fullscreen(),
             Key::Character(digit) if digit.len() == 1 && digit.as_bytes()[0].is_ascii_digit() => {
                 let tenth = (digit.as_bytes()[0] - b'0') as i64;
                 self.seek_to_frame(self.config.duration_in_frames as i64 * tenth / 10);
@@ -284,31 +304,126 @@ impl<'s> App<'s> {
         self.seek_to(frame, false);
     }
 
-    fn seek_to_cursor(&mut self) {
+    fn toggle_fullscreen(&mut self) {
         let Some(window) = &self.window else { return };
-        let width = window.inner_size().width.max(1) as f64;
-        let progress = (self.cursor.x / width).clamp(0., 1.);
+        let fullscreen = match window.fullscreen() {
+            Some(_) => None,
+            None => Some(Fullscreen::Borderless(None)),
+        };
+        window.set_fullscreen(fullscreen);
+    }
+
+    fn is_fullscreen(&self) -> bool {
+        self.window
+            .as_ref()
+            .is_some_and(|window| window.fullscreen().is_some())
+    }
+
+    /// Always shown while paused, while playing only after recent pointer activity.
+    fn controls_should_be_visible(&self) -> bool {
+        self.controls_enabled
+            && (!self.clock.is_playing()
+                || self.seeking_with_mouse
+                || (self.cursor_inside && self.hovered.is_some())
+                || self.last_pointer_activity.elapsed() < CONTROLS_IDLE_TIMEOUT)
+    }
+
+    fn control_under_cursor(&self) -> Option<Control> {
+        if !self.controls_visible {
+            return None;
+        }
+
+        self.presenter.as_ref().and_then(|presenter| {
+            presenter
+                .controls_layout()
+                .hit(self.cursor.x as f32, self.cursor.y as f32)
+        })
+    }
+
+    fn seek_to_cursor(&mut self) {
+        let Some(presenter) = &self.presenter else {
+            return;
+        };
+        let progress = presenter
+            .controls_layout()
+            .progress_at(self.cursor.x as f32) as f64;
         let frame = (progress * self.last_frame() as f64).round() as i64;
         self.seek_to_frame(frame);
     }
 
-    fn is_cursor_on_seek_bar(&self) -> bool {
-        self.window.as_ref().is_some_and(|window| {
-            let bar_top =
-                window.inner_size().height as f64 - SEEK_BAR_HIT_HEIGHT * window.scale_factor();
-            self.cursor.y >= bar_top
-        })
+    fn on_pointer_moved(&mut self, position: PhysicalPosition<f64>) {
+        self.cursor = position;
+        self.cursor_inside = true;
+        self.last_pointer_activity = Instant::now();
+
+        if self.seeking_with_mouse {
+            self.seek_to_cursor();
+        }
+
+        let hovered = self.control_under_cursor();
+        if hovered != self.hovered {
+            self.hovered = hovered;
+            self.needs_redraw = true;
+
+            if let Some(window) = &self.window {
+                window.set_cursor(match hovered {
+                    None | Some(Control::Bar) => CursorIcon::Default,
+                    Some(_) => CursorIcon::Pointer,
+                });
+            }
+        }
+
+        // Bring the controls back without waiting for the next frame.
+        if !self.controls_visible && self.controls_should_be_visible() {
+            self.controls_visible = true;
+            self.needs_redraw = true;
+        }
+        if self.needs_redraw
+            && let Some(window) = &self.window
+        {
+            window.request_redraw();
+        }
+    }
+
+    fn on_pointer_pressed(&mut self) {
+        let frame = self.current_frame() as i64;
+        let second = self.config.fps as i64;
+
+        match self.control_under_cursor() {
+            Some(Control::Back) => self.seek_to_frame(frame - second),
+            Some(Control::PlayPause) => self.toggle_play(),
+            Some(Control::Forward) => self.seek_to_frame(frame + second),
+            Some(Control::Seek) => {
+                self.seeking_with_mouse = true;
+                self.seek_to_cursor();
+            }
+            Some(Control::Loop) => {
+                self.looping = !self.looping;
+                let playing = self.clock.is_playing();
+                self.seek_to(frame as u64, playing);
+            }
+            Some(Control::Fullscreen) => self.toggle_fullscreen(),
+            Some(Control::Bar) => {}
+            // Clicking the video itself toggles playback
+            None => self.toggle_play(),
+        }
+        self.needs_redraw = true;
     }
 
     fn redraw(&mut self) -> Result<(), PlayerError> {
-        let overlay = Overlay {
-            visible: self.show_overlay,
-            progress: self.current_frame() as f32 / self.last_frame().max(1) as f32,
-            paused: !self.clock.is_playing(),
+        let controls = ControlsState {
+            visible: self.controls_visible,
+            frame: self.current_frame(),
+            duration_in_frames: self.config.duration_in_frames,
+            fps: self.config.fps,
+            playing: self.clock.is_playing(),
+            looping: self.looping,
+            fullscreen: self.is_fullscreen(),
+            hovered: self.hovered,
         };
 
         if let Some(presenter) = self.presenter.as_mut() {
-            presenter.present(self.current.as_ref().map(|(_, tree)| tree), &overlay)?;
+            presenter.present(self.current.as_ref().map(|(_, tree)| tree), &controls)?;
         }
 
         Ok(())
@@ -335,7 +450,13 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             Err(err) => return self.fail(event_loop, err.into()),
         };
 
-        match Presenter::new(window.clone(), self.config.backend, self.config.background) {
+        let duration_label = format_time(self.config.duration_in_frames, self.config.fps);
+        match Presenter::new(
+            window.clone(),
+            self.config.backend,
+            self.config.background,
+            duration_label,
+        ) {
             Ok(presenter) => self.presenter = Some(presenter),
             Err(err) => return self.fail(event_loop, err),
         }
@@ -363,10 +484,11 @@ impl ApplicationHandler<FrameReady> for App<'_> {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => self.handle_key(event_loop, event),
-            WindowEvent::CursorMoved { position, .. } => {
-                self.cursor = position;
-                if self.seeking_with_mouse {
-                    self.seek_to_cursor();
+            WindowEvent::CursorMoved { position, .. } => self.on_pointer_moved(position),
+            WindowEvent::CursorLeft { .. } => {
+                self.cursor_inside = false;
+                if self.hovered.take().is_some() {
+                    self.needs_redraw = true;
                 }
             }
             WindowEvent::MouseInput {
@@ -374,11 +496,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
                 button: MouseButton::Left,
                 ..
             } => match state {
-                ElementState::Pressed if self.is_cursor_on_seek_bar() => {
-                    self.seeking_with_mouse = true;
-                    self.seek_to_cursor();
-                }
-                ElementState::Pressed => self.toggle_play(),
+                ElementState::Pressed => self.on_pointer_pressed(),
                 ElementState::Released => self.seeking_with_mouse = false,
             },
             _ => {}
@@ -394,9 +512,4 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             None => ControlFlow::Wait,
         });
     }
-}
-
-fn format_time(frame: usize, fps: usize) -> String {
-    let seconds = frame as f64 / fps.max(1) as f64;
-    format!("{}:{:05.2}", (seconds / 60.) as u64, seconds % 60.)
 }

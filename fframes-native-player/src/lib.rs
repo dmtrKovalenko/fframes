@@ -19,8 +19,9 @@
 //! - `h`/`l` or `←`/`→`: seek one second back/forward
 //! - `j`/`k` or `↓`/`↑` (also `,`/`.`): step one frame back/forward, pauses
 //! - `g`/`G` or `Home`/`End`: first/last frame, `0`-`9`: jump to 0-90%
-//! - click or drag the progress bar: seek, `b`: hide the progress bar
-//! - `r`: toggle looping, `q`/`Esc`: quit
+//! - the control bar (shown while paused or when the pointer moves): back, play/pause,
+//!   forward, a seek slider, looping and full screen, `b` hides it
+//! - `r`: toggle looping, `f`: full screen, `q`/`Esc`: quit
 //!
 //! [`play`] must be called from the main thread and only once per process (a winit
 //! requirement on macOS).
@@ -28,7 +29,9 @@
 mod app;
 #[cfg(feature = "audio")]
 mod audio;
+mod controls;
 mod error;
+mod icons;
 mod options;
 mod presenter;
 mod scheduler;
