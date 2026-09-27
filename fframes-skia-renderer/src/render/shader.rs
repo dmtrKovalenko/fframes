@@ -1,12 +1,3 @@
-//! Execution of `fframes::Shader` layers as Skia runtime effects.
-//!
-//! A shader layer reaches the renderer as an `<image>` whose pixels are a
-//! placeholder registered by `Shader::draw`. Instead of drawing the
-//! placeholder, the renderer builds an `SkRuntimeEffect` shader and fills the
-//! element rect with it on the same canvas, so the program runs on the GPU
-//! surface (or Skia's CPU raster pipeline) with the current transform, clip
-//! and layer opacity applied.
-
 use std::collections::{HashMap, HashSet};
 
 use fframes::{ShaderDraw, ShaderUniformValue, usvgr};

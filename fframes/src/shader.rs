@@ -1,37 +1,3 @@
-//! GPU shader layers.
-//!
-//! A [`Shader`] is an SkSL program (or a Shadertoy-style GLSL `mainImage`).
-//! The Skia backend runs it on its own GPU surface while drawing the frame,
-//! so the pixels never leave the GPU and SVG transforms, clips, masks and
-//! opacity apply to the layer as they do to any other element.
-//!
-//! ```rust
-//! // once, in the constructor
-//! let plasma = Shader::sksl(include_str!("plasma.sksl"));
-//!
-//! // in render_frame
-//! let layer = self.plasma.draw(&frame, ShaderUniforms::new().float("uSpeed", 0.4));
-//! svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
-//! ```
-//!
-//! [`Shader::draw`] returns an image placeholder that carries the draw request
-//! to the renderer. Only the Skia backend (GPU or Skia CPU) executes shaders;
-//! the built-in tiny-skia CPU backend draws nothing in their place and the
-//! editor shows a static placeholder.
-//!
-//! Built-in uniforms are filled in when the shader declares them:
-//!
-//! | name          | type     | value                                          |
-//! |---------------|----------|------------------------------------------------|
-//! | `iResolution` | `float3` | width and height of the `<image>` element, `1` |
-//! | `iTime`       | `float`  | `frame.seconds()`                              |
-//! | `iTimeDelta`  | `float`  | `1 / fps`                                      |
-//! | `iFrame`      | `int`    | `frame.index`                                  |
-//!
-//! The coordinate passed to `main(float2 coord)` is in the element's own
-//! units with the origin at its top-left corner, so a shader is resolution
-//! independent: it is evaluated per output pixel whatever the SVG scale is.
-
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -274,12 +240,6 @@ pub fn resolve_shader_draw(image: &Arc<usvgr::PreloadedImageData>) -> Option<Arc
 
 #[cfg(not(target_arch = "wasm32"))]
 mod registry {
-    //! Carries draw requests from `render_frame` (frame generator thread) to
-    //! the renderer thread. The request is keyed by the address of the
-    //! placeholder image `Arc` that travels inside the svg tree, and holds a
-    //! `Weak` to it, so an entry is valid exactly as long as the tree that
-    //! references it and a recycled address can never resolve to a stale draw.
-
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Arc, Mutex, Weak};

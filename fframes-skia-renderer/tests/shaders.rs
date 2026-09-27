@@ -1,6 +1,3 @@
-//! `fframes::Shader` layers are executed by the Skia renderer as runtime
-//! effects in place of their placeholder `<image>`.
-
 use std::sync::Arc;
 
 use fframes::media::{ImageData, ImageMetadata};
