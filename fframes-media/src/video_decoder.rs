@@ -316,7 +316,11 @@ impl FFmpegFrameBuf {
 
             // fast path for the cpu renderer which will always have capacity 1
             if queue.capacity() == 1 && queue.len() == 1 {
-                return queue.get_mut(0);
+                // the pts identifies the image (and its renderer cache entries), it has to
+                // follow the pixels
+                let image = queue.get_mut(0)?;
+                image.pts = latest_pts;
+                return Some(image);
             }
 
             if queue.len() == queue.capacity() {
