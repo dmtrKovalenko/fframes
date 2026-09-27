@@ -25,7 +25,7 @@ watch-editor:
 
 watch-example-build example:
   cd examples/{{example}}/editor/editor-bridge && \
-  cargo watch -i ../../../../.gitignore -s "wasm-pack build  --target web --dev"
+  cargo watch -i pkg -s "wasm-pack build  --target web --dev"
 
 start-example example:
   cd examples/{{example}}/editor && yarn dev
