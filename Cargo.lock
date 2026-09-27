@@ -2042,6 +2042,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "neon-triangle-bridge-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "fframes-editor-controller",
+ "neon-triangle-example",
+ "once_cell",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "neon-triangle-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "clap",
+ "fframes",
+ "fframes_skia_renderer",
+ "image",
+]
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3260,6 +3280,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e24345aa0fe688594e73770a5f6d1b216508b4f93484c0026d521acd30134392"
 dependencies = [
  "serde_core",
+]
+
+[[package]]
+name = "shaders-bridge-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "fframes-editor-controller",
+ "once_cell",
+ "shaders-example",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "shaders-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "clap",
+ "fframes",
+ "fframes_skia_renderer",
+ "image",
 ]
 
 [[package]]

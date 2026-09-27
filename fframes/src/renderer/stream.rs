@@ -176,6 +176,14 @@ impl Stream {
             }
 
             (*c).pix_fmt = encoder_options.pixel_format;
+            // Both RGBA → YUV paths (the built-in yuv420 converter and
+            // swscale's default) produce BT.601 limited range. Say so: an
+            // untagged HD stream is decoded as BT.709, shifting colors.
+            let pix_fmt_desc = av_pix_fmt_desc_get(encoder_options.pixel_format);
+            if !pix_fmt_desc.is_null() && (*pix_fmt_desc).flags & AV_PIX_FMT_FLAG_RGB as u64 == 0 {
+                (*c).color_range = AVColorRange::AVCOL_RANGE_MPEG;
+                (*c).colorspace = AVColorSpace::AVCOL_SPC_SMPTE170M;
+            }
             (*c).gop_size = encoder_options.gop_size;
             (*c).qmin = encoder_options.qmin;
             (*c).qmax = encoder_options.qmax;

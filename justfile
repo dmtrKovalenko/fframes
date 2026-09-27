@@ -81,7 +81,7 @@ check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown
 
 check-examples:
-  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast && just check-wasm motion-graphics
+  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast && just check-wasm motion-graphics && just check-wasm shaders && just check-wasm neon-triangle
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg

@@ -500,6 +500,41 @@ let bars = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
 let phrase = ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s));
 ```
 
+### 7b. GPU shaders (Skia backend)
+
+`fframes::Shader` runs SkSL (or pasted Shadertoy GLSL) on the Skia backend's GPU surface
+while it draws the frame. The pixels never leave the GPU, and SVG transforms, clips, masks
+and opacity apply to the layer like to any element. See `examples/shaders` and
+`examples/neon-triangle`.
+
+```rust
+use fframes::{Shader, ShaderUniforms};
+
+// once, in the constructor (the renderer compiles and caches it by id)
+let aurora = Shader::sksl(include_str!("shaders/aurora.sksl")); // half4 main(float2 coord)
+let torus = Shader::shadertoy(include_str!("shaders/torus.glsl")); // void mainImage(out vec4, in vec2)
+
+// in render_frame
+let Some(photo) = ctx.get_image("photo.jpg") else { return Svgr::empty() };
+let layer = self.aurora.draw(&frame, ShaderUniforms::new()
+    .float("uSpeed", 0.6)
+    .color("uTint", frame.animate(&tint)) // uniform float4 uTint;
+    .image("iChannel0", photo));          // uniform shader iChannel0; sample with iChannel0.eval(px)
+fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
+```
+
+- Built-ins filled in when declared: `iResolution` (float3, the `<image>` width/height),
+  `iTime`, `iTimeDelta`, `iFrame` (int). `coord` is in the element's units, origin top-left
+  (Shadertoy's `fragCoord` is flipped to bottom-left for you).
+- SkSL follows GLSL ES 2: constant loop bounds, no `while`, no dynamic array indexing, no
+  preprocessor. `Shader::shadertoy` expands object-like `#define`s and drops `precision`;
+  function-like macros and `texture()` must be rewritten.
+- Compile errors are logged once and the layer is skipped. Catch them in a test with
+  `fframes_skia_renderer::render::compile_shader(&shader)`.
+- Only the Skia backend (GPU, or `SkiaCpuCtx`) executes shaders. The tiny-skia CPU backend
+  draws nothing in their place, and the editor shows a placeholder.
+- Requires the `compile-time-svgtree` feature (the default `renderer` feature of the examples).
+
 ### 8. Render it
 
 `main.rs` calls `fframes::render(output, &video, backend, &options)`; keep the CLI flags of the

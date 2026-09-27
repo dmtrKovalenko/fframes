@@ -11,6 +11,9 @@ mod convert;
 mod filters;
 mod fingerprint;
 mod image;
+mod shader;
+
+pub use shader::compile_shader;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -137,6 +140,8 @@ pub struct RenderCache {
     /// `Arc<PreloadedImageData>` address → Skia image viewing its pixels.
     /// Video frames come as a fresh `Arc` every frame and simply age out.
     images: Generational<SkiaImage>,
+    /// Compiled `fframes::Shader` programs, see [`shader`].
+    shaders: shader::ShaderCache,
     /// Groups with filters rendered into GPU images, see [`render_cached_filtered_layer`].
     filtered_layers: Generational<FilteredLayer>,
     /// `static_hash` → whether the static subtree contains filters, such subtrees are
@@ -578,6 +583,8 @@ fn render_folded_opacity(
             true
         }
         usvgr::Node::Image(image) => match image.kind() {
+            // shader images are drawn by the shader path
+            usvgr::ImageKind::DATA(img) if fframes::resolve_shader_draw(img).is_some() => false,
             usvgr::ImageKind::DATA(img) => {
                 render_raster_image_with_alpha(image, img, canvas, cache, alpha);
                 true
@@ -915,6 +922,11 @@ pub(super) fn render_image_kind(
 ) {
     match kind {
         usvgr::ImageKind::DATA(data) => {
+            if let Some(draw) = fframes::resolve_shader_draw(data) {
+                shader::render_shader(&draw, view_box, canvas, cache);
+                return;
+            }
+
             render_raster_image(data, view_box, rendering_mode, canvas, cache, 1.0);
         }
         usvgr::ImageKind::SVG { tree, .. } => {

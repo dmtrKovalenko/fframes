@@ -55,6 +55,16 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
             font_db,
         )?;
 
+        // A fresh GPU surface holds undefined memory; match the pipeline,
+        // which clears every frame to the video background.
+        let background = TVideo::BACKGROUND_COLOR;
+        surface.canvas().clear(skia_safe::Color::from_argb(
+            background.a,
+            background.r,
+            background.g,
+            background.b,
+        ));
+
         let mut render_cache = crate::render::RenderCache::new();
         crate::render::render_tree(&rtree, surface.canvas(), &mut render_cache);
 

@@ -37,6 +37,10 @@ members = [
     "examples/pixel-memory/editor/editor-bridge",
     "examples/motion-graphics",
     "examples/motion-graphics/editor/editor-bridge",
+    "examples/shaders",
+    "examples/shaders/editor/editor-bridge",
+    "examples/neon-triangle",
+    "examples/neon-triangle/editor/editor-bridge",
 
     # maybe clean this up?
     # "fframes-lyon-renderer",
