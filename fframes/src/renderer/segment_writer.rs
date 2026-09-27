@@ -20,6 +20,11 @@ struct Segment {
 
 type SegmentSlot = Arc<Mutex<Option<Segment>>>;
 
+enum FramePixels<'p> {
+    Borrowed(&'p [u8]),
+    Owned(Vec<u8>),
+}
+
 /// Encodes the frames handed out by a [`super::FrameScheduler`] into one intermediate
 /// file per segment. Frames of a segment may arrive out of order from several threads;
 /// they are encoded in order and the file is finalized as soon as its last frame is in.
@@ -64,6 +69,26 @@ impl<'a, 'o, 'm> SegmentWriter<'a, 'o, 'm> {
 
     /// Encodes the RGBA pixels of a claimed frame.
     pub fn submit(&self, claim: FrameClaim, rgba: &[u8]) -> RenderEncodingResult<()> {
+        self.submit_pixels(claim, FramePixels::Borrowed(rgba))
+            .map(|_| ())
+    }
+
+    /// Like [`Self::submit`] but takes the buffer, so a frame that arrives early is kept
+    /// without copying. Returns the buffers that are not needed anymore.
+    pub fn submit_owned(
+        &self,
+        claim: FrameClaim,
+        rgba: Vec<u8>,
+    ) -> RenderEncodingResult<Vec<Vec<u8>>> {
+        self.submit_pixels(claim, FramePixels::Owned(rgba))
+    }
+
+    fn submit_pixels(
+        &self,
+        claim: FrameClaim,
+        pixels: FramePixels,
+    ) -> RenderEncodingResult<Vec<Vec<u8>>> {
+        let mut released = Vec::new();
         let slot = self
             .open
             .lock()
@@ -101,12 +126,23 @@ impl<'a, 'o, 'm> SegmentWriter<'a, 'o, 'm> {
         }
 
         if claim.frame == segment.next_frame {
-            Self::encode(segment, claim.frame, rgba)?;
+            match pixels {
+                FramePixels::Borrowed(rgba) => Self::encode(segment, claim.frame, rgba)?,
+                FramePixels::Owned(rgba) => {
+                    Self::encode(segment, claim.frame, &rgba)?;
+                    released.push(rgba);
+                }
+            }
             while let Some(rgba) = segment.pending.remove(&segment.next_frame) {
                 Self::encode(segment, segment.next_frame, &rgba)?;
+                released.push(rgba);
             }
         } else {
-            segment.pending.insert(claim.frame, rgba.to_vec());
+            let rgba = match pixels {
+                FramePixels::Borrowed(rgba) => rgba.to_vec(),
+                FramePixels::Owned(rgba) => rgba,
+            };
+            segment.pending.insert(claim.frame, rgba);
         }
 
         if segment.end == Some(segment.next_frame) {
@@ -126,7 +162,7 @@ impl<'a, 'o, 'm> SegmentWriter<'a, 'o, 'm> {
                 .push((claim.segment, self.segment_path(claim.segment)));
         }
 
-        Ok(())
+        Ok(released)
     }
 
     fn encode(segment: &mut Segment, frame: usize, rgba: &[u8]) -> RenderEncodingResult<()> {

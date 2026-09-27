@@ -1,69 +1,37 @@
 use crate::SkiaBackend;
 use fframes::get_thread_count;
 use fframes::{
-    AudioTimelineSamples, FFramesContext, RenderOptions, ResolvedRenderingTimeline, TextCache,
-    Video, VideoDecodersWorker, usvgr,
+    AudioTimelineSamples, FFramesContext, FrameClaim, FrameScheduler, RenderOptions,
+    ResolvedRenderingTimeline, SegmentWriter, TextCache, Video, VideoDecodersWorker, usvgr,
 };
-use fframes::{
-    Encoder, EncoderFrame, EncoderOutput, FFramesLogger, FFramesRendererError,
-    FFramesRendererResult, RenderEncodingResult,
-};
-use std::ops::Range;
+use fframes::{FFramesLogger, FFramesRendererError, FFramesRendererResult, concatenator};
 use std::path::Path;
-use std::sync::Arc;
-#[cfg(feature = "debug")]
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 #[cfg(feature = "debug")]
 use std::time::Instant;
 
-struct FrameRequest {
-    frame: usize,
-    tree: usvgr::Tree,
-}
-
-impl Eq for FrameRequest {}
-impl PartialEq for FrameRequest {
-    fn eq(&self, other: &Self) -> bool {
-        self.frame == other.frame
-    }
-}
-impl PartialOrd for FrameRequest {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for FrameRequest {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.frame.cmp(&other.frame)
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-struct RenderPayload {
-    frame_index: usize,
-    pixels: Vec<u8>,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum SkiaPipelineConcurrencyPolicy {
-    /// If your machine has a lot of cores available we can maximize the performance by
-    /// spawning as much concurrent pipelines as possible. Make sure that the gpu access
-    /// is always limited, so it might be useful only in case your renderer worker is
-    /// spending too much time waiting.
+    /// Renders on as many GPU contexts as a third of the available threads. Every
+    /// context records and submits its frames in parallel, which keeps the GPU busy while
+    /// other contexts wait for their frames.
     MaxPerformance,
-    /// Specify the number of concurrent pipelines to spawn.
+    /// Render on the given number of GPU contexts.
     /// Make sure to always measure the performance on the final hardware to find the best value.
     Concurrency(usize),
-    /// This uses as much threads one as one pipeline is taking based on your configuration
+    /// Render on a single GPU context.
     OnePipeline,
 }
 
 /// Pipeline configuration
 #[derive(Debug, Clone, Copy)]
 pub struct SkiaPipelineConfig {
+    /// How many frames can wait between the pipeline stages.
     pub buffer_queue_size: usize,
+    /// The number of threads that build frame trees and encode the rendered frames.
     pub encoder_threads: usize,
     pub concurrency_policy: SkiaPipelineConcurrencyPolicy,
 }
@@ -78,148 +46,265 @@ impl Default for SkiaPipelineConfig {
     }
 }
 
-pub(crate) struct Pipeline<'b, 'a, 'media, TVideo: Video + Sync + Send, TBackend: SkiaBackend> {
+impl SkiaPipelineConfig {
+    pub(crate) fn gpu_contexts(&self) -> usize {
+        match self.concurrency_policy {
+            SkiaPipelineConcurrencyPolicy::MaxPerformance => get_thread_count() / 3,
+            SkiaPipelineConcurrencyPolicy::Concurrency(contexts) => contexts,
+            SkiaPipelineConcurrencyPolicy::OnePipeline => 1,
+        }
+        .max(1)
+    }
+}
+
+pub(crate) struct Pipeline<'p, 'a, 'media, TVideo: Video + Sync + Send, TBackend: SkiaBackend> {
     pub(crate) ctx: &'a FFramesContext<'a, 'media>,
     pub(crate) render_options: &'a RenderOptions<'a, 'media>,
     pub(crate) font_db: &'a usvgr::fontdb::Database,
-    pub(crate) frame_range: &'b Range<usize>,
-    pub(crate) include_audio: bool,
     pub(crate) logger: Arc<dyn FFramesLogger>,
-    pub(crate) output: &'b Path,
+    pub(crate) output: &'p Path,
     pub(crate) pipeline_config: SkiaPipelineConfig,
-    pub(crate) skia: &'b TBackend,
+    pub(crate) skia: &'p TBackend,
     pub(crate) timeline: &'a ResolvedRenderingTimeline<'a, AudioTimelineSamples>,
     pub(crate) usvg_options: &'a usvgr::Options<'a>,
     pub(crate) video: &'a TVideo,
     pub(crate) background_color: skia_safe::Color,
 }
 
-pub fn start<'a, 'b, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBackend>(
+struct RenderedFrame {
+    claim: FrameClaim,
+    pixels: Vec<u8>,
+}
+
+/// Recycled frame buffers, a 1080p frame is 8MB and allocating it every frame is not free.
+#[derive(Default)]
+struct BufferPool(Mutex<Vec<Vec<u8>>>);
+
+impl BufferPool {
+    fn take(&self, size: usize) -> Vec<u8> {
+        self.0
+            .lock()
+            .unwrap()
+            .pop()
+            .filter(|buffer| buffer.len() == size)
+            .unwrap_or_else(|| vec![0; size])
+    }
+
+    fn give_back(&self, buffers: impl IntoIterator<Item = Vec<u8>>) {
+        self.0.lock().unwrap().extend(buffers);
+    }
+}
+
+/// Renders a video through three pools of threads connected by bounded queues:
+///
+/// ```text
+/// generators (Video::render_frame + usvgr tree) ──► GPU contexts (draw + readback)
+///                                                        │
+///       segment files ◄── SegmentWriter ◄── encoders ◄───┘
+/// ```
+///
+/// The [`FrameScheduler`] gives every generator a contiguous range of frames that is
+/// encoded as a separate segment, the segments are concatenated with the audio at the end.
+pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: SkiaBackend>(
     Pipeline {
         ctx,
-        render_options: encoder_options,
+        render_options,
         font_db,
-        frame_range,
-        include_audio,
         logger,
         output,
+        pipeline_config,
         skia,
         timeline,
-        pipeline_config,
         usvg_options,
         video,
         background_color,
-    }: Pipeline<'a, 'b, 'media, TVideo, TBackend>,
+    }: Pipeline<'p, 'a, 'media, TVideo, TBackend>,
 ) -> FFramesRendererResult<()> {
-    let (render_sender, render_receiver) =
-        thingbuf::mpsc::blocking::channel(pipeline_config.buffer_queue_size);
-    let (frame_tx, frame_receiver) =
-        mpsc::sync_channel::<FrameRequest>(pipeline_config.buffer_queue_size);
+    let workers = pipeline_config.encoder_threads.max(1);
+    let gpu_contexts = pipeline_config.gpu_contexts();
+    let queue_size = pipeline_config.buffer_queue_size.max(1);
 
-    let encoder = unsafe {
-        Encoder::new(
-            if include_audio {
-                EncoderOutput::Final {
-                    with_audio: timeline.audio_map.is_some(),
-                }
-            } else {
-                EncoderOutput::IntermediateChunk
-            },
+    let extension = output
+        .extension()
+        .ok_or(FFramesRendererError::InvalidOutput)?
+        .to_string_lossy()
+        .into_owned();
+    let tmp_path = std::env::temp_dir().join(format!("fframes-skia-{}", uuid::Uuid::new_v4()));
+    let directory = render_options.tmp_files_directory.unwrap_or(&tmp_path);
+    if !directory.exists() {
+        std::fs::create_dir(directory)?;
+    }
+
+    // Generators own the segments, so their number also bounds how many segments are
+    // encoded at once. Half of the threads is plenty to feed the GPU and leaves the rest
+    // to the encoders.
+    let generators = (workers / 2).max(1);
+    let scheduler = FrameScheduler::new(
+        ctx.duration_in_frames,
+        generators,
+        render_options
+            .video_encoder_options
+            .min_segment_frames(ctx.time_base.fps),
+    );
+    let writer = SegmentWriter::new(
+        directory,
+        &extension,
+        (
             ctx.current_video_size.width as i32,
             ctx.current_video_size.height as i32,
             ctx.time_base.fps as i32,
-            output,
-            encoder_options,
-            &logger.clone(),
-        )
-    }
-    .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
+        ),
+        render_options,
+        &logger,
+    );
 
     #[cfg(feature = "debug")]
-    let metrics = Arc::new(crate::metrics::PipelineMetrics::new(1));
+    let metrics = crate::metrics::PipelineMetrics::new(generators, gpu_contexts, workers);
 
-    thread::scope(|scope| -> FFramesRendererResult<()> {
-        let generator_handle = scope.spawn(|| {
-            spawn_frame_generator(
-                video,
-                frame_range.clone(),
-                usvg_options,
-                font_db,
-                frame_tx,
-                &pipeline_config,
-                ctx,
-                #[cfg(feature = "debug")]
-                metrics.generator_metrics.clone(),
-            )
-        });
+    let failed = AtomicBool::new(false);
+    let buffers = BufferPool::default();
+    let (tree_sender, tree_receiver) = mpsc::sync_channel::<(FrameClaim, usvgr::Tree)>(queue_size);
+    let (frame_sender, frame_receiver) = mpsc::sync_channel::<RenderedFrame>(queue_size);
+    let tree_receiver = Mutex::new(tree_receiver);
+    let frame_receiver = Mutex::new(frame_receiver);
 
-        let encoder_handle = scope.spawn(|| unsafe {
-            spawn_video_encoder(
-                render_receiver,
-                &encoder,
-                frame_range.end - frame_range.start,
-                // we have to pass abort signals to all threads to not wait for the
-                // buffer queue to be empty before being able to finish the pipeline
-                ctx.abort_signal,
-                #[cfg(feature = "debug")]
-                metrics.encoder_metrics.clone(),
-            )
-        });
+    let results = thread::scope(|scope| {
+        let mark_failed = |result: FFramesRendererResult<()>| {
+            if result.is_err() {
+                failed.store(true, Ordering::Relaxed);
+            }
+            result
+        };
 
-        spawn_renderer(
-            skia,
-            logger.clone(),
-            frame_receiver,
-            render_sender,
-            ctx.abort_signal,
-            background_color,
+        let mut handles = Vec::new();
+        for worker in 0..scheduler.workers() {
+            let tree_sender = tree_sender.clone();
+            let (scheduler, failed) = (&scheduler, &failed);
             #[cfg(feature = "debug")]
-            metrics.renderer_metrics.clone(),
-        )?;
+            let metrics = metrics.generator_metrics.clone();
+            handles.push(scope.spawn(move || {
+                mark_failed(generate_frames(
+                    worker,
+                    video,
+                    scheduler,
+                    usvg_options,
+                    font_db,
+                    tree_sender,
+                    queue_size,
+                    ctx,
+                    failed,
+                    #[cfg(feature = "debug")]
+                    metrics,
+                ))
+            }));
+        }
+        drop(tree_sender);
 
-        generator_handle.join().map_err(|e| {
-            FFramesRendererError::Internal(format!("Frame generator thread panicked: {e:?}"))
-        })??;
-        encoder_handle
-            .join()
-            .map_err(|e| FFramesRendererError::Internal(format!("Encoder thread panicked: {e:?}")))?
-            .map_err(|e| FFramesRendererError::RenderChunkError(0, e))?;
+        for _ in 0..gpu_contexts {
+            let frame_sender = frame_sender.clone();
+            let (tree_receiver, buffers, failed, logger) =
+                (&tree_receiver, &buffers, &failed, &logger);
+            #[cfg(feature = "debug")]
+            let metrics = metrics.renderer_metrics.clone();
+            handles.push(scope.spawn(move || {
+                mark_failed(render_frames(
+                    skia,
+                    logger,
+                    tree_receiver,
+                    frame_sender,
+                    buffers,
+                    ctx,
+                    failed,
+                    background_color,
+                    #[cfg(feature = "debug")]
+                    metrics,
+                ))
+            }));
+        }
+        drop(frame_sender);
 
-        Ok(())
-    })?;
+        for _ in 0..scheduler.workers() {
+            let (frame_receiver, buffers, failed, writer) =
+                (&frame_receiver, &buffers, &failed, &writer);
+            #[cfg(feature = "debug")]
+            let metrics = metrics.encoder_metrics.clone();
+            handles.push(scope.spawn(move || {
+                mark_failed(encode_frames(
+                    frame_receiver,
+                    writer,
+                    buffers,
+                    failed,
+                    #[cfg(feature = "debug")]
+                    metrics,
+                ))
+            }));
+        }
 
-    if encoder.audio_stream.is_some() {
-        unsafe { encoder.fill_audio_stream(timeline.audio_map.as_ref(), ctx, &logger) }
-            .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
+        handles
+            .into_iter()
+            .map(|handle| {
+                handle.join().map_err(|e| {
+                    FFramesRendererError::Internal(format!("Rendering thread panicked: {e:?}"))
+                })?
+            })
+            .collect::<Vec<_>>()
+    });
+
+    // report the error that stopped the pipeline rather than the ones it caused
+    if let Some(err) = results.into_iter().filter_map(Result::err).min_by_key(
+        |err| matches!(err, FFramesRendererError::Custom(message) if message.contains("closed")),
+    ) {
+        return Err(err);
     }
 
     #[cfg(feature = "debug")]
     metrics.print_stats();
 
+    let files = writer
+        .finish()
+        .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
+
+    unsafe {
+        concatenator::concat_video_files_with_audio(
+            files.as_slice(),
+            output,
+            timeline.audio_map.as_ref(),
+            render_options,
+            ctx,
+            &logger,
+        )
+        .map_err(FFramesRendererError::ConcatChunkError)?;
+    }
+
+    logger.success(output, Some(directory));
     Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
-fn spawn_frame_generator<'a, 'media: 'a, TVideo: Video + Sync + Send>(
+fn generate_frames<'a, 'media: 'a, TVideo: Video + Sync + Send>(
+    worker: usize,
     video: &'a TVideo,
-    frame_range: Range<usize>,
+    scheduler: &FrameScheduler,
     usvg_options: &'a usvgr::Options<'a>,
     font_db: &'a usvgr::fontdb::Database,
-    frame_sender: SyncSender<FrameRequest>,
-    pipeline_config: &SkiaPipelineConfig,
+    tree_sender: SyncSender<(FrameClaim, usvgr::Tree)>,
+    queue_size: usize,
     ctx: &'a FFramesContext<'a, 'media>,
+    failed: &AtomicBool,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
     let break_lines_cache = TextCache::new(10);
     let mut converter_cache = usvgr::Cache::new_with_text_cache(10);
-
     // x2 because sometimes we might need to decode 2 frames at once
-    let video_decoders_worker = VideoDecodersWorker::new(pipeline_config.buffer_queue_size * 2);
+    let video_decoders_worker = VideoDecodersWorker::new(queue_size * 2);
 
-    for frame in frame_range {
+    while let Some(claim) = scheduler.claim(worker) {
         #[cfg(feature = "debug")]
         let start = Instant::now();
 
+        if failed.load(Ordering::Relaxed) {
+            return Ok(());
+        }
         if ctx
             .abort_signal
             .is_some_and(fframes::AbortSignal::is_aborted)
@@ -227,173 +312,165 @@ fn spawn_frame_generator<'a, 'media: 'a, TVideo: Video + Sync + Send>(
             return Err(FFramesRendererError::Aborted);
         }
 
-        let fframe = fframes::Frame::__internal_make_for_renderer(
-            frame,
-            frame,
+        let frame = fframes::Frame::__internal_make_for_renderer(
+            claim.frame,
+            claim.frame,
             ctx.time_base.fps,
             break_lines_cache.clone(),
             video_decoders_worker.clone(),
         );
 
         // Direct path: Svgr -> usvgr::Tree (no string serialization, no Dom parsing)
-        let tree = video.render_frame(fframe, ctx).into_svg_tree(
+        let tree = video.render_frame(frame, ctx).into_svg_tree(
             usvg_options,
             &mut converter_cache,
             font_db,
         )?;
 
-        frame_sender
-            .send(FrameRequest { frame, tree })
-            .map_err(|_| {
-                FFramesRendererError::Custom("Frame generator channel closed".to_string())
-            })?;
-
         #[cfg(feature = "debug")]
         {
-            let duration = start.elapsed();
             metrics
                 .total_time
-                .fetch_add(duration.as_micros() as u64, Ordering::Relaxed);
+                .fetch_add(start.elapsed().as_micros() as u64, Ordering::Relaxed);
             metrics.items_processed.fetch_add(1, Ordering::Relaxed);
         }
+
+        tree_sender.send((claim, tree)).map_err(|_| {
+            FFramesRendererError::Custom("Frame generator channel closed".to_string())
+        })?;
     }
 
     Ok(())
 }
 
-fn spawn_renderer<TBackend: SkiaBackend>(
+fn receive<T>(receiver: &Mutex<Receiver<T>>) -> Option<T> {
+    receiver.lock().unwrap().recv().ok()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_frames<TBackend: SkiaBackend>(
     backend: &TBackend,
-    logger: Arc<dyn FFramesLogger>,
-    frame_receiver: Receiver<FrameRequest>,
-    render_sender: thingbuf::mpsc::blocking::Sender<RenderPayload>,
-    abort_signal: Option<&fframes::AbortSignal>,
+    logger: &Arc<dyn FFramesLogger>,
+    tree_receiver: &Mutex<Receiver<(FrameClaim, usvgr::Tree)>>,
+    frame_sender: SyncSender<RenderedFrame>,
+    buffers: &BufferPool,
+    ctx: &FFramesContext,
+    failed: &AtomicBool,
     background_color: skia_safe::Color,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
     let (mut surface, mut gpu_context) = backend.create_skia_surface()?;
     let image_info = surface.image_info();
-    let frame_datavec_size = image_info.compute_byte_size(image_info.min_row_bytes());
+    let frame_size = image_info.compute_byte_size(image_info.min_row_bytes());
     let row_bytes = image_info.min_row_bytes();
 
     // Persist across frames so static paths/images are converted only once
     let mut render_cache = crate::render::RenderCache::new();
 
-    while let Ok(FrameRequest { tree, frame }) = {
+    while let Some((claim, tree)) = {
         #[cfg(feature = "debug")]
         let wait_start = Instant::now();
-        let result = frame_receiver.recv();
+        let request = receive(tree_receiver);
         #[cfg(feature = "debug")]
-        {
-            metrics
-                .channel_wait_time
-                .fetch_add(wait_start.elapsed().as_micros() as u64, Ordering::Release);
-        }
-
-        result
+        metrics
+            .channel_wait_time
+            .fetch_add(wait_start.elapsed().as_micros() as u64, Ordering::Relaxed);
+        request
     } {
-        if abort_signal.is_some_and(fframes::AbortSignal::is_aborted) {
+        if failed.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+        if ctx
+            .abort_signal
+            .is_some_and(fframes::AbortSignal::is_aborted)
+        {
             return Err(FFramesRendererError::Aborted);
         }
 
         #[cfg(feature = "debug")]
         let start = Instant::now();
-        logger.log_frame(frame, 0);
 
-        if let Ok(mut payload) = render_sender.send_ref() {
-            payload.frame_index = frame;
-            if payload.pixels.len() != frame_datavec_size {
-                payload.pixels = vec![0; frame_datavec_size];
-            }
+        let mut pixels = buffers.take(frame_size);
+        let pixmap = skia_safe::Pixmap::new(&image_info, &mut pixels, row_bytes)
+            .ok_or_else(|| FFramesRendererError::Custom("Failed to create pixmap".to_string()))?;
 
-            let pixmap = skia_safe::Pixmap::new(&image_info, &mut payload.pixels, row_bytes)
-                .ok_or_else(|| {
-                    FFramesRendererError::Custom("Failed to create pixmap".to_string())
-                })?;
+        surface.canvas().clear(background_color);
+        crate::render::render_tree(&tree, surface.canvas(), &mut render_cache);
 
-            surface.canvas().clear(background_color);
-
-            crate::render::render_tree(&tree, surface.canvas(), &mut render_cache);
-
-            if let Some(gpu_context) = gpu_context.as_mut() {
-                gpu_context.flush_submit_and_sync_cpu();
-            }
-
-            let image = surface.image_snapshot();
-            if !image.read_pixels_to_pixmap_with_context(
-                gpu_context.as_mut(),
-                &pixmap,
-                (0, 0),
-                skia_safe::image::CachingHint::Allow,
-            ) {
-                return Err(FFramesRendererError::Custom(
-                    "Failed to read pixels from Skia image".to_string(),
-                ));
-            };
-
-            // Video-frame images view the tree's pixel buffers without
-            // copying, so the tree has to outlive the flush and readback.
-            drop(tree);
+        if let Some(gpu_context) = gpu_context.as_mut() {
+            gpu_context.flush_submit_and_sync_cpu();
         }
+
+        let image = surface.image_snapshot();
+        if !image.read_pixels_to_pixmap_with_context(
+            gpu_context.as_mut(),
+            &pixmap,
+            (0, 0),
+            skia_safe::image::CachingHint::Allow,
+        ) {
+            return Err(FFramesRendererError::Custom(
+                "Failed to read pixels from Skia image".to_string(),
+            ));
+        };
+
+        // Video-frame images view the tree's pixel buffers without
+        // copying, so the tree has to outlive the flush and readback.
+        drop(tree);
+        logger.log_frame(claim.frame, 0);
 
         #[cfg(feature = "debug")]
         {
-            let duration = start.elapsed();
             metrics
                 .total_time
-                .fetch_add(duration.as_micros() as u64, Ordering::Relaxed);
+                .fetch_add(start.elapsed().as_micros() as u64, Ordering::Relaxed);
             metrics.items_processed.fetch_add(1, Ordering::Relaxed);
         }
+
+        frame_sender
+            .send(RenderedFrame { claim, pixels })
+            .map_err(|_| FFramesRendererError::Custom("Renderer channel closed".to_string()))?;
     }
 
     Ok(())
 }
 
-unsafe fn spawn_video_encoder<'a, 'media: 'a>(
-    render_receiver: thingbuf::mpsc::blocking::Receiver<RenderPayload>,
-    encoder: &Encoder,
-    frames_to_render: usize,
-    abort_signal: Option<&fframes::AbortSignal>,
+fn encode_frames(
+    frame_receiver: &Mutex<Receiver<RenderedFrame>>,
+    writer: &SegmentWriter,
+    buffers: &BufferPool,
+    failed: &AtomicBool,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
-) -> RenderEncodingResult<()> {
-    unsafe {
-        let mut frame = EncoderFrame::new(&encoder.video_stream)?;
-
-        while let Some(request) = {
-            #[cfg(feature = "debug")]
-            let wait_start = Instant::now();
-            let result = render_receiver.recv();
-            #[cfg(feature = "debug")]
-            {
-                metrics
-                    .channel_wait_time
-                    .fetch_add(wait_start.elapsed().as_micros() as u64, Ordering::Release);
-            }
-
-            result
-        } {
-            if abort_signal.is_some_and(fframes::AbortSignal::is_aborted) {
-                return Err(fframes::RenderEncodingError::Aborted);
-            }
-
-            #[cfg(feature = "debug")]
-            let start = Instant::now();
-
-            frame.set_pts(request.frame_index as i64);
-            frame.fill_from_rgba_pixmap(&request.pixels);
-            encoder.send_frame(&encoder.video_stream, &frame)?;
-
-            #[cfg(feature = "debug")]
-            {
-                let duration = start.elapsed();
-                metrics
-                    .total_time
-                    .fetch_add(duration.as_micros() as u64, Ordering::Relaxed);
-                metrics.items_processed.fetch_add(1, Ordering::Relaxed);
-            }
+) -> FFramesRendererResult<()> {
+    while let Some(RenderedFrame { claim, pixels }) = {
+        #[cfg(feature = "debug")]
+        let wait_start = Instant::now();
+        let request = receive(frame_receiver);
+        #[cfg(feature = "debug")]
+        metrics
+            .channel_wait_time
+            .fetch_add(wait_start.elapsed().as_micros() as u64, Ordering::Relaxed);
+        request
+    } {
+        if failed.load(Ordering::Relaxed) {
+            return Ok(());
         }
 
-        encoder.submit_leftover_b_frames(&frame, &encoder.video_stream, frames_to_render)?;
+        #[cfg(feature = "debug")]
+        let start = Instant::now();
 
-        Ok(())
+        let released = writer
+            .submit_owned(claim, pixels)
+            .map_err(|err| FFramesRendererError::RenderChunkError(claim.segment, err))?;
+        buffers.give_back(released);
+
+        #[cfg(feature = "debug")]
+        {
+            metrics
+                .total_time
+                .fetch_add(start.elapsed().as_micros() as u64, Ordering::Relaxed);
+            metrics.items_processed.fetch_add(1, Ordering::Relaxed);
+        }
     }
+
+    Ok(())
 }

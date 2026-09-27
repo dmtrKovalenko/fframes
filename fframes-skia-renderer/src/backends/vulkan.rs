@@ -18,7 +18,10 @@ pub struct SkiaVulkanCtx {
     device: ash::Device,
     physical_device: vk::PhysicalDevice,
     queue_family_index: u32,
-    queue: vk::Queue,
+    /// Every Skia context gets its own queue (round robin when there are more contexts),
+    /// because a queue must not be submitted to from several threads at once.
+    queues: Vec<vk::Queue>,
+    next_queue: std::sync::atomic::AtomicUsize,
     width: usize,
     height: usize,
 }
@@ -93,13 +96,13 @@ impl SkiaVulkanCtx {
         height: usize,
     ) -> FFramesRendererResult<Self> {
         unsafe {
-            let queue_family_index = instance
+            let (queue_family_index, queue_count) = instance
                 .get_physical_device_queue_family_properties(physical_device)
                 .iter()
                 .enumerate()
                 .find_map(|(index, info)| {
                     if info.queue_flags.contains(vk::QueueFlags::GRAPHICS) {
-                        Some(index as u32)
+                        Some((index as u32, info.queue_count.clamp(1, 16)))
                     } else {
                         None
                     }
@@ -109,7 +112,7 @@ impl SkiaVulkanCtx {
                 })?;
 
             let device = {
-                let priorities = [1.0];
+                let priorities = vec![1.0; queue_count as usize];
                 let queue_info = [vk::DeviceQueueCreateInfo::default()
                     .queue_family_index(queue_family_index)
                     .queue_priorities(&priorities)];
@@ -134,7 +137,9 @@ impl SkiaVulkanCtx {
                     })?
             };
 
-            let queue = device.get_device_queue(queue_family_index, 0);
+            let queues = (0..queue_count)
+                .map(|index| device.get_device_queue(queue_family_index, index))
+                .collect();
 
             Ok(SkiaVulkanCtx {
                 entry,
@@ -142,7 +147,8 @@ impl SkiaVulkanCtx {
                 device,
                 physical_device,
                 queue_family_index,
-                queue,
+                queues,
+                next_queue: std::sync::atomic::AtomicUsize::new(0),
                 width,
                 height,
             })
@@ -188,12 +194,17 @@ impl SkiaBackend for SkiaVulkanCtx {
                 }
             };
 
+            let queue = self.queues[self
+                .next_queue
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                % self.queues.len()];
+
             // Initialize Skia Vulkan backend context
             let backend_context = gpu::vk::BackendContext::new(
                 self.instance.handle().as_raw() as _,
                 self.physical_device.as_raw() as _,
                 self.device.handle().as_raw() as _,
-                (self.queue.as_raw() as _, self.queue_family_index as usize),
+                (queue.as_raw() as _, self.queue_family_index as usize),
                 &get_proc as _,
             );
 
