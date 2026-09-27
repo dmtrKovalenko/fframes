@@ -113,6 +113,8 @@ fn maybe_value<T: ToTokens>(
 struct MaybeAttribute {
     name: AId,
     value: MaybeParsedValue<String>,
+    /// The element the attribute belongs to.
+    element: EId,
 }
 
 impl MaybeAttribute {
@@ -125,7 +127,44 @@ impl MaybeAttribute {
     }
 }
 
-fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
+/// Wraps compile-time path segments into a `static` whose `tiny_skia` path is built
+/// once per process, see `usvgr::svgtree::StaticPathData`.
+fn static_path_tokens(segments: &[PathSegment]) -> TokenStream {
+    let segment_tokens: Vec<_> = segments.iter().map(path_segment_to_tokens).collect();
+    quote! {
+        {
+            static PATH: StaticPathData = StaticPathData::new(&[#(#segment_tokens),*]);
+            SvgAttributeValue::StaticPath(&PATH)
+        }
+    }
+}
+
+/// `points` of a `polyline` or `polygon` as path segments, mirroring how `usvgr`
+/// builds these shapes. `None` when the shape would not render (less than 2 points).
+fn points_to_segments(value: &str, element: EId) -> Option<Vec<PathSegment>> {
+    let mut segments: Vec<_> = svgtree::svgrtypes::PointsParser::from(value)
+        .enumerate()
+        .map(|(index, (x, y))| {
+            if index == 0 {
+                PathSegment::MoveTo { abs: true, x, y }
+            } else {
+                PathSegment::LineTo { abs: true, x, y }
+            }
+        })
+        .collect();
+
+    if segments.len() < 2 {
+        return None;
+    }
+
+    if element == EId::Polygon {
+        segments.push(PathSegment::ClosePath { abs: true });
+    }
+
+    Some(segments)
+}
+
+fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
     // Special handling for path data - parse at compile time
     if aid == AId::D {
         // Only pre-parse when the whole string is valid: a partially parsed
@@ -136,15 +175,15 @@ fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
             .filter(|segments: &Vec<_>| !segments.is_empty());
 
         if let Some(segments) = segments {
-            let segment_tokens: Vec<_> = segments.iter().map(path_segment_to_tokens).collect();
-            return quote! {
-                {
-                    static SEGMENTS: &[svgrtypes::PathSegment] = &[#(#segment_tokens),*];
-                    SvgAttributeValue::PathData(std::borrow::Cow::Borrowed(SEGMENTS))
-                }
-            };
+            return static_path_tokens(&segments);
         }
         // Fall through to string if parsing fails
+    }
+
+    if aid == AId::Points && matches!(element, EId::Polygon | EId::Polyline) {
+        if let Some(segments) = points_to_segments(value, element) {
+            return static_path_tokens(&segments);
+        }
     }
 
     if let Ok(float) = f32::from_str(value) {
@@ -183,12 +222,16 @@ fn inline_attribute_value(value: &str, aid: AId) -> TokenStream {
 
 impl ToTokens for MaybeAttribute {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let MaybeAttribute { name, value } = self;
+        let MaybeAttribute {
+            name,
+            value,
+            element,
+        } = self;
         let name_tokens = name.to_tokens();
 
         match value {
             MaybeParsedValue::Value(value) => {
-                let value_tokens = inline_attribute_value(value, *name);
+                let value_tokens = inline_attribute_value(value, *name, *element);
                 quote! {
                     Attribute {
                         name: #name_tokens,
@@ -794,16 +837,84 @@ fn parse_svgr_subtree(
 }
 
 fn parse_element_attributes(node: &Node, eid: EId) -> Result<Vec<MaybeAttribute>, syn::Error> {
-    node.attributes
+    let attributes = node
+        .attributes
         .iter()
         .filter_map(|attribute| -> Option<syn::Result<_>> {
             Some(
                 maybe_parse_svg_attribute(attribute, eid)
                     .transpose()?
-                    .map(|(aid, value)| MaybeAttribute { name: aid, value }),
+                    .map(|(aid, value)| MaybeAttribute {
+                        name: aid,
+                        value,
+                        element: eid,
+                    }),
             )
         })
-        .collect::<syn::Result<Vec<_>>>()
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    Ok(expand_static_style(attributes))
+}
+
+/// Splits a static `style="fill: red; opacity: .5"` into the presentation attributes it
+/// sets, so they are parsed once here instead of on every frame. `usvgr` does the same
+/// at runtime: only presentation properties are kept, a later declaration wins and a
+/// declaration overrides the element's attribute of the same name. Styles that need the
+/// runtime (`inherit`, or an explicit attribute with the same name, whose priority
+/// depends on the attribute order) are left as they are.
+fn expand_static_style(attributes: Vec<MaybeAttribute>) -> Vec<MaybeAttribute> {
+    let Some(style_index) = attributes.iter().position(|attr| {
+        attr.name == AId::Style && matches!(attr.value, MaybeParsedValue::Value(_))
+    }) else {
+        return attributes;
+    };
+
+    let MaybeParsedValue::Value(style) = &attributes[style_index].value else {
+        return attributes;
+    };
+    let element = attributes[style_index].element;
+
+    let mut declarations: Vec<(AId, String)> = Vec::new();
+    for declaration in simplecss::DeclarationTokenizer::from(style.as_str()) {
+        let Some(aid) = AId::from_str(declaration.name) else {
+            continue;
+        };
+        if !aid.is_presentation() {
+            continue;
+        }
+        if declaration.value == "inherit" {
+            return attributes;
+        }
+
+        declarations.retain(|(existing, _)| *existing != aid);
+        declarations.push((aid, declaration.value.to_owned()));
+    }
+
+    let clashes = attributes.iter().enumerate().any(|(index, attr)| {
+        index != style_index && declarations.iter().any(|(aid, _)| *aid == attr.name)
+    });
+    if clashes {
+        return attributes;
+    }
+
+    let mut expanded = Vec::with_capacity(attributes.len() + declarations.len());
+    for (index, attr) in attributes.into_iter().enumerate() {
+        if index == style_index {
+            expanded.extend(
+                declarations
+                    .drain(..)
+                    .map(|(name, value)| MaybeAttribute {
+                        name,
+                        value: MaybeParsedValue::Value(value),
+                        element,
+                    }),
+            );
+        } else {
+            expanded.push(attr);
+        }
+    }
+
+    expanded
 }
 
 fn parse_tag_name(node: &Node) -> Result<EId, syn::Error> {

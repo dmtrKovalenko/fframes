@@ -24,8 +24,16 @@ impl Scene for Owl<'_> {
     }
 
     fn render_frame(&self, frame: fframes::Frame, _ctx: &fframes::FFramesContext) -> Svgr<'_> {
-        let noise_x = (rand::random::<f64>() * 60.) as i32 - 30;
-        let noise_y = (rand::random::<f64>() * 60.) as i32 - 30;
+        // Deterministic per-frame jitter, so every render of the video is identical.
+        let noise = |seed: u64| {
+            let mut x = (frame.index as u64 ^ seed).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            x ^= x >> 29;
+            x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            x ^= x >> 32;
+            (x % 60) as i32 - 30
+        };
+        let noise_x = noise(0x5EED_0001);
+        let noise_y = noise(0x5EED_0002);
 
         let visualization = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
             smooth_level: 4,
