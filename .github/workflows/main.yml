@@ -4,6 +4,16 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # GitHub evicts caches that were not used for 7 days, rebuild them before that
+  # happens so the first PR after a quiet week does not rebuild Skia and FFmpeg.
+  schedule:
+    - cron: "0 5 * * 1,4"
+
+# A new push to a PR supersedes its running build. Other runs get a unique group:
+# a shared one would drop queued main runs (and their nightly release).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,7 +34,6 @@ jobs:
   build-rescript:
     name: Build ReScript
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -50,7 +59,6 @@ jobs:
 
   build-rust:
     name: Build and Test
-    if: github.event_name == 'pull_request'
     continue-on-error: true
     defaults:
       run:
@@ -118,19 +126,16 @@ jobs:
           cache: true
           cache-on-failure: true
           cache-key: "v3-rust"
+          # PR scoped caches are only visible to that PR and push main's cache out
+          # of the 10GB quota, so only main saves. PRs restore main's cache.
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
           components: rustfmt, clippy
-          target: wasm32-unknown-unknown
 
       - name: Check format
         run: cargo fmt --check
 
       - name: Build
         run: just clippy
-
-      - name: Check examples wasm build
-        run: |
-          rustup target add wasm32-unknown-unknown
-          just check-examples
 
       - name: Test
         run: just test
@@ -150,6 +155,39 @@ jobs:
             e2e/frames/diff
             e2e/out.mp4
             */**/_svgr_snapshots/*
+
+  # Runs in parallel with `build-rust`: it needs no Skia, only FFmpeg for the
+  # `include_media_dir!` proc-macro on the host.
+  check-wasm:
+    name: Check examples wasm build
+    runs-on: ubuntu-latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install apt-deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm yasm nasm libx264-dev libx265-dev libopus-dev libvpx-dev
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+          cache-on-failure: true
+          cache-key: "v3-rust-wasm"
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+          target: wasm32-unknown-unknown
+
+      - name: Check examples wasm build
+        run: just check-examples
 
   release:
     name: Publish nightly release
