@@ -169,8 +169,8 @@ mod tests {
             let mut round = 0;
             while done.iter().any(|done| !done) {
                 round += 1;
-                for worker in 0..workers {
-                    if done[worker] || round % (worker % 3 + 1) != 0 {
+                for (worker, done) in done.iter_mut().enumerate() {
+                    if *done || round % (worker % 3 + 1) != 0 {
                         continue;
                     }
                     match scheduler.claim(worker) {
@@ -180,7 +180,7 @@ mod tests {
                                 assert!(last_flags.insert(claim.segment, claim.frame).is_none());
                             }
                         }
-                        None => done[worker] = true,
+                        None => *done = true,
                     }
                 }
             }

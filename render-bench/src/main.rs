@@ -73,7 +73,7 @@ struct Args {
     /// Save the first frame of every window as PNG (per engine).
     #[clap(long)]
     dump: Option<PathBuf>,
-    /// Compare the first frame of every window with PNGs saved by `--dump`.
+    /// Compare the first frame of every window with the PNG files saved by `--dump`.
     #[clap(long)]
     check: Option<PathBuf>,
     /// Directory for e2e video outputs.
