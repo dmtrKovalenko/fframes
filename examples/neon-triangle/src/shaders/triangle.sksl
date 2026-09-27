@@ -21,10 +21,10 @@ float2 project(float3 v) {
 }
 
 float sdSegment(float2 p, float2 a, float2 b) {
-    float2 pa = p - a;
-    float2 ba = b - a;
-    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    return length(pa - ba * h);
+    float2 toPoint = p - a;
+    float2 edge = b - a;
+    float h = clamp(dot(toPoint, edge) / dot(edge, edge), 0.0, 1.0);
+    return length(toPoint - edge * h);
 }
 
 half4 main(float2 coord) {
