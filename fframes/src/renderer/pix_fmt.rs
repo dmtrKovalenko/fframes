@@ -179,15 +179,17 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                 "cmp w9, {height:w}",
                 "b.lt 2b",
 
-            src = in(reg) rgba_pixels.as_ptr(),
-            dst_y = in(reg) y_pixels_destination,
-            dst_cb = in(reg) cb_pixels_destination,
-            dst_cr = in(reg) cr_pixels_destination,
-            width = in(reg) width,
-            height = in(reg) height,
-            y_pad = in(reg) (y_linesize - width),
-            cb_pad = in(reg) (cb_linesize - (width / 2)),
-            cr_pad = in(reg) (cr_linesize - (width / 2)),
+            // the pointers are advanced by the loop, and every value used as a 64 bit
+            // register has to be passed as one (the upper half of an i32 is undefined)
+            src = inout(reg) rgba_pixels.as_ptr() => _,
+            dst_y = inout(reg) y_pixels_destination => _,
+            dst_cb = inout(reg) cb_pixels_destination => _,
+            dst_cr = inout(reg) cr_pixels_destination => _,
+            width = in(reg) width as i64,
+            height = in(reg) height as i64,
+            y_pad = in(reg) (y_linesize - width) as i64,
+            cb_pad = in(reg) (cb_linesize - (width / 2)) as i64,
+            cr_pad = in(reg) (cr_linesize - (width / 2)) as i64,
 
             out("x1") _, out("w4") _, out("x5") _, out("w6") _, out("w7") _, out("x8") _,
             out("w9") _, out("w10") _, out("w11") _, out("w12") _,
