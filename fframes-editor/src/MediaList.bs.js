@@ -2,67 +2,49 @@
 
 import * as Cx from "rescript-classnames/src/Cx.bs.js";
 import * as Curry from "rescript/lib/es6/curry.js";
-import * as Icons from "./ui/icons/Icons.bs.js";
 import * as Utils from "./Utils.bs.js";
 import * as React from "react";
 import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as MediaLoader from "./services/mediaLoader.bs.js";
 import * as Belt_MapString from "rescript/lib/es6/belt_MapString.js";
-
-var iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr  from-indigo-400 to-pink-400 flex justify-center items-center";
+import * as Icon from "@openai/apps-sdk-ui/components/Icon";
 
 function MediaList$LoadedMediaIcon(Props) {
   var variant = Props.variant;
+  var name = Props.name;
   var media = Props.media;
-  var layoutIconClassName = variant ? "size-10 2xl:size-12 rounded-xl" : "size-32 rounded-xl";
-  var iconClassName = variant ? "h-[60%]" : "h-[40%]";
-  if (media.TAG === /* Image */2) {
-    return React.createElement("div", {
-                className: Cx.cx([
-                      "bg-cover bg-no-repeat bg-center",
-                      iconContainerClassName,
-                      layoutIconClassName
-                    ]),
-                style: {
-                  backgroundImage: "url(" + media._0.src + ")"
-                }
-              });
-  }
+  var containerClassName = Cx.cx([
+        "flex shrink-0 items-center justify-center overflow-hidden bg-primary-soft-alpha text-secondary",
+        variant ? "size-10 rounded-lg [&>svg]:size-5" : "aspect-square w-full rounded-xl [&>svg]:size-8"
+      ]);
   var tmp;
   switch (media.TAG | 0) {
     case /* Font */0 :
-        tmp = React.createElement(Icons.FontIcon.make, {
-              color: "currentColor",
-              className: iconClassName
-            });
+        tmp = React.createElement(Icon.Text, {});
         break;
     case /* Subtitles */1 :
-        tmp = React.createElement(Icons.CaptionsIcon.make, {
-              color: "currentColor",
-              className: iconClassName
-            });
+        tmp = React.createElement(Icon.CaptionOn, {});
         break;
     case /* Image */2 :
-        tmp = null;
+        tmp = React.cloneElement(React.createElement("img", {
+                  className: "size-full object-cover",
+                  alt: name,
+                  src: media._0.src
+                }), {
+              loading: "lazy"
+            });
         break;
     case /* Audio */3 :
-        tmp = React.createElement(Icons.MusicalNotesIcon.make, {
-              color: "currentColor",
-              className: iconClassName
-            });
+        tmp = React.createElement(Icon.Music, {});
         break;
     
   }
   return React.createElement("div", {
-              className: Cx.cx([
-                    iconContainerClassName,
-                    layoutIconClassName
-                  ])
+              className: containerClassName
             }, tmp);
 }
 
 var LoadedMediaIcon = {
-  iconContainerClassName: iconContainerClassName,
   make: MediaList$LoadedMediaIcon
 };
 
@@ -136,20 +118,18 @@ function MediaList$LoadedMedia(Props) {
     
   }
   return React.createElement("li", {
-              className: Cx.cx([variant ? "py-2 h-16 2xl:h-20 flex items-center gap-2 px-6" : "w-32 flex flex-col space-y-2"]),
+              className: variant ? "flex items-center gap-3 rounded-lg px-2 py-2" : "flex min-w-0 flex-col gap-2",
               title: name
             }, React.createElement(MediaList$LoadedMediaIcon, {
                   variant: variant,
+                  name: name,
                   media: media
                 }), React.createElement("div", {
-                  className: "flex flex-col flex-1"
+                  className: "flex min-w-0 flex-1 flex-col"
                 }, React.createElement("p", {
-                      className: Cx.cx([
-                            "text-gray-300 2xl:text-lg",
-                            variant ? "line-clamp-3" : "truncate"
-                          ])
+                      className: "truncate text-sm text-default"
                     }, name), React.createElement("p", {
-                      className: "text-gray-500 text-xs 2xl:text-base truncate"
+                      className: "truncate text-xs text-secondary"
                     }, tmp)));
 }
 
@@ -167,7 +147,8 @@ var make = memo(function (Props) {
       var variant = Props.variant;
       var mediaState = Curry._1(MediaLoader.MediaLoaderObserver.useObservable, undefined);
       return React.createElement("ul", {
-                  className: Cx.cx([variant ? "flex flex-col divide-y divide-gray-800" : "flex px-4 flex-wrap gap-x-6 gap-y-4"])
+                  "aria-label": "Media",
+                  className: variant ? "flex flex-col px-2" : "grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-3 gap-y-4 px-4"
                 }, Belt_Array.map(Belt_MapString.keysToArray(mediaState.mediaList), (function (name) {
                         var media = Belt_MapString.getExn(mediaState.mediaList, name);
                         switch (media.TAG | 0) {

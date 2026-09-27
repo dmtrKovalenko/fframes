@@ -20,6 +20,8 @@ type options = {
   rewindStepInSeconds: int,
   dynamicImageSizeLimitBytes: int,
   volumeStepFrom0To100: int,
+  // Light/dark chrome, #system follows the OS preference
+  theme: option<[#system | #light | #dark]>,
 }
 
 @genType.as("VideoMeta")

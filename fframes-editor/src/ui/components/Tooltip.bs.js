@@ -13,43 +13,53 @@ var Portal = {};
 
 var Content = {};
 
-var Arrow = {};
-
 var RadixTooltip = {
   Provider: Provider,
   Root: Root,
   Trigger: Trigger,
   Portal: Portal,
-  Content: Content,
-  Arrow: Arrow
+  Content: Content
+};
+
+function Tooltip$Provider(Props) {
+  var children = Props.children;
+  return React.createElement(ReactTooltip.Provider, {
+              children: children,
+              delayDuration: 400
+            });
+}
+
+var Provider$1 = {
+  make: Tooltip$Provider
 };
 
 function Tooltip(Props) {
   var children = Props.children;
   var content = Props.content;
-  var asChild = Props.asChild;
-  return React.createElement(ReactTooltip.Provider, {
-              children: React.createElement(ReactTooltip.Root, {
-                    children: null
-                  }, React.createElement(ReactTooltip.Trigger, {
-                        children: children,
-                        asChild: asChild
-                      }), React.createElement(ReactTooltip.Portal, {
-                        children: React.createElement(ReactTooltip.Content, {
-                              children: null,
-                              className: "data-[state=delayed-open]:data-[side=top]:animate-slideDownAndFade data-[state=delayed-open]:data-[side=right]:animate-slideLeftAndFade data-[state=delayed-open]:data-[side=left]:animate-slideRightAndFade data-[state=delayed-open]:data-[side=bottom]:animate-slideUpAndFade select-none rounded-[4px] bg-white text-black px-[15px] py-[10px] text-[15px] leading-none shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] will-change-[transform,opacity]",
-                              sideOffset: 5
-                            }, content, React.createElement(ReactTooltip.Arrow, {
-                                  className: "fill-white"
-                                }))
-                      }))
-            });
+  var shortcut = Props.shortcut;
+  var asChildOpt = Props.asChild;
+  var asChild = asChildOpt !== undefined ? asChildOpt : true;
+  return React.createElement(ReactTooltip.Root, {
+              children: null
+            }, React.createElement(ReactTooltip.Trigger, {
+                  children: children,
+                  asChild: asChild
+                }), React.createElement(ReactTooltip.Portal, {
+                  children: React.createElement(ReactTooltip.Content, {
+                        children: null,
+                        className: "z-50 flex max-w-[300px] select-none items-center gap-2 rounded-md bg-gray-700 px-2 py-0.5 text-sm text-gray-0 shadow-md animate-tooltip-in",
+                        sideOffset: 8
+                      }, content, shortcut !== undefined ? React.createElement("kbd", {
+                              className: "font-sans text-xs text-gray-300"
+                            }, shortcut) : null)
+                }));
 }
 
 var make = Tooltip;
 
 export {
   RadixTooltip ,
+  Provider$1 as Provider,
   make ,
   
 }

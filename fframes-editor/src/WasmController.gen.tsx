@@ -44,7 +44,11 @@ export type options = {
   | "grid"; 
   readonly rewindStepInSeconds: number; 
   readonly dynamicImageSizeLimitBytes: number; 
-  readonly volumeStepFrom0To100: number
+  readonly volumeStepFrom0To100: number; 
+  readonly theme?: 
+    "dark"
+  | "light"
+  | "system"
 };
 export type EditorOptions = options;
 

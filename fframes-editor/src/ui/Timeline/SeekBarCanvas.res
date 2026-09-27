@@ -9,21 +9,22 @@ module Canvas2d = Webapi.Canvas.Canvas2d
 @get external getCtrlKey: ReactEvent.Wheel.t => bool = "ctrlKey"
 @get external getDeltaX: ReactEvent.Wheel.t => float = "deltaX"
 
-let renderSeekBar = (ctx, size, playState: Player.state) => {
+let renderSeekBar = (ctx, size, playState: Player.state, ~palette: Theme.palette) => {
   let x = frameToX(playState.frame, size)
+
+  ctx->Canvas2d.setStrokeStyle(String, palette.accent)
+  ctx->Canvas2d.setFillStyle(String, palette.accent)
+  ctx->Canvas2d.lineWidth(2.)
 
   ctx->Canvas2d.beginPath
   ctx->Canvas2d.moveTo(~x, ~y=0.)
   ctx->Canvas2d.lineTo(~x, ~y=size.height)
-
-  ctx->Canvas2d.moveTo(~x=x -. 2., ~y=0.)
-  ctx->Canvas2d.lineTo(~x, ~y=7.)
-  ctx->Canvas2d.lineTo(~x=x +. 2., ~y=0.)
-  ctx->Canvas2d.lineTo(~x=x -. 2., ~y=0.)
-
-  ctx->Canvas2d.setStrokeStyle(String, "#fbbf24")
   ctx->Canvas2d.stroke
-  ctx->Canvas2d.closePath
+
+  // Playhead knob
+  ctx->Canvas2d.beginPath
+  ctx->Canvas2d.arc(~x, ~y=5., ~r=5., ~startAngle=0., ~endAngle=6.283185307179586, ~anticw=false)
+  ctx->Canvas2d.fill
 }
 
 let calculateFrameFromEvent = (e, ~size, ~viewportOffset) => {
@@ -182,10 +183,11 @@ let make = (~size) => {
   let seekCanvasRef = React.useRef(Js.Nullable.null)
   let editorContext = EditorContext.useEditorContext()
   let (player, dispatch) = editorContext.usePlayer()
+  let theme = Theme.use()
 
   useCanvasScale(seekCanvasRef, size)
 
-  React.useEffect3(() => {
+  React.useEffect4(() => {
     seekCanvasRef.current
     ->Js.Nullable.toOption
     ->Belt.Option.map(canvasElement => {
@@ -194,13 +196,13 @@ let make = (~size) => {
 
       switch player.playState {
       | CantPlay => ()
-      | _ => renderSeekBar(ctx, size, player)
+      | _ => renderSeekBar(ctx, size, player, ~palette=Theme.palette(theme))
       }->ignore
     })
     ->ignore
 
     None
-  }, (size, player.frame, player.playState))
+  }, (size, player.frame, player.playState, theme))
 
   let handleMouseMove = Hooks.useEvent(e => {
     if player.playState !== Playing && Webapi.Dom.document->Web.Document.hasFocus {

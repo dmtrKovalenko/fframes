@@ -39,24 +39,23 @@ let make = () => {
     dispatch(Player.BatchZoomUpdate(1., 0.0))
   })
 
-  <div className="flex gap-2">
-    <button
-      onClick=handleZoomOut
-      className="text-white hover:bg-gray-700 rounded px-2 py-1 text-sm"
-      title="Zoom Out (Ctrl+wheel for fine)">
-      {React.string("-")}
-    </button>
-    <button
-      onClick=handleZoomReset
-      className="text-white hover:bg-gray-700 rounded px-2 py-1 text-xs font-mono"
-      title="Reset Zoom (Fit to timeline)">
-      {React.string(`${(player.zoom *. 100.0)->Js.Float.toFixedWithPrecision(~digits=0)}%`)}
-    </button>
-    <button
-      onClick=handleZoomIn
-      className="text-white hover:bg-gray-700 rounded px-2 py-1 text-sm"
-      title="Zoom In (Shift+wheel for coarse)">
-      {React.string("+")}
-    </button>
+  <div role="group" ariaLabel="Timeline zoom" className="flex items-center">
+    <IconButton onClick=handleZoomOut label="Zoom out" shortcut="Scroll">
+      <Icons.MinusIcon />
+    </IconButton>
+    <Tooltip content={React.string("Fit timeline")}>
+      <button
+        type_="button"
+        onClick=handleZoomReset
+        className={Cx.cx([
+          "h-9 min-w-[3.25rem] rounded-full px-2 text-xs font-medium text-secondary tabular transition-colors duration-150 hover:bg-primary-ghost-hover hover:text-default",
+          IconButton.focusRing,
+        ])}>
+        {React.string(`${(player.zoom *. 100.0)->Js.Float.toFixedWithPrecision(~digits=0)}%`)}
+      </button>
+    </Tooltip>
+    <IconButton onClick=handleZoomIn label="Zoom in" shortcut="Scroll">
+      <Icons.PlusIcon />
+    </IconButton>
   </div>
 }

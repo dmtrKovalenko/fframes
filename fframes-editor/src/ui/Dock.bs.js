@@ -4,7 +4,6 @@ import * as Cx from "rescript-classnames/src/Cx.bs.js";
 import * as Web from "../bindings/Web.bs.js";
 import * as Curry from "rescript/lib/es6/curry.js";
 import * as Hooks from "../hooks/Hooks.bs.js";
-import * as Icons from "./icons/Icons.bs.js";
 import * as Utils from "../Utils.bs.js";
 import * as React from "react";
 import * as Player from "../Player.bs.js";
@@ -12,6 +11,7 @@ import * as Slider from "./components/Slider.bs.js";
 import * as Spinner from "./components/Spinner.bs.js";
 import * as Tooltip from "./components/Tooltip.bs.js";
 import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
+import * as IconButton from "./components/IconButton.bs.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as UseDebounce from "../bindings/UseDebounce.bs.js";
@@ -21,79 +21,37 @@ import * as AnimationRuntime from "../services/AnimationRuntime.bs.js";
 import * as UseViewportFollow from "./Timeline/useViewportFollow.bs.js";
 import * as Webapi__Dom__Window from "bs-webapi/src/Webapi/Dom/Webapi__Dom__Window.bs.js";
 import * as Webapi__Dom__EventTarget from "bs-webapi/src/Webapi/Dom/Webapi__Dom__EventTarget.bs.js";
+import * as Icon from "@openai/apps-sdk-ui/components/Icon";
 
 var DocumentEvent = Webapi__Dom__EventTarget.Impl({});
 
 var make = Utils.neverRerender(function (Props) {
-      return React.createElement("div", undefined, React.createElement("hr", {
-                      className: "mx-2 h-9 border-gray-600 border bg-none"
-                    }));
+      return React.createElement("div", {
+                  className: "mx-1 h-5 w-px shrink-0 bg-[var(--color-border)]",
+                  role: "separator"
+                });
     });
 
 var DockDivider = {
   make: make
 };
 
-var baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 duration-300";
-
-var make$1 = React.memo(function (Props) {
-      var children = Props.children;
-      var classNameOpt = Props.className;
-      var className = classNameOpt !== undefined ? classNameOpt : "";
-      return React.createElement("div", {
-                  className: Cx.cx([
-                        baseClass,
-                        className
-                      ])
-                }, children);
-    });
-
-var DockSpace = {
-  baseClass: baseClass,
-  make: make$1
-};
-
-var make$2 = React.memo(function (Props) {
-      var children = Props.children;
-      var label = Props.label;
-      var onClick = Props.onClick;
-      var highlightOpt = Props.highlight;
-      var highlight = highlightOpt !== undefined ? highlightOpt : false;
-      return React.createElement("button", {
-                  className: Cx.cx([
-                        baseClass,
-                        "group hover:scale-110",
-                        highlight ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80" : "bg-slate-700 hover:bg-slate-500"
-                      ]),
-                  onClick: (function (param) {
-                      return Curry._1(onClick, undefined);
-                    })
-                }, React.createElement("span", {
-                      className: "sr-only"
-                    }, label), React.createElement("span", {
-                      className: "group-active:scale-90 transition-transform"
-                    }, children));
-    });
-
-var DockButton = {
-  make: make$2
-};
-
 function getFpsMarker(fps, desiredFps) {
   if (fps !== undefined) {
     if (fps < desiredFps * 0.5) {
-      return /* Red */2;
+      return /* Bad */2;
     } else if (fps < desiredFps * 0.8) {
-      return /* Yellow */1;
+      return /* Slow */1;
     } else {
-      return /* Green */0;
+      return /* Good */0;
     }
   } else {
-    return /* White */3;
+    return /* Unknown */3;
   }
 }
 
 function Dock(Props) {
+  var isFullScreen = Props.isFullScreen;
   var fullScreenToggler = Props.fullScreenToggler;
   var timelineSize = Props.timelineSize;
   var context = EditorContext.useEditorContext(undefined);
@@ -102,7 +60,6 @@ function Dock(Props) {
   var player = match[0];
   var match$1 = Hooks.useToggle(context.options.hideDock);
   var collapsedToggle = match$1[1];
-  var isCollapsed = match$1[0];
   var followFrameToViewport = timelineSize !== undefined ? UseViewportFollow.useViewportFollow(timelineSize) : undefined;
   var match$2 = UseDebounce.useThrottle(AnimationRuntime.AudioRuntime.runtimeFps.contents, 100);
   var debouncedFps = match$2[0];
@@ -134,7 +91,7 @@ function Dock(Props) {
                     }));
       });
   var handleSeekLeft = Hooks.useEvent(function (param) {
-        var targetFrame = player.frame - (context.videoMeta.fps << 1) | 0;
+        var targetFrame = player.frame - Math.imul(context.options.rewindStepInSeconds, context.videoMeta.fps) | 0;
         Curry._1(dispatch, {
               TAG: /* Seek */0,
               _0: targetFrame
@@ -144,7 +101,7 @@ function Dock(Props) {
                     }));
       });
   var handleSeekRight = Hooks.useEvent(function (param) {
-        var targetFrame = player.frame + (context.videoMeta.fps << 1) | 0;
+        var targetFrame = player.frame + Math.imul(context.options.rewindStepInSeconds, context.videoMeta.fps) | 0;
         Curry._1(dispatch, {
               TAG: /* Seek */0,
               _0: targetFrame
@@ -153,11 +110,22 @@ function Dock(Props) {
                       return Curry._1(follow, targetFrame);
                     }));
       });
+  var volumeBeforeMute = React.useRef(60);
   var toggleMute = Hooks.useEvent(function (param) {
-        return Curry._1(dispatch, {
-                    TAG: /* SetVolume */2,
-                    _0: 0
-                  });
+        return Belt_Option.forEach(player.volume, (function (volume) {
+                      if (volume > 0) {
+                        volumeBeforeMute.current = volume;
+                        return Curry._1(dispatch, {
+                                    TAG: /* SetVolume */2,
+                                    _0: 0
+                                  });
+                      } else {
+                        return Curry._1(dispatch, {
+                                    TAG: /* SetVolume */2,
+                                    _0: volumeBeforeMute.current
+                                  });
+                      }
+                    }));
       });
   var loggedMagnetRef = React.useRef(false);
   var setMagnet = Hooks.useEvent(function (param) {
@@ -278,130 +246,144 @@ function Dock(Props) {
                     
                   });
         }), []);
+  var rewindStep = String(context.options.rewindStepInSeconds);
+  var fps = debouncedFps !== undefined ? Math.min(debouncedFps, context.videoMeta.fps).toFixed(0) : String(context.videoMeta.fps);
+  if (match$1[0]) {
+    return React.createElement("div", {
+                className: "absolute bottom-4 left-1/2 -translate-x-1/2"
+              }, React.createElement("div", {
+                    className: "rounded-full bg-surface-elevated shadow-[var(--shadow-300),var(--shadow-hairline)]"
+                  }, React.createElement(IconButton.make, {
+                        label: "Show controls",
+                        onClick: toggleDock,
+                        children: React.createElement(Icon.ChevronUp, {}),
+                        shortcut: "T"
+                      })));
+  }
   var match$3 = getFpsMarker(debouncedFps, context.videoMeta.fps);
   var tmp;
   switch (match$3) {
-    case /* Green */0 :
-        tmp = "text-green-500";
+    case /* Good */0 :
+        tmp = "bg-green-400";
         break;
-    case /* Yellow */1 :
-        tmp = "text-yellow-500";
+    case /* Slow */1 :
+        tmp = "bg-orange-400";
         break;
-    case /* Red */2 :
-        tmp = "text-red-500";
+    case /* Bad */2 :
+        tmp = "bg-red-400";
         break;
-    case /* White */3 :
-        tmp = "text-white";
+    case /* Unknown */3 :
+        tmp = "bg-gray-400";
         break;
     
   }
+  var match$4 = context.videoMeta.originalFps;
   var originalFps = context.videoMeta.originalFps;
-  var match$4 = player.playState;
+  var match$5 = player.playState;
+  var match$6 = player.playState;
   var volume = player.volume;
+  var frame = player.magnet;
   return React.createElement("div", {
-              className: Cx.cx([
-                    "absolute bottom-0 w-auto transition-transform transform-gpu left-1/2 px-4 pt-1 space-x-2 bg-slate-900/50 border-t border-x border-gray-100/20 shadow-xl rounded-t-lg backdrop-blur flex -translate-x-1/2",
-                    isCollapsed ? "translate-y-16 duration-300" : ""
-                  ])
-            }, React.createElement(make$1, {
-                  children: null,
-                  className: "tabular-nums space-x-1"
-                }, React.createElement("span", undefined, Utils.Duration.formatFrame(player.frame, context.videoMeta.fps)), React.createElement("span", {
-                      className: "normal-nums relative bottom-px"
-                    }, " / "), React.createElement("span", undefined, Utils.Duration.formatFrame(context.videoMeta.durationInFrames, context.videoMeta.fps))), React.createElement(make$1, {
-                  children: null
+              "aria-label": "Playback controls",
+              className: "absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-surface-elevated p-1.5 text-default shadow-[var(--shadow-300),var(--shadow-hairline)]",
+              role: "toolbar"
+            }, React.createElement("div", {
+                  className: "flex items-baseline gap-1 px-3 text-sm tabular"
                 }, React.createElement("span", {
-                      className: "mr-2 ml-2"
-                    }, "FPS"), React.createElement("span", {
-                      className: Cx.cx([
-                            "inline-flex tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
-                            tmp
-                          ])
-                    }, debouncedFps !== undefined ? Math.min(debouncedFps, context.videoMeta.fps).toFixed(0) : context.videoMeta.fps.toString(), originalFps !== undefined ? React.createElement(Tooltip.make, {
-                            children: React.createElement(Icons.LockIcon.make, {
-                                  className: "ml-px mr-0.5 h-3.5 w-3.5 mt-px"
-                                }),
-                            content: React.createElement(React.Fragment, undefined, "FPS was locked on " + String(context.videoMeta.fps) + " for editor performance.", React.createElement("br", undefined), "Final video will be rendered at " + String(originalFps) + " FPS."),
-                            asChild: false
-                          }) : null)), React.createElement(make, {}), React.createElement(make$2, {
-                  children: React.createElement(Icons.PlayBackIcon.make, {
-                        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
-                        backward: true,
-                        className: "h-6 w-6"
-                      }),
-                  label: "Play forward 5 seconds",
-                  onClick: handleSeekLeft
-                }), React.createElement(make$2, {
-                  children: match$4 !== 0 ? (
-                      match$4 >= 3 ? React.createElement(Spinner.make, {
-                              className: "h-6 w-6"
-                            }) : React.createElement(Icons.PlayIcon.make, {
-                              className: "h-6 w-6"
-                            })
-                    ) : React.createElement(Icons.PauseIcon.make, {
-                          className: "h-6 w-6"
-                        }),
-                  label: "Play",
+                      className: "font-medium"
+                    }, Utils.Duration.formatFrame(player.frame, context.videoMeta.fps)), React.createElement("span", {
+                      className: "text-tertiary"
+                    }, "/"), React.createElement("span", {
+                      className: "text-secondary"
+                    }, Utils.Duration.formatFrame(context.videoMeta.durationInFrames, context.videoMeta.fps))), React.createElement(Tooltip.make, {
+                  children: React.createElement("div", {
+                        className: "flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs text-secondary tabular outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
+                        tabIndex: 0
+                      }, React.createElement("span", {
+                            "aria-hidden": true,
+                            className: Cx.cx([
+                                  "size-1.5 rounded-full transition-colors duration-[400ms]",
+                                  tmp
+                                ])
+                          }), React.createElement("span", {
+                            className: "inline-block w-[2ch] text-right"
+                          }, fps), React.createElement("span", undefined, "fps"), match$4 !== undefined ? React.createElement(Icon.Lock, {
+                              className: "size-3.5"
+                            }) : null),
+                  content: originalFps !== undefined ? "Preview locked to " + String(context.videoMeta.fps) + " fps, the video renders at " + String(originalFps) + " fps" : "Preview frame rate"
+                }), React.createElement(make, {}), React.createElement(IconButton.make, {
+                  label: "Back " + rewindStep + "s",
+                  onClick: handleSeekLeft,
+                  children: React.createElement(Icon.ArrowRotateCcw, {}),
+                  shortcut: "←"
+                }), React.createElement(IconButton.make, {
+                  label: match$5 !== 0 ? (
+                      match$5 >= 3 ? "Loading media" : "Play"
+                    ) : "Pause",
                   onClick: handlePlayOrPause,
-                  highlight: true
-                }), React.createElement(make$2, {
-                  children: React.createElement(Icons.PlayBackIcon.make, {
-                        text: context.options.rewindStepInSeconds.toString().substr(0, 2),
-                        className: "h-6 w-6"
-                      }),
-                  label: "Play back 5 seconds",
-                  onClick: handleSeekRight
-                }), React.createElement(make$1, {
-                  children: null
-                }, volume !== undefined ? React.createElement(Icons.VolumeIcon.make, {
-                        high: volume > 50,
-                        mute: volume === 0,
-                        className: "h-6 w-6"
-                      }) : React.createElement(Icons.VolumeIcon.make, {
-                        mute: true,
-                        className: "h-6 w-6 text-gray-500"
+                  children: match$6 !== 0 ? (
+                      match$6 >= 3 ? React.createElement(Spinner.make, {
+                              className: "size-5"
+                            }) : React.createElement(Icon.PlayTriangle, {})
+                    ) : React.createElement(Icon.PauseSm, {}),
+                  shortcut: "Space",
+                  variant: /* Solid */1,
+                  size: /* Lg */1
+                }), React.createElement(IconButton.make, {
+                  label: "Forward " + rewindStep + "s",
+                  onClick: handleSeekRight,
+                  children: React.createElement(Icon.ArrowRotateCw, {}),
+                  shortcut: "→"
+                }), React.createElement(make, {}), React.createElement("div", {
+                  className: "flex items-center gap-1 pr-3"
+                }, volume !== undefined ? React.createElement(IconButton.make, {
+                        label: volume === 0 ? "Unmute" : "Mute",
+                        onClick: toggleMute,
+                        children: volume === 0 ? React.createElement(Icon.SoundOffSpeaker, {}) : React.createElement(Icon.SoundOnReadOutLoudSpeaker, {}),
+                        shortcut: "Ctrl ↓",
+                        pressed: volume === 0
+                      }) : React.createElement(Tooltip.make, {
+                        children: React.createElement("span", {
+                              className: "inline-flex size-9 items-center justify-center text-disabled outline-none [&>svg]:size-5",
+                              tabIndex: 0
+                            }, React.createElement(Icon.SoundOffSpeaker, {})),
+                        content: "This video has no audio"
                       }), React.createElement(Slider.make, {
                       onValueChange: handleSetVolume,
                       disabled: Belt_Option.isNone(player.volume),
                       value: Utils.$$Option.unwrapOr(player.volume, 0),
                       min: Player.min_volume,
                       max: Player.max_volume,
-                      step: 1
-                    })), React.createElement(make, {}), React.createElement(make$2, {
-                  children: React.createElement(Icons.MagnetIcon.make, {
-                        className: "h-6 w-6"
-                      }),
-                  label: "Magnet to this position",
-                  onClick: setMagnet
-                }), React.createElement(make$2, {
-                  children: React.createElement(Icons.FullScreenIcon.make, {
-                        className: "h-6 w-6"
-                      }),
-                  label: "Turn on/off full-screen mode",
-                  onClick: fullScreenToggler.toggle
-                }), React.createElement(make$1, {
-                  children: React.createElement(ZoomControls.make, {})
-                }), React.createElement(make, {}), React.createElement(make$2, {
-                  children: React.createElement(Icons.CollapseIcon.make, {
-                        className: Cx.cx([
-                              "h-6 w-6 transition-transform",
-                              isCollapsed ? "rotate-180" : ""
-                            ])
-                      }),
-                  label: "Show/Hide dock controls",
-                  onClick: toggleDock
+                      step: 1,
+                      label: "Volume"
+                    })), React.createElement(make, {}), React.createElement(IconButton.make, {
+                  label: frame !== undefined ? (
+                      frame === player.frame ? "Remove start pin" : "Move start pin here"
+                    ) : "Pin start here",
+                  onClick: setMagnet,
+                  children: React.createElement(Icon.Pin, {}),
+                  shortcut: "M",
+                  pressed: Belt_Option.isSome(player.magnet)
+                }), React.createElement(ZoomControls.make, {}), React.createElement(IconButton.make, {
+                  label: isFullScreen ? "Exit full screen" : "Full screen",
+                  onClick: fullScreenToggler.toggle,
+                  children: isFullScreen ? React.createElement(Icon.CollapseLg, {}) : React.createElement(Icon.ExpandLg, {}),
+                  shortcut: "F"
+                }), React.createElement(make, {}), React.createElement(IconButton.make, {
+                  label: "Hide controls",
+                  onClick: toggleDock,
+                  children: React.createElement(Icon.ChevronDown, {}),
+                  shortcut: "T"
                 }));
 }
 
-var make$3 = Dock;
+var make$1 = Dock;
 
 export {
   DocumentEvent ,
   DockDivider ,
-  DockSpace ,
-  DockButton ,
   getFpsMarker ,
-  make$3 as make,
+  make$1 as make,
   
 }
 /* DocumentEvent Not a pure module */

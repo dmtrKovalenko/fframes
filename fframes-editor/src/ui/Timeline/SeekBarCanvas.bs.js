@@ -4,6 +4,7 @@ import * as Cx from "rescript-classnames/src/Cx.bs.js";
 import * as Web from "../../bindings/Web.bs.js";
 import * as Curry from "rescript/lib/es6/curry.js";
 import * as Hooks from "../../hooks/Hooks.bs.js";
+import * as Theme from "../Theme.bs.js";
 import * as React from "react";
 import * as Player from "../../Player.bs.js";
 import * as ZoomUtils from "../../utils/ZoomUtils.bs.js";
@@ -13,18 +14,18 @@ import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as EditorContext from "../../EditorContext.bs.js";
 import * as Webapi__Canvas__Canvas2d from "bs-webapi/src/Webapi/Canvas/Webapi__Canvas__Canvas2d.bs.js";
 
-function renderSeekBar(ctx, size, playState) {
+function renderSeekBar(ctx, size, playState, palette) {
   var x = CanvasSize.frameToX(playState.frame, size);
+  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.accent);
+  Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.accent);
+  ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(x, 0);
   ctx.lineTo(x, size.height);
-  ctx.moveTo(x - 2, 0);
-  ctx.lineTo(x, 7);
-  ctx.lineTo(x + 2, 0);
-  ctx.lineTo(x - 2, 0);
-  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, "#fbbf24");
   ctx.stroke();
-  ctx.closePath();
+  ctx.beginPath();
+  ctx.arc(x, 5, 5, 0, 6.283185307179586, false);
+  ctx.fill();
   
 }
 
@@ -110,6 +111,7 @@ function SeekBarCanvas(Props) {
   var match = Curry._1(editorContext.usePlayer, undefined);
   var dispatch = match[1];
   var player = match[0];
+  var theme = Theme.use(undefined);
   CanvasSize.useCanvasScale(seekCanvasRef, size);
   React.useEffect((function () {
           Belt_Option.map(Caml_option.nullable_to_opt(seekCanvasRef.current), (function (canvasElement) {
@@ -119,7 +121,7 @@ function SeekBarCanvas(Props) {
                   if (match >= 3) {
                     
                   } else {
-                    renderSeekBar(ctx, size, player);
+                    renderSeekBar(ctx, size, player, Theme.palette(theme));
                   }
                   
                 }));
@@ -127,7 +129,8 @@ function SeekBarCanvas(Props) {
         }), [
         size,
         player.frame,
-        player.playState
+        player.playState,
+        theme
       ]);
   var handleMouseMove = Hooks.useEvent(function (e) {
         if (player.playState !== /* Playing */0 && document.hasFocus()) {

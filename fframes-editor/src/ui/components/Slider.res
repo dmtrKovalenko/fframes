@@ -25,15 +25,16 @@ module RadixSlider = {
 
   module Thumb = {
     @react.component @module("@radix-ui/react-slider")
-    external make: (~className: string=?) => React.element = "Thumb"
+    external make: (~className: string=?, @as("aria-label") ~ariaLabel: string=?) => React.element =
+      "Thumb"
   }
 }
 
 /**
- *  Reusable slider component used for the volume slider and timeline scaling selector
+ *  Reusable slider component used for the volume slider, styled as the system slider
  */
 @react.component
-let make = (~onValueChange, ~disabled, ~value, ~min, ~max, ~step) => {
+let make = (~onValueChange, ~disabled, ~value, ~min, ~max, ~step, ~label) => {
   let handleChange = React.useCallback1(newValue => {
     newValue[0]->onValueChange
   }, [onValueChange])
@@ -45,12 +46,13 @@ let make = (~onValueChange, ~disabled, ~value, ~min, ~max, ~step) => {
     disabled
     value=[value]
     onValueChange=handleChange
-    className="relative flex items-center select-none w-28 h-4 mx-2">
-    <RadixSlider.Track className="relative flex-grow h-1 rounded-full bg-slate-800">
-      <RadixSlider.Range className="absolute bg-gray-100 rounded-full h-full" />
+    className="group relative flex h-4 w-24 touch-none select-none items-center data-[disabled]:opacity-50">
+    <RadixSlider.Track className="relative h-1 grow rounded-2xs bg-primary-soft-alpha">
+      <RadixSlider.Range className="absolute h-full rounded-2xs bg-[var(--color-text)]" />
     </RadixSlider.Track>
     <RadixSlider.Thumb
-      className="block cursor-grab w-[13px] h-[13px] bg-white transition-transform shadow-xl rounded-full focus:bg-gradient-to-tr from-indigo-400 to-pink-400"
+      ariaLabel=label
+      className="block size-3.5 cursor-grab rounded-full bg-gray-0 shadow-[inset_0_0_0_2px_var(--color-text)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] active:cursor-grabbing"
     />
   </RadixSlider.Root>
 }

@@ -8,7 +8,6 @@ import type {
   mediaFolder,
 } from "../src/WasmController.gen";
 import { processMedia } from "../src/services/mediaLoader.gen";
-import "../fonts/fonts.css";
 import "../tw.css";
 
 let lastImports: mediaFolder | undefined = undefined;

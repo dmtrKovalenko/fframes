@@ -7,51 +7,22 @@ module DocumentEvent = Dom.EventTarget.Impl(Dom.Window)
 module DockDivider = {
   @react.component
   let make = Utils.neverRerender(() =>
-    <div> <hr className="mx-2 h-9 border-gray-600 border bg-none" /> </div>
+    <div role="separator" className="mx-1 h-5 w-px shrink-0 bg-[var(--color-border)]" />
   )
-}
-
-module DockSpace = {
-  let baseClass = "flex items-center justify-center p-2 shadow rounded-xl relative bottom-3 bg-slate-700 duration-300"
-
-  @react.component
-  let make = React.memo((~children, ~className="") => {
-    <div className={cx([baseClass, className])}> {children} </div>
-  })
 }
 
 @send external focus: Dom.Element.t => unit = "focus"
 
-module DockButton = {
-  @react.component
-  let make = React.memo(
-    React.forwardRef((~children, ~label, ~onClick: 'a => unit, ~highlight=false) => {
-      <button
-        onClick={_ => onClick()}
-        className={cx([
-          DockSpace.baseClass,
-          "group hover:scale-110",
-          highlight
-            ? "bg-gradient-to-tr from-indigo-400/80 to-pink-400/80 hover:from-indigo-300/80 hover:to-pink-300/80"
-            : "bg-slate-700 hover:bg-slate-500",
-        ])}>
-        <span className="sr-only"> {React.string(label)} </span>
-        <span className="group-active:scale-90 transition-transform"> {children} </span>
-      </button>
-    }),
-  )
-}
-
-type fpsMarker = Green | Yellow | Red | White
+type fpsMarker = Good | Slow | Bad | Unknown
 
 let getFpsMarker = (fps, desiredFps) => {
   let desiredFps = desiredFps->Js.Float.fromInt
 
   switch fps {
-  | None => White
-  | Some(fps) if fps < desiredFps *. 0.5 => Red
-  | Some(fps) if fps < desiredFps *. 0.8 => Yellow
-  | _ => Green
+  | None => Unknown
+  | Some(fps) if fps < desiredFps *. 0.5 => Bad
+  | Some(fps) if fps < desiredFps *. 0.8 => Slow
+  | _ => Good
   }
 }
 
@@ -59,6 +30,7 @@ type dir = Back | Forth
 
 @react.component
 let make = (
+  ~isFullScreen: bool,
   ~fullScreenToggler: Hooks.toggle,
   ~timelineSize: option<UseEditorLayout.sectionSize>=?,
 ) => {
@@ -103,19 +75,27 @@ let make = (
   })
 
   let handleSeekLeft = Hooks.useEvent(() => {
-    let targetFrame = player.frame - 2 * context.videoMeta.fps
+    let targetFrame = player.frame - context.options.rewindStepInSeconds * context.videoMeta.fps
     dispatch(Seek(targetFrame))
     followFrameToViewport->Belt.Option.forEach(follow => follow(targetFrame))
   })
 
   let handleSeekRight = Hooks.useEvent(() => {
-    let targetFrame = player.frame + 2 * context.videoMeta.fps
+    let targetFrame = player.frame + context.options.rewindStepInSeconds * context.videoMeta.fps
     dispatch(Seek(targetFrame))
     followFrameToViewport->Belt.Option.forEach(follow => follow(targetFrame))
   })
 
+  let volumeBeforeMute = React.useRef(60)
   let toggleMute = Hooks.useEvent(() => {
-    dispatch(SetVolume(0))
+    player.volume->Option.forEach(volume =>
+      if volume > 0 {
+        volumeBeforeMute.current = volume
+        dispatch(SetVolume(0))
+      } else {
+        dispatch(SetVolume(volumeBeforeMute.current))
+      }
+    )
   })
 
   let loggedMagnetRef = React.useRef(false)
@@ -207,111 +187,151 @@ let make = (
     )
   }, [])
 
-  <div
-    className={Cx.cx([
-      "absolute bottom-0 w-auto transition-transform transform-gpu left-1/2 px-4 pt-1 space-x-2 bg-slate-900/50 border-t border-x border-gray-100/20 shadow-xl rounded-t-lg backdrop-blur flex -translate-x-1/2",
-      isCollapsed ? "translate-y-16 duration-300" : "",
-    ])}>
-    <DockSpace className="tabular-nums space-x-1">
-      <span> {player.frame->Utils.Duration.formatFrame(context.videoMeta.fps)->React.string} </span>
-      <span className="normal-nums relative bottom-px"> {React.string(" / ")} </span>
-      <span>
-        {context.videoMeta.durationInFrames
-        ->Utils.Duration.formatFrame(context.videoMeta.fps)
-        ->React.string}
-      </span>
-    </DockSpace>
-    <DockSpace>
-      <span className="mr-2 ml-2"> {React.string("FPS")} </span>
-      <span
-        className={cx([
-          "inline-flex tabular-nums w-[3ch] font-medium transition-colors duration-[400ms]",
-          switch getFpsMarker(debouncedFps, context.videoMeta.fps) {
-          | Green => "text-green-500"
-          | Yellow => "text-yellow-500"
-          | Red => "text-red-500"
-          | White => "text-white"
-          },
-        ])}>
-        {switch debouncedFps {
-        | Some(fps) =>
-          fps
-          ->Js.Math.min(context.videoMeta.fps->Js.Float.fromInt)
-          ->Js.Float.toFixedWithPrecision(~digits=0)
-          ->React.string
-        | None => context.videoMeta.fps->Js.Int.toString->React.string
-        }}
-        {switch context.videoMeta.originalFps {
-        | Some(originalFps) =>
-          <Tooltip
-            asChild=false
-            content={<>
-              {React.string(
-                `FPS was locked on ${context.videoMeta.fps->Int.toString} for editor performance.`,
-              )}
-              <br />
-              {React.string(`Final video will be rendered at ${originalFps->Int.toString} FPS.`)}
-            </>}>
-            <LockIcon className="ml-px mr-0.5 h-3.5 w-3.5 mt-px" />
-          </Tooltip>
-        | None => React.null
-        }}
-      </span>
-    </DockSpace>
-    <DockDivider />
-    <DockButton onClick=handleSeekLeft label="Play forward 5 seconds">
-      <PlayBackIcon
-        text={context.options.rewindStepInSeconds
-        ->Js.Int.toString
-        ->Js.String.substr(~start=0, ~length=2)}
-        backward=true
-        className="h-6 w-6"
-      />
-    </DockButton>
-    <DockButton onClick=handlePlayOrPause highlight=true label="Play">
-      {switch player.playState {
-      | CantPlay => <Spinner className="h-6 w-6" />
-      | Playing => <PauseIcon className="h-6 w-6" />
-      | Paused
-      | WaitingForAction =>
-        <PlayIcon className="h-6 w-6" />
-      }}
-    </DockButton>
-    <DockButton onClick=handleSeekRight label="Play back 5 seconds">
-      <PlayBackIcon
-        text={context.options.rewindStepInSeconds
-        ->Js.Int.toString
-        ->Js.String.substr(~start=0, ~length=2)}
-        className="h-6 w-6"
-      />
-    </DockButton>
-    <DockSpace>
-      {switch player.volume {
-      | Some(volume) => <VolumeIcon high={volume > 50} mute={volume === 0} className="h-6 w-6" />
-      | _ => <VolumeIcon mute=true className="h-6 w-6 text-gray-500" />
-      }}
-      <Slider
-        disabled={player.volume->Option.isNone}
-        min=Player.min_volume
-        max=Player.max_volume
-        step=1
-        value={player.volume->Utils.Option.unwrapOr(0)}
-        onValueChange={handleSetVolume}
-      />
-    </DockSpace>
-    <DockDivider />
-    <DockButton onClick=setMagnet label="Magnet to this position">
-      <MagnetIcon className="h-6 w-6" />
-    </DockButton>
-    <DockButton onClick=fullScreenToggler.toggle label="Turn on/off full-screen mode">
-      <FullScreenIcon className="h-6 w-6" />
-    </DockButton>
-    <DockSpace> <ZoomControls /> </DockSpace>
-    <DockDivider />
-    <DockButton onClick=toggleDock label="Show/Hide dock controls">
-      <CollapseIcon
-        className={Cx.cx(["h-6 w-6 transition-transform", isCollapsed ? "rotate-180" : ""])}
-      />
-    </DockButton>
-  </div>
+  let rewindStep = context.options.rewindStepInSeconds->Int.toString
+  let fps = switch debouncedFps {
+  | Some(fps) =>
+    fps
+    ->Js.Math.min(context.videoMeta.fps->Js.Float.fromInt)
+    ->Js.Float.toFixedWithPrecision(~digits=0)
+  | None => context.videoMeta.fps->Int.toString
+  }
+
+  {
+    if isCollapsed {
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+        <div
+          className="rounded-full bg-surface-elevated shadow-[var(--shadow-300),var(--shadow-hairline)]">
+          <IconButton onClick=toggleDock label="Show controls" shortcut="T">
+            <ChevronUpIcon />
+          </IconButton>
+        </div>
+      </div>
+    } else {
+      <div
+        role="toolbar"
+        ariaLabel="Playback controls"
+        className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-surface-elevated p-1.5 text-default shadow-[var(--shadow-300),var(--shadow-hairline)]">
+        <div className="flex items-baseline gap-1 px-3 text-sm tabular">
+          <span className="font-medium">
+            {player.frame->Utils.Duration.formatFrame(context.videoMeta.fps)->React.string}
+          </span>
+          <span className="text-tertiary"> {React.string("/")} </span>
+          <span className="text-secondary">
+            {context.videoMeta.durationInFrames
+            ->Utils.Duration.formatFrame(context.videoMeta.fps)
+            ->React.string}
+          </span>
+        </div>
+        <Tooltip
+          content={switch context.videoMeta.originalFps {
+          | Some(originalFps) =>
+            React.string(
+              `Preview locked to ${context.videoMeta.fps->Int.toString} fps, the video renders at ${originalFps->Int.toString} fps`,
+            )
+          | None => React.string("Preview frame rate")
+          }}>
+          <div
+            tabIndex=0
+            className="flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs text-secondary tabular outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]">
+            <span
+              ariaHidden=true
+              className={cx([
+                "size-1.5 rounded-full transition-colors duration-[400ms]",
+                switch getFpsMarker(debouncedFps, context.videoMeta.fps) {
+                | Good => "bg-green-400"
+                | Slow => "bg-orange-400"
+                | Bad => "bg-red-400"
+                | Unknown => "bg-gray-400"
+                },
+              ])}
+            />
+            <span className="inline-block w-[2ch] text-right"> {React.string(fps)} </span>
+            <span> {React.string("fps")} </span>
+            {switch context.videoMeta.originalFps {
+            | Some(_) => <LockIcon className="size-3.5" />
+            | None => React.null
+            }}
+          </div>
+        </Tooltip>
+        <DockDivider />
+        <IconButton onClick=handleSeekLeft label={`Back ${rewindStep}s`} shortcut={`←`}>
+          <RewindIcon />
+        </IconButton>
+        <IconButton
+          onClick=handlePlayOrPause
+          variant=IconButton.Solid
+          size=IconButton.Lg
+          label={switch player.playState {
+          | Playing => "Pause"
+          | CantPlay => "Loading media"
+          | _ => "Play"
+          }}
+          shortcut="Space">
+          {switch player.playState {
+          | CantPlay => <Spinner className="size-5" />
+          | Playing => <PauseIcon />
+          | Paused
+          | WaitingForAction =>
+            <PlayIcon />
+          }}
+        </IconButton>
+        <IconButton onClick=handleSeekRight label={`Forward ${rewindStep}s`} shortcut={`→`}>
+          <ForwardIcon />
+        </IconButton>
+        <DockDivider />
+        <div className="flex items-center gap-1 pr-3">
+          {switch player.volume {
+          | Some(volume) =>
+            <IconButton
+              onClick=toggleMute
+              label={volume === 0 ? "Unmute" : "Mute"}
+              pressed={volume === 0}
+              shortcut={`Ctrl ↓`}>
+              {volume === 0 ? <MuteIcon /> : <VolumeIcon />}
+            </IconButton>
+          | None =>
+            <Tooltip content={React.string("This video has no audio")}>
+              <span
+                tabIndex=0
+                className="inline-flex size-9 items-center justify-center text-disabled outline-none [&>svg]:size-5">
+                <MuteIcon />
+              </span>
+            </Tooltip>
+          }}
+          <Slider
+            label="Volume"
+            disabled={player.volume->Option.isNone}
+            min=Player.min_volume
+            max=Player.max_volume
+            step=1
+            value={player.volume->Utils.Option.unwrapOr(0)}
+            onValueChange={handleSetVolume}
+          />
+        </div>
+        <DockDivider />
+        <IconButton
+          onClick=setMagnet
+          label={switch player.magnet {
+          | Some(frame) if frame === player.frame => "Remove start pin"
+          | Some(_) => "Move start pin here"
+          | None => "Pin start here"
+          }}
+          pressed={player.magnet->Option.isSome}
+          shortcut="M">
+          <PinIcon />
+        </IconButton>
+        <ZoomControls />
+        <IconButton
+          onClick=fullScreenToggler.toggle
+          label={isFullScreen ? "Exit full screen" : "Full screen"}
+          shortcut="F">
+          {isFullScreen ? <CollapseIcon /> : <ExpandIcon />}
+        </IconButton>
+        <DockDivider />
+        <IconButton onClick=toggleDock label="Hide controls" shortcut="T">
+          <ChevronDownIcon />
+        </IconButton>
+      </div>
+    }
+  }
 }

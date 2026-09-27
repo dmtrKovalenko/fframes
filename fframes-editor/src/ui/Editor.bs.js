@@ -4,16 +4,19 @@ import * as Cx from "rescript-classnames/src/Cx.bs.js";
 import * as Dock from "./Dock.bs.js";
 import * as Curry from "rescript/lib/es6/curry.js";
 import * as Hooks from "../hooks/Hooks.bs.js";
-import * as Icons from "./icons/Icons.bs.js";
+import * as Theme from "./Theme.bs.js";
 import * as Utils from "../Utils.bs.js";
 import * as React from "react";
+import * as Tooltip from "./components/Tooltip.bs.js";
 import * as Timeline from "./Timeline/Timeline.bs.js";
 import * as $$MediaList from "../MediaList.bs.js";
+import * as IconButton from "./components/IconButton.bs.js";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as EditorContext from "../EditorContext.bs.js";
 import * as UseEditorLayout from "../hooks/useEditorLayout.bs.js";
 import HtmlReactParser from "html-react-parser";
+import * as Icon from "@openai/apps-sdk-ui/components/Icon";
 
 function a(prim) {
   return {};
@@ -21,9 +24,11 @@ function a(prim) {
 
 function Editor(Props) {
   var context = EditorContext.useEditorContext(undefined);
+  var theme = Theme.useTheme(Belt_Option.getWithDefault(context.options.theme, "system"));
   var match = Curry._1(context.usePlayer, undefined);
   var match$1 = Hooks.useToggle(false);
-  var layout = Hooks.useEditorLayout(match$1[0]);
+  var isFullScreen = match$1[0];
+  var layout = Hooks.useEditorLayout(isFullScreen);
   var previewRef = React.useRef(null);
   var match$2 = React.useState(function () {
         var match = context.options.mediaListLayout;
@@ -43,6 +48,33 @@ function Editor(Props) {
             return "Unknown video";
           }
         }), [context.videoMeta]);
+  var match$3 = context.videoMeta;
+  var fps = match$3.fps;
+  var videoDetails = String(match$3.width) + "×" + String(match$3.height) + " · " + String(fps) + " fps · " + Utils.Duration.formatFrame(match$3.durationInFrames, fps);
+  var viewOption = function (variant, label, icon) {
+    var selected = listVariant === variant;
+    var button = React.createElement("button", {
+          "aria-label": label,
+          className: Cx.cx([
+                "inline-flex h-7 w-8 items-center justify-center rounded-full transition-colors duration-150 [&>svg]:size-4",
+                IconButton.focusRing,
+                selected ? "bg-surface-elevated text-default shadow-[0_1px_4px_-1px_rgb(0_0_0/20%)]" : "text-secondary hover:text-default"
+              ]),
+          role: "radio",
+          type: "button",
+          onClick: (function (param) {
+              return Curry._1(setListVariant, (function (param) {
+                            return variant;
+                          }));
+            })
+        }, icon);
+    return React.createElement(Tooltip.make, {
+                children: React.cloneElement(button, {
+                      "aria-checked": selected
+                    }),
+                content: label
+              });
+  };
   React.useEffect((function () {
           Belt_Option.forEach(Caml_option.nullable_to_opt(previewRef.current), (function (param) {
                   console.log("Happy video hacking! Your preview will be rendered at", param);
@@ -51,83 +83,66 @@ function Editor(Props) {
           
         }), []);
   var tmp = {
+    isFullScreen: isFullScreen,
     fullScreenToggler: match$1[1]
   };
   if (layout.timeLine !== undefined) {
     tmp.timelineSize = Caml_option.valFromOption(layout.timeLine);
   }
-  return React.createElement("div", {
-              className: "w-screen h-screen bg-gray-900 overflow-hidden relative",
-              id: "fframes-editor"
-            }, React.createElement("style", {
-                  type: "text/css"
-                }, "\n        #editor-preview > svg {\n        transform-origin: top left !important;\n        transform: scale(" + layout.preview.scale.toString() + ") !important\n        }\n        "), React.createElement("div", {
-                  className: "overflow-auto flex justify-center w-full"
-                }, Utils.$$Option.unwrapOr(Belt_Option.map(layout.mediaControls, (function (size) {
-                            return React.createElement("div", {
-                                        className: "col-span-2 h-full overflow-auto flex flex-col border-r border-gray-800",
-                                        style: UseEditorLayout.sizeToStyle(size)
-                                      }, React.createElement("div", {
-                                            className: "flex items-center p-4 border-b border-gray-700 justify-between mb-3 gap-2 sticky top-0 bg-gray-900/90 backdrop-blur-lg"
-                                          }, React.createElement("h1", {
-                                                className: "text-3xl mt-px font-medium text-white grow-0 truncate"
-                                              }, videoTitle), React.createElement("div", {
-                                                className: "isolate flex rounded-md shadow-sm"
-                                              }, React.createElement("button", {
-                                                    className: Cx.cx([
-                                                          "transition-colors relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-800 ring-1 ring-inset ring-gray-800 hover:bg-gray-50 focus:z-10",
-                                                          listVariant ? "bg-slate-100" : "bg-slate-300"
-                                                        ]),
-                                                    type: "button",
-                                                    onClick: (function (param) {
-                                                        return Curry._1(setListVariant, (function (param) {
-                                                                      return /* List */1;
-                                                                    }));
-                                                      })
-                                                  }, React.createElement("span", {
-                                                        className: "sr-only"
-                                                      }, "List view"), React.createElement(Icons.ListViewIcon.make, {
-                                                        color: "currentColor",
-                                                        className: "h-4 w-5"
-                                                      })), React.createElement("button", {
-                                                    className: Cx.cx([
-                                                          "transition-colors relative -ml-px inline-flex items-center rounded-r-md px-2 py-2 text-gray-800 ring-1 ring-inset ring-gray-800 hover:bg-gray-50 focus:z-10",
-                                                          listVariant ? "bg-slate-300" : "bg-slate-100"
-                                                        ]),
-                                                    type: "button",
-                                                    onClick: (function (param) {
-                                                        return Curry._1(setListVariant, (function (param) {
-                                                                      return /* Grid */0;
-                                                                    }));
-                                                      })
-                                                  }, React.createElement("span", {
-                                                        className: "sr-only"
-                                                      }, "Grid view"), React.createElement(Icons.GridViewIcon.make, {
-                                                        color: "currentColor",
-                                                        className: "h-5 w-5"
-                                                      })))), React.createElement("div", {
-                                            className: "pb-4",
-                                            style: UseEditorLayout.sizeToStyle(size)
-                                          }, React.createElement($$MediaList.make, {
-                                                variant: listVariant
-                                              })));
-                          })), null), React.createElement("div", {
-                      ref: previewRef,
-                      className: "bg-black",
-                      id: "editor-preview",
-                      style: UseEditorLayout.sizeToStyle(layout.preview)
-                    }, HtmlReactParser(Utils.$$Option.unwrapOr(match[0].svg, ""), {
-                          htmlparser2: {
-                            xmlMode: true
-                          }
-                        }))), Utils.$$Option.unwrapOr(Belt_Option.map(layout.timeLine, (function (sectionSize) {
-                        return React.createElement("div", {
-                                    className: "shadow-lg w-screen bg-gray-800",
-                                    style: UseEditorLayout.sizeToStyle(sectionSize)
-                                  }, React.createElement(Timeline.make, {
-                                        sectionSize: sectionSize
-                                      }));
-                      })), null), React.createElement(Dock.make, tmp));
+  return React.createElement(Theme.Provider.make, {
+              value: theme,
+              children: React.createElement(Tooltip.Provider.make, {
+                    children: React.createElement("div", {
+                          className: "relative h-screen w-screen overflow-hidden bg-surface font-sans text-default antialiased",
+                          id: "fframes-editor"
+                        }, React.createElement("style", {
+                              type: "text/css"
+                            }, "\n            #editor-preview > svg {\n            transform-origin: top left !important;\n            transform: scale(" + layout.preview.scale.toString() + ") !important\n            }\n            "), React.createElement("div", {
+                              className: "flex w-full justify-center overflow-auto"
+                            }, Utils.$$Option.unwrapOr(Belt_Option.map(layout.mediaControls, (function (size) {
+                                        return React.createElement("aside", {
+                                                    "aria-label": "Project",
+                                                    className: "flex h-full flex-col overflow-auto border-r border-subtle bg-surface-secondary",
+                                                    style: UseEditorLayout.sizeToStyle(size)
+                                                  }, React.createElement("header", {
+                                                        className: "sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface-secondary/90 px-4 py-3 backdrop-blur-lg"
+                                                      }, React.createElement("div", {
+                                                            className: "min-w-0"
+                                                          }, React.createElement("h1", {
+                                                                className: "truncate text-base font-semibold"
+                                                              }, videoTitle), React.createElement("p", {
+                                                                className: "truncate text-xs text-secondary tabular"
+                                                              }, videoDetails)), React.createElement("div", {
+                                                            "aria-label": "Media layout",
+                                                            className: "flex shrink-0 gap-0.5 rounded-full bg-primary-soft-alpha p-0.5",
+                                                            role: "radiogroup"
+                                                          }, viewOption(/* List */1, "List view", React.createElement(Icon.VideoList, {})), viewOption(/* Grid */0, "Grid view", React.createElement(Icon.VideoGrid, {})))), React.createElement("h2", {
+                                                        className: "px-4 pt-2 pb-2 text-xs font-medium text-secondary"
+                                                      }, "Media"), React.createElement("div", {
+                                                        className: "pb-4"
+                                                      }, React.createElement($$MediaList.make, {
+                                                            variant: listVariant
+                                                          })));
+                                      })), null), React.createElement("div", {
+                                  ref: previewRef,
+                                  className: "bg-black",
+                                  id: "editor-preview",
+                                  style: UseEditorLayout.sizeToStyle(layout.preview)
+                                }, HtmlReactParser(Utils.$$Option.unwrapOr(match[0].svg, ""), {
+                                      htmlparser2: {
+                                        xmlMode: true
+                                      }
+                                    }))), Utils.$$Option.unwrapOr(Belt_Option.map(layout.timeLine, (function (sectionSize) {
+                                    return React.createElement("section", {
+                                                "aria-label": "Timeline",
+                                                className: "w-screen border-t border-subtle bg-surface-secondary",
+                                                style: UseEditorLayout.sizeToStyle(sectionSize)
+                                              }, React.createElement(Timeline.make, {
+                                                    sectionSize: sectionSize
+                                                  }));
+                                  })), null), React.createElement(Dock.make, tmp))
+                  })
+            });
 }
 
 var make = Editor;

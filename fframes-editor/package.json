@@ -11,13 +11,14 @@
   "types": "./src/fframes-editor.tsx",
   "scripts": {
     "build": "yarn rescript:build && yarn bundle:dev",
-    "bundle:dev": "npx @tailwindcss/cli -o tw.css && node esbuild.mjs",
-    "build:prod": "npx @tailwindcss/cli -m -o tw.css && yarn rescript:build && node esbuild.mjs -r",
-    "dev": "concurrently --raw 'rescript build -w' 'npx @tailwindcss/cli -o tw.css --watch' 'node esbuild.mjs --watch'",
+    "bundle:dev": "npx @tailwindcss/cli -i src/main.css -o tw.css && node esbuild.mjs",
+    "build:prod": "npx @tailwindcss/cli -m -i src/main.css -o tw.css && yarn rescript:build && node esbuild.mjs -r",
+    "dev": "concurrently --raw 'rescript build -w' 'npx @tailwindcss/cli -i src/main.css -o tw.css --watch' 'node esbuild.mjs --watch'",
     "rescript:build": "rescript build -with-deps",
     "rescript:clean": "rescript clean -with-deps"
   },
   "dependencies": {
+    "@openai/apps-sdk-ui": "^0.2.2",
     "@radix-ui/react-slider": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.0.5",
     "@rescript/react": "^0.10.3",

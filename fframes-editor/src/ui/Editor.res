@@ -6,6 +6,7 @@ let a = Js.Dict.empty
 @genType.as("Editor") @react.component
 let make = () => {
   let context = EditorContext.useEditorContext()
+  let theme = Theme.useTheme(context.options.theme->Belt.Option.getWithDefault(#system))
   let (player, _) = context.usePlayer()
   let (isFullScreen, fullScreenToggler) = Hooks.useToggle(false)
   let layout = useEditorLayout(~isFullScreen)
@@ -30,6 +31,36 @@ let make = () => {
     }
   }, [context.videoMeta])
 
+  let videoDetails = {
+    let {width, height, fps, durationInFrames} = context.videoMeta
+    `${width->Belt.Int.toString}×${height->Belt.Int.toString} · ${fps->Belt.Int.toString} fps · ${durationInFrames->Utils.Duration.formatFrame(
+        fps,
+      )}`
+  }
+
+  let viewOption = (variant, ~label, ~icon) => {
+    let selected = listVariant === variant
+    let button =
+      <button
+        type_="button"
+        role="radio"
+        ariaLabel=label
+        onClick={_ => setListVariant(_ => variant)}
+        className={Cx.cx([
+          "inline-flex h-7 w-8 items-center justify-center rounded-full transition-colors duration-150 [&>svg]:size-4",
+          IconButton.focusRing,
+          selected
+            ? "bg-surface-elevated text-default shadow-[0_1px_4px_-1px_rgb(0_0_0/20%)]"
+            : "text-secondary hover:text-default",
+        ])}>
+        icon
+      </button>
+
+    <Tooltip content={React.string(label)}>
+      {React.cloneElement(button, {"aria-checked": selected})}
+    </Tooltip>
+  }
+
   React.useEffect0(() => {
     previewRef.current
     ->Js.Nullable.toOption
@@ -38,93 +69,84 @@ let make = () => {
     None
   })
 
-  <div id="fframes-editor" className="w-screen h-screen bg-gray-900 overflow-hidden relative">
-    <style type_="text/css">
-      {React.string(
-        `
-        #editor-preview > svg {
-        transform-origin: top left !important;
-        transform: scale(${layout.preview.scale->Js.Float.toString}) !important
-        }
-        `,
-      )}
-    </style>
-    <div className="overflow-auto flex justify-center w-full">
-      {
-        // MediaList
-        layout.mediaControls
-        ->Belt.Option.map(size =>
-          <div
-            style={size->UseEditorLayout.sizeToStyle}
-            className="col-span-2 h-full overflow-auto flex flex-col border-r border-gray-800">
-            <div
-              className="flex items-center p-4 border-b border-gray-700 justify-between mb-3 gap-2 sticky top-0 bg-gray-900/90 backdrop-blur-lg">
-              <h1 className="text-3xl mt-px font-medium text-white grow-0 truncate">
-                {videoTitle}
-              </h1>
-              <div className="isolate flex rounded-md shadow-sm">
-                <button
-                  type_="button"
-                  onClick={_ => setListVariant(_ => MediaList.List)}
-                  className={Cx.cx([
-                    "transition-colors relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-800 ring-1 ring-inset ring-gray-800 hover:bg-gray-50 focus:z-10",
-                    switch listVariant {
-                    | MediaList.List => "bg-slate-100"
-                    | MediaList.Grid => "bg-slate-300"
-                    },
-                  ])}>
-                  <span className="sr-only"> {React.string("List view")} </span>
-                  <Icons.ListViewIcon color="currentColor" className="h-4 w-5" />
-                </button>
-                <button
-                  type_="button"
-                  onClick={_ => setListVariant(_ => MediaList.Grid)}
-                  className={Cx.cx([
-                    "transition-colors relative -ml-px inline-flex items-center rounded-r-md px-2 py-2 text-gray-800 ring-1 ring-inset ring-gray-800 hover:bg-gray-50 focus:z-10",
-                    switch listVariant {
-                    | MediaList.List => "bg-slate-300"
-                    | MediaList.Grid => "bg-slate-100"
-                    },
-                  ])}>
-                  <span className="sr-only"> {React.string("Grid view")} </span>
-                  <Icons.GridViewIcon color="currentColor" className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            <div style={size->UseEditorLayout.sizeToStyle} className="pb-4">
-              <MediaList variant=listVariant />
-            </div>
-          </div>
-        )
-        ->Utils.Option.unwrapOr(React.null)
-      }
-      // Preview
+  <Theme.Provider value=theme>
+    <Tooltip.Provider>
       <div
-        id="editor-preview"
-        ref={ReactDOM.Ref.domRef(previewRef)}
-        style={layout.preview->UseEditorLayout.sizeToStyle}
-        className="bg-black">
-        {player.svg
-        ->Utils.Option.unwrapOr("")
-        ->VDom.parseReactElement({
-          htmlparser2: {
-            xmlMode: true,
-          },
-        })}
-      </div>
-    </div>
-    {
-      // Timeline
-      layout.timeLine
-      ->Belt.Option.map(sectionSize =>
-        <div
-          style={sectionSize->UseEditorLayout.sizeToStyle}
-          className="shadow-lg w-screen bg-gray-800">
-          <Timeline sectionSize />
+        id="fframes-editor"
+        className="relative h-screen w-screen overflow-hidden bg-surface font-sans text-default antialiased">
+        <style type_="text/css">
+          {React.string(
+            `
+            #editor-preview > svg {
+            transform-origin: top left !important;
+            transform: scale(${layout.preview.scale->Js.Float.toString}) !important
+            }
+            `,
+          )}
+        </style>
+        <div className="flex w-full justify-center overflow-auto">
+          {
+            // MediaList
+            layout.mediaControls
+            ->Belt.Option.map(size =>
+              <aside
+                ariaLabel="Project"
+                style={size->UseEditorLayout.sizeToStyle}
+                className="flex h-full flex-col overflow-auto border-r border-subtle bg-surface-secondary">
+                <header
+                  className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface-secondary/90 px-4 py-3 backdrop-blur-lg">
+                  <div className="min-w-0">
+                    <h1 className="truncate text-base font-semibold"> {videoTitle} </h1>
+                    <p className="truncate text-xs text-secondary tabular">
+                      {React.string(videoDetails)}
+                    </p>
+                  </div>
+                  <div
+                    role="radiogroup"
+                    ariaLabel="Media layout"
+                    className="flex shrink-0 gap-0.5 rounded-full bg-primary-soft-alpha p-0.5">
+                    {viewOption(MediaList.List, ~label="List view", ~icon=<Icons.ListViewIcon />)}
+                    {viewOption(MediaList.Grid, ~label="Grid view", ~icon=<Icons.GridViewIcon />)}
+                  </div>
+                </header>
+                <h2 className="px-4 pt-2 pb-2 text-xs font-medium text-secondary">
+                  {React.string("Media")}
+                </h2>
+                <div className="pb-4"> <MediaList variant=listVariant /> </div>
+              </aside>
+            )
+            ->Utils.Option.unwrapOr(React.null)
+          }
+          // Preview
+          <div
+            id="editor-preview"
+            ref={ReactDOM.Ref.domRef(previewRef)}
+            style={layout.preview->UseEditorLayout.sizeToStyle}
+            className="bg-black">
+            {player.svg
+            ->Utils.Option.unwrapOr("")
+            ->VDom.parseReactElement({
+              htmlparser2: {
+                xmlMode: true,
+              },
+            })}
+          </div>
         </div>
-      )
-      ->Utils.Option.unwrapOr(React.null)
-    }
-    <Dock fullScreenToggler timelineSize=?{layout.timeLine} />
-  </div>
+        {
+          // Timeline
+          layout.timeLine
+          ->Belt.Option.map(sectionSize =>
+            <section
+              ariaLabel="Timeline"
+              style={sectionSize->UseEditorLayout.sizeToStyle}
+              className="w-screen border-t border-subtle bg-surface-secondary">
+              <Timeline sectionSize />
+            </section>
+          )
+          ->Utils.Option.unwrapOr(React.null)
+        }
+        <Dock isFullScreen fullScreenToggler timelineSize=?{layout.timeLine} />
+      </div>
+    </Tooltip.Provider>
+  </Theme.Provider>
 }

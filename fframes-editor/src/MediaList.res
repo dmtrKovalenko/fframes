@@ -4,41 +4,28 @@ open Belt
 type listVariant = Grid | List
 
 module LoadedMediaIcon = {
-  let iconContainerClassName = "overflow-hidden bg-gray-400 bg-gradient-to-tr  from-indigo-400 to-pink-400 flex justify-center items-center"
-
   @react.component
-  let make = (~variant, ~media: MediaLoader.processedMedia) => {
-    let layoutIconClassName = switch variant {
-    | Grid => "size-32 rounded-xl"
-    | List => "size-10 2xl:size-12 rounded-xl"
-    }
+  let make = (~variant, ~name, ~media: MediaLoader.processedMedia) => {
+    let containerClassName = cx([
+      "flex shrink-0 items-center justify-center overflow-hidden bg-primary-soft-alpha text-secondary",
+      switch variant {
+      | Grid => "aspect-square w-full rounded-xl [&>svg]:size-8"
+      | List => "size-10 rounded-lg [&>svg]:size-5"
+      },
+    ])
 
-    let iconClassName = switch variant {
-    | Grid => "h-[40%]"
-    | List => "h-[60%]"
-    }
-
-    switch media {
-    | Image({src}) =>
-      <div
-        className={cx([
-          "bg-cover bg-no-repeat bg-center",
-          iconContainerClassName,
-          layoutIconClassName,
-        ])}
-        style={ReactDOMStyle.make(~backgroundImage=`url(${src})`, ())}
-      />
-
-    | nonImageMedia =>
-      <div className={cx([iconContainerClassName, layoutIconClassName])}>
-        {switch nonImageMedia {
-        | Audio(_) => <Icons.MusicalNotesIcon color="currentColor" className=iconClassName />
-        | Font(_) => <Icons.FontIcon color="currentColor" className=iconClassName />
-        | Subtitles(_) => <Icons.CaptionsIcon color="currentColor" className=iconClassName />
-        | _ => React.null
-        }}
-      </div>
-    }
+    <div className=containerClassName>
+      {switch media {
+      | Image({src}) =>
+        React.cloneElement(
+          <img src alt=name className="size-full object-cover" />,
+          {"loading": "lazy"},
+        )
+      | Audio(_) => <Icons.MusicIcon />
+      | Font(_) => <Icons.FontIcon />
+      | Subtitles(_) => <Icons.CaptionsIcon />
+      }}
+    </div>
   }
 }
 
@@ -62,25 +49,14 @@ module LoadedMedia = {
   let make = (~name, ~media: MediaLoader.processedMedia, ~variant) => {
     <li
       title={name}
-      className={Cx.cx([
-        switch variant {
-        | Grid => "w-32 flex flex-col space-y-2"
-        | List => "py-2 h-16 2xl:h-20 flex items-center gap-2 px-6"
-        },
-      ])}>
-      <LoadedMediaIcon media variant />
-      <div className="flex flex-col flex-1">
-        <p
-          className={Cx.cx([
-            "text-gray-300 2xl:text-lg",
-            switch variant {
-            | Grid => "truncate"
-            | List => "line-clamp-3"
-            },
-          ])}>
-          {name->React.string}
-        </p>
-        <p className="text-gray-500 text-xs 2xl:text-base truncate">
+      className={switch variant {
+      | Grid => "flex min-w-0 flex-col gap-2"
+      | List => "flex items-center gap-3 rounded-lg px-2 py-2"
+      }}>
+      <LoadedMediaIcon media name variant />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <p className="truncate text-sm text-default"> {name->React.string} </p>
+        <p className="truncate text-xs text-secondary">
           {switch media {
           | Audio({sampleRate, duration}) =>
             `${duration->Utils.Duration.formatSeconds}, ${sampleRate->Int.toString}hz`->React.string
@@ -110,12 +86,11 @@ let make = memo((~variant: listVariant) => {
   let mediaState = MediaLoader.MediaLoaderObserver.useObservable()
 
   <ul
-    className={Cx.cx([
-      switch variant {
-      | Grid => "flex px-4 flex-wrap gap-x-6 gap-y-4"
-      | List => "flex flex-col divide-y divide-gray-800"
-      },
-    ])}>
+    ariaLabel="Media"
+    className={switch variant {
+    | Grid => "grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-3 gap-y-4 px-4"
+    | List => "flex flex-col px-2"
+    }}>
     {mediaState.mediaList
     ->Map.String.keysToArray
     ->Array.map(name => {

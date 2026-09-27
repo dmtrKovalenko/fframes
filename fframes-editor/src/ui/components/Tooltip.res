@@ -1,7 +1,7 @@
 module RadixTooltip = {
   module Provider = {
     @react.component @module("@radix-ui/react-tooltip")
-    external make: (~children: React.element) => React.element = "Provider"
+    external make: (~children: React.element, ~delayDuration: int=?) => React.element = "Provider"
   }
 
   module Root = {
@@ -31,31 +31,31 @@ module RadixTooltip = {
       ~sideOffset: int=?,
     ) => React.element = "Content"
   }
-
-  module Arrow = {
-    @react.component @module("@radix-ui/react-tooltip")
-    external make: (~className: string=?) => React.element = "Arrow"
-  }
 }
 
+// One provider for the whole editor so moving between controls shows tooltips without the delay
+module Provider = {
+  @react.component
+  let make = (~children) =>
+    <RadixTooltip.Provider delayDuration=400> children </RadixTooltip.Provider>
+}
+
+// Compact system tooltip: inverted surface, body-small text and an optional keyboard shortcut
 @react.component
-let make = (~children: React.element, ~content, ~asChild) => {
-  <RadixTooltip.Provider>
-    <RadixTooltip.Root>
-      <RadixTooltip.Trigger asChild>
-        {children}
-        // {if asChild {
-        // } else {
-        //   <button type_="button" className="inline-block"> {children} </button>
-        // }}
-      </RadixTooltip.Trigger>
-      <RadixTooltip.Portal>
-        <RadixTooltip.Content
-          className="data-[state=delayed-open]:data-[side=top]:animate-slideDownAndFade data-[state=delayed-open]:data-[side=right]:animate-slideLeftAndFade data-[state=delayed-open]:data-[side=left]:animate-slideRightAndFade data-[state=delayed-open]:data-[side=bottom]:animate-slideUpAndFade select-none rounded-[4px] bg-white text-black px-[15px] py-[10px] text-[15px] leading-none shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] will-change-[transform,opacity]"
-          sideOffset={5}>
-          {content} <RadixTooltip.Arrow className="fill-white" />
-        </RadixTooltip.Content>
-      </RadixTooltip.Portal>
-    </RadixTooltip.Root>
-  </RadixTooltip.Provider>
+let make = (~children: React.element, ~content, ~shortcut: option<string>=?, ~asChild=true) => {
+  <RadixTooltip.Root>
+    <RadixTooltip.Trigger asChild> {children} </RadixTooltip.Trigger>
+    <RadixTooltip.Portal>
+      <RadixTooltip.Content
+        sideOffset={8}
+        className="z-50 flex max-w-[300px] select-none items-center gap-2 rounded-md bg-gray-700 px-2 py-0.5 text-sm text-gray-0 shadow-md animate-tooltip-in">
+        {content}
+        {switch shortcut {
+        | Some(shortcut) =>
+          <kbd className="font-sans text-xs text-gray-300"> {React.string(shortcut)} </kbd>
+        | None => React.null
+        }}
+      </RadixTooltip.Content>
+    </RadixTooltip.Portal>
+  </RadixTooltip.Root>
 }

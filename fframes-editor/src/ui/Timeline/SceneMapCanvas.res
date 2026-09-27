@@ -117,19 +117,14 @@ let clipOverTimeLineElement = (ctx, size: canvasSize, ~y, ~width, ~fill) => {
   ctx->Canvas2d.fillRect(~x, ~y, ~w=width, ~h=height)
 }
 
-let sceneColors = [
-  "#f87171",
-  "#fbbf24",
-  "#4ade80",
-  "#2dd4bf",
-  "#38bdf8",
-  "#818cf8",
-  "#c084fc",
-  "#f472b6",
-  "#fb7185",
-]
+let renderScenes = (
+  ctx,
+  size: canvasSize,
+  editorContext: EditorContext.editorContext,
+  ~palette: Theme.palette,
+) => {
+  let sceneColors = palette.scenes
 
-let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorContext) => {
   editorContext.videoMeta.scenesTimeline
   ->Js.Nullable.toOption
   ->Belt.Option.forEach(array =>
@@ -137,7 +132,8 @@ let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorCo
       // Skip scenes that start beyond video duration
       if scene.start < editorContext.videoMeta.durationInFrames {
         let sceneColor = sceneColors |> Js.Array.length |> mod(i) |> Belt.Array.get(sceneColors)
-        ctx->Canvas2d.setFillStyle(String, sceneColor->Utils.Option.unwrapOr("#fbbf24"))
+        let sceneColor = sceneColor->Utils.Option.unwrapOr(palette.accent)
+        ctx->Canvas2d.setFillStyle(String, sceneColor)
 
         // Clamp scene boundaries to video duration to prevent rendering beyond video end
         let clampedStart = Utils.Math.minI(scene.start, editorContext.videoMeta.durationInFrames)
@@ -181,7 +177,6 @@ let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorCo
           ~y=(timeline_scenes_start_y + markSize)->Float.fromInt,
         )
         ctx->Canvas2d.fill
-        ctx->Canvas2d.globalAlpha(0.8)
         ctx->Canvas2d.fillRect(
           ~x=overflowSafeX,
           ~y=uninlided_y,
@@ -194,6 +189,8 @@ let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorCo
 
         ctx->Canvas2d.rect(~x=x1, ~y=uninlided_y, ~w=width -. 4., ~h=20.)
         ctx->Canvas2d.clip
+        ctx->Canvas2d.font(Theme.canvasFontMedium)
+        ctx->Canvas2d.setFillStyle(String, palette.textSecondary)
         scene.name
         ->Js.String.split("::")
         ->Utils.Array.last
@@ -207,7 +204,8 @@ let renderScenes = (ctx, size: canvasSize, editorContext: EditorContext.editorCo
 
         ctx->Canvas2d.restore
 
-        ctx->Canvas2d.globalAlpha(0.25)
+        ctx->Canvas2d.setFillStyle(String, sceneColor)
+        ctx->Canvas2d.globalAlpha(0.05)
         ctx->Canvas2d.fillRect(~x=x1, ~y=uninlided_y, ~w=width, ~h=size.scaledHeight)
       }
     })
@@ -248,22 +246,22 @@ let renderFrameWithClipping = (
       ~width=clipWidth->Float.fromInt,
       ~height=Float.fromInt(scene_height_size),
       ~topLeft=if isFirstFrame {
-        16.0
+        12.0
       } else {
         0.0
       },
       ~bottomLeft=if isFirstFrame {
-        16.0
+        12.0
       } else {
         0.0
       },
       ~topRight=if isLastFrame {
-        16.0
+        12.0
       } else {
         0.0
       },
       ~bottomRight=if isLastFrame {
-        16.0
+        12.0
       } else {
         0.0
       },
@@ -452,6 +450,7 @@ let renderAudioWaveForm = (
   ~audioSpaceWidth,
   ~audioName,
   ~editorContext: EditorContext.editorContext,
+  ~palette: Theme.palette,
 ) => {
   let media = MediaLoader.MediaLoaderObserver.get().mediaList->Belt.Map.String.get(audioName)
   let audioInfo = switch media {
@@ -475,7 +474,7 @@ let renderAudioWaveForm = (
   let x = ref(x0)
 
   ctx->Canvas2d.beginPath
-  ctx->Canvas2d.setStrokeStyle(String, "#e2e8f0")
+  ctx->Canvas2d.setStrokeStyle(String, palette.textTertiary)
 
   while x.contents < audioSpaceWidth || position.contents < positionEnd {
     let pcm = audioInfo.fltpData->Web.Float32Array.at(position.contents)->Utils.Option.unwrapOr(0.0)
@@ -490,7 +489,12 @@ let renderAudioWaveForm = (
   ctx->Canvas2d.stroke
 }
 
-let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => {
+let renderAudioMap = (
+  ctx,
+  size,
+  editorContext: EditorContext.editorContext,
+  ~palette: Theme.palette,
+) => {
   let xStack = []
 
   editorContext.videoMeta.audioMap
@@ -534,7 +538,8 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
       )
 
       ctx->Canvas2d.clip
-      ctx->Canvas2d.setFillStyle(String, "#e2e8f0")
+      ctx->Canvas2d.font(Theme.canvasFont)
+      ctx->Canvas2d.setFillStyle(String, palette.textSecondary)
       track.name->Canvas2d.fillText(ctx, ~x=textX, ~y=textY)
       ctx->Canvas2d.restore
       ctx->Canvas2d.beginPath
@@ -549,7 +554,7 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
       )
       ctx->Canvas2d.clip
 
-      ctx->Canvas2d.setFillStyle(String, "#059669")
+      ctx->Canvas2d.setFillStyle(String, palette.softAlpha)
       ctx->Canvas2d.fillRect(~x, ~y, ~w=width, ~h=Float.fromInt(scene_height_size / 2))
 
       ctx
@@ -561,6 +566,7 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
         ~editorContext,
         ~startFrame=track.start,
         ~endFrame=track.end,
+        ~palette,
       )
       ->ignore
 
@@ -571,7 +577,12 @@ let renderAudioMap = (ctx, size, editorContext: EditorContext.editorContext) => 
     }, 32)->ignore)
 }
 
-let renderTimeSlots = (ctx, size, editorContext: EditorContext.editorContext) => {
+let renderTimeSlots = (
+  ctx,
+  size,
+  editorContext: EditorContext.editorContext,
+  ~palette: Theme.palette,
+) => {
   // Calculate zoom-aware time slot spacing
   let pixelsPerFrame = size.frameToPxRatio
   let pixelsPerSecond = pixelsPerFrame *. editorContext.videoMeta.fps->Float.fromInt
@@ -619,14 +630,14 @@ let renderTimeSlots = (ctx, size, editorContext: EditorContext.editorContext) =>
       ctx->Canvas2d.moveTo(~x, ~y=0.)
       ctx->Canvas2d.lineTo(~x, ~y=18.)
 
-      ctx->Canvas2d.setStrokeStyle(String, "rgba(71, 85, 105, 0.3)")
+      ctx->Canvas2d.setStrokeStyle(String, palette.border)
       ctx->Canvas2d.lineWidth(1.0)
       ctx->Canvas2d.stroke
 
       // Show timestamp every few slots based on zoom level
       if mod(frame / timeIntervalFrames, full_timestamp_each_steps) === 0 {
-        ctx->Canvas2d.font("12px sans-serif")
-        ctx->Canvas2d.setFillStyle(String, "#64748b")
+        ctx->Canvas2d.font(Theme.canvasFont)
+        ctx->Canvas2d.setFillStyle(String, palette.textTertiary)
 
         frame
         ->Float.fromInt
@@ -646,6 +657,8 @@ let make = (~size: canvasSize) => {
   let canvasRef = React.useRef(Js.Nullable.null)
   let editorContext = EditorContext.useEditorContext()
   let (player, _) = editorContext.usePlayer()
+  let theme = Theme.use()
+  let palette = Theme.palette(theme)
 
   let (throttledViewportOffset, _) = UseDebounce.useThrottle(player.viewportOffset, ~ms=16)
   let (posterVersion, setPosterVersion) = React.useState(() => 0)
@@ -671,7 +684,7 @@ let make = (~size: canvasSize) => {
   })
 
   // Separate effect for fast elements (time slots, scenes, audio)
-  React.useEffect2(() => {
+  React.useEffect3(() => {
     canvasRef.current
     ->Js.Nullable.toOption
     ->Belt.Option.map(element => {
@@ -680,10 +693,10 @@ let make = (~size: canvasSize) => {
       // Clear only the necessary area instead of full canvas
       ctx->Canvas2d.clearRect(~x=0., ~y=0., ~w=size.scaledWidth, ~h=size.scaledHeight)
 
-      ctx->renderTimeSlots(size, editorContext)
-      ctx->renderScenes(size, editorContext)
+      ctx->renderTimeSlots(size, editorContext, ~palette)
+      ctx->renderScenes(size, editorContext, ~palette)
       ctx->Canvas2d.save
-      ctx->renderAudioMap(size, editorContext)
+      ctx->renderAudioMap(size, editorContext, ~palette)
       ctx->Canvas2d.restore
 
       ()
@@ -691,7 +704,7 @@ let make = (~size: canvasSize) => {
     ->ignore
 
     None
-  }, (size, player.viewportOffset))
+  }, (size, player.viewportOffset, theme))
 
   React.useEffect3(() => {
     canvasRef.current
