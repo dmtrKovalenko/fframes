@@ -123,6 +123,104 @@ pub(super) fn group_fingerprint(group: &usvgr::Group) -> u64 {
     hasher.finish()
 }
 
+/// Exact fingerprint of what a group draws in its own coordinate space: its own
+/// transform is left out, so the same content moved around hashes the same. Unlike
+/// [`group_fingerprint`] every point of every path is hashed, so the result can identify
+/// dynamic content that no `static_hash` vouches for.
+///
+/// Returns `None` for content that is too large to hash every frame or that can not be
+/// hashed exactly (images, clip paths, masks, patterns, `feImage`).
+pub(super) fn exact_content_fingerprint(group: &usvgr::Group) -> Option<u64> {
+    let mut hasher = FxHasher::default();
+    let mut points_budget = 4096;
+    hash_exact_group(&mut hasher, group, &mut points_budget, false)?;
+    Some(hasher.finish())
+}
+
+fn hash_exact_group(
+    h: &mut FxHasher,
+    group: &usvgr::Group,
+    points_budget: &mut usize,
+    include_transform: bool,
+) -> Option<()> {
+    if group.clip_path().is_some() || group.mask().is_some() {
+        return None;
+    }
+
+    if include_transform {
+        h.transform(group.transform());
+    }
+    h.f32(group.opacity().get());
+    h.write_u8(group.blend_mode() as u8);
+    h.bool(group.isolate());
+
+    h.write_usize(group.filters().len());
+    for filter in group.filters() {
+        if filter
+            .primitives()
+            .iter()
+            .any(|primitive| matches!(primitive.kind(), filter::Kind::Image(_)))
+        {
+            return None;
+        }
+        hash_filter(h, filter);
+    }
+
+    h.write_usize(group.children().len());
+    for child in group.children() {
+        match child {
+            usvgr::Node::Group(group) => {
+                h.write_u8(0);
+                hash_exact_group(h, group, points_budget, true)?;
+            }
+            usvgr::Node::Text(text) => {
+                h.write_u8(3);
+                hash_exact_group(h, text.flattened(), points_budget, true)?;
+            }
+            usvgr::Node::Path(path) => {
+                h.write_u8(1);
+                let has_pattern = [
+                    path.fill().map(|fill| fill.paint()),
+                    path.stroke().map(|stroke| stroke.paint()),
+                ]
+                .into_iter()
+                .flatten()
+                .any(|paint| matches!(paint, usvgr::Paint::Pattern(_)));
+                if has_pattern {
+                    return None;
+                }
+
+                let points = path.data().points();
+                *points_budget = points_budget.checked_sub(points.len())?;
+
+                h.write_u8(path.visibility() as u8);
+                h.write_u8(path.paint_order() as u8);
+                h.write_u8(path.rendering_mode() as u8);
+                h.bool(path.fill().is_some());
+                if let Some(fill) = path.fill() {
+                    hash_fill(h, fill);
+                }
+                h.bool(path.stroke().is_some());
+                if let Some(stroke) = path.stroke() {
+                    hash_stroke(h, stroke);
+                }
+
+                h.write_usize(path.data().verbs().len());
+                for verb in path.data().verbs() {
+                    h.write_u8(*verb as u8);
+                }
+                for point in points {
+                    h.f32(point.x);
+                    h.f32(point.y);
+                }
+            }
+            usvgr::Node::Image(_) => return None,
+        }
+    }
+
+    Some(())
+}
+
 /// Fingerprint of the geometry a cached `skia_safe::Path` was converted from.
 pub(super) fn path_geometry_fingerprint(path: &tiny_skia_path::Path) -> u64 {
     let mut hasher = FxHasher::default();

@@ -21,8 +21,8 @@ use skia_safe::{Canvas, Matrix};
 
 use convert::{convert_blend_mode, convert_path, to_skia_paint, to_skia_stroke_paint};
 use fingerprint::{
-    fill_fingerprint, group_fingerprint, image_fingerprint, path_geometry_fingerprint,
-    stroke_fingerprint,
+    exact_content_fingerprint, fill_fingerprint, group_fingerprint, image_fingerprint,
+    path_geometry_fingerprint, stroke_fingerprint,
 };
 use image::SkiaImage;
 
@@ -137,6 +137,19 @@ pub struct RenderCache {
     /// `Arc<PreloadedImageData>` address → Skia image viewing its pixels.
     /// Video frames come as a fresh `Arc` every frame and simply age out.
     images: Generational<SkiaImage>,
+    /// Groups with filters rendered into GPU images, see [`render_cached_filtered_layer`].
+    filtered_layers: Generational<FilteredLayer>,
+    /// `static_hash` → whether the static subtree contains filters, such subtrees are
+    /// not recorded as pictures so the filtered groups inside can be rasterized.
+    static_has_filters: HashMap<u64, bool>,
+}
+
+struct FilteredLayer {
+    image: skia_safe::Image,
+    /// Device position of the image's top left corner.
+    origin: skia_safe::IPoint,
+    /// Translation of the device matrix the layer was rendered with.
+    translation: (f32, f32),
 }
 
 impl RenderCache {
@@ -150,6 +163,14 @@ impl RenderCache {
         self.fill_paints.begin_frame();
         self.stroke_paints.begin_frame();
         self.images.begin_frame();
+        self.filtered_layers.begin_frame();
+    }
+
+    fn static_has_filters(&mut self, hash: u64, group: &usvgr::Group) -> bool {
+        *self
+            .static_has_filters
+            .entry(hash)
+            .or_insert_with(|| subtree_has_filters(group))
     }
 
     /// Look up or create the Skia image for a `PreloadedImageData`.
@@ -223,6 +244,7 @@ fn render_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut RenderCache) 
     // building and every individual draw call.
     let static_group = group
         .static_hash()
+        .filter(|hash| !cache.static_has_filters(*hash, group))
         .map(|hash| (hash, group_fingerprint(group)));
 
     canvas.save();
@@ -274,6 +296,29 @@ fn render_isolated_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut Rend
     if let Some(clip_path) = group.clip_path() {
         canvas.save();
         apply_clip_path(clip_path, canvas, cache);
+    }
+
+    // An opacity group around a single shape or image that can not overlap itself looks
+    // the same when the shape is drawn with the opacity applied to its paint. That skips
+    // an offscreen layer, which on the GPU is a separate render pass.
+    if has_opacity
+        && !has_filters
+        && !has_mask
+        && !has_blend
+        && !group.isolate()
+        && render_folded_opacity(group, canvas, cache, group.opacity().get())
+    {
+        if has_clip {
+            canvas.restore();
+        }
+        return;
+    }
+
+    if has_filters && render_cached_filtered_layer(group, canvas, cache) {
+        if has_clip {
+            canvas.restore();
+        }
+        return;
     }
 
     // Step 2: Create an isolation layer for opacity, blend, filters, or an
@@ -340,6 +385,213 @@ fn render_isolated_group(group: &usvgr::Group, canvas: &Canvas, cache: &mut Rend
 
     if has_clip {
         canvas.restore();
+    }
+}
+
+fn subtree_has_filters(group: &usvgr::Group) -> bool {
+    !group.filters().is_empty()
+        || group.children().iter().any(|node| match node {
+            usvgr::Node::Group(group) => subtree_has_filters(group),
+            _ => false,
+        })
+}
+
+/// Draws a group with filters from its rasterized layer, rendering and caching the layer
+/// first when needed. Filters run on the GPU every time they are drawn (also when a
+/// recorded picture is replayed), a cached layer is a single textured draw.
+///
+/// The same content moved by whole pixels reuses the layer. Content that is only blurred
+/// is smooth enough to reuse at any sub-pixel offset as well, which covers animated glows
+/// and bokeh. Returns false when the group can not be cached (its content can not be
+/// fingerprinted exactly or the canvas has no surface, e.g. while recording a picture).
+fn render_cached_filtered_layer(
+    group: &usvgr::Group,
+    canvas: &Canvas,
+    cache: &mut RenderCache,
+) -> bool {
+    use std::hash::{Hash, Hasher};
+
+    let matrix = canvas.local_to_device_as_3x3();
+    if matrix.has_perspective() {
+        return false;
+    }
+
+    let content = match group.static_hash() {
+        Some(hash) => (hash, group_fingerprint(group)),
+        None => match exact_content_fingerprint(group) {
+            Some(fingerprint) => (0, fingerprint),
+            None => return false,
+        },
+    };
+
+    let bbox = group.layer_bounding_box();
+    let local_bounds = skia_safe::Rect::from_xywh(bbox.x(), bbox.y(), bbox.width(), bbox.height());
+    let device_bounds = matrix.map_rect(local_bounds).0;
+    let screen = {
+        let size = canvas.base_layer_size();
+        skia_safe::Rect::from_iwh(size.width, size.height)
+    };
+    // a layer that is partly off screen is cut to the screen, it only fits its position
+    let on_screen = skia_safe::Contains::contains(&screen, device_bounds);
+    let smooth = on_screen && group.mask().is_none() && only_blurs(group, &matrix);
+
+    let translation = (matrix.translate_x(), matrix.translate_y());
+    let key = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        content.hash(&mut hasher);
+        for value in [
+            matrix.scale_x(),
+            matrix.skew_x(),
+            matrix.skew_y(),
+            matrix.scale_y(),
+        ] {
+            value.to_bits().hash(&mut hasher);
+        }
+        if !on_screen {
+            (translation.0.to_bits(), translation.1.to_bits()).hash(&mut hasher);
+        } else if !smooth {
+            (
+                translation.0.fract().to_bits(),
+                translation.1.fract().to_bits(),
+            )
+                .hash(&mut hasher);
+        }
+        hasher.finish()
+    };
+
+    if cache.filtered_layers.get(key, key).is_none() {
+        let Some(layer) = rasterize_filtered_layer(group, canvas, &matrix, local_bounds, cache)
+        else {
+            return false;
+        };
+        cache.filtered_layers.insert(key, key, layer);
+    }
+    let Some(layer) = cache.filtered_layers.get(key, key) else {
+        return false;
+    };
+
+    let mut paint = skia_safe::Paint::default();
+    paint.set_alpha_f(group.opacity().get());
+    paint.set_blend_mode(convert_blend_mode(group.blend_mode()));
+
+    let left = layer.origin.x as f32 + (translation.0 - layer.translation.0);
+    let top = layer.origin.y as f32 + (translation.1 - layer.translation.1);
+    let sampling = if left.fract() == 0.0 && top.fract() == 0.0 {
+        skia_safe::SamplingOptions::default()
+    } else {
+        skia_safe::SamplingOptions::new(skia_safe::FilterMode::Linear, skia_safe::MipmapMode::None)
+    };
+
+    canvas.save();
+    canvas.reset_matrix();
+    canvas.draw_image_with_sampling_options(&layer.image, (left, top), sampling, Some(&paint));
+    canvas.restore();
+    true
+}
+
+/// Every filter of the group only blurs, by at least 1.5 device pixels.
+fn only_blurs(group: &usvgr::Group, matrix: &Matrix) -> bool {
+    let scale = matrix
+        .scale_x()
+        .hypot(matrix.skew_y())
+        .min(matrix.skew_x().hypot(matrix.scale_y()));
+
+    !group.filters().is_empty()
+        && group.filters().iter().all(|filter| {
+            filter
+                .primitives()
+                .iter()
+                .all(|primitive| match primitive.kind() {
+                    usvgr::filter::Kind::GaussianBlur(blur) => {
+                        blur.std_dev_x().get().min(blur.std_dev_y().get()) * scale >= 1.5
+                    }
+                    _ => false,
+                })
+        })
+}
+
+/// Renders the isolated layer of `group` (children, filters and mask, without the group's
+/// opacity and blend mode, which apply when the layer is drawn) into its own GPU image.
+fn rasterize_filtered_layer(
+    group: &usvgr::Group,
+    canvas: &Canvas,
+    matrix: &Matrix,
+    local_bounds: skia_safe::Rect,
+    cache: &mut RenderCache,
+) -> Option<FilteredLayer> {
+    let device_size = canvas.base_layer_size();
+    let device_bounds: skia_safe::IRect =
+        skia_safe::RoundOut::round_out(&matrix.map_rect(local_bounds).0);
+    let bounds = skia_safe::IRect::intersect(
+        &device_bounds,
+        &skia_safe::IRect::from_wh(device_size.width, device_size.height),
+    )?;
+
+    let info = canvas
+        .image_info()
+        .with_dimensions((bounds.width(), bounds.height()));
+    let mut surface = canvas.new_surface(&info, None)?;
+    let layer_canvas = surface.canvas();
+    layer_canvas.clear(skia_safe::Color::TRANSPARENT);
+    layer_canvas.translate((-bounds.left as f32, -bounds.top as f32));
+    layer_canvas.concat(matrix);
+
+    let filter = filters::build_filter_chain(group.filters(), cache);
+    let mut filter_paint = skia_safe::Paint::default();
+    if let Some(filter) = filter {
+        filter_paint.set_image_filter(filter);
+    }
+    layer_canvas.save_layer(
+        &skia_safe::canvas::SaveLayerRec::default()
+            .paint(&filter_paint)
+            .bounds(&local_bounds),
+    );
+    render_nodes(group, layer_canvas, cache);
+    layer_canvas.restore();
+
+    if let Some(mask) = group.mask() {
+        apply_mask(mask, layer_canvas, cache);
+    }
+
+    Some(FilteredLayer {
+        image: surface.image_snapshot(),
+        origin: skia_safe::IPoint::new(bounds.left, bounds.top),
+        translation: (matrix.translate_x(), matrix.translate_y()),
+    })
+}
+
+/// Draws the only child of `group` faded by `alpha` when that looks exactly like the
+/// group composited with that opacity, returns false without drawing anything otherwise.
+fn render_folded_opacity(
+    group: &usvgr::Group,
+    canvas: &Canvas,
+    cache: &mut RenderCache,
+    alpha: f32,
+) -> bool {
+    let [child] = group.children() else {
+        return false;
+    };
+
+    match child {
+        usvgr::Node::Path(path) if path.fill().is_none() || path.stroke().is_none() => {
+            render_path_with_alpha(path, canvas, cache, alpha);
+            true
+        }
+        usvgr::Node::Image(image) => match image.kind() {
+            usvgr::ImageKind::DATA(img) => {
+                render_raster_image_with_alpha(image, img, canvas, cache, alpha);
+                true
+            }
+            usvgr::ImageKind::SVG { .. } => false,
+        },
+        usvgr::Node::Group(inner) if !inner.should_isolate() => {
+            canvas.save();
+            canvas.concat(&to_matrix(inner.transform()));
+            let folded = render_folded_opacity(inner, canvas, cache, alpha);
+            canvas.restore();
+            folded
+        }
+        _ => false,
     }
 }
 
@@ -512,20 +764,46 @@ fn apply_mask(mask: &usvgr::Mask, canvas: &Canvas, cache: &mut RenderCache) {
 }
 
 fn render_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
+    render_path_with_alpha(path, canvas, cache, 1.0);
+}
+
+/// Renders a path with its paints faded by `alpha`, which is how an opacity group
+/// holding only this path looks when the path does not overlap itself.
+fn render_path_with_alpha(
+    path: &usvgr::Path,
+    canvas: &Canvas,
+    cache: &mut RenderCache,
+    alpha: f32,
+) {
     if path.visibility() != usvgr::Visibility::Visible {
         return;
     }
 
     if path.paint_order() == usvgr::PaintOrder::FillAndStroke {
-        fill_path(path, canvas, cache);
-        stroke_path(path, canvas, cache);
+        fill_path(path, canvas, cache, alpha);
+        stroke_path(path, canvas, cache, alpha);
     } else {
-        stroke_path(path, canvas, cache);
-        fill_path(path, canvas, cache);
+        stroke_path(path, canvas, cache, alpha);
+        fill_path(path, canvas, cache, alpha);
     }
 }
 
-fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
+fn draw_path_with_alpha(
+    canvas: &Canvas,
+    path: &skia_safe::Path,
+    paint: &skia_safe::Paint,
+    alpha: f32,
+) {
+    if alpha < 1.0 {
+        let mut paint = paint.clone();
+        paint.set_alpha_f(paint.alpha_f() * alpha);
+        canvas.draw_path(path, &paint);
+    } else {
+        canvas.draw_path(path, paint);
+    }
+}
+
+fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache, alpha: f32) {
     let Some(fill) = path.fill() else { return };
 
     let bounds = path.data().bounds();
@@ -549,7 +827,7 @@ fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
     // Static paths reuse their Paint, which avoids recreating gradient
     // shaders and other expensive paint state every frame.
     if let Some(paint) = cache_key.and_then(|(hash, fp)| cache.fill_paints.get(hash, fp)) {
-        canvas.draw_path(&sk_path, paint);
+        draw_path_with_alpha(canvas, &sk_path, paint, alpha);
         return;
     }
 
@@ -558,14 +836,14 @@ fn fill_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
     };
     paint.set_style(skia_safe::PaintStyle::Fill);
 
-    canvas.draw_path(&sk_path, &paint);
+    draw_path_with_alpha(canvas, &sk_path, &paint, alpha);
 
     if let Some((hash, fingerprint)) = cache_key {
         cache.fill_paints.insert(hash, fingerprint, paint);
     }
 }
 
-fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
+fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache, alpha: f32) {
     let Some(stroke) = path.stroke() else { return };
 
     let sk_path = cache.convert_path(path);
@@ -576,7 +854,7 @@ fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
         .map(|hash| (hash, stroke_fingerprint(stroke, anti_alias)));
 
     if let Some(paint) = cache_key.and_then(|(hash, fp)| cache.stroke_paints.get(hash, fp)) {
-        canvas.draw_path(&sk_path, paint);
+        draw_path_with_alpha(canvas, &sk_path, paint, alpha);
         return;
     }
 
@@ -584,7 +862,7 @@ fn stroke_path(path: &usvgr::Path, canvas: &Canvas, cache: &mut RenderCache) {
         return;
     };
 
-    canvas.draw_path(&sk_path, &paint);
+    draw_path_with_alpha(canvas, &sk_path, &paint, alpha);
 
     if let Some((hash, fingerprint)) = cache_key {
         cache.stroke_paints.insert(hash, fingerprint, paint);
@@ -605,6 +883,26 @@ fn render_image(image: &usvgr::Image, canvas: &Canvas, cache: &mut RenderCache) 
     );
 }
 
+/// Draws a raster image faded by `alpha`, see [`render_path_with_alpha`].
+fn render_raster_image_with_alpha(
+    image: &usvgr::Image,
+    img: &Arc<usvgr::PreloadedImageData>,
+    canvas: &Canvas,
+    cache: &mut RenderCache,
+    alpha: f32,
+) {
+    if image.visibility() == usvgr::Visibility::Visible {
+        render_raster_image(
+            img,
+            image.view_box(),
+            image.rendering_mode(),
+            canvas,
+            cache,
+            alpha,
+        );
+    }
+}
+
 /// Render an image payload (raster or nested SVG) into the `view_box`.
 ///
 /// Shared between `<image>` elements and the `feImage` filter primitive.
@@ -617,7 +915,7 @@ pub(super) fn render_image_kind(
 ) {
     match kind {
         usvgr::ImageKind::DATA(data) => {
-            render_raster_image(data, view_box, rendering_mode, canvas, cache);
+            render_raster_image(data, view_box, rendering_mode, canvas, cache, 1.0);
         }
         usvgr::ImageKind::SVG { tree, .. } => {
             render_svg_image(tree, view_box, canvas, cache);
@@ -631,6 +929,7 @@ fn render_raster_image(
     rendering_mode: usvgr::ImageRendering,
     canvas: &Canvas,
     cache: &mut RenderCache,
+    alpha: f32,
 ) {
     let Some(sk_image) = cache.image(img).map(SkiaImage::image) else {
         return;
@@ -691,7 +990,11 @@ fn render_raster_image(
         Some((&rect, skia_safe::canvas::SrcRectConstraint::Strict)),
         rect,
         sampling,
-        &skia_safe::Paint::default(),
+        &{
+            let mut paint = skia_safe::Paint::default();
+            paint.set_alpha_f(alpha);
+            paint
+        },
     );
 
     canvas.restore();
