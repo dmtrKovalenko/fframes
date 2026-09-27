@@ -11,6 +11,9 @@ mod convert;
 mod filters;
 mod fingerprint;
 mod image;
+mod shader;
+
+pub use shader::compile_shader;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -137,6 +140,8 @@ pub struct RenderCache {
     /// `Arc<PreloadedImageData>` address → Skia image viewing its pixels.
     /// Video frames come as a fresh `Arc` every frame and simply age out.
     images: Generational<SkiaImage>,
+    /// Compiled `fframes::Shader` programs, see [`shader`].
+    shaders: shader::ShaderCache,
 }
 
 impl RenderCache {
@@ -617,6 +622,11 @@ pub(super) fn render_image_kind(
 ) {
     match kind {
         usvgr::ImageKind::DATA(data) => {
+            if let Some(draw) = fframes::resolve_shader_draw(data) {
+                shader::render_shader(&draw, view_box, canvas, cache);
+                return;
+            }
+
             render_raster_image(data, view_box, rendering_mode, canvas, cache);
         }
         usvgr::ImageKind::SVG { tree, .. } => {

@@ -1,0 +1,51 @@
+// A single neon triangle outline rotating in 3D, drawn analytically: the
+// three vertices are rotated and perspective-projected, then every pixel
+// measures its distance to the three projected edges. No raymarching and no
+// noise, so any artifact in the output comes from rendering or encoding.
+uniform float3 iResolution;
+
+uniform float uYaw;     // rotation around the vertical axis, radians
+uniform float uRoll;    // rotation in the triangle's own plane, radians
+uniform float4 uColor;  // neon tint
+
+float2x2 rot(float a) {
+    float c = cos(a);
+    float s = sin(a);
+    return float2x2(c, s, -s, c);
+}
+
+float2 project(float3 v) {
+    v.xy = rot(uRoll) * v.xy;
+    v.xz = rot(uYaw) * v.xz;
+    return v.xy * (2.7 / (v.z + 4.0));
+}
+
+float sdSegment(float2 p, float2 a, float2 b) {
+    float2 pa = p - a;
+    float2 ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h);
+}
+
+half4 main(float2 coord) {
+    float2 p = (coord - 0.5 * iResolution.xy) / iResolution.y;
+    p.y = -p.y;
+
+    // Equilateral triangle with circumradius 0.62, centred at the origin.
+    float2 a = project(float3(0.0, 0.62, 0.0));
+    float2 b = project(float3(0.537, -0.31, 0.0));
+    float2 c = project(float3(-0.537, -0.31, 0.0));
+    float d = min(sdSegment(p, a, b), min(sdSegment(p, b, c), sdSegment(p, c, a)));
+
+    // One output pixel in these units, for 1.5px anti-aliased edges.
+    float px = 1.0 / iResolution.y;
+    float core = 1.0 - smoothstep(0.003, 0.003 + 1.5 * px, d);
+    float tube = 1.0 - smoothstep(0.008, 0.008 + 1.5 * px, d);
+    float glow = 0.45 * exp(-d * 16.0) + 0.25 * exp(-d * 60.0);
+
+    float3 col = uColor.rgb * (tube + glow) + float3(0.9) * core;
+    col = clamp(col, 0.0, 1.0);
+
+    // Premultiplied: the glow is light added over the black background.
+    return half4(half3(col), half(max(col.r, max(col.g, col.b))));
+}
