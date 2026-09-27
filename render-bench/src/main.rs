@@ -25,9 +25,9 @@ use std::time::Instant;
 
 use clap::Parser;
 use fframes::{
-    AudioMap, Color, CombinedMediaProvider, Duration, EncoderOptions, FFramesContext,
-    FFramesMode, FFramesRendererRuntime, Frame, MediaDirectory, MediaProvider, RenderOptions,
-    Scenes, StaticMediaProvider, Svgr, TextCache, TimeBase, Video, VideoDecodersWorker, VideoSize,
+    AudioMap, Color, CombinedMediaProvider, Duration, EncoderOptions, FFramesContext, FFramesMode,
+    FFramesRendererRuntime, Frame, MediaDirectory, MediaProvider, RenderOptions, Scenes,
+    StaticMediaProvider, Svgr, TextCache, TimeBase, Video, VideoDecodersWorker, VideoSize,
     fframes_logger, usvgr,
 };
 use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
@@ -233,7 +233,13 @@ impl Bench<'_> {
             return;
         }
 
-        println!("\n=== {} ({}x{} @ {}fps)", spec.name, V::WIDTH, V::HEIGHT, V::FPS);
+        println!(
+            "\n=== {} ({}x{} @ {}fps)",
+            spec.name,
+            V::WIDTH,
+            V::HEIGHT,
+            V::FPS
+        );
         let mut report = Report {
             example: spec.name.to_owned(),
             width: V::WIDTH,
@@ -397,7 +403,11 @@ impl Bench<'_> {
         let vk = run_gpu.then(|| SkiaVulkanCtx::new(w, h).expect("vulkan"));
         let mut gpu = vk.as_ref().map(|vk| {
             let (surface, direct) = vk.create_skia_surface().expect("surface");
-            (surface, direct, fframes_skia_renderer::render::RenderCache::new())
+            (
+                surface,
+                direct,
+                fframes_skia_renderer::render::RenderCache::new(),
+            )
         });
         let gpu_bg = skia_safe::Color::from_argb(bg.a, bg.r, bg.g, bg.b);
         let mut readback = vec![0u8; w * h * 4];
@@ -420,7 +430,9 @@ impl Bench<'_> {
         let mut timed = 0usize;
 
         let windows: Vec<_> = (0..self.args.repeat.max(1))
-            .flat_map(|_| frame_windows(ctx.duration_in_frames, self.args.frames, self.args.windows))
+            .flat_map(|_| {
+                frame_windows(ctx.duration_in_frames, self.args.frames, self.args.windows)
+            })
             .collect();
         let mut warm = false;
         for window in windows {
@@ -489,8 +501,8 @@ impl Bench<'_> {
                     }
                     t_gpu_sync += t_sync.elapsed().as_secs_f64();
                     let info = surface.image_info();
-                    let pm = skia_safe::Pixmap::new(&info, &mut readback, info.min_row_bytes())
-                        .unwrap();
+                    let pm =
+                        skia_safe::Pixmap::new(&info, &mut readback, info.min_row_bytes()).unwrap();
                     let image = surface.image_snapshot();
                     assert!(image.read_pixels_to_pixmap_with_context(
                         direct.as_mut(),
@@ -556,10 +568,7 @@ impl Bench<'_> {
 fn print_summary(reports: &[Report], baseline: Option<&[Report]>) {
     let stage_keys = ["gen", "cpu", "gpu", "yuv"];
     let e2e_keys: Vec<String> = {
-        let mut keys: Vec<String> = reports
-            .iter()
-            .flat_map(|r| r.e2e.keys().cloned())
-            .collect();
+        let mut keys: Vec<String> = reports.iter().flat_map(|r| r.e2e.keys().cloned()).collect();
         keys.sort();
         keys.dedup();
         keys
@@ -709,7 +718,9 @@ fn main() {
     }
 
     if bench.wants("conference") {
-        use conference_splash_screen::{ConferenceMedia, ConferenceVideo, SpeakerScene, SponsorScene};
+        use conference_splash_screen::{
+            ConferenceMedia, ConferenceVideo, SpeakerScene, SponsorScene,
+        };
         let media = ConferenceMedia::prepare().unwrap();
         let folder = MediaDirectory::read_folder(
             root.join("examples/conference-splash-screen/dynamic_media"),
@@ -785,7 +796,8 @@ fn main() {
         use pixel_memory_example::{PixelMedia, PixelVideo, RandomPhotos};
         use rand::SeedableRng;
         let media = PixelMedia::prepare().unwrap();
-        let photos = MediaDirectory::read_folder(root.join("examples/pixel-memory/photos")).unwrap();
+        let photos =
+            MediaDirectory::read_folder(root.join("examples/pixel-memory/photos")).unwrap();
         let photos_media = photos.process_media_source().unwrap();
         let rng = &mut rand::rngs::StdRng::seed_from_u64(48);
         let random_photos = RandomPhotos::new_from_media_provider(rng, &photos_media);

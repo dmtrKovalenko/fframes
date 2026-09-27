@@ -900,15 +900,11 @@ fn expand_static_style(attributes: Vec<MaybeAttribute>) -> Vec<MaybeAttribute> {
     let mut expanded = Vec::with_capacity(attributes.len() + declarations.len());
     for (index, attr) in attributes.into_iter().enumerate() {
         if index == style_index {
-            expanded.extend(
-                declarations
-                    .drain(..)
-                    .map(|(name, value)| MaybeAttribute {
-                        name,
-                        value: MaybeParsedValue::Value(value),
-                        element,
-                    }),
-            );
+            expanded.extend(declarations.drain(..).map(|(name, value)| MaybeAttribute {
+                name,
+                value: MaybeParsedValue::Value(value),
+                element,
+            }));
         } else {
             expanded.push(attr);
         }
