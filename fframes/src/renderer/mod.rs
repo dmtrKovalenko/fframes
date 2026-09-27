@@ -31,6 +31,9 @@ pub use renderer::*;
 mod renderer_error;
 pub use renderer_error::*;
 
+mod scheduler;
+pub use scheduler::*;
+
 pub use rayon;
 #[cfg(test)]
 mod tests;
