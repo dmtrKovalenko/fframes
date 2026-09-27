@@ -1,0 +1,29 @@
+[package]
+name = "render-bench"
+description = "Per-stage and end-to-end rendering benchmark over every fframes example"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+clap = { version = "4.3.4", features = ["derive"] }
+fframes = { workspace = true, features = ["compile-time-svgtree", "h264", "libav-agree-gpl"] }
+fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+skia-safe = { version = "0.91.0", package = "fframes-skia-safe" }
+svgr.workspace = true
+rand = "0.8.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+png = "0.17"
+
+audio-announce-example = { path = "../examples/audio-announce" }
+beta-example = { path = "../examples/beta" }
+conference-splash-screen-example = { path = "../examples/conference-splash-screen" }
+hello-world-example = { path = "../examples/hello-world" }
+low-poly-art-example = { path = "../examples/low-poly-art" }
+marketing-example = { path = "../examples/marketing" }
+motion-graphics-example = { path = "../examples/motion-graphics" }
+pixel-example = { path = "../examples/pixel-memory" }
+podcast-example = { path = "../examples/podcast" }
+teej_podcast_example = { path = "../examples/teej-podcast" }
+tiktok-example = { path = "../examples/tiktok" }

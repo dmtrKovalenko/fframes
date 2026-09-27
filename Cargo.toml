@@ -10,6 +10,7 @@ members = [
     "fframes-media",
     "fframes-skia-renderer",
     "media-dir-macro",
+    "render-bench",
     # Examples
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
@@ -45,8 +46,8 @@ members = [
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
 # svgr = { path = "../svgr/crates/svgr" }
 # usvgr = { path = "../svgr/crates/usvgr" }
-svgr = "0.45.1"
-usvgr = "0.45.1"
+svgr = { path = "/Users/neogoose/dev/svgr/crates/svgr" }
+usvgr = { path = "/Users/neogoose/dev/svgr/crates/usvgr" }
 ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "8.0.1", features = [
     "build",
     "static",

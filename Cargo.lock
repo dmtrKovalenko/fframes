@@ -2147,6 +2147,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
+name = "render-bench"
+version = "0.0.0"
+dependencies = [
+ "audio-announce-example",
+ "beta-example",
+ "clap",
+ "conference-splash-screen-example",
+ "fframes",
+ "fframes-skia-safe",
+ "fframes_skia_renderer",
+ "hello-world-example",
+ "low-poly-art-example",
+ "marketing-example",
+ "motion-graphics-example",
+ "pixel-example",
+ "png",
+ "podcast-example",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "svgr",
+ "teej_podcast_example",
+ "tiktok-example",
+]
+
+[[package]]
 name = "rgb"
 version = "0.8.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2421,8 +2447,6 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "svgr"
 version = "0.45.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dfcea2ffe8b9a59a4b3b5ed35c6c75f788fc479026057bcc7826f783bf9ee47"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -2444,6 +2468,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rust-fuzzy-search",
+ "simplecss",
  "syn",
  "usvgr",
 ]
@@ -2451,8 +2476,6 @@ dependencies = [
 [[package]]
 name = "svgrtypes"
 version = "0.45.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bbcde848db2bd5401c349f18d0377f2ef64f6a0a509b6820e1856f716d67137"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -2794,8 +2817,6 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 [[package]]
 name = "usvgr"
 version = "0.45.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfb96de3ca33ec7947688e0bfdbfdf621099bbe112296f374c362548410bfe85"
 dependencies = [
  "ahash",
  "base64 0.21.7",
