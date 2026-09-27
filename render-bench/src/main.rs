@@ -187,7 +187,7 @@ fn load_png(path: &Path) -> Option<Vec<u8>> {
 fn diff(a: &[u8], b: &[u8]) -> (u8, f64) {
     let mut max = 0;
     let mut bad = 0usize;
-    for (pa, pb) in a.chunks_exact(4).zip(b.chunks_exact(4)) {
+    for (pa, pb) in a.as_chunks::<4>().0.iter().zip(b.as_chunks::<4>().0) {
         let d = (0..4).map(|c| pa[c].abs_diff(pb[c])).max().unwrap();
         max = max.max(d);
         if d > 8 {
