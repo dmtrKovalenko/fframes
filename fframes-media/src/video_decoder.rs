@@ -196,6 +196,8 @@ pub struct FFmpegDecoder {
     pkt: *mut AVPacket,
     custom_time_base: AVRational,
     duration_in_frames: i64,
+    /// The offset of the previous `decode_up_to` call, in `custom_time_base` units.
+    last_offset: Option<i64>,
 }
 
 unsafe impl Send for FFmpegDecoder {}
@@ -542,6 +544,7 @@ impl FFmpegDecoder {
                 custom_time_base,
                 duration_in_frames,
                 current_loop: 0,
+                last_offset: None,
             })
         }
     }
@@ -708,6 +711,19 @@ impl FFmpegDecoder {
     /// Generally safe but uses libav functions
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
         unsafe {
+            // Going back needs a seek, otherwise the newer frame that was already decoded
+            // would be returned. Far jumps forward seek to the closest keyframe instead of
+            // decoding every frame in between (frames can be requested out of order by
+            // parallel renderers).
+            let seek_ahead_frames = 2 * self.custom_time_base.den.max(1) as i64;
+            let needs_seek = self.last_offset.is_some_and(|last_offset| {
+                offset < last_offset || offset - last_offset > seek_ahead_frames
+            });
+            self.last_offset = Some(offset);
+            if needs_seek {
+                self.seek_to_offset(offset)?;
+            }
+
             let target_pts = av_rescale_q(
                 offset,
                 self.custom_time_base,

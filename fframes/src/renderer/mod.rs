@@ -34,6 +34,9 @@ pub use renderer_error::*;
 mod scheduler;
 pub use scheduler::*;
 
+mod segment_writer;
+pub use segment_writer::*;
+
 pub use rayon;
 #[cfg(test)]
 mod tests;
