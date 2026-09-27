@@ -40,8 +40,9 @@ pub fn fill_yuv420_from_rgba_pixmap_base(
                 let (r, g, b) = get_rgb(rgba_pixels, y * width + x);
 
                 // use a linesize to get the correct index for the pixel as it can differ for different dimensions.
+                // BT.601 limited range: black is 16, white is 235 (+128 rounds the >> 8).
                 y_pixels[y * y_linesize as usize + x] =
-                    (16 + (66 * r + 129 * g + 25 * b) >> 8) as u8;
+                    (16 + ((66 * r + 129 * g + 25 * b + 128) >> 8)) as u8;
 
                 if y % 2 == 0 && x % 2 == 0 {
                     // the bounds are 1/4 of the image size
@@ -105,7 +106,10 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
             "movi v28.8h, #18",         // 18 b (positive)
 
             // constants
-            "movi v29.8h, #16",         // y offset
+            // y offset: (16 << 8) + 128, so the high-half narrow below yields
+            // 16 + round(sum / 256) (black = 16, white = 235)
+            "movi v29.8h, #16, lsl #8",
+            "orr v29.8h, #128",
             "movi v30.8h, #128",        // cb/cr offset
 
             "mov w9, wzr",              // y = 0
@@ -128,7 +132,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                     "mul.8h v10, v4, v20",   // r * 66
                     "mla.8h v10, v6, v21",   // + g * 129
                     "mla.8h v10, v8, v22",   // + b * 25
-                    "addhn.8b v12, v10, v29",  // + 16 offset and pack
+                    "addhn.8b v12, v10, v29",  // (sum + offset) >> 8 and pack
                     // store y
                     "st1 {{v12.8b}}, [{dst_y}], #8",
 
