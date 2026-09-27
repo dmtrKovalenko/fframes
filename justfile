@@ -61,6 +61,11 @@ play example:
 bench example *ARGS:
   cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release {{ARGS}}
 
+# Per-stage and end-to-end CPU/GPU rendering benchmark over every example,
+# e.g. `just render-bench --json before.json` then `just render-bench --compare before.json`
+render-bench *ARGS:
+  DYLD_LIBRARY_PATH=/opt/homebrew/lib:${DYLD_LIBRARY_PATH:-} cargo run --release -p render-bench -- {{ARGS}}
+
 hyperfine example *ARGS:
   #!/bin/bash
   set -eou pipefail

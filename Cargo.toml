@@ -46,8 +46,8 @@ members = [
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
 # svgr = { path = "../svgr/crates/svgr" }
 # usvgr = { path = "../svgr/crates/usvgr" }
-svgr = { path = "/Users/neogoose/dev/svgr/crates/svgr" }
-usvgr = { path = "/Users/neogoose/dev/svgr/crates/usvgr" }
+svgr = { git = "https://github.com/dmtrKovalenko/svgr", branch = "perf" }
+usvgr = { git = "https://github.com/dmtrKovalenko/svgr", branch = "perf" }
 ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "8.0.1", features = [
     "build",
     "static",
