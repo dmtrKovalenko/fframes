@@ -48,10 +48,7 @@ members = [
 # usvgr = { path = "../svgr/crates/usvgr" }
 svgr = "0.45.1"
 usvgr = "0.45.1"
-ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "8.0.1", features = [
-    "build",
-    "static",
-] }
+ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "9.0.0" }
 wasm-bindgen = "0.2.100"
 kamadak-exif = "0.6.1"
 

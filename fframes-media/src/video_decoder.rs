@@ -7,7 +7,6 @@ use std::cell::UnsafeCell;
 use std::collections::VecDeque;
 use std::ffi::{CString, c_void};
 use std::mem::size_of;
-use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
@@ -466,7 +465,9 @@ impl FFmpegDecoder {
             let filename = path
                 .file_name()
                 .ok_or_else(|| FFramesMediaError::MediaDirectoryProvided)?;
-            let full_path_cstr = CString::new(path.as_os_str().as_bytes())?;
+            // libavformat expects UTF-8 paths on every platform (it converts them to
+            // wide strings itself on Windows), so raw OS bytes are not portable here.
+            let full_path_cstr = CString::new(path.to_string_lossy().as_ref())?;
 
             let mut fmt_ctx: *mut AVFormatContext = ptr::null_mut();
             let ret = avformat_open_input(
