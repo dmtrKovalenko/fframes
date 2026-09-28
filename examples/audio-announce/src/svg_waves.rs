@@ -45,7 +45,7 @@ pub fn compute_control_points(points: &[f32]) -> (Vec<f32>, Vec<f32>) {
         p2[i] = 2.0 * points[i + 1] - p1[i + 1];
     }
 
-    p2[n - 1] = 0.5 * (points[n] + p1[n - 1]);
+    p2[n - 1] = f32::midpoint(points[n], p1[n - 1]);
 
     (p1, p2)
 }
