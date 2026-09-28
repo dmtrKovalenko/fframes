@@ -102,3 +102,7 @@ test *ARGS:
 # Render a markdown file in the terminal (defaults to the agent guidelines)
 md file="AGENTS.md":
   bat {{file}}
+
+# Encode a rendered video into the landing page's AV1 + H.264 demo files
+landing-video input:
+  scripts/landing-video.sh {{input}}

@@ -239,6 +239,7 @@
     letter-spacing: -0.045em;
     text-wrap: balance;
   }
+  h1 .name,
   h1 .accent {
     font-family: var(--font-accent);
     font-style: italic;
@@ -248,6 +249,8 @@
     line-height: 0.9;
     white-space: nowrap;
     padding-right: .04em;
+  }
+  h1 .accent {
     background-image: linear-gradient(90deg, var(--orange), var(--orange));
     background-repeat: no-repeat;
     background-position: 0 92%;
@@ -494,13 +497,15 @@
     <meta property="og:site_name" content="fframes" />
     <meta property="og:title" content="fframes – video vibe coding framework that is actually fast" />
     <meta property="og:description" content="Stop wasting hours waiting for video to be built from the web page in a browser. Vibe code your video on GPU using Rust &amp; SVG framework." />
-    <!-- TODO: link previews need absolute URLs once the site has a domain, e.g. https://fframes.dev/brand/og-image.png -->
-    <meta property="og:image" content="brand/og-image.png" />
+    <link rel="canonical" href="https://fframes.studio/" />
+    <meta property="og:url" content="https://fframes.studio/" />
+    <meta property="og:image" content="https://fframes.studio/brand/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="brand/og-image.png" />
+    <meta name="twitter:image" content="https://fframes.studio/brand/og-image.png" />
     <!-- /fframes brand -->
+    <script defer data-domain="fframes.studio" src="https://plausible.io/js/plausible.js"></script>
   </head>
 <body>
   <div class="light-leak" aria-hidden="true"></div>
@@ -539,7 +544,7 @@
 
   <main id="top" class="wrap">
     <section class="masthead">
-      <h1>fframes – video vibe coding framework that is <span class="accent">actually fast</span></h1>
+      <h1><span class="name">fframes</span> – video vibe coding framework that is <span class="accent">actually fast</span></h1>
       <div class="standfirst">
         <span class="rule" aria-hidden="true"></span>
         <p>Stop wasting hours waiting for video to be built from the web page in a browser. Vibe code your video on GPU using Rust &amp; SVG framework.</p>
@@ -548,7 +553,10 @@
 
     <figure>
       <div class="video-frame">
-        <video src="fframes-demo.mp4" poster="poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="A video made with fframes"></video>
+        <video poster="poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="A video made with fframes">
+          <source src="fframes-demo.av1.mp4" type='video/mp4; codecs="av01.0.09M.10, mp4a.40.2"'>
+          <source src="fframes-demo.mp4" type='video/mp4; codecs="avc1.64002a, mp4a.40.2"'>
+        </video>
       </div>
       <figcaption>
         <svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
