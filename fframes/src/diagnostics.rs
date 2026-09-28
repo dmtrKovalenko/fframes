@@ -348,8 +348,20 @@ mod tests {
 
     #[test]
     fn finds_clipped_and_off_canvas_text() {
+        // A font from the repository instead of the system fonts: usvgr lays the text out with
+        // its default family, "Times New Roman", which the CI runner does not have, and text
+        // without a font has no box to be clipped.
         let mut fontdb = usvgr::fontdb::Database::new();
-        fontdb.load_system_fonts();
+        fontdb
+            .load_font_file(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../cargo-fframes/templates/DMSans-Medium.ttf"
+            ))
+            .expect("the scaffolder's font is part of the repository");
+        let options = usvgr::Options {
+            font_family: "DM Sans".to_owned(),
+            ..Default::default()
+        };
         let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
             <text x="150" y="50" font-size="40">clipped</text>
             <text x="500" y="50" font-size="40">gone</text>
@@ -357,13 +369,8 @@ mod tests {
             <clipPath id="c"><rect width="200" height="100"/></clipPath>
             <g clip-path="url(#c)"><text x="150" y="50" font-size="40">scrolling</text></g>
         </svg>"#;
-        let tree = usvgr::Tree::from_str(svg, &usvgr::Options::default(), &fontdb).unwrap();
+        let tree = usvgr::Tree::from_str(svg, &options, &fontdb).unwrap();
         let diagnostics = inspect_tree(&tree, 200., 100.);
-
-        // Without any system font no text is laid out, which is not what this test is about.
-        if fontdb.is_empty() {
-            return;
-        }
 
         assert!(
             diagnostics
