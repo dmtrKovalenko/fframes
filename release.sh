@@ -30,4 +30,6 @@ cd fframes-editor
 pnpm build:prod
 pnpm version "$VERSION" --no-git-tag-version
 # npm itself: it authenticates with the job's OIDC token (trusted publishing) and attaches provenance
-npm publish --access public
+# Every nightly is a prerelease version; npm publishes those only with an explicit dist-tag,
+# and `latest` is what `npm install @fframes/editor` has always resolved to
+npm publish --access public --tag latest
