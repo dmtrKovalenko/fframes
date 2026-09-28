@@ -3,5 +3,9 @@
   "name": "fframes",
   "account_id": "86ddf0334885d2955aa80c778509d857",
   "compatibility_date": "2026-09-01",
-  "assets": { "directory": "." }
+  "assets": { "directory": "." },
+  "workers_dev": true,
+  "preview_urls": true,
+  // Pull requests get their own Preview URL, same files, no separate settings
+  "previews": {}
 }
