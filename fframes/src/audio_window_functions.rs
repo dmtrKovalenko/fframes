@@ -1,7 +1,7 @@
 use core::f32::consts::PI;
 use libm::cosf;
 
-/// Applies a Hann window (https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows)
+/// Applies a Hann window (<https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows>)
 /// to an array of samples.
 ///
 /// ## Return value
@@ -17,7 +17,7 @@ pub fn hann_window(samples: &[f32]) -> Vec<f32> {
     windowed_samples
 }
 
-/// Applies a Hamming window (https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows)
+/// Applies a Hamming window (<https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows>)
 /// to an array of samples.
 ///
 /// ## Return value

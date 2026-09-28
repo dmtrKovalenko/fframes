@@ -87,6 +87,13 @@ libav-agree-gpl = ["fframes-media/libav-agree-gpl"]
 libav-agree-nonfree = ["fframes-media/libav-agree-nonfree"]
 libav-agree-version3 = ["fframes-media/libav-agree-version3"]
 
+[package.metadata.docs.rs]
+# The codec and hardware features compile FFmpeg from source, which docs.rs cannot do (no
+# network), so only the pure Rust features are documented. `--cfg fframes_docsrs` makes
+# fframes-media link the FFmpeg headers of the docs.rs image instead of building FFmpeg.
+features = ["cli", "compile-time-svgtree", "exif"]
+rustc-args = ["--cfg", "fframes_docsrs"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(wasm_bindgen_unstable_test_coverage)',

@@ -193,6 +193,43 @@ jobs:
       - name: Check examples wasm build
         run: just check-examples
 
+  # docs.rs builds in this image without network access, so FFmpeg cannot be compiled from
+  # source there; the [package.metadata.docs.rs] tables switch fframes-media to the FFmpeg
+  # headers of the image instead. `cargo docs-rs` runs the rustdoc invocation of docs.rs from
+  # that metadata. The second step documents the same crates with warnings as errors, so a
+  # broken intra-doc link or an unparsable example fails the build here and not on docs.rs.
+  docs:
+    name: Build docs like docs.rs
+    runs-on: ubuntu-latest
+    container: ghcr.io/rust-lang/crates-build-env/linux:latest
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: docs
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install cargo-docs-rs
+        run: cargo install --locked cargo-docs-rs
+
+      - name: Build docs with the docs.rs invocation
+        run: |
+          cargo docs-rs -p fframes-media
+          cargo docs-rs -p fframes
+
+      - name: Fail on rustdoc warnings
+        env:
+          RUSTFLAGS: --cfg fframes_docsrs
+          RUSTDOCFLAGS: --cfg docsrs -D warnings
+        run: cargo doc --no-deps -p fframes-media -p fframes --features fframes/cli,fframes/compile-time-svgtree,fframes/exif
+
   release:
     # A push to main publishes a nightly, a v* tag publishes that version (scripts/release-version.sh)
     name: Publish release

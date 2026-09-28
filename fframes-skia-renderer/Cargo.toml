@@ -38,3 +38,7 @@ wayland = ["skia-safe/wayland"]
 egl = ["skia-safe/egl"]
 # activate this feature to measure perforamnce and debug skia
 debug = []
+
+# See fframes-media/Cargo.toml: docs.rs cannot build FFmpeg from source.
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "fframes_docsrs"]

@@ -11,7 +11,7 @@ problems already looks finished.
 - Scene lengths: title 2.5-4 s, content 4-8 s, outro 2-3 s. Social clips: first frame must
   already show something (no fade from black) and the hook lands in the first 1.5 s.
 - Entrances take 0.3-0.6 s, exits 0.2-0.3 s. Holds (nothing moves) of 1-3 s are good; keep a
-  slow background drift so they do not look frozen.
+  little motion somewhere so they do not look frozen.
 - Sync cuts and entrances to the beat or the voice (see audio.md).
 
 ## Layout
@@ -26,8 +26,7 @@ problems already looks finished.
 ## Typography
 
 - One family (two at most: a display face for titles, a text face for body). Ship the files
-  in `media/`. Good free choices: Inter, DM Sans, Manrope, Space Grotesk (UI/tech), Playfair
-  Display / Fraunces (editorial), JetBrains Mono (code), Bebas Neue (condensed display).
+  in `media/` and check they contain every glyph the text uses.
 - Sizes at 1920x1080: hero 140-200, title 96-120, subtitle 44-56, body 44-60, caption 28-34.
   Never below 28 px. Portrait at 1080 wide uses about the same pixel sizes.
 - Weights: title 600-800, body 400-500. Letter-spacing: `-1` to `-3` for big titles,
@@ -39,15 +38,10 @@ problems already looks finished.
 
 ## Color
 
-- A background, a foreground (text), one accent, one or two supporting tints. Example sets:
-  - Light: bg `#f8fafc`, text `#0f172a`, muted `#475569`, accent `#6366f1`, tint `#c7d2fe`.
-  - Dark: bg `#0b1020`, text `#e2e8f0`, muted `#94a3b8`, accent `#22d3ee`, tint `#1e293b`.
-  - Warm: bg `#fff7ed`, text `#1c1917`, accent `#ea580c`, tint `#fed7aa`.
+- A background, a foreground (text), one accent, one or two supporting tints.
 - Contrast: body text at least 4.5:1 against its background. Check suspicious frames at full
   size.
-- Depth without effects: a large soft radial gradient behind content, slightly different
-  surface color for cards, a 1-2 px border of a lighter tint. Blur and drop shadow filters are
-  expensive on the CPU backend; keep them on static subtrees (no `{}` inside) so they are
+- Blur and drop shadow filters are expensive on the CPU backend; keep them on static subtrees (no `{}` inside) so they are
   cached, or use the Skia backend.
 
 ## Motion
@@ -94,7 +88,7 @@ Counter ("0 -> 12,480"): animate an `f32` with `EASE_OUT_EXPO` over 1.2-1.8 s an
 thousands separators; use a font with tabular figures (or a monospace font) so digits do not
 jiggle, and right-align it with `text-anchor="end"`.
 
-Progress / highlight bar: animate a `<rect>` width from a hairline (`0.5`, never `0`, SVG
+Growing bar (charts, highlights): animate a `<rect>` width from a hairline (`0.5`, never `0`, SVG
 rejects zero sized rects) to its target with `EASE_IN_OUT`.
 
 Underline or stroke draw-on: `stroke-dasharray={len}` and animate `stroke-dashoffset` from
@@ -106,9 +100,6 @@ outgoing scene -80 px while the incoming comes from +80 px.
 
 Lower third: a bar slides in from the left (`EASE_OUT_EXPO`, 0.5 s), the name fades up 0.15 s
 later, the role 0.1 s after that, holds, then everything exits together in 0.25 s.
-
-Background life: two large blurred radial gradients (static markup inside a `<g>`) whose
-wrapping transforms drift 50-150 px over 8-12 s with `animate_loop`.
 
 ## Review checklist
 

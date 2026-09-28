@@ -84,7 +84,7 @@ impl Color {
     };
 
     /// The standard green chroma key color used in video production.
-    /// @see https://en.wikipedia.org/wiki/Chroma_key
+    /// See <https://en.wikipedia.org/wiki/Chroma_key>
     pub const CHROMA_KEY: Color = Color {
         r: 0,
         g: 177,

@@ -21,7 +21,7 @@ pub enum TextAlign {
 
 #[derive(Debug, Clone, Copy, Hash)]
 /// Define a query that will resolve a font from the provided media source.
-/// The values from the struct could be passed directly to the <text> element attributes like:
+/// The values from the struct could be passed directly to the `<text>` element attributes like:
 ///
 /// ```no_run
 /// let font = FontQuery {

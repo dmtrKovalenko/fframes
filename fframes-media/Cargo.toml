@@ -34,7 +34,13 @@ libc = "0.2.159"
 # FFmpeg is compiled from source and linked statically everywhere except Windows, where
 # building it needs an MSYS2 + MSVC toolchain. There it is linked from a prebuilt
 # FFmpeg 9 distribution found through FFMPEG_DIR or vcpkg (see README).
-[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+#
+# `fframes_docsrs` is set by the docs.rs build (see [package.metadata.docs.rs] below). docs.rs has no
+# network access, so the from-source build is skipped there and ffmpeg-sys-next falls back to
+# the FFmpeg headers of the docs.rs image through pkg-config. It is a project cfg on purpose:
+# `--cfg docsrs` in RUSTFLAGS would also reach every dependency, and some enable removed
+# nightly features under it.
+[target.'cfg(not(any(target_arch = "wasm32", windows, fframes_docsrs)))'.dependencies]
 ffmpeg-sys-fframes = { workspace = true, features = ["build", "static"] }
 
 [features]
@@ -65,7 +71,11 @@ libav-agree-gpl = ["ffmpeg-sys-fframes/build-license-gpl"]
 libav-agree-nonfree = ["ffmpeg-sys-fframes/build-license-nonfree"]
 libav-agree-version3 = ["ffmpeg-sys-fframes/build-license-version3"]
 
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "fframes_docsrs"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(wasm_bindgen_unstable_test_coverage)',
+  'cfg(fframes_docsrs)',
 ] }

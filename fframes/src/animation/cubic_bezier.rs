@@ -1,4 +1,4 @@
-//! A port of https://github.com/gre/bezier-easing
+//! A port of <https://github.com/gre/bezier-easing>
 //! by Gaëtan Renaudeau 2014 - 2015 – MIT License
 
 // These values are established by empiricism with tests (tradeoff: performance VS precision)

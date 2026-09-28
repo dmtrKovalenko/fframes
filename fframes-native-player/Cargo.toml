@@ -29,3 +29,7 @@ audio = ["cpal"]
 # to the Skia CPU raster backend at runtime if the GPU backend can not be initialized.
 vulkan = ["fframes_skia_renderer/vulkan"]
 metal = ["fframes_skia_renderer/metal"]
+
+# See fframes-media/Cargo.toml: docs.rs cannot build FFmpeg from source.
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "fframes_docsrs"]

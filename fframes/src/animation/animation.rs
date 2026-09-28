@@ -87,7 +87,7 @@ pub enum Easing {
     CubicBezier(f32, f32, f32, f32),
     // Inspired by https://webkit.org/demos/spring/spring.js. Copyright (C) 2016 Apple Inc. All rights reserved.
     /// Specifies an animation that calculates value based on spring physics.
-    /// Learn more about spring physics: https://www.joshwcomeau.com/animation/a-friendly-introduction-to-spring-physics/
+    /// Learn more about spring physics: <https://www.joshwcomeau.com/animation/a-friendly-introduction-to-spring-physics/>
     Spring {
         mass: f32,
         stiffness: f32,

@@ -32,30 +32,31 @@ pub trait Video: Sync + Sized {
     /// In short: put your scenes to the `&self` or do not add any fields to the scene struct.
     ///
     /// # Example
-    /// ```rust
-    /// use fframes::{Video, Scenes, Scene, Frame, Svgr, FFramesContext};
+    /// ```no_run
+    /// use fframes::{Scene, Scenes, Video};
     ///
-    /// struct SceneZeroSize;
-    /// struct SceneWithInput {
-    ///    value: String;
+    /// #[derive(Debug)]
+    /// struct Intro;
+    /// #[derive(Debug)]
+    /// struct Chapter {
+    ///     title: String,
     /// }
     ///
-    /// impl Scene For SceneZeroSize { ... }
-    /// impl Scene For SceneWithInput { ... }
+    /// impl Scene for Intro { /* duration, render_frame */ }
+    /// impl Scene for Chapter { /* duration, render_frame */ }
     ///
     /// struct MyVideo {
-    ///     scene_with_input: SceneWithInput,
-    /// };
+    ///     chapter: Chapter,
+    /// }
     ///
     /// impl Video for MyVideo {
     ///     fn define_scenes(&self) -> Scenes<'_> {
     ///         let scenes: Vec<&dyn Scene> = vec![
-    ///             // notice this is a zero sized type so we can create ref right here
-    ///             &SceneZeroSize},
-    ///             // And here we passing a ref bound to the &self
-    ///             &self.scene_with_input,
-    ///         ]
-    ///         
+    ///             // a zero sized type, so the reference can be created right here
+    ///             &Intro,
+    ///             // a scene with data is borrowed from `self`
+    ///             &self.chapter,
+    ///         ];
     ///         Scenes::from(scenes)
     ///     }
     /// }

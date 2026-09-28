@@ -48,7 +48,7 @@ impl SpringRuntime {
         1.0 - progress
     }
 
-    /// The dumbest way to calculate spring duration taken from animejs https://github.com/juliangarnier/anime/blob/master/src/index.js#L100
+    /// The dumbest way to calculate spring duration taken from animejs <https://github.com/juliangarnier/anime/blob/master/src/index.js#L100>
     /// Not the best, but it looks there is no formula for precise calculation of spring dumping timing.
     /// Must be called in compile time
     pub fn get_duration(&self) -> f32 {

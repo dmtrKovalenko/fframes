@@ -26,3 +26,7 @@ getrandom = { version = "0.2.15", features = ["js"] }
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
+
+# See fframes-media/Cargo.toml: docs.rs cannot build FFmpeg from source.
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "fframes_docsrs"]

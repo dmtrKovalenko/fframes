@@ -56,11 +56,13 @@ Options: `--template single-scene|multi-scene`, `--format landscape|portrait|squ
 matches the installed `cargo-fframes`; `--git` uses the repository's `main` branch instead. Always pass `--yes` so nothing waits for input.
 
 Templates:
-- `single-scene` (default): one scene with a greeting that springs in over a moving glow. It
-  adapts to every format; start here for single-shot clips, title cards and portrait video.
-- `multi-scene`: two scenes (a product announcement and an animated chart) on a 16:9 grid,
-  with a shared footer and progress bar. Start here for anything with several scenes; it only
-  accepts `landscape` and `uhd`.
+- `single-scene` (default): one scene. It adapts to every format; start here for single-shot
+  clips, title cards and portrait video.
+- `multi-scene`: two scenes. Start here for anything with several scenes; it only accepts
+  `landscape` and `uhd`.
+
+The template content is placeholder code that shows the API. Replace its layout, colors,
+fonts and decorations with a design made for the video the user asked for.
 
 **Use the Skia GPU backend (the default).** `cargo fframes new` picks Skia on Metal (macOS) or
 Vulkan (Linux, Windows). It renders about 10x faster than the CPU backend and gives you the
@@ -80,7 +82,7 @@ The project renders as generated:
 my-video/
   src/lib.rs        # the video (from the template)
   src/main.rs       # the command line
-  media/            # fonts, images and audio compiled into the binary (DM Sans to start)
+  media/            # fonts, images and audio compiled into the binary (one starter font)
   tests/frames.rs   # frame snapshots and a check of every frame for problems
   README.md         # the commands below
 ```
@@ -171,7 +173,7 @@ impl Video for MyVideo<'_> {
     fn define_scenes(&self) -> Scenes<'_> { Scenes::from(vec![&self.intro as &dyn Scene, &self.main]) }
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
         fframes::svgr!(<svg xmlns="http://www.w3.org/2000/svg" width={Self::WIDTH} height={Self::HEIGHT}>
-            <rect width={Self::WIDTH} height={Self::HEIGHT} fill="#0b1020" />
+            <rect width={Self::WIDTH} height={Self::HEIGHT} fill={BACKGROUND} />
             {ctx.render_scenes(&frame)}
         </svg>)
     }
@@ -205,7 +207,7 @@ The short version of `references/design.md`:
   200-300 ms. Related items stagger by 60-120 ms. Give the viewer 1-2 s to read after the
   motion settles, and never move everything at once.
 - Cross-fade scenes (`fn overlap(&self) -> Overlap { Overlap::Previous(0.4) }`) or carry an
-  element across the cut. A slow background drift keeps holds from looking frozen.
+  element across the cut. Keep a little motion during holds so they do not look frozen.
 - At 1920x1080: titles 96-140 px, body 44-60 px, at most about 8 words per line and 3 lines per
   card. Portrait 1080x1920 is watched on a phone: same pixel sizes or larger, content inside
   the middle 80% because platform UI covers the top and bottom.

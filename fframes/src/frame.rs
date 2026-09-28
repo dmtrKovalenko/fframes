@@ -242,20 +242,20 @@ impl Frame {
     /// If font can not be resolved returns `None`.
     ///
     /// ```no_run
-    /// let options = &fframes::BreakLinesOpts {
-    ///     // max width of the text content. Once line become wider it wraps.
+    /// let font = fframes::FontQuery { family: "DM Sans", size: 26, weight: 400, ..Default::default() };
+    /// let options = fframes::BreakLinesOpts {
+    ///     font,
+    ///     // max width of the text content. Once a line becomes wider it wraps.
     ///     width: 500,
-    ///     // font family name resolved. Can be checked in the editor for resolved font file.
-    ///     font_family: "Roboto",
-    ///     // the x position of the text element
-    ///     x: "100",
-    ///     // the y position of the text element
-    ///     y: "100",
+    ///     // position of the text element
+    ///     x: 100,
+    ///     y: 100,
     ///     align: fframes::TextAlign::Center,
+    ///     fill: "#fff",
     ///     ..Default::default()
-    /// });
+    /// };
     ///
-    /// let wrapped_text = frame.text_break_lines(&ctx, "Hello world", options);
+    /// let wrapped_text = frame.text_break_lines_structure(ctx, "Hello world", options);
     /// ```
     ///
     /// Output of this function can be converted to svgr using `WrappedTextStructure::as_svgr`
@@ -414,7 +414,7 @@ impl Frame {
     /// Besides text cue contains additional metadata like start/end time stamp,
     /// notes and cue settings which can be used to customise text.
     ///
-    /// Read more about available data and cue setting at https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API
+    /// Read more about available data and cue setting at <https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API>
     pub fn get_subtitle_cue<'a, TSubtitles: FFramesSubtitles<'a>>(
         &self,
         subtitles: &'a TSubtitles,
