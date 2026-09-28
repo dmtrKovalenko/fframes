@@ -2,3 +2,5 @@
 extend-exclude = ["*.snapshot.txt", "sessions.json"]
 [default.extend-words]
 hd = "hd"
+# "PNGs" is split into "PN" + "Gs"
+PN = "PN"
