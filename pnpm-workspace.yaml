@@ -10,4 +10,5 @@ onlyBuiltDependencies:
   - esbuild
   - gentype
   - odiff-bin
+  - rescript
   - wasm-pack
