@@ -6,6 +6,11 @@
     "rescript"
   ],
   "author": "Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmtrKovalenko/fframes.git",
+    "directory": "fframes-editor"
+  },
   "license": "MIT",
   "main": "./dist/fframes-editor.js",
   "types": "./src/fframes-editor.tsx",

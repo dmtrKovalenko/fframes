@@ -29,4 +29,5 @@ done
 cd fframes-editor
 pnpm build:prod
 pnpm version "$VERSION" --no-git-tag-version
-pnpm publish --access public --no-git-checks
+# npm itself: it authenticates with the job's OIDC token (trusted publishing) and attaches provenance
+npm publish --access public

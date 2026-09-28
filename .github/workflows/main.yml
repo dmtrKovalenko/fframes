@@ -195,6 +195,10 @@ jobs:
     name: Publish nightly release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # npm trusted publishing: the job proves its identity to npm with an OIDC token instead of a secret
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -207,15 +211,16 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          always-auth: true
-          node-version: 23
+          # Node 24 ships npm 11.5+, the first npm that can publish through trusted publishing
+          node-version: 24
+          registry-url: https://registry.npmjs.org
           cache: "pnpm"
 
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with: 
+        with:
           toolchain: stable
           cache: true
           cache-key: "v3-rust"
@@ -224,7 +229,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           git fetch --tags
           bash release.sh "$(git describe --tags $(git rev-list --tags --max-count=1)).rc-$(printf "%02d" $(git rev-list --count $(git describe --tags --abbrev=0)..HEAD))"  
