@@ -12,6 +12,7 @@
 
 <p align="center">
   <a href="https://crates.io/crates/fframes"><img alt="crates.io" src="https://img.shields.io/crates/v/fframes.svg" /></a>
+  <a href="https://docs.rs/fframes"><img alt="docs.rs" src="https://img.shields.io/docsrs/fframes" /></a>
   <a href="./LICENSE.txt"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
   <a href="https://x.com/fframes_rust"><img alt="@fframes_rust on X" src="https://img.shields.io/badge/X-@fframes__rust-black.svg" /></a>
 </p>
