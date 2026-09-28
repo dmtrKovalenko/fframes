@@ -293,9 +293,6 @@ just init-repo
 just watch-editor # in a separate terminal, to work on the editor
 ```
 
-The project is still under heavy development, so APIs can change and things can panic. Please share feedback and
-ideas as issues, and feel free to contribute, but ideally, start from an issue.
-
 ## License
 
 fframes is released under the [MIT License](./LICENSE.txt).
