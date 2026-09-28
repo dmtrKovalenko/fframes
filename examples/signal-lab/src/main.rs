@@ -1,7 +1,7 @@
 use fframes::cli::clap; // the derive below expands to `clap::...`
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
 use fframes_skia_renderer::{
-    SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig, metal::SkiaMetalCtx,
+    SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig,
 };
 use signal_lab::{HEIGHT, SignalLabMedia, SignalLabVideo, WIDTH};
 use std::process::ExitCode;
@@ -15,7 +15,19 @@ fn main() -> ExitCode {
     let args = cli::parse::<VideoArgs>();
     let media = SignalLabMedia::prepare().expect("media");
     let video = SignalLabVideo;
-    let gpu = SkiaMetalCtx::new(WIDTH, HEIGHT).expect("GPU context");
+    #[cfg(target_os = "macos")]
+    let gpu = fframes_skia_renderer::metal::SkiaMetalCtx::new(WIDTH, HEIGHT).expect("GPU context");
+    #[cfg(not(target_os = "macos"))]
+    let gpu =
+        fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(WIDTH, HEIGHT).expect("GPU context");
+    let pipeline = SkiaPipelineConfig {
+        concurrency_policy: SkiaPipelineConcurrencyPolicy::MaxPerformance,
+        ..Default::default()
+    };
+    #[cfg(target_os = "macos")]
+    let backend = SkiaFFramesRenderer::new_metal(&gpu, pipeline);
+    #[cfg(not(target_os = "macos"))]
+    let backend = SkiaFFramesRenderer::new_vulkan(&gpu, pipeline);
 
     cli::new(
         &video,
@@ -30,16 +42,7 @@ fn main() -> ExitCode {
         },
     )
     .args(args)
-    .backend(
-        SkiaFFramesRenderer::new_metal(
-            &gpu,
-            SkiaPipelineConfig {
-                concurrency_policy: SkiaPipelineConcurrencyPolicy::MaxPerformance,
-                ..Default::default()
-            },
-        )
-        .expect("skia renderer"),
-    )
+    .backend(backend.expect("skia renderer"))
     .preview(fframes_native_player::cli_preview)
     .run()
 }

@@ -4,24 +4,42 @@
 #   scripts/landing-video.sh out.mp4
 #
 # landing/fframes-demo.av1.mp4  AV1 10-bit, played by browsers with AV1 support
-# landing/fframes-demo.mp4      H.264 High@4.2, the fallback for everything else
+# landing/fframes-demo.mp4      H.264 High@4.1, the fallback for everything else
 #
-# Both use AAC audio and have the index at the front (faststart) so playback starts before
-# the download finishes. Cloudflare rejects files over 25 MiB, so keep each one below that.
+# Both are 1280x720 with AAC audio and the index at the front (faststart) so playback
+# starts before the download finishes. Cloudflare rejects files over 25 MiB, so the video
+# bitrate is derived from the duration to land each file near TARGET_MIB (default 23).
+# AV1 keeps film grain with grain synthesis: the encoder denoises, sends grain parameters
+# and the decoder adds the grain back, which costs almost no bits.
 set -euo pipefail
 
 input="${1:?usage: scripts/landing-video.sh <rendered-video>}"
 out="$(cd "$(dirname "$0")/.." && pwd)/landing"
+target_mib="${TARGET_MIB:-23}"
+audio_kbps=96
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-ffmpeg -hide_banner -loglevel error -y -i "$input" \
-  -c:v libsvtav1 -preset 4 -crf 30 -g 120 -pix_fmt yuv420p10le -svtav1-params tune=0 \
-  -c:a aac -b:a 96k -movflags +faststart "$tmp/fframes-demo.av1.mp4"
+duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$input")
+# total kbit budget minus audio and ~3% container overhead, spread over the duration
+video_kbps=$(echo "$target_mib * 1024 * 1024 * 8 / 1000 * 0.97 / $duration - $audio_kbps" | bc)
+echo "duration ${duration}s, video ${video_kbps} kbps"
 
-ffmpeg -hide_banner -loglevel error -y -i "$input" \
-  -c:v libx264 -preset slow -crf 21 -profile:v high -level:v 4.2 -pix_fmt yuv420p -g 120 \
-  -c:a aac -b:a 96k -movflags +faststart "$tmp/fframes-demo.mp4"
+scale="scale=1280:720:flags=lanczos"
+
+ffmpeg -hide_banner -loglevel error -y -i "$input" -vf "$scale" \
+  -c:v libsvtav1 -preset 4 -b:v "${video_kbps}k" -g 240 -pix_fmt yuv420p10le \
+  -svtav1-params "rc=1:tune=0:film-grain=8:film-grain-denoise=1" \
+  -c:a aac -b:a "${audio_kbps}k" -movflags +faststart "$tmp/fframes-demo.av1.mp4"
+
+for pass in 1 2; do
+  target="$tmp/fframes-demo.mp4"
+  [ "$pass" = 1 ] && target=/dev/null
+  ffmpeg -hide_banner -loglevel error -y -i "$input" -vf "$scale" \
+    -c:v libx264 -preset slow -b:v "${video_kbps}k" -pass "$pass" -passlogfile "$tmp/x264" \
+    -profile:v high -level:v 4.1 -pix_fmt yuv420p -g 240 \
+    -c:a aac -b:a "${audio_kbps}k" -movflags +faststart -f mp4 "$target"
+done
 
 limit=$((25 * 1024 * 1024))
 for file in "$tmp"/*.mp4; do

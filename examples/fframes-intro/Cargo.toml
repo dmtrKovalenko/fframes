@@ -6,8 +6,15 @@ publish = false
 
 [dependencies]
 fframes = { workspace = true, features = ["compile-time-svgtree", "cli"] }
+
+# Metal on macOS, Vulkan everywhere else
+[target.'cfg(target_os = "macos")'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["metal"] }
 fframes_native_player = { workspace = true, features = ["metal"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+fframes_native_player.workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
