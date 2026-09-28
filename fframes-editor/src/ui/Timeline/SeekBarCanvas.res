@@ -12,8 +12,8 @@ module Canvas2d = Webapi.Canvas.Canvas2d
 let renderSeekBar = (ctx, size, playState: Player.state, ~palette: Theme.palette) => {
   let x = frameToX(playState.frame, size)
 
-  ctx->Canvas2d.setStrokeStyle(String, palette.accent)
-  ctx->Canvas2d.setFillStyle(String, palette.accent)
+  ctx->Canvas2d.setStrokeStyle(String, palette.brand)
+  ctx->Canvas2d.setFillStyle(String, palette.brand)
   ctx->Canvas2d.lineWidth(2.)
 
   ctx->Canvas2d.beginPath

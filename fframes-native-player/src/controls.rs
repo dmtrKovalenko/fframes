@@ -48,9 +48,10 @@ const TEXT: Color = Color::from_rgb(0xff, 0xff, 0xff);
 const TEXT_SECONDARY: Color = Color::from_rgb(0xaf, 0xaf, 0xaf);
 const GHOST_HOVER: Color = Color::from_argb(31, 255, 255, 255);
 const GHOST_ACTIVE: Color = Color::from_argb(41, 255, 255, 255);
-const SOLID: Color = Color::from_rgb(0xf3, 0xf3, 0xf3);
-const SOLID_HOVER: Color = Color::from_rgb(0xed, 0xed, 0xed);
-const TEXT_ON_SOLID: Color = Color::from_rgb(0x0d, 0x0d, 0x0d);
+// fframes brand orange: only on the primary action and the playback progress
+const BRAND: Color = Color::from_rgb(0xfb, 0x6a, 0x22);
+const BRAND_HOVER: Color = Color::from_rgb(0xe2, 0x55, 0x07);
+const TEXT_ON_BRAND: Color = Color::from_rgb(0xff, 0xff, 0xff);
 const TRACK: Color = Color::from_argb(31, 255, 255, 255);
 const THUMB: Color = Color::from_rgb(0x0d, 0x0d, 0x0d);
 
@@ -336,7 +337,7 @@ impl Controls {
             &text,
         );
 
-        // System slider: soft track, solid range and a ringed thumb
+        // System slider: soft track, then the played range and the thumb ring in the brand color
         if layout.track.width() > 0. {
             let track_radius = layout.track.height() / 2.;
             paint.set_color(TRACK);
@@ -348,7 +349,7 @@ impl Controls {
             let thumb_x = layout.track.left + layout.track.width() * state.progress();
             let mut range = layout.track;
             range.right = thumb_x;
-            paint.set_color(TEXT);
+            paint.set_color(BRAND);
             canvas.draw_rrect(
                 RRect::new_rect_xy(range, track_radius, track_radius),
                 &paint,
@@ -360,7 +361,7 @@ impl Controls {
                 paint.set_color(GHOST_HOVER);
                 canvas.draw_circle(center, thumb_radius * 1.8, &paint);
             }
-            paint.set_color(TEXT);
+            paint.set_color(BRAND);
             canvas.draw_circle(center, thumb_radius, &paint);
             paint.set_color(THUMB);
             canvas.draw_circle(center, thumb_radius - 2. * scale, &paint);
@@ -400,10 +401,10 @@ impl Controls {
     fn primary_button(&self, canvas: &Canvas, rect: Rect, icon: &Path, hovered: bool, scale: f32) {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
-        paint.set_color(if hovered { SOLID_HOVER } else { SOLID });
+        paint.set_color(if hovered { BRAND_HOVER } else { BRAND });
         canvas.draw_circle(rect.center(), rect.width() / 2., &paint);
 
-        paint.set_color(TEXT_ON_SOLID);
+        paint.set_color(TEXT_ON_BRAND);
         draw_icon(canvas, icon, rect, scale, &paint);
     }
 }
@@ -463,7 +464,41 @@ pub(crate) fn format_time(frame: usize, fps: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+    use fframes_skia_renderer::skia_safe::{AlphaType, ColorType, ImageInfo, surfaces};
+
     use super::*;
+
+    #[test]
+    fn draws_the_primary_action_and_progress_in_the_brand_color() {
+        let controls = Controls::new();
+        let (width, height) = (960, 200);
+        let layout = ControlsLayout::new(&controls, "00:30", width as f32, height as f32, 1.);
+        let mut surface = surfaces::raster_n32_premul((width, height)).expect("raster surface");
+        let state = ControlsState {
+            visible: true,
+            frame: 450,
+            duration_in_frames: 900,
+            fps: 30,
+            playing: false,
+            looping: true,
+            fullscreen: false,
+            hovered: None,
+        };
+        controls.draw(surface.canvas(), &layout, &state);
+
+        let mut pixel = |x: f32, y: f32| {
+            let mut rgba = [0u8; 4];
+            let info = ImageInfo::new((1, 1), ColorType::RGBA8888, AlphaType::Unpremul, None);
+            assert!(surface.read_pixels(&info, &mut rgba, 4, (x as i32, y as i32)));
+            Color::from_argb(rgba[3], rgba[0], rgba[1], rgba[2])
+        };
+
+        // the play button background, clear of the icon
+        assert_eq!(pixel(layout.play.left + 5., layout.play.center_y()), BRAND);
+        // the played part of the seek slider
+        let played = layout.track.left + layout.track.width() * 0.25;
+        assert_eq!(pixel(played, layout.track.center_y()), BRAND);
+    }
 
     #[test]
     fn formats_time_like_the_web_editor() {

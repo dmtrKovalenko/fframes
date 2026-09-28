@@ -327,7 +327,7 @@ function Dock(Props) {
                             }) : React.createElement(Icon.PlayTriangle, {})
                     ) : React.createElement(Icon.PauseSm, {}),
                   shortcut: "Space",
-                  variant: /* Solid */1,
+                  variant: /* Brand */2,
                   size: /* Lg */1
                 }), React.createElement(IconButton.make, {
                   label: "Forward " + rewindStep + "s",

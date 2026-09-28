@@ -5,6 +5,8 @@ type variant =
   | Ghost
   // The single primary action of a surface
   | Solid
+  // The primary action in the fframes brand color
+  | Brand
 
 type size = Md | Lg
 
@@ -37,6 +39,7 @@ let make = (
         switch variant {
         | Ghost => "text-secondary hover:bg-primary-ghost-hover hover:text-default active:bg-primary-ghost-active"
         | Solid => "bg-primary-solid text-primary-solid hover:bg-primary-solid-hover active:bg-primary-solid-active"
+        | Brand => "bg-brand text-on-brand hover:bg-brand-hover active:bg-brand-active"
         },
         className,
       ])}>

@@ -259,7 +259,7 @@ let make = (
         </IconButton>
         <IconButton
           onClick=handlePlayOrPause
-          variant=IconButton.Solid
+          variant=IconButton.Brand
           size=IconButton.Lg
           label={switch player.playState {
           | Playing => "Pause"

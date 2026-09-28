@@ -19,13 +19,26 @@ function IconButton(Props) {
   var variant = variantOpt !== undefined ? variantOpt : /* Ghost */0;
   var size = sizeOpt !== undefined ? sizeOpt : /* Md */0;
   var className = classNameOpt !== undefined ? classNameOpt : "";
+  var tmp;
+  switch (variant) {
+    case /* Ghost */0 :
+        tmp = "text-secondary hover:bg-primary-ghost-hover hover:text-default active:bg-primary-ghost-active";
+        break;
+    case /* Solid */1 :
+        tmp = "bg-primary-solid text-primary-solid hover:bg-primary-solid-hover active:bg-primary-solid-active";
+        break;
+    case /* Brand */2 :
+        tmp = "bg-brand text-on-brand hover:bg-brand-hover active:bg-brand-active";
+        break;
+    
+  }
   var button = React.createElement("button", {
         "aria-label": label,
         className: Cx.cx([
               "inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-150 [&>svg]:size-5",
               focusRing,
               size ? "size-10" : "size-9",
-              variant ? "bg-primary-solid text-primary-solid hover:bg-primary-solid-hover active:bg-primary-solid-active" : "text-secondary hover:bg-primary-ghost-hover hover:text-default active:bg-primary-ghost-active",
+              tmp,
               className
             ]),
         type: "button",
@@ -33,16 +46,16 @@ function IconButton(Props) {
             return Curry._1(onClick, undefined);
           })
       }, children);
-  var tmp = {
+  var tmp$1 = {
     children: pressed !== undefined ? React.cloneElement(button, {
             "aria-pressed": pressed
           }) : button,
     content: label
   };
   if (shortcut !== undefined) {
-    tmp.shortcut = shortcut;
+    tmp$1.shortcut = shortcut;
   }
-  return React.createElement(Tooltip.make, tmp);
+  return React.createElement(Tooltip.make, tmp$1);
 }
 
 var make = IconButton;

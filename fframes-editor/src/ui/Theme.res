@@ -76,6 +76,8 @@ type palette = {
   softAlpha: string,
   surface: string,
   accent: string,
+  // fframes brand orange, only for the playhead
+  brand: string,
   // Categorical accents for scenes, the 400 steps of the system hues
   scenes: array<string>,
 }
@@ -86,7 +88,8 @@ let fontSans = `ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans"
 let canvasFont = `12px ${fontSans}`
 let canvasFontMedium = `500 12px ${fontSans}`
 
-let scenes = ["#0285ff", "#04b84c", "#fb6a22", "#924ff7", "#ff66ad", "#ffc300", "#fa423e"]
+// Orange is left out: it is the brand color and marks the playhead
+let scenes = ["#0285ff", "#04b84c", "#924ff7", "#ff66ad", "#ffc300", "#fa423e"]
 
 let dark = {
   text: "#ffffff",
@@ -96,6 +99,7 @@ let dark = {
   softAlpha: "rgb(255 255 255 / 0.08)",
   surface: "#181818",
   accent: "#339cff",
+  brand: "#fb6a22",
   scenes: scenes,
 }
 
@@ -107,6 +111,7 @@ let light = {
   softAlpha: "rgb(13 13 13 / 0.05)",
   surface: "#f9f9f9",
   accent: "#0169cc",
+  brand: "#fb6a22",
   scenes: scenes,
 }
 

@@ -16,8 +16,8 @@ import * as Webapi__Canvas__Canvas2d from "bs-webapi/src/Webapi/Canvas/Webapi__C
 
 function renderSeekBar(ctx, size, playState, palette) {
   var x = CanvasSize.frameToX(playState.frame, size);
-  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.accent);
-  Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.accent);
+  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.brand);
+  Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.brand);
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(x, 0);

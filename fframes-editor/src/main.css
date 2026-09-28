@@ -4,6 +4,12 @@
 @source "./";
 
 @theme {
+  /* fframes brand orange: only on the primary action and the playhead, per the ChatGPT guidelines */
+  --color-brand: #fb6a22;
+  --color-brand-hover: #e25507;
+  --color-brand-active: #c94a05;
+  --color-on-brand: #ffffff;
+
   --animate-tooltip-in: tooltipIn 150ms var(--cubic-enter);
 
   @keyframes tooltipIn {

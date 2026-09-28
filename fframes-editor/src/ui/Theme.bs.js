@@ -91,7 +91,6 @@ var canvasFontMedium = "500 12px " + fontSans;
 var scenes = [
   "#0285ff",
   "#04b84c",
-  "#fb6a22",
   "#924ff7",
   "#ff66ad",
   "#ffc300",
@@ -106,6 +105,7 @@ var dark = {
   softAlpha: "rgb(255 255 255 / 0.08)",
   surface: "#181818",
   accent: "#339cff",
+  brand: "#fb6a22",
   scenes: scenes
 };
 
@@ -117,6 +117,7 @@ var light = {
   softAlpha: "rgb(13 13 13 / 0.05)",
   surface: "#f9f9f9",
   accent: "#0169cc",
+  brand: "#fb6a22",
   scenes: scenes
 };
 
