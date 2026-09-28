@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fframes</title>
+<meta name="description" content="fframes is a video vibe coding framework that is actually fast. Write your video in Rust and SVG and render it on the GPU.">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    --font-accent: "Instrument Serif", Georgia, "Times New Roman", serif;
+
+    --surface: #ffffff;
+    --surface-secondary: #f9f9f9;
+    --text: #0d0d0d;
+    --text-secondary: #5d5d5d;
+    --text-tertiary: #8f8f8f;
+    --border: rgb(13 13 13 / .1);
+    --ghost-hover: rgb(13 13 13 / .08);
+    --primary-bg: #181818;
+    --primary-text: #fff;
+    --ring: #0169cc;
+
+    --blue: #0285ff;
+    --orange: #fb6a22;
+
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-full: 9999px;
+    --shadow: 0 8px 16px -4px rgb(0 0 0 / .12);
+
+    --gutter: 16px;
+    --max: 1280px;
+  }
+  @media (min-width: 640px) { :root { --gutter: 32px; } }
+  @media (min-width: 1024px) { :root { --gutter: 48px; } }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--text);
+    background-color: var(--surface);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* hairline column grid, like a layout sheet; fades out below the fold */
+  .grid-lines {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    padding: 0 var(--gutter);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / .35) 70%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / .35) 70%, transparent 100%);
+  }
+  .grid-lines div {
+    width: 100%;
+    max-width: calc(var(--max) - 2 * var(--gutter));
+    height: 100%;
+    border-left: 1px solid rgb(13 13 13 / .05);
+    border-right: 1px solid rgb(13 13 13 / .05);
+    background-image: linear-gradient(to right, rgb(13 13 13 / .05) 1px, transparent 1px);
+    background-size: calc(100% / 4) 100%;
+  }
+  @media (min-width: 900px) {
+    .grid-lines div { background-size: calc(100% / 12) 100%; background-image: linear-gradient(to right, rgb(13 13 13 / .035) 1px, transparent 1px); }
+  }
+
+  /* registration crosshairs on the column lines, like crop marks on a frame */
+  .grid-lines svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .grid-lines .marks-12 { display: none; }
+  @media (min-width: 900px) {
+    .grid-lines .marks-4 { display: none; }
+    .grid-lines .marks-12 { display: inline; }
+  }
+
+  /* a warm light leak across the top, the way film burns at the edge of a roll */
+  .light-leak {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 900px;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .light-leak::before,
+  .light-leak::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    animation: leak-drift 18s ease-in-out infinite alternate;
+  }
+  .light-leak::before {
+    top: -340px;
+    right: -120px;
+    width: 780px;
+    height: 520px;
+    background: radial-gradient(closest-side, rgb(251 106 34 / .16), rgb(251 106 34 / 0));
+  }
+  .light-leak::after {
+    top: -300px;
+    right: 360px;
+    width: 560px;
+    height: 420px;
+    background: radial-gradient(closest-side, rgb(255 102 173 / .07), rgb(255 102 173 / 0));
+    animation-delay: -9s;
+  }
+  @keyframes leak-drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(-60px, 30px, 0) scale(1.08); }
+  }
+
+  /* film grain over the page background, flickering like a projected print */
+  .grain {
+    position: fixed;
+    inset: -50%;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 2.6 -1.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 900ms steps(6) infinite;
+  }
+  @keyframes grain {
+    0% { transform: translate(0, 0); }
+    20% { transform: translate(-3%, 2%); }
+    40% { transform: translate(2%, -4%); }
+    60% { transform: translate(-4%, -1%); }
+    80% { transform: translate(3%, 3%); }
+    100% { transform: translate(-1%, 4%); }
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgb(255 255 255 / .82);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 60px;
+  }
+  .wordmark {
+    display: inline-flex;
+    border-radius: var(--r-sm);
+    padding: 4px;
+    margin-left: -4px;
+  }
+  .wordmark img {
+    display: block;
+    height: 26px;
+    width: auto;
+  }
+  .links { display: flex; align-items: center; gap: 4px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0 14px;
+    border-radius: var(--r-full);
+    font: 500 14px/1 var(--font);
+    color: var(--text);
+    text-decoration: none;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background-color .15s ease, transform .15s ease;
+  }
+  .btn:hover { background: var(--ghost-hover); }
+  .btn:active { transform: scale(.98); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+  .btn--icon { padding: 0; width: 36px; }
+  .btn--primary {
+    background: var(--primary-bg);
+    color: var(--primary-text);
+    margin-left: 4px;
+  }
+  .btn--primary:hover { background: #2d2d2d; }
+
+  @media (max-width: 479px) {
+    .btn--ghost { padding: 0; width: 36px; }
+    .btn--ghost .label {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+    }
+  }
+
+  a:focus-visible, video:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* ---------- headline ---------- */
+  .masthead {
+    padding: clamp(56px, 11vw, 144px) 0 clamp(40px, 6vw, 72px);
+  }
+  h1 {
+    margin: 0;
+    max-width: 15ch;
+    font-size: clamp(42px, 8.2vw, 116px);
+    line-height: 0.98;
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+  h1 .accent {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.16em;
+    letter-spacing: -0.015em;
+    line-height: 0.9;
+    white-space: nowrap;
+    padding-right: .04em;
+    background-image: linear-gradient(90deg, var(--orange), var(--orange));
+    background-repeat: no-repeat;
+    background-position: 0 92%;
+    background-size: 0% 0.06em;
+    animation: underline 1.1s cubic-bezier(.2, .7, .2, 1) .5s forwards;
+  }
+  @keyframes underline { to { background-size: 100% 0.06em; } }
+
+  .standfirst {
+    margin-top: clamp(28px, 4vw, 48px);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .standfirst p {
+    margin: 0;
+    max-width: 34em;
+    font-size: clamp(17px, 1.6vw, 20px);
+    line-height: 1.5;
+    color: var(--text-secondary);
+    text-wrap: pretty;
+  }
+  .rule {
+    width: 48px;
+    height: 1px;
+    background: var(--text);
+  }
+  @media (min-width: 900px) {
+    .standfirst {
+      grid-template-columns: repeat(12, 1fr);
+      gap: 0;
+      align-items: start;
+    }
+    .rule { grid-column: 1 / span 1; margin-top: .8em; }
+    .standfirst p { grid-column: 7 / span 6; }
+  }
+
+  /* ---------- video ---------- */
+  figure { margin: 0; }
+  .video-frame {
+    border-radius: var(--r-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow), 0 32px 64px -32px rgb(0 0 0 / .18);
+    overflow: hidden;
+    background: var(--surface-secondary);
+    aspect-ratio: 16 / 9;
+  }
+  video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--r-lg);
+    background: var(--surface-secondary);
+  }
+  figcaption {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 10px;
+    padding-left: 12px;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+  figcaption svg {
+    flex: none;
+    width: 34px;
+    height: 30px;
+    color: var(--orange);
+  }
+  figcaption span {
+    padding-top: 14px;
+  }
+  figcaption strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  footer {
+    margin-top: clamp(96px, 14vw, 180px);
+    overflow: hidden;
+    text-align: center;
+  }
+  .start-title {
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .start-title em {
+    font-family: var(--font-accent);
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+  .start {
+    display: grid;
+    gap: 16px;
+    max-width: 1000px;
+    margin: 28px auto 0;
+    text-align: left;
+  }
+  @media (min-width: 1100px) {
+    .start { grid-template-columns: 1fr 1fr; }
+  }
+  .start-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    border-radius: var(--r-lg);
+    background: var(--surface-secondary);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .start-card h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .start-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .start-card p a {
+    color: inherit;
+    text-underline-offset: 3px;
+  }
+  .command {
+    position: relative;
+    margin-top: auto;
+    border-radius: var(--r-md);
+    background: #181818;
+  }
+  .command pre {
+    margin: 0;
+    padding: 14px 52px 14px 16px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #ededed;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+  .command .prompt {
+    color: var(--orange);
+    user-select: none;
+  }
+  .copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: #afafaf;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+  .copy:hover {
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+  }
+  .copy:focus-visible {
+    outline: 2px solid #0285ff;
+    outline-offset: 2px;
+  }
+  .copy svg {
+    width: 16px;
+    height: 16px;
+  }
+  .copy .done,
+  .copy.copied .idle {
+    display: none;
+  }
+  .copy.copied .done {
+    display: block;
+    color: #04b84c;
+  }
+  .btn--large {
+    height: 52px;
+    margin: clamp(28px, 4vw, 40px) 0 0;
+    padding: 0 26px;
+    font-size: 17px;
+  }
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px clamp(32px, 6vw, 72px);
+    margin: clamp(64px, 9vw, 112px) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .footer-links a {
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 17px;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    transition: color 150ms ease;
+  }
+  .footer-links a:hover {
+    color: var(--orange);
+  }
+  /* Giant wordmark bleeding off the bottom edge, like a signature */
+  .footer-mark {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: clamp(40px, 6vw, 72px) 0 -8vw;
+    pointer-events: none;
+    user-select: none;
+  }
+  .footer-mark .echo {
+    transition: transform 1100ms cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  /* The echoes start stacked behind the word and slide out when the footer is in view */
+  .footer-mark:not(.is-visible) .echo {
+    transform: translateX(var(--from));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    h1 .accent { animation: none; background-size: 100% 0.06em; }
+    .btn { transition: none; }
+    .footer-mark .echo { transition: none; transform: none; }
+    .grain, .light-leak::before, .light-leak::after { animation: none; }
+  }
+</style>
+        <!-- fframes brand -->
+    <link rel="icon" href="brand/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="brand/fframes-mark.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="brand/apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="fframes" />
+    <meta property="og:title" content="fframes – video vibe coding framework that is actually fast" />
+    <meta property="og:description" content="Stop wasting hours waiting for video to be built from the web page in a browser. Vibe code your video on GPU using Rust &amp; SVG framework." />
+    <!-- TODO: link previews need absolute URLs once the site has a domain, e.g. https://fframes.dev/brand/og-image.png -->
+    <meta property="og:image" content="brand/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="brand/og-image.png" />
+    <!-- /fframes brand -->
+  </head>
+<body>
+  <div class="light-leak" aria-hidden="true"></div>
+  <div class="grid-lines" aria-hidden="true"><div><svg aria-hidden="true">
+      <defs>
+        <pattern id="marks-4" x="-5" y="-5" width="25%" height="160" patternUnits="userSpaceOnUse">
+          <path d="M5 0v10M0 5h10" stroke="rgb(13 13 13 / .12)" stroke-width="1" />
+        </pattern>
+        <pattern id="marks-12" x="-5" y="-5" width="8.3333%" height="160" patternUnits="userSpaceOnUse">
+          <path d="M5 0v10M0 5h10" stroke="rgb(13 13 13 / .11)" stroke-width="1" />
+        </pattern>
+      </defs>
+      <rect class="marks-4" width="100%" height="100%" fill="url(#marks-4)" />
+      <rect class="marks-12" width="100%" height="100%" fill="url(#marks-12)" />
+    </svg></div></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="wordmark" href="#top" aria-label="fframes, back to top"><img src="brand/fframes-wordmark.svg" alt="" width="103" height="26" /></a>
+      <nav class="links" aria-label="Project links">
+        <a class="btn btn--ghost btn--icon" href="https://x.com/fframes" aria-label="fframes on X">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a class="btn btn--ghost" href="https://github.com/sponsors/dmtrKovalenko" aria-label="Sponsor fframes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span class="label">Sponsor</span>
+        </a>
+        <a class="btn btn--primary" href="https://github.com/dmtrKovalenko/fframes">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top" class="wrap">
+    <section class="masthead">
+      <h1>fframes – video vibe coding framework that is <span class="accent">actually fast</span></h1>
+      <div class="standfirst">
+        <span class="rule" aria-hidden="true"></span>
+        <p>Stop wasting hours waiting for video to be built from the web page in a browser. Vibe code your video on GPU using Rust &amp; SVG framework.</p>
+      </div>
+    </section>
+
+    <figure>
+      <div class="video-frame">
+        <video src="fframes-demo.mp4" poster="poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="A video made with fframes"></video>
+      </div>
+      <figcaption>
+        <svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M31 25c-11 1.5-21-3.5-24-19" />
+          <path d="M2.5 10.5L7 5l4.5 5" />
+        </svg>
+        <span>Built by Codex with <strong>fframes</strong>: 36 minutes to build, 24 seconds to render</span>
+      </figcaption>
+    </figure>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <h2 class="start-title">Get <em>started</em></h2>
+      <div class="start">
+        <section class="start-card" aria-labelledby="start-skill">
+          <h3 id="start-skill">With your coding agent</h3>
+          <p>Add the official fframes skill from <a href="https://github.com/dmtrKovalenko/fframes/tree/main/skills/fframes-video">the GitHub repo</a>, then ask your agent for a video.</p>
+          <div class="command">
+            <pre><code><span class="prompt">$ </span>npx skills add dmtrKovalenko/fframes</code></pre>
+            <button class="copy" type="button" aria-label="Copy command">
+              <svg class="idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <svg class="done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            </button>
+          </div>
+        </section>
+        <section class="start-card" aria-labelledby="start-cargo">
+          <h3 id="start-cargo">With cargo</h3>
+          <p>Install the project generator and create a video you can render and preview right away.</p>
+          <div class="command">
+            <pre><code><span class="prompt">$ </span>cargo install --locked cargo-fframes \
+    --git https://github.com/dmtrKovalenko/fframes
+<span class="prompt">$ </span>cargo fframes new my-video</code></pre>
+            <button class="copy" type="button" aria-label="Copy command">
+              <svg class="idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <svg class="done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            </button>
+          </div>
+        </section>
+      </div>
+      <a class="btn btn--primary btn--large" href="https://github.com/dmtrKovalenko/fframes">Star on GitHub</a>
+      <ul class="footer-links">
+        <li><a href="https://github.com/dmtrKovalenko/fframes">GitHub</a></li>
+        <li><a href="https://x.com/fframes">X</a></li>
+        <li><a href="https://github.com/sponsors/dmtrKovalenko">Sponsor</a></li>
+      </ul>
+    </div>
+    <svg class="footer-mark" viewBox="0 0 392 99" role="img" aria-label="fframes">
+      <defs>
+        <linearGradient id="footer-fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.1" stop-color="#e3e3e3" />
+          <stop offset="0.95" stop-color="#e3e3e3" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="footer-fade-orange" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.1" stop-color="#fb6a22" />
+          <stop offset="0.95" stop-color="#fb6a22" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <path class="echo" style="--from: 52px" d="M5.267500000000002 93.75999999999999Q3.707500000000002 93.75999999999999 4.067500000000002 92.19999999999999L16.1875 40.35999999999999Q17.267500000000002 35.919999999999995 13.307500000000001 35.919999999999995H10.787500000000001Q8.867500000000001 35.919999999999995 8.867500000000001 34.239999999999995Q8.867500000000001 32.559999999999995 11.027500000000002 32.559999999999995Q14.747500000000002 32.559999999999995 16.6075 31.599999999999994Q18.4675 30.639999999999993 19.067500000000003 27.75999999999999Q20.6275 20.919999999999987 23.6875 15.579999999999991Q26.747500000000002 10.239999999999995 31.067500000000003 7.119999999999997Q35.3875 4.0 40.5475 4.0Q44.7475 4.0 47.3275 5.979999999999997Q49.9075 7.959999999999994 49.9075 11.439999999999998Q49.9075 14.079999999999998 48.5275 15.699999999999996Q47.1475 17.319999999999993 45.1075 17.319999999999993Q42.5875 17.319999999999993 41.807500000000005 15.879999999999995Q41.0275 14.439999999999998 40.847500000000004 12.519999999999996Q40.667500000000004 10.599999999999994 40.0675 9.159999999999997Q39.4675 7.719999999999999 37.3075 7.719999999999999Q34.5475 7.719999999999999 32.4475 10.419999999999995Q30.3475 13.11999999999999 28.6675 20.559999999999988L26.267500000000002 30.999999999999993Q25.907500000000002 32.559999999999995 27.587500000000002 32.559999999999995H37.1875Q39.4675 32.559999999999995 38.9875 34.239999999999995Q38.6275 35.919999999999995 36.8275 35.919999999999995H26.387500000000003Q25.1875 35.919999999999995 24.8275 37.11999999999999L11.9875 92.44Q11.627500000000001 93.75999999999999 10.307500000000001 93.75999999999999Z" fill="url(#footer-fade-orange)" fill-opacity="0.25" />
+      <path class="echo" style="--from: 26px" d="M31.187500000000004 93.75999999999999Q29.627500000000005 93.75999999999999 29.987500000000004 92.19999999999999L42.1075 40.35999999999999Q43.1875 35.919999999999995 39.227500000000006 35.919999999999995H36.7075Q34.7875 35.919999999999995 34.7875 34.239999999999995Q34.7875 32.559999999999995 36.947500000000005 32.559999999999995Q40.667500000000004 32.559999999999995 42.5275 31.599999999999994Q44.3875 30.639999999999993 44.987500000000004 27.75999999999999Q46.5475 20.919999999999987 49.6075 15.579999999999991Q52.667500000000004 10.239999999999995 56.987500000000004 7.119999999999997Q61.307500000000005 4.0 66.4675 4.0Q70.6675 4.0 73.2475 5.979999999999997Q75.8275 7.959999999999994 75.8275 11.439999999999998Q75.8275 14.079999999999998 74.44749999999999 15.699999999999996Q73.0675 17.319999999999993 71.0275 17.319999999999993Q68.5075 17.319999999999993 67.72749999999999 15.879999999999995Q66.9475 14.439999999999998 66.76750000000001 12.519999999999996Q66.5875 10.599999999999994 65.98750000000001 9.159999999999997Q65.3875 7.719999999999999 63.2275 7.719999999999999Q60.4675 7.719999999999999 58.3675 10.419999999999995Q56.2675 13.11999999999999 54.587500000000006 20.559999999999988L52.1875 30.999999999999993Q51.8275 32.559999999999995 53.50750000000001 32.559999999999995H63.1075Q65.3875 32.559999999999995 64.9075 34.239999999999995Q64.5475 35.919999999999995 62.7475 35.919999999999995H52.307500000000005Q51.1075 35.919999999999995 50.7475 37.11999999999999L37.9075 92.44Q37.5475 93.75999999999999 36.227500000000006 93.75999999999999Z" fill="url(#footer-fade-orange)" fill-opacity="0.55" />
+      <path d="M57.227500000000006 93.75999999999999Q55.667500000000004 93.75999999999999 56.0275 92.19999999999999L68.14750000000001 40.35999999999999Q69.2275 35.919999999999995 65.2675 35.919999999999995H62.7475Q60.8275 35.919999999999995 60.8275 34.239999999999995Q60.8275 32.559999999999995 62.987500000000004 32.559999999999995Q66.70750000000001 32.559999999999995 68.56750000000001 31.599999999999994Q70.42750000000001 30.639999999999993 71.0275 27.75999999999999Q72.5875 20.919999999999987 75.64750000000001 15.579999999999991Q78.70750000000001 10.239999999999995 83.0275 7.119999999999997Q87.3475 4.0 92.5075 4.0Q96.70750000000001 4.0 99.28750000000001 5.979999999999997Q101.8675 7.959999999999994 101.8675 11.439999999999998Q101.8675 14.079999999999998 100.48750000000001 15.699999999999996Q99.1075 17.319999999999993 97.0675 17.319999999999993Q94.5475 17.319999999999993 93.76750000000001 15.879999999999995Q92.98750000000001 14.439999999999998 92.8075 12.519999999999996Q92.6275 10.599999999999994 92.0275 9.159999999999997Q91.42750000000001 7.719999999999999 89.2675 7.719999999999999Q86.5075 7.719999999999999 84.4075 10.419999999999995Q82.3075 13.11999999999999 80.6275 20.559999999999988L78.2275 30.999999999999993Q77.8675 32.559999999999995 79.5475 32.559999999999995H89.14750000000001Q91.42750000000001 32.559999999999995 90.94749999999999 34.239999999999995Q90.5875 35.919999999999995 88.7875 35.919999999999995H78.3475Q77.14750000000001 35.919999999999995 76.7875 37.11999999999999L63.947500000000005 92.44Q63.587500000000006 93.75999999999999 62.2675 93.75999999999999ZM89.98750000000001 93.75999999999999Q88.42750000000001 93.75999999999999 88.78750000000001 92.19999999999999L100.90750000000001 40.35999999999999Q101.98750000000001 35.919999999999995 98.0275 35.919999999999995H95.50750000000001Q93.5875 35.919999999999995 93.5875 34.239999999999995Q93.5875 32.559999999999995 95.7475 32.559999999999995Q99.4675 32.559999999999995 101.3275 31.599999999999994Q103.1875 30.639999999999993 103.78750000000001 27.75999999999999Q105.34750000000001 20.919999999999987 108.4075 15.579999999999991Q111.4675 10.239999999999995 115.78750000000001 7.119999999999997Q120.10750000000002 4.0 125.26750000000001 4.0Q129.4675 4.0 132.0475 5.979999999999997Q134.6275 7.959999999999994 134.6275 11.439999999999998Q134.6275 14.079999999999998 133.2475 15.699999999999996Q131.8675 17.319999999999993 129.82750000000001 17.319999999999993Q127.3075 17.319999999999993 126.5275 15.879999999999995Q125.7475 14.439999999999998 125.56750000000001 12.519999999999996Q125.38750000000002 10.599999999999994 124.78750000000001 9.159999999999997Q124.1875 7.719999999999999 122.0275 7.719999999999999Q119.26750000000001 7.719999999999999 117.16750000000002 10.419999999999995Q115.06750000000001 13.11999999999999 113.3875 20.559999999999988L110.98750000000001 30.999999999999993Q110.62750000000001 32.559999999999995 112.3075 32.559999999999995H121.9075Q124.1875 32.559999999999995 123.70750000000001 34.239999999999995Q123.3475 35.919999999999995 121.54750000000001 35.919999999999995H111.10750000000002Q109.9075 35.919999999999995 109.54750000000001 37.11999999999999L96.70750000000001 92.44Q96.34750000000001 93.75999999999999 95.0275 93.75999999999999ZM126.5875 93.75999999999999Q124.9075 93.75999999999999 125.2675 92.19999999999999L136.6675 44.31999999999999Q137.26749999999998 41.67999999999999 136.8475 40.17999999999999Q136.4275 38.67999999999999 134.6275 38.67999999999999Q132.4675 38.67999999999999 129.8875 41.85999999999999Q127.3075 45.03999999999999 124.0675 53.919999999999995Q123.5875 55.47999999999999 122.3875 55.47999999999999Q120.5875 55.47999999999999 121.4275 53.31999999999999Q124.0675 45.03999999999999 127.0075 40.35999999999999Q129.9475 35.67999999999999 132.9475 33.75999999999999Q135.9475 31.839999999999996 138.4675 31.839999999999996Q142.4275 31.839999999999996 144.10750000000002 34.779999999999994Q145.7875 37.71999999999999 144.2275 44.43999999999999L142.9075 50.07999999999999Q142.7875 50.919999999999995 143.26749999999998 51.03999999999999Q143.7475 51.15999999999999 144.1075 50.43999999999999Q148.6675 39.99999999999999 152.3875 35.919999999999995Q156.1075 31.839999999999996 160.9075 31.839999999999996Q164.14749999999998 31.839999999999996 165.76749999999998 33.58Q167.3875 35.31999999999999 167.3875 38.31999999999999Q167.3875 41.31999999999999 165.9475 43.11999999999999Q164.5075 44.919999999999995 162.2275 44.919999999999995Q160.3075 44.919999999999995 159.4675 43.959999999999994Q158.6275 42.99999999999999 158.20749999999998 41.739999999999995Q157.7875 40.47999999999999 157.3075 39.519999999999996Q156.8275 38.559999999999995 155.7475 38.559999999999995Q153.9475 38.559999999999995 151.0675 43.11999999999999Q148.1875 47.67999999999999 144.8875 55.419999999999995Q141.5875 63.16 138.5275 72.75999999999999Q135.4675 82.35999999999999 133.1875 92.44Q132.8275 93.75999999999999 131.5075 93.75999999999999ZM173.7475 94.83999999999999Q169.4275 94.83999999999999 167.0275 91.11999999999999Q164.6275 87.39999999999999 164.6275 80.19999999999999Q164.6275 73.35999999999999 166.5475 66.46Q168.4675 59.559999999999995 171.8275 53.31999999999999Q175.1875 47.07999999999999 179.4475 42.27999999999999Q183.70749999999998 37.47999999999999 188.4475 34.66Q193.1875 31.839999999999996 197.8675 31.839999999999996Q200.14749999999998 31.839999999999996 202.1875 32.739999999999995Q204.2275 33.63999999999999 205.54749999999999 35.559999999999995Q206.26749999999998 36.63999999999999 206.9875 36.63999999999999Q207.70749999999998 36.63999999999999 208.4275 35.559999999999995Q209.7475 33.63999999999999 210.5875 33.099999999999994Q211.4275 32.559999999999995 212.14749999999998 32.559999999999995Q213.70749999999998 32.559999999999995 213.3475 34.239999999999995L202.6675 80.19999999999999Q200.8675 87.99999999999999 205.0675 87.99999999999999Q207.8275 87.99999999999999 210.04749999999999 84.27999999999999Q212.26749999999998 80.55999999999999 214.54749999999999 72.75999999999999Q214.9075 71.44 216.1075 71.44Q216.9475 71.44 217.1875 72.16Q217.4275 72.88 217.1875 73.83999999999999Q214.9075 85.11999999999999 211.0675 89.97999999999999Q207.2275 94.83999999999999 201.8275 94.83999999999999Q197.14749999999998 94.83999999999999 195.1675 90.88Q193.1875 86.91999999999999 194.7475 80.07999999999998L196.3075 73.47999999999999Q196.54749999999999 72.63999999999999 196.0075 72.51999999999998Q195.4675 72.39999999999999 195.1075 73.11999999999999Q188.5075 85.24 183.4075 90.03999999999999Q178.3075 94.83999999999999 173.7475 94.83999999999999ZM176.7475 88.71999999999998Q179.6275 88.71999999999998 183.10750000000002 85.23999999999998Q186.5875 81.75999999999999 190.0075 76.24Q193.4275 70.72 196.3075 64.36Q199.1875 57.99999999999999 200.9275 52.11999999999999Q202.6675 46.239999999999995 202.6675 42.15999999999999Q202.6675 34.839999999999996 197.5075 34.839999999999996Q194.3875 34.839999999999996 190.9075 37.66Q187.4275 40.47999999999999 184.2475 45.27999999999999Q181.0675 50.07999999999999 178.4875 56.139999999999986Q175.9075 62.19999999999999 174.3475 68.73999999999998Q172.7875 75.27999999999999 172.7875 81.52Q172.7875 85.72 173.8075 87.22Q174.8275 88.71999999999998 176.7475 88.71999999999998ZM290.8675 94.83999999999999Q286.5475 94.83999999999999 284.3875 91.23999999999998Q282.22749999999996 87.63999999999999 284.1475 80.07999999999998L293.3875 45.279999999999994Q294.7075 40.599999999999994 293.8075 38.8Q292.90749999999997 36.99999999999999 291.22749999999996 36.99999999999999Q288.8275 36.99999999999999 285.7075 40.3Q282.5875 43.599999999999994 279.1675 49.239999999999995Q275.7475 54.879999999999995 272.5075 62.07999999999999Q269.2675 69.27999999999999 266.5075 77.07999999999998Q263.7475 84.88 261.9475 92.44Q261.5875 93.75999999999999 260.2675 93.75999999999999H255.58749999999998Q253.9075 93.75999999999999 254.26749999999998 92.19999999999999L265.3075 45.279999999999994Q266.3875 40.599999999999994 265.60749999999996 38.8Q264.8275 36.99999999999999 263.1475 36.99999999999999Q260.8675 36.99999999999999 257.7475 40.3Q254.6275 43.599999999999994 251.26749999999998 49.239999999999995Q247.9075 54.879999999999995 244.6675 62.07999999999999Q241.42749999999998 69.27999999999999 238.6675 77.07999999999998Q235.9075 84.88 234.2275 92.44Q233.86749999999998 93.75999999999999 232.54749999999999 93.75999999999999H227.6275Q225.9475 93.75999999999999 226.3075 92.19999999999999L237.70749999999998 44.31999999999999Q238.3075 41.67999999999999 237.8875 40.17999999999999Q237.4675 38.67999999999999 235.6675 38.67999999999999Q233.5075 38.67999999999999 230.9275 41.85999999999999Q228.3475 45.03999999999999 225.1075 53.919999999999995Q224.6275 55.47999999999999 223.42749999999998 55.47999999999999Q221.6275 55.47999999999999 222.4675 53.31999999999999Q225.1075 45.03999999999999 228.04749999999999 40.35999999999999Q230.98749999999998 35.67999999999999 233.98749999999998 33.75999999999999Q236.98749999999998 31.839999999999996 239.5075 31.839999999999996Q243.4675 31.839999999999996 245.14749999999998 34.779999999999994Q246.8275 37.71999999999999 245.26749999999998 44.43999999999999L242.26749999999998 57.39999999999999Q242.14749999999998 58.239999999999995 242.6275 58.35999999999999Q243.1075 58.47999999999999 243.4675 57.75999999999999Q250.42749999999998 43.35999999999999 256.0675 37.599999999999994Q261.7075 31.839999999999996 266.3875 31.839999999999996Q270.8275 31.839999999999996 272.6875 35.44Q274.5475 39.03999999999999 272.8675 46.47999999999999L270.34749999999997 57.39999999999999Q270.22749999999996 58.239999999999995 270.7075 58.35999999999999Q271.1875 58.47999999999999 271.5475 57.75999999999999Q276.10749999999996 48.03999999999999 280.12749999999994 42.33999999999999Q284.1475 36.63999999999999 287.74749999999995 34.239999999999995Q291.34749999999997 31.839999999999996 294.4675 31.839999999999996Q298.90749999999997 31.839999999999996 300.9475 35.44Q302.98749999999995 39.03999999999999 300.9475 46.47999999999999L291.8275 81.27999999999999Q290.98749999999995 84.63999999999999 291.7075 86.32Q292.4275 87.99999999999999 294.34749999999997 87.99999999999999Q296.7475 87.99999999999999 299.0875 84.82Q301.4275 81.63999999999999 303.9475 72.75999999999999Q304.3075 71.44 305.5075 71.44Q306.4675 71.44 306.6475 72.16Q306.8275 72.88 306.5875 73.83999999999999Q304.3075 81.99999999999999 301.6675 86.61999999999999Q299.0275 91.24 296.3275 93.03999999999999Q293.6275 94.83999999999999 290.8675 94.83999999999999ZM324.8275 94.83999999999999Q318.4675 94.83999999999999 314.62749999999994 89.85999999999999Q310.78749999999997 84.88 310.78749999999997 75.75999999999999Q310.78749999999997 67.83999999999999 313.60749999999996 60.03999999999999Q316.42749999999995 52.239999999999995 320.98749999999995 45.879999999999995Q325.54749999999996 39.519999999999996 331.00749999999994 35.67999999999999Q336.4675 31.839999999999996 341.62749999999994 31.839999999999996Q347.2675 31.839999999999996 349.72749999999996 34.53999999999999Q352.18749999999994 37.239999999999995 352.18749999999994 41.79999999999999Q352.18749999999994 47.199999999999996 348.4074999999999 52.53999999999999Q344.62749999999994 57.879999999999995 337.84749999999997 62.07999999999999Q331.0675 66.27999999999999 321.9475 68.32Q319.30749999999995 68.91999999999999 319.18749999999994 71.32Q319.0675 72.16 319.0675 73.06Q319.0675 73.96 319.0675 74.79999999999998Q319.0675 81.63999999999999 321.40749999999997 85.11999999999999Q323.74749999999995 88.6 327.8275 88.6Q332.3875 88.6 336.6475 84.39999999999999Q340.90749999999997 80.19999999999999 343.78749999999997 72.52Q344.1475 71.44 345.22749999999996 71.44Q345.9475 71.44 346.12749999999994 72.03999999999999Q346.30749999999995 72.63999999999999 346.0675 73.47999999999999Q342.22749999999996 84.03999999999999 336.7674999999999 89.44Q331.30749999999995 94.83999999999999 324.8275 94.83999999999999ZM320.3875 63.75999999999999Q320.1475 64.6 320.6875 65.13999999999999Q321.22749999999996 65.67999999999999 322.0675 65.44Q329.5075 63.39999999999999 334.5475 59.25999999999999Q339.5875 55.11999999999999 342.16749999999996 49.959999999999994Q344.74749999999995 44.79999999999999 344.74749999999995 39.879999999999995Q344.74749999999995 34.839999999999996 340.78749999999997 34.839999999999996Q337.30749999999995 34.839999999999996 333.22749999999996 38.919999999999995Q329.1475 42.99999999999999 325.66749999999996 49.599999999999994Q322.18749999999994 56.199999999999996 320.3875 63.75999999999999ZM365.0275 94.83999999999999Q361.06749999999994 94.83999999999999 356.68749999999994 93.63999999999999Q352.30749999999995 92.44 350.0275 90.63999999999999Q349.18749999999994 89.91999999999999 349.30749999999995 88.47999999999999L351.94749999999993 72.75999999999999Q352.18749999999994 71.19999999999999 353.38749999999993 71.19999999999999Q354.7075 71.19999999999999 354.7075 72.88L354.94749999999993 78.63999999999999Q355.18749999999994 85.47999999999999 358.24749999999995 88.66Q361.30749999999995 91.83999999999999 365.74749999999995 91.83999999999999Q369.5875 91.83999999999999 372.34749999999997 89.38Q375.10749999999996 86.91999999999999 375.10749999999996 82.11999999999999Q375.10749999999996 79.35999999999999 374.2674999999999 77.01999999999998Q373.42749999999995 74.67999999999999 371.62749999999994 71.97999999999999Q369.8275 69.27999999999999 366.7075 65.44Q362.62749999999994 60.15999999999999 360.6474999999999 56.379999999999995Q358.66749999999996 52.599999999999994 358.66749999999996 48.519999999999996Q358.66749999999996 40.959999999999994 363.40749999999997 36.39999999999999Q368.1475 31.839999999999996 375.4675 31.839999999999996Q378.7075 31.839999999999996 381.7675 32.8Q384.8275 33.75999999999999 386.86749999999995 35.67999999999999Q387.94749999999993 36.519999999999996 387.5875 37.839999999999996L384.22749999999996 53.919999999999995Q383.86749999999995 55.47999999999999 382.78749999999997 55.47999999999999Q381.7075 55.47999999999999 381.4675 53.79999999999999L381.10749999999996 48.03999999999999Q380.62749999999994 40.839999999999996 379.24749999999995 37.72Q377.86749999999995 34.599999999999994 373.54749999999996 34.599999999999994Q369.7075 34.599999999999994 367.3075 37.239999999999995Q364.90749999999997 39.879999999999995 364.90749999999997 43.599999999999994Q364.90749999999997 47.559999999999995 367.0675 50.85999999999999Q369.22749999999996 54.15999999999999 372.94749999999993 59.19999999999999Q377.86749999999995 65.67999999999999 379.60749999999996 69.51999999999998Q381.34749999999997 73.35999999999999 381.34749999999997 77.32Q381.34749999999997 82.35999999999999 379.12749999999994 86.32Q376.90749999999997 90.27999999999999 373.1875 92.55999999999999Q369.4675 94.83999999999999 365.0275 94.83999999999999Z" fill="url(#footer-fade)" />
+    </svg>
+  </footer>
+  <script>
+    // Copy the command without the prompt characters
+    for (const button of document.querySelectorAll(".copy")) {
+      button.addEventListener("click", async () => {
+        const text = button.previousElementSibling.textContent.replace(/^\$ /gm, "");
+        try {
+          await navigator.clipboard.writeText(text);
+          button.classList.add("copied");
+          button.setAttribute("aria-label", "Copied");
+          setTimeout(() => {
+            button.classList.remove("copied");
+            button.setAttribute("aria-label", "Copy command");
+          }, 1600);
+        } catch {
+          button.setAttribute("aria-label", "Copy failed, select the command instead");
+        }
+      });
+    }
+
+    // Slide the motion trail out once the footer wordmark scrolls into view
+    const footerMark = document.querySelector(".footer-mark");
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver((entries, observer) => {
+        if (entries[0].isIntersecting) {
+          footerMark.classList.add("is-visible");
+          observer.disconnect();
+        }
+      }, { threshold: 0.3 }).observe(footerMark);
+    } else {
+      footerMark.classList.add("is-visible");
+    }
+  </script>
+</body>
+</html>
