@@ -1,0 +1,41 @@
+name: Landing
+on:
+  push:
+    branches: [ main ]
+    paths: [ "landing/**", ".github/workflows/landing.yml" ]
+  pull_request:
+    branches: [ main ]
+    paths: [ "landing/**", ".github/workflows/landing.yml" ]
+  workflow_dispatch:
+
+# Deploys never overlap, the newest push wins
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The site is plain files: wrangler uploads landing/ as static assets, nothing is installed or built
+      - name: Check
+        if: github.event_name == 'pull_request'
+        run: npx --yes wrangler@4 deploy --dry-run
+
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        run: npx --yes wrangler@4 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
