@@ -45,7 +45,7 @@ impl Display for Time {
                 "{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}",
             )
         } else {
-            write!(formatter, "{minutes:02}:{seconds:02}.{milliseconds:03}",)
+            write!(formatter, "{minutes:02}:{seconds:02}.{milliseconds:03}")
         }
     }
 }

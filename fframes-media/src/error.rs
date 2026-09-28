@@ -58,10 +58,10 @@ impl std::fmt::Debug for FFramesMediaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LibAVAudioDecodingError((code, msg)) => {
-                write!(f, "LibAVAudioDecodingError: {code} - {msg}",)
+                write!(f, "LibAVAudioDecodingError: {code} - {msg}")
             }
             Self::LibAVVideoDecodingError((code, msg)) => {
-                write!(f, "LibAVVideoDecodingError: {code} - {msg}",)
+                write!(f, "LibAVVideoDecodingError: {code} - {msg}")
             }
             Self::AudioDecodingError(msg) => write!(f, "AudioDecodingError: {msg}"),
             #[cfg(not(target_arch = "wasm32"))]

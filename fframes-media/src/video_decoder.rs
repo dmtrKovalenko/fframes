@@ -890,7 +890,7 @@ unsafe extern "C" fn get_hw_format(
             if *p == hw_pix_fmt {
                 return *p;
             }
-            p = p.offset(1);
+            p = p.add(1);
         }
 
         eprintln!("Failed to get HW surface format, falling back to software decoding");
@@ -928,7 +928,7 @@ unsafe fn find_hw_out_source_format(frame: *mut AVFrame) -> Option<AVPixelFormat
             _ => {}
         }
 
-        fmt = fmt.offset(1);
+        fmt = fmt.add(1);
     }
 
     let first_format = *formats;
