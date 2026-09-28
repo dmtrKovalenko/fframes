@@ -262,8 +262,10 @@ two scenes on a 16:9 grid), `--title`, `--format landscape|portrait|square|uhd`,
 `--backend cpu|skia-metal|skia-vulkan`, `--dir`, `--fframes-path <checkout>`. Inside this
 repository it uses workspace dependencies and registers the crate in the workspace members;
 elsewhere it pins the crates.io release matching its own version (`--git` for `main`,
-`--fframes-path` for a checkout) and makes the crate its own workspace. `release.sh` publishes
-`cargo-fframes` and `fframes_native_player` with the other crates on every push to main.
+`--fframes-path` for a checkout) and makes the crate its own workspace. Every push to main
+publishes a nightly of all crates and `@fframes/editor` (`scripts/publish.sh`, version from
+`scripts/release-version.sh`); `./scripts/release.sh 1.2.3` cuts a release: it sets the
+versions, commits, pushes the `v1.2.3` tag, and CI publishes it and creates the GitHub release.
 
 The generated crate compiles and renders as is:
 
