@@ -135,5 +135,4 @@ just watch-editor
 
 ## License
 
-Please make sure that this project is under GPLv3 license while in beta. So you are not permitted to modify and redistribute it.
-This will likely be changed once the project will be released.
+fframes is released under the [MIT License](./LICENSE.txt).
