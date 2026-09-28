@@ -71,23 +71,23 @@ just check-examples  # checks all examples
 cd fframes-editor
 
 # Build ReScript and bundle
-yarn build
+pnpm build
 
 # Development mode with watch
-yarn dev
+pnpm dev
 
 # Clean ReScript build
-yarn rescript:clean
+pnpm rescript:clean
 ```
 
 ### Package Management
 
 ```bash
 # Lint package.json consistency
-yarn syncpack lint
+pnpm syncpack lint
 
 # Format JS/TS files
-yarn prettier --write .
+pnpm prettier --write .
 ```
 
 ## Code Style Guidelines
@@ -677,5 +677,5 @@ Pixel snapshots of frames: `fframes::snapshot::assert_frames(&mut previewer, &mu
 
 - Run `just clippy` before committing - warnings are errors
 - Use `cargo fmt` for Rust formatting
-- Use `yarn prettier --write .` for JS/TS/ReScript formatting
+- Use `pnpm prettier --write .` for JS/TS/ReScript formatting
 - Check WASM compilation with `just check-wasm <example>` when modifying editor bridge code

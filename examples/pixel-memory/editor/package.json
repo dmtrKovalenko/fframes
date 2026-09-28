@@ -6,7 +6,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@fframes/editor": "*",
+    "@fframes/editor": "workspace:*",
     "vite-plugin-pwa": "^0.21.2"
   },
   "devDependencies": {

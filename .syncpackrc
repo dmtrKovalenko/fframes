@@ -32,7 +32,7 @@
       "label": "Use workspace protocol when developing local packages",
       "packages": ["!fframes-editor"],
       "dependencies": ["@fframes/editor"],
-      "pinVersion": "*"
+      "pinVersion": "workspace:*"
     }
   ]
 }

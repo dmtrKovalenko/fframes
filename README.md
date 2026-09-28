@@ -77,7 +77,7 @@ codec features (`h264`, `h265`, ...) off: they request a from-source ffmpeg buil
 Once everything is installed please install the just command runner and init the repo.
 
 ```bash
-  npm install --global yarn # the package manager for nodejs based editor
+  npm install --global pnpm # the package manager for nodejs based editor
   cargo install --locked just cargo-watch wasm-bindgen-cli wasm-pack
   just init-repo
 ```

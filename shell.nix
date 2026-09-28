@@ -25,7 +25,7 @@ pkgs.mkShell {
     pkgs.nasm       
     llvm.clang      
     pkgs.nodejs     
-    pkgs.yarn      
+    pkgs.pnpm      
     pkgs.rustup      
     pkgs.just       
     pkgs.cargo-watch 

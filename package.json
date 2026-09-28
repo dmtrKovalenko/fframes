@@ -1,11 +1,7 @@
 {
   "name": "fframes-root",
   "private": true,
-  "workspaces": [
-    "e2e/**/*",
-    "fframes-editor",
-    "examples/**/*"
-  ],
+  "packageManager": "pnpm@10.15.0",
   "devDependencies": {
     "odiff-bin": "^2.5.1",
     "prettier": "^3.5.3",

@@ -1,0 +1,13 @@
+packages:
+  - fframes-editor
+  - examples/*/editor
+
+# Same behaviour as the Yarn 1 lockfile this replaced: peers are not installed on their own
+autoInstallPeers: false
+# Install scripts that download or build native binaries (pnpm skips them unless listed)
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - esbuild
+  - gentype
+  - odiff-bin
+  - wasm-pack

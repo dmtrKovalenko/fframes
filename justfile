@@ -5,30 +5,30 @@ clippy-fix *ARGS:
   @just clippy --fix {{ARGS}}
 
 syncpack:
-  yarn syncpack lint
+  pnpm syncpack lint
 
 build:
   cargo build
-  cd fframes-editor && yarn build 
+  cd fframes-editor && pnpm build
 
 init-repo:
   ffmpeg -version
   rustc --version
-  yarn --version
+  pnpm --version
 
   cargo build
-  yarn install
-  cd fframes-editor && yarn rescript:build && yarn bundle:dev
+  pnpm install
+  cd fframes-editor && pnpm rescript:build && pnpm bundle:dev
 
 watch-editor:
-  cd fframes-editor && yarn dev
+  cd fframes-editor && pnpm dev
 
 watch-example-build example:
   cd examples/{{example}}/editor/editor-bridge && \
   cargo watch -i pkg -s "wasm-pack build  --target web --dev"
 
 start-example example:
-  cd examples/{{example}}/editor && yarn dev
+  cd examples/{{example}}/editor && pnpm dev
 
 run example:
   #!/bin/bash

@@ -27,5 +27,6 @@ for crate in \
 done
 
 cd fframes-editor
-yarn build:prod
-yarn publish --no-git-tag-version --access public --new-version "$VERSION"
+pnpm build:prod
+pnpm version "$VERSION" --no-git-tag-version
+pnpm publish --access public --no-git-checks
