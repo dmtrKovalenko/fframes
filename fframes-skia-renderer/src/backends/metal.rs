@@ -48,27 +48,6 @@ impl SkiaMetalCtx {
             )
         };
 
-        let mut gpu_context_opts = gpu::ContextOptions::new();
-
-        // Cache configuration
-        gpu_context_opts.glyph_cache_texture_maximum_bytes = 64 * 1024 * 1024; // 64MB
-        gpu_context_opts.allow_multiple_glyph_cache_textures = Enable::Yes;
-        gpu_context_opts.buffer_map_threshold = 4096;
-        gpu_context_opts.minimum_staging_buffer_size = 1_048_576;
-
-        // Path rendering optimizations
-        gpu_context_opts.allow_path_mask_caching = true;
-        gpu_context_opts.disable_distance_field_paths = false;
-        gpu_context_opts.disable_coverage_counting_paths = true;
-
-        // Shader configuration
-        gpu_context_opts.runtime_program_cache_size = 256;
-        gpu_context_opts.shader_cache_strategy = ShaderCacheStrategy::BackendBinary;
-        gpu_context_opts.reduced_shader_variations = false;
-
-        // Batch processing
-        gpu_context_opts.reduce_ops_task_splitting = Enable::Yes;
-
         Ok(SkiaMetalCtx {
             device,
             command_queue,
@@ -101,7 +80,8 @@ impl SkiaMetalCtx {
             )
         };
 
-        let mut gpu_context = gpu::direct_contexts::make_metal(&backend, None).unwrap();
+        let mut gpu_context =
+            gpu::direct_contexts::make_metal(&backend, Some(&gpu_context_options())).unwrap();
         let ctx = Self::new_with_device(device, command_queue, width, height)?;
         let surface = {
             let backend_render_target =
@@ -124,9 +104,36 @@ impl SkiaMetalCtx {
     }
 }
 
+/// Skia GPU context settings, the same as the Vulkan backend uses.
+fn gpu_context_options() -> gpu::ContextOptions {
+    let mut gpu_context_opts = gpu::ContextOptions::new();
+
+    // Cache configuration
+    gpu_context_opts.glyph_cache_texture_maximum_bytes = 64 * 1024 * 1024; // 64MB
+    gpu_context_opts.allow_multiple_glyph_cache_textures = Enable::Yes;
+    gpu_context_opts.buffer_map_threshold = 4096;
+    gpu_context_opts.minimum_staging_buffer_size = 1_048_576;
+
+    // Path rendering optimizations
+    gpu_context_opts.allow_path_mask_caching = true;
+    gpu_context_opts.disable_distance_field_paths = false;
+    gpu_context_opts.disable_coverage_counting_paths = true;
+
+    // Shader configuration
+    gpu_context_opts.runtime_program_cache_size = 256;
+    gpu_context_opts.shader_cache_strategy = ShaderCacheStrategy::BackendBinary;
+    gpu_context_opts.reduced_shader_variations = false;
+
+    // Batch processing
+    gpu_context_opts.reduce_ops_task_splitting = Enable::Yes;
+
+    gpu_context_opts
+}
+
 impl SkiaBackend for SkiaMetalCtx {
     fn create_skia_surface(&self) -> FFramesRendererResult<(Surface, Option<DirectContext>)> {
-        let mut gpu_context = gpu::direct_contexts::make_metal(&self.backend, None).unwrap();
+        let mut gpu_context =
+            gpu::direct_contexts::make_metal(&self.backend, Some(&gpu_context_options())).unwrap();
 
         let texture_descriptor = TextureDescriptor::new();
         texture_descriptor.set_width(self.width as u64);

@@ -48,6 +48,23 @@ pub struct RenderOptions<'a, 'media> {
     pub default_font: &'a str,
     /// The abort signal that can be used to abort the rendering process.
     pub abort_signal: Option<&'media crate::AbortSignal>,
+    /// Render only these frames of the video (end exclusive). The output starts at the first
+    /// frame of the range and the audio is cut to match. `None` renders the whole video.
+    ///
+    /// Use `TimelineIndex::resolve_range` to build it from specs like `"Intro"` or `"10s..20s"`.
+    pub frame_range: Option<std::ops::Range<usize>>,
+    /// Master bus of the audio mix: limiter, master gain and de-click fades.
+    pub audio_mix: crate::AudioMixOptions,
+}
+
+impl RenderOptions<'_, '_> {
+    /// The frames that will be rendered for a video of `duration_in_frames`, clamped to it.
+    pub fn output_frame_range(&self, duration_in_frames: usize) -> std::ops::Range<usize> {
+        match &self.frame_range {
+            Some(range) => range.start.min(duration_in_frames)..range.end.min(duration_in_frames),
+            None => 0..duration_in_frames,
+        }
+    }
 }
 
 impl Default for RenderOptions<'_, '_> {
@@ -63,6 +80,8 @@ impl Default for RenderOptions<'_, '_> {
             default_font: "Arial",
             abort_signal: None,
             tmp_files_directory: None,
+            frame_range: None,
+            audio_mix: Default::default(),
         }
     }
 }
@@ -101,16 +120,16 @@ impl<'a, 'media: 'a> FFramesRendererRuntime<'a> {
                 let video_duration = media
                     .resolve_video(name)
                     .and_then(|video| video.metadata)
-                    .map(|metadata| (metadata.duration * TVideo::FPS as f32).round() as usize);
+                    .map(|metadata| metadata.duration as f64);
 
                 video_duration
                     .or_else(|| {
                         media
                             .resolve_audio(name)
                             .and_then(|main_audio| match main_audio {
-                                AudioData::Preloaded(data) => Some(
-                                    data.samples.len() * TVideo::FPS / data.sample_rate as usize,
-                                ),
+                                AudioData::Preloaded(data) => {
+                                    Some(data.samples.len() as f64 / data.sample_rate as f64)
+                                }
                                 _ => None,
                             })
                     })
@@ -186,7 +205,15 @@ pub fn render<
         font_source.fontdb.load_system_fonts();
     }
 
-    logger.init_frames_rendering(timeline.duration_in_frames)?;
+    let frame_range = options.output_frame_range(timeline.duration_in_frames);
+    if frame_range.is_empty() {
+        return Err(super::FFramesRendererError::Custom(format!(
+            "frame range {:?} is empty or outside the video (0..{})",
+            options.frame_range, timeline.duration_in_frames
+        )));
+    }
+
+    logger.init_frames_rendering(frame_range.len())?;
     let ctx = FFramesContext {
         time_base,
         mode: crate::FFramesMode::Renderer,
@@ -205,13 +232,19 @@ pub fn render<
     render_backend.render(
         &output,
         video,
-        logger,
+        logger.clone(),
         &usvg_options,
         options,
         font_source.as_db_ref(),
         &timeline,
         &ctx,
     )?;
+
+    for (kind, name) in crate::diagnostics::take_missing_media() {
+        logger.warn(&format!(
+            "{kind:?} \"{name}\" was requested by render_frame but is not in the media provider"
+        ));
+    }
 
     Ok(())
 }

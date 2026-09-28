@@ -58,14 +58,14 @@ impl AudioData {
 /// (`resolve_video_duration`, in seconds), falling back to the audio track
 /// when the metadata is not registered yet.
 async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaProvider<'media>>(
-    tb: &TimeBase,
     duration: &'a Duration<'a>,
     scene_audios: &'a ScenesWithAudio<'media>,
     global_audio_map: &'a fframes::AudioMap<'a>,
     static_media: &'media TStaticMedia,
     resolve_video_duration: impl Fn(&str) -> Option<f32>,
-) -> fframes::error::Result<HashMap<String, usize>> {
-    let mut duration_map: HashMap<String, usize> = HashMap::new();
+) -> fframes::error::Result<HashMap<String, f64>> {
+    // Durations in seconds, the timeline converts them to frames or samples.
+    let mut duration_map: HashMap<String, f64> = HashMap::new();
 
     let mut all_used_files = global_audio_map
         .used_audio_files::<Vec<&str>>()
@@ -81,7 +81,7 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     // The editor registers video metadata while `prepare` is already
     // running, so a video that is not registered yet is measured through
     // its audio track instead (like any audio file).
-    let mut video_durations: HashMap<String, usize> = HashMap::new();
+    let mut video_durations: HashMap<String, f64> = HashMap::new();
     for file in duration
         .used_video_files()
         .into_iter()
@@ -90,8 +90,7 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     {
         match resolve_video_duration(file) {
             Some(seconds) => {
-                video_durations
-                    .insert(file.to_string(), (seconds * tb.fps as f32).round() as usize);
+                video_durations.insert(file.to_string(), seconds as f64);
             }
             None => all_used_files.push(file),
         }
@@ -112,8 +111,7 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
             // if audio is not static than we need to fetch and load it through the browser xhr
             static_audio
                 .map(|audio| {
-                    let duration = audio.duration_in_frames(tb);
-                    duration_map.insert(file.to_string(), duration);
+                    duration_map.insert(file.to_string(), audio.duration_in_seconds() as f64);
                 })
                 .is_none()
         })
@@ -135,9 +133,8 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     .try_for_each(|(js_value, file)| match js_value {
         Ok(val) => val
             .as_f64()
-            .map(|val| {
-                let frames = val * tb.fps as f64;
-                duration_map.insert(file.to_string(), frames as usize);
+            .map(|seconds| {
+                duration_map.insert(file.to_string(), seconds);
             })
             .ok_or_else(|| FFramesError::CanNotProcessAudioDuration(file.to_string())),
         Err(_) => Err(FFramesError::CanNotProcessAudioDuration(file.to_string())),
@@ -169,7 +166,6 @@ pub async fn prepare_video_with_audio<
     let scene_audios = ScenesWithAudio::new(scenes);
 
     let audio_durations = resolve_used_media_durations(
-        tb,
         &video_duration,
         &scene_audios,
         &audio_map,

@@ -164,7 +164,7 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
 
         #[cfg(feature = "audio")]
         if let (Some(audio), Some(audio_map)) = (audio.as_ref(), timeline.audio_map.as_ref()) {
-            scope.spawn(|| audio.run_feeder(&ctx, audio_map));
+            scope.spawn(|| audio.run_feeder(&ctx, audio_map, options.audio_mix));
         }
 
         // The event loop has to run on the main thread (macOS).
@@ -184,6 +184,67 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
     }
 
     Ok(result?)
+}
+
+/// The `preview` command of `fframes::cli`: plays the video with the media, fonts and audio
+/// mix of the render options.
+///
+/// ```rust,ignore
+/// fframes::cli::run_with_preview(cli, &video, options, make_backend, &mut frame_renderer,
+///     fframes_native_player::cli_preview)
+/// ```
+pub fn cli_preview<'a, 'media: 'a, TVideo: Video + Sync>(
+    video: &'a TVideo,
+    options: &fframes::RenderOptions<'a, 'media>,
+    request: &fframes::PreviewRequest,
+) -> Result<(), String> {
+    let backend = match request.backend.as_str() {
+        "auto" => PlayerBackend::Auto,
+        "cpu" => PlayerBackend::Cpu,
+        #[cfg(feature = "metal")]
+        "metal" => PlayerBackend::Metal,
+        #[cfg(feature = "vulkan")]
+        "vulkan" => PlayerBackend::Vulkan,
+        other => {
+            let mut available = vec!["auto"];
+            #[cfg(feature = "metal")]
+            available.push("metal");
+            #[cfg(feature = "vulkan")]
+            available.push("vulkan");
+            available.push("cpu");
+            return Err(format!(
+                "backend \"{other}\" is not available in this build, use one of: {}",
+                available.join(", ")
+            ));
+        }
+    };
+
+    let title = std::env::args()
+        .next()
+        .and_then(|program| {
+            std::path::Path::new(&program)
+                .file_stem()
+                .map(|name| name.to_string_lossy().into_owned())
+        })
+        .unwrap_or_else(|| "fframes".to_owned());
+
+    play(
+        video,
+        &PlayerOptions {
+            media: options.media,
+            load_system_fonts: options.load_system_fonts,
+            default_font: options.default_font,
+            title: &title,
+            backend,
+            autoplay: request.autoplay,
+            looping: request.looping,
+            start_frame: request.start_frame,
+            audio: request.audio,
+            audio_mix: options.audio_mix,
+            ..Default::default()
+        },
+    )
+    .map_err(|err| err.to_string())
 }
 
 fn initial_window_size<TVideo: Video>(options: &PlayerOptions) -> LogicalSize<u32> {

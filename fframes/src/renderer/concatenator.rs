@@ -202,37 +202,93 @@ impl Encoder {
         &self,
         audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
         ctx: &FFramesContext,
+        frame_range: std::ops::Range<usize>,
+        mix_options: crate::AudioMixOptions,
         logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
     ) -> Result<(), RenderEncodingError> {
         unsafe {
             if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
-                let stream_duration_in_samples =
-                    AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base);
+                // The encoder may run at another rate than requested (Opus is 48 kHz only);
+                // mix at the rate it actually encodes.
+                let output_time_base = crate::TimeBase {
+                    fps: ctx.time_base.fps,
+                    sample_rate: (*audio_stream.enc).sample_rate as usize,
+                };
+                let first_sample =
+                    AudioTimelineSamples::from_frames(frame_range.start, &output_time_base)
+                        .as_usize();
+                let end_sample =
+                    AudioTimelineSamples::from_frames(frame_range.end, &output_time_base)
+                        .as_usize();
+                let total_samples =
+                    AudioTimelineSamples::from_frames(ctx.duration_in_frames, &output_time_base)
+                        .as_usize();
+                let stream_samples = end_sample - first_sample;
+
+                let mut mixer = crate::AudioMixer::new_rescaled(
+                    Some(audio_map),
+                    ctx.time_base.sample_rate,
+                    ctx.media_source,
+                    output_time_base.sample_rate,
+                    first_sample..end_sample,
+                    total_samples,
+                    mix_options,
+                );
+                for file in mixer.missing_files() {
+                    logger.warn(&format!(
+                        "audio \"{file}\" is in the audio map but not in the media provider"
+                    ));
+                }
 
                 let mut audio_frame = EncoderFrame::new(audio_stream)?;
-                let mut audio_frame_pts = 0usize;
-                let frame_size = (*audio_stream.enc).frame_size as usize;
+                let capabilities = (*(*audio_stream.enc).codec).capabilities;
+                let variable_frame_size =
+                    capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE as i32 != 0;
+                let small_last_frame =
+                    variable_frame_size || capabilities & AV_CODEC_CAP_SMALL_LAST_FRAME as i32 != 0;
+                // Variable frame size encoders (pcm) report 0, the frame buffer holds 10000.
+                let frame_size = match (*audio_stream.enc).frame_size as usize {
+                    0 => 4096,
+                    size => size,
+                };
 
                 // Progress reporting must never abort the encoding itself.
-                let _ = logger.init_audio_encoding(
-                    stream_duration_in_samples.as_usize().div_ceil(frame_size),
-                );
+                let _ = logger.init_audio_encoding(stream_samples.div_ceil(frame_size));
 
-                while audio_frame_pts < stream_duration_in_samples.as_usize() {
-                    let audio_data = ctx.get_mixed_audio_data_in_fltp(
-                        audio_map,
-                        AudioTimelineSamples::from_usize(audio_frame_pts),
-                        frame_size,
+                let mut left = vec![0.; frame_size];
+                let mut right = vec![0.; frame_size];
+                let mut audio_frame_pts = 0usize;
+                while audio_frame_pts < stream_samples {
+                    let remaining = stream_samples - audio_frame_pts;
+                    let samples = if small_last_frame {
+                        remaining.min(frame_size)
+                    } else {
+                        frame_size
+                    };
+
+                    left.fill(0.);
+                    right.fill(0.);
+                    let mixed = remaining.min(samples);
+                    mixer.render(
+                        first_sample + audio_frame_pts,
+                        &mut left[..mixed],
+                        &mut right[..mixed],
                     );
 
-                    audio_frame.fill_from_audio_data(audio_frame_pts as i64, audio_data);
+                    audio_frame.fill_from_stereo(
+                        audio_frame_pts as i64,
+                        &left[..samples],
+                        &right[..samples],
+                    )?;
                     self.send_frame(audio_stream, &audio_frame)?;
 
                     logger.log_audio_frame();
-                    audio_frame_pts += frame_size;
+                    audio_frame_pts += samples;
                 }
                 self.flush_stream(audio_stream)?;
 
+                // The encoder holds back its last frames (AAC has a 1024 sample delay).
+                self.flush_stream(audio_stream)?;
                 logger.finish_audio_encoding();
             }
 
@@ -414,7 +470,13 @@ pub unsafe fn concat_video_files_with_audio(
         encoder.fill_streams_from_files(files)?;
 
         if encoder.audio_stream.is_some() {
-            encoder.fill_audio_stream(audio_map, ctx, logger)?;
+            encoder.fill_audio_stream(
+                audio_map,
+                ctx,
+                render_options.output_frame_range(ctx.duration_in_frames),
+                render_options.audio_mix,
+                logger,
+            )?;
         }
 
         Ok(())

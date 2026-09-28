@@ -72,12 +72,19 @@ fn test_audio_map_resolve() {
         &crate::ScenesWithAudio::new(&video.define_scenes()),
         &tb,
         &audio_map,
-        |_| Ok(24),
+        |_| Ok(1.),
     )
     .unwrap();
 
+    let resolved = audio_map
+        .unwrap()
+        .0
+        .into_iter()
+        .map(|track| (track.file, track.range))
+        .collect::<Vec<_>>();
+
     assert_eq!(
-        audio_map.unwrap().0,
+        resolved,
         vec![
             (
                 "audio1.mp3".to_string(),

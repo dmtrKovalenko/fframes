@@ -1,66 +1,35 @@
-use clap::Parser;
-use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, fframes_logger};
+use clap::Args;
+use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use std::path::PathBuf;
+use std::process::ExitCode;
 
-#[derive(Debug, Parser)]
-struct Args {
-    #[clap(short, long)]
-    gpu: bool,
-    #[clap(short, long, default_value = "out.mp4")]
-    output: String,
-    #[clap(long, default_value = "libx264")]
-    video_codec: Option<String>,
-    #[clap(long)]
-    audio_codec: Option<String>,
-    #[clap(short, long)]
-    concurrency: Option<usize>,
-    #[clap(long, default_value = "Renderer!")]
+/// Flags of this video, next to the standard ones of `fframes::cli`.
+#[derive(Debug, Args)]
+struct HelloWorldArgs {
+    /// The text after "Hello".
+    #[arg(long, default_value = "Renderer!", global = true)]
     slug: String,
-    #[clap(short, long)]
-    verbose: bool,
 }
 
-fn main() {
-    let args = Args::parse();
+fn main() -> ExitCode {
+    let args = cli::parse::<HelloWorldArgs>();
     let media = HelloWorldMedia::prepare().unwrap();
+    let video = HelloWorldVideo {
+        media: &media,
+        slug: &args.app.slug.clone(),
+    };
+    let tmp = PathBuf::from("test_render");
 
-    fframes::render(
-        "out.mp4",
-        &HelloWorldVideo {
-            media: &media,
-            slug: &args.slug,
-        },
-        if let Some(concurrency) = args.concurrency {
-            fframes::cpu::CpuRenderingBackend {
-                concurrency,
-                cache_capacity: 5,
-                ..Default::default()
-            }
-        } else {
-            fframes::cpu::CpuRenderingBackend {
-                cache_capacity: 5,
-                ..Default::default()
-            }
-        },
-        &RenderOptions {
+    cli::new(
+        &video,
+        RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
-            logger: if args.verbose {
-                fframes_logger::FFramesLoggerVariant::Debug
-            } else {
-                fframes_logger::FFramesLoggerVariant::Compact
-            },
-            tmp_files_directory: Some(&PathBuf::from("test_render")),
-            audio_encoder_options: EncoderOptions {
-                preferred_encoder: args.audio_codec.as_deref(),
-                ..Default::default()
-            },
+            tmp_files_directory: Some(&tmp),
             video_encoder_options: EncoderOptions {
-                preferred_encoder: args.video_codec.as_deref(),
-                codec_params: (args.video_codec.as_deref() == Some("libx264")
-                    || args.video_codec.as_deref() == Some("libx265"))
-                .then_some(&[
+                preferred_encoder: Some("libx264"),
+                codec_params: Some(&[
                     ("crf", "23"),
                     ("preset", "ultrafast"),
                     ("tune", "animation"),
@@ -70,5 +39,6 @@ fn main() {
             ..Default::default()
         },
     )
-    .unwrap();
+    .args(args)
+    .run()
 }

@@ -6,19 +6,22 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.3.4", features = ["derive"] }
 fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
-image = "0.25.5"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+# `preview`: real-time GPU window
+fframes_native_player.workspace = true
 
 # `main.rs` asks for `hevc_videotoolbox` on macOS, which only exists when
 # ffmpeg is built with VideoToolbox.
 [target.'cfg(target_os = "macos")'.dependencies]
 fframes = { workspace = true, features = ["videotoolbox"] }
+# Metal for the preview window, no MoltenVK needed
+fframes_native_player = { workspace = true, features = ["metal"] }
 
 [features]
 default = ["renderer"]
-renderer = ["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 
 [lib]
 name = "teej_podcast_example"

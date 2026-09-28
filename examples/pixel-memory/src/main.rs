@@ -1,113 +1,103 @@
-use clap::Parser;
+#[cfg(not(feature = "cpu"))]
+use fframes::Video;
+use fframes::cli::{self, clap};
 use fframes::{
     CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
-    StaticMediaProvider, Video, fframes_logger, render,
+    StaticMediaProvider,
 };
 #[cfg(not(feature = "cpu"))]
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
 use pixel_memory_example::{ALL_SONGS, PixelMedia, PixelVideo, RandomPhotos};
 use rand::prelude::*;
+use std::process::ExitCode;
 
-#[derive(Debug, Parser)]
+#[derive(Debug, clap::Args)]
 struct Args {
-    #[clap(
+    #[arg(
         short,
         long,
+        global = true,
         default_value = "They say dogs live shorter lives because they already know how to love unconditionally"
     )]
     enter_text: String,
-    #[clap(short, long)]
+    /// Song file. Without it the seed picks one from the collection.
+    #[arg(short, long, global = true)]
     song: Option<String>,
-    #[clap(short, long, default_value = "out.mp4")]
-    output: String,
-    #[clap(long, default_value = "libx265")]
-    video_codec: Option<String>,
-    #[clap(long)]
-    audio_codec: Option<String>,
-    #[clap(short, long)]
-    concurrency: Option<usize>,
-    #[clap(long, default_value = "Renderer!")]
-    slug: String,
-    #[clap(short, long)]
-    verbose: bool,
+    /// Picks the photos, scenes and song. Commands run with the same seed see the same video.
+    #[arg(long, default_value_t = 48, global = true)]
+    seed: u64,
 }
 
-fn main() {
-    let args = Args::parse();
+fn main() -> ExitCode {
+    let args = cli::parse::<Args>();
     let media = PixelMedia::prepare().unwrap();
     let photos = MediaDirectory::read_folder("photos").unwrap();
     let photos_media = photos.process_media_source().unwrap();
+    let all_media = CombinedMediaProvider::from([
+        &media as &dyn MediaProvider,
+        &photos_media as &dyn MediaProvider,
+    ]);
 
-    let rng = &mut rand::thread_rng();
-    // more randomized experience
-    // let rng = &mut rand::rngs::StdRng::seed_from_u64(48);
-
+    let rng = &mut rand::rngs::StdRng::seed_from_u64(args.app.seed);
     let photos = RandomPhotos::new_from_media_provider(rng, &photos_media);
-    #[cfg(not(feature = "cpu"))]
-    let vulkan_ctx = SkiaVulkanCtx::new(PixelVideo::WIDTH, PixelVideo::HEIGHT).unwrap();
-
     let song = args
+        .app
         .song
-        .as_deref()
-        .unwrap_or_else(|| ALL_SONGS.choose(rng).expect("Failed to pick a random song"));
+        .clone()
+        .unwrap_or_else(|| ALL_SONGS.choose(rng).expect("no songs").to_string());
+    let enter_text = args.app.enter_text.clone();
+    let video = PixelVideo::new_random_scenes(&song, &enter_text, rng, Some(&media), photos);
 
-    let video = PixelVideo::new_random_scenes(song, &args.enter_text, rng, Some(&media), photos);
-    render(
-        "out.mp4",
-        &video,
-        #[cfg(feature = "cpu")]
-        {
-            fframes::cpu::CpuRenderingBackend {
-                cache_capacity: 300,
-                ..Default::default()
-            }
-        },
-        #[cfg(not(feature = "cpu"))]
-        {
-            SkiaFFramesRenderer::new_vulkan(
-                &vulkan_ctx,
-                SkiaPipelineConfig {
-                    buffer_queue_size: 20,
-                    concurrency_policy:
-                        fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::MaxPerformance,
-                    ..Default::default()
-                },
-            )
-            .expect("Failed to create metal renderer")
-        },
-        &RenderOptions {
-            media: Some(&CombinedMediaProvider::from([
-                &media as &dyn MediaProvider,
-                &photos_media as &dyn MediaProvider,
-            ])),
-            load_system_fonts: true,
-            logger: if args.verbose {
-                fframes_logger::FFramesLoggerVariant::Debug
-            } else {
-                fframes_logger::FFramesLoggerVariant::Compact
-            },
-            video_encoder_options: EncoderOptions {
-                preferred_encoder: Some("libx264"),
-                qmin: 0,
-                qmax: 69,
-                qcompress: 0.6,
-                max_qdiff: 4,
-                gop_size: 24,
-                codec_params: Some(&[
-                    ("crf", "23"),
-                    #[cfg(not(feature = "cpu"))]
-                    ("preset", "slower"),
-                    #[cfg(feature = "cpu")]
-                    ("preset", "slower"),
-                    ("profile:v", "high"),
-                    ("level:v", "5.1"),
-                    ("g", "24"),
-                    ("sc_threshold", "0"), // Disable scene cut detection
-                ]),
-                ..Default::default()
-            },
+    let options = RenderOptions {
+        media: Some(&all_media),
+        load_system_fonts: true,
+        video_encoder_options: EncoderOptions {
+            preferred_encoder: Some("libx264"),
+            qmin: 0,
+            qmax: 69,
+            qcompress: 0.6,
+            max_qdiff: 4,
+            gop_size: 24,
+            codec_params: Some(&[
+                ("crf", "23"),
+                ("preset", "slower"),
+                ("profile:v", "high"),
+                ("level:v", "5.1"),
+                ("g", "24"),
+                ("sc_threshold", "0"), // Disable scene cut detection
+            ]),
             ..Default::default()
         },
-    )
-    .unwrap();
+        ..Default::default()
+    };
+
+    #[cfg(feature = "cpu")]
+    return cli::new(&video, options)
+        .args(args)
+        .backend(fframes::cpu::CpuRenderingBackend {
+            cache_capacity: 300,
+            ..Default::default()
+        })
+        .run();
+
+    #[cfg(not(feature = "cpu"))]
+    {
+        let vulkan_ctx = SkiaVulkanCtx::new(PixelVideo::WIDTH, PixelVideo::HEIGHT).unwrap();
+        cli::new(&video, options)
+            .args(args)
+            .backend(
+                SkiaFFramesRenderer::new_vulkan(
+                    &vulkan_ctx,
+                    SkiaPipelineConfig {
+                        buffer_queue_size: 20,
+                        concurrency_policy:
+                            fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::MaxPerformance,
+                        ..Default::default()
+                    },
+                )
+                .expect("Failed to create the skia renderer"),
+            )
+            .preview(fframes_native_player::cli_preview)
+            .run()
+    }
 }

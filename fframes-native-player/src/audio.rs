@@ -1,6 +1,9 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
-use fframes::{AudioTimelineSamples, AudioTimelineUnit, FFramesContext, ResolvedAudioMap};
+use fframes::{
+    AudioMixOptions, AudioMixer, AudioTimelineSamples, AudioTimelineUnit, FFramesContext,
+    ResolvedAudioMap,
+};
 use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
@@ -22,7 +25,8 @@ struct Shared {
 }
 
 struct Queue {
-    samples: VecDeque<f32>,
+    /// Stereo frames `(left, right)`.
+    samples: VecDeque<(f32, f32)>,
     playing: bool,
     looping: bool,
     /// Next position to mix, in samples since the start of the (possibly looped) playback.
@@ -99,11 +103,26 @@ impl AudioOutput {
         &self,
         ctx: &FFramesContext<'_, '_>,
         audio_map: &ResolvedAudioMap<AudioTimelineSamples>,
+        mix_options: AudioMixOptions,
     ) {
         let total_samples =
             AudioTimelineSamples::from_frames(ctx.duration_in_frames, &ctx.time_base)
                 .as_usize()
                 .max(1) as u64;
+        // The same mixer as the encoder: what plays here is what gets rendered.
+        let mut mixer = AudioMixer::new(
+            Some(audio_map),
+            ctx.media_source,
+            self.sample_rate,
+            0..total_samples as usize,
+            total_samples as usize,
+            mix_options,
+        );
+        for file in mixer.missing_files() {
+            eprintln!("fframes player: audio \"{file}\" is not in the media provider");
+        }
+        let mut left = vec![0.; CHUNK];
+        let mut right = vec![0.; CHUNK];
 
         loop {
             let (position, looping, epoch) = {
@@ -133,16 +152,21 @@ impl AudioOutput {
             // Do not mix across the end of the video in one chunk.
             let len = CHUNK.min((total_samples - timeline_sample) as usize);
 
-            let mut chunk = ctx.get_mixed_audio_data_in_fltp(
-                audio_map,
-                AudioTimelineSamples::from_usize(timeline_sample as usize),
-                len,
+            // The mixer keeps limiter state between consecutive chunks and resets it on seeks.
+            mixer.render(
+                timeline_sample as usize,
+                &mut left[..len],
+                &mut right[..len],
             );
-            chunk.resize(len, 0.0);
 
             let mut queue = self.shared.lock();
             if queue.epoch == epoch {
-                queue.samples.extend(chunk);
+                queue.samples.extend(
+                    left[..len]
+                        .iter()
+                        .copied()
+                        .zip(right[..len].iter().copied()),
+                );
                 queue.feed_position += len as u64;
             }
         }
@@ -165,12 +189,21 @@ fn build_stream<T: SizedSample + FromSample<f32>>(
                 let playing = queue.playing;
 
                 for frame in data.chunks_mut(channels) {
-                    let sample = if playing {
-                        queue.samples.pop_front().unwrap_or(0.0)
+                    let (left, right) = if playing {
+                        queue.samples.pop_front().unwrap_or((0.0, 0.0))
                     } else {
-                        0.0
+                        (0.0, 0.0)
                     };
-                    frame.fill(T::from_sample(sample));
+                    match frame {
+                        [mono] => *mono = T::from_sample((left + right) * 0.5),
+                        [l, r, rest @ ..] => {
+                            *l = T::from_sample(left);
+                            *r = T::from_sample(right);
+                            // Surround outputs: stereo on the front pair only.
+                            rest.fill(T::from_sample(0.0));
+                        }
+                        [] => {}
+                    }
                 }
 
                 let needs_more = playing && queue.samples.len() < shared.target_len;

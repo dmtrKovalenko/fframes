@@ -22,10 +22,10 @@ impl Into<Vec<NamedRange>> for ResolvedAudioMap<AudioTimelineFrames> {
     fn into(self) -> Vec<NamedRange> {
         self.0
             .into_iter()
-            .map(|(name, range)| NamedRange {
-                name,
-                start: range.start.as_usize(),
-                end: range.end.as_usize(),
+            .map(|track| NamedRange {
+                name: track.file,
+                start: track.range.start.as_usize(),
+                end: track.range.end.as_usize(),
             })
             .collect::<Vec<_>>()
     }

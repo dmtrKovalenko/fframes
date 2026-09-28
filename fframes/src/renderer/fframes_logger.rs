@@ -7,7 +7,10 @@ use once_cell::sync::OnceCell;
 use std::{
     ffi::c_int,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 #[allow(unused_variables)]
@@ -41,6 +44,12 @@ pub trait FFramesLogger: Sync + Send {
     }
 
     fn success(&self, output_path: &Path, temp_files_dir: Option<&PathBuf>);
+
+    /// A problem that did not stop the render, e.g. media that `render_frame` asked for
+    /// but the media provider does not have.
+    fn warn(&self, message: &str) {
+        eprintln!("{} {message}", "warning:".yellow().bold());
+    }
 }
 
 pub struct CompactFFramesLogger {
@@ -139,6 +148,7 @@ pub struct SilentLogger;
 
 impl FFramesLogger for SilentLogger {
     fn success(&self, _output_path: &Path, _temp_files_dir: Option<&PathBuf>) {}
+    fn warn(&self, _message: &str) {}
 }
 
 pub struct QuietLogger;
@@ -166,6 +176,11 @@ pub enum FFramesLoggerVariant {
     Compact,
     /// Verbose logging for debugging purpose
     Debug,
+    /// One plain line per 10% of progress on stderr, no progress bars or colors. Readable in
+    /// CI logs and by agents that capture the output.
+    Lines,
+    /// One JSON object per line on stderr (`{"event":"progress","done":10,"total":100}`).
+    Json,
     /// Pass custom logger functionality by implementing FFramesLogger trait
     Custom(Arc<dyn FFramesLogger>),
 }
@@ -182,6 +197,134 @@ pub fn make_logger(variant: FFramesLoggerVariant) -> Arc<dyn FFramesLogger> {
                 audio_progress_bar: Mutex::new(None),
             }) as Arc<dyn FFramesLogger>
         }
+        FFramesLoggerVariant::Lines => Arc::new(LinesLogger::new(false)),
+        FFramesLoggerVariant::Json => Arc::new(LinesLogger::new(true)),
         FFramesLoggerVariant::Custom(logger) => logger,
+    }
+}
+
+/// Backs `FFramesLoggerVariant::Lines` and `FFramesLoggerVariant::Json`.
+pub struct LinesLogger {
+    json: bool,
+    started: std::time::Instant,
+    total: AtomicUsize,
+    done: AtomicUsize,
+    reported_decile: AtomicUsize,
+}
+
+impl LinesLogger {
+    pub fn new(json: bool) -> Self {
+        Self {
+            json,
+            started: std::time::Instant::now(),
+            total: AtomicUsize::new(0),
+            done: AtomicUsize::new(0),
+            reported_decile: AtomicUsize::new(0),
+        }
+    }
+
+    fn emit(&self, event: &str, text: String, fields: &[(&str, String)]) {
+        if self.json {
+            let mut line = format!("{{\"event\":{}", json_string(event));
+            for (key, value) in fields {
+                line.push_str(&format!(",{}:{value}", json_string(key)));
+            }
+            line.push('}');
+            eprintln!("{line}");
+        } else {
+            eprintln!("{text}");
+        }
+    }
+}
+
+/// Minimal JSON string escaping, the logger must not depend on a serializer.
+pub(crate) fn json_string(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len() + 2);
+    escaped.push('"');
+    for c in value.chars() {
+        match c {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            c if (c as u32) < 0x20 => escaped.push_str(&format!("\\u{:04x}", c as u32)),
+            c => escaped.push(c),
+        }
+    }
+    escaped.push('"');
+    escaped
+}
+
+impl FFramesLogger for LinesLogger {
+    fn init_frames_rendering(&self, frames_count: usize) -> FFramesRendererResult<()> {
+        self.total.store(frames_count, Ordering::Relaxed);
+        self.done.store(0, Ordering::Relaxed);
+        self.reported_decile.store(0, Ordering::Relaxed);
+        self.emit(
+            "start",
+            format!("rendering {frames_count} frames"),
+            &[("frames", frames_count.to_string())],
+        );
+        Ok(())
+    }
+
+    fn log_frame(&self, _index: usize, _thread_number: usize) {
+        let done = self.done.fetch_add(1, Ordering::Relaxed) + 1;
+        let total = self.total.load(Ordering::Relaxed).max(1);
+        let decile = done * 10 / total;
+        if decile > self.reported_decile.fetch_max(decile, Ordering::Relaxed) {
+            let elapsed = self.started.elapsed().as_secs_f32();
+            self.emit(
+                "progress",
+                format!("frames {done}/{total} ({}%) {elapsed:.1}s", decile * 10),
+                &[
+                    ("done", done.to_string()),
+                    ("total", total.to_string()),
+                    ("elapsed", format!("{elapsed:.3}")),
+                ],
+            );
+        }
+    }
+
+    fn init_audio_encoding(&self, frames_count: usize) -> FFramesRendererResult<()> {
+        self.emit(
+            "audio",
+            "encoding audio".to_owned(),
+            &[("frames", frames_count.to_string())],
+        );
+        Ok(())
+    }
+
+    fn log_unprocessed_media_file(&self, filename: &str) {
+        self.warn(&format!("can not process media file {filename}"));
+    }
+
+    fn init_media_processing(&self, media_count: usize) -> FFramesRendererResult<()> {
+        self.emit(
+            "media",
+            format!("processing {media_count} media files"),
+            &[("files", media_count.to_string())],
+        );
+        Ok(())
+    }
+
+    fn warn(&self, message: &str) {
+        self.emit(
+            "warning",
+            format!("warning: {message}"),
+            &[("message", json_string(message))],
+        );
+    }
+
+    fn success(&self, output_path: &Path, _temp_files_dir: Option<&PathBuf>) {
+        let elapsed = self.started.elapsed().as_secs_f32();
+        let output = output_path.display().to_string();
+        self.emit(
+            "done",
+            format!("wrote {output} in {elapsed:.1}s"),
+            &[
+                ("output", json_string(&output)),
+                ("elapsed", format!("{elapsed:.3}")),
+            ],
+        );
     }
 }

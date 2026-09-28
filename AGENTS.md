@@ -234,6 +234,8 @@ cargo test -- --nocapture
 /svgr-macro                # The svgr! procedural macro (SVG DSL + static-subtree hashing)
 /media-dir-macro           # include_media_dir! (embeds a media folder into the binary)
 /webvtt-parser             # Subtitle format parser
+/cargo-fframes             # `cargo fframes new`: project scaffolding (templates/)
+/scripts/new-video.sh      # curl | bash bootstrap for cargo-fframes
 /e2e                       # End-to-end visual regression test
 /examples                  # Example video projects (each is a lib + bin + editor bridge)
 ```
@@ -249,61 +251,41 @@ plugs it into the web editor for live preview. `examples/hello-world` is the min
 ### 1. Scaffold the crate
 
 ```bash
-cp -r examples/hello-world examples/my-video
-rm -rf examples/my-video/{out.mp4,test_render,editor/node_modules,Cargo.lock}
+just new my-video                      # = cargo run -p cargo-fframes -- fframes new my-video --dir examples/my-video --yes
+cargo fframes new my-video --template multi-scene --fps 60 --backend skia-metal --yes   # anywhere
+curl -fsSL https://raw.githubusercontent.com/dmtrKovalenko/fframes/main/scripts/new-video.sh | bash -s -- my-video
 ```
 
-Then rename every occurrence of `hello-world` / `hello_world` / `HelloWorld` in:
+`cargo-fframes new` asks for anything not passed when run in a terminal; `--yes` (or no
+terminal) never asks. Flags: `--template single-scene|multi-scene` (one scene in any format, or
+two scenes on a 16:9 grid), `--title`, `--format landscape|portrait|square|uhd`, `--fps`,
+`--backend cpu|skia-metal|skia-vulkan`, `--dir`, `--fframes-path <checkout>`. Inside this
+repository it uses workspace dependencies and registers the crate in the workspace members;
+elsewhere it pins the crates.io release matching its own version (`--git` for `main`,
+`--fframes-path` for a checkout) and makes the crate its own workspace. `release.sh` publishes
+`cargo-fframes` and `fframes_native_player` with the other crates on every push to main.
 
-- `examples/my-video/Cargo.toml` (package name, `[lib] name`, `[[bin]] name`)
-- `examples/my-video/src/{lib.rs,main.rs}` and the video module
-- `examples/my-video/editor/editor-bridge/{Cargo.toml,lib.rs}` and `editor/package.json`
-
-Register both crates in the workspace `Cargo.toml` `members` list:
-
-```toml
-"examples/my-video",
-"examples/my-video/editor/editor-bridge",
-```
-
-and add `just check-wasm my-video` to the `check-examples` recipe in the `justfile`. Run
-`yarn install` at the repository root once so the editor package picks up the new workspace.
-
-The crate layout that the tooling expects:
+The generated crate compiles and renders as is:
 
 ```
-examples/my-video/
-  Cargo.toml                 # lib (cdylib + rlib) + bin gated by the `renderer` feature
-  media/                     # fonts, images, audio, subtitles embedded via include_media_dir!
-  dynamic_media/             # optional: large files read at runtime (renderer only)
-  src/lib.rs                 # `pub mod my_video; pub use my_video::*;`
-  src/my_video.rs            # the Video impl
-  src/main.rs                # CLI that calls fframes::render
-  editor/editor-bridge/      # WASM crate, see step 9
-  editor/{index.html,main.tsx,package.json,vite.config.ts}
+my-video/
+  Cargo.toml          # fframes with the `cli` and `compile-time-svgtree` features
+  media/              # embedded by include_media_dir! (a DM Sans font to start with)
+  src/lib.rs          # the Video from the template
+  src/main.rs         # fframes::cli (render, frame, strip, onion, svg, timeline, inspect, snapshot, audio)
+  tests/frames.rs     # frame snapshots + "no warnings in any frame"
 ```
 
-`Cargo.toml` essentials (feature names are ffmpeg codecs; keep `libav-agree-gpl` when using
-x264/x265):
-
-```toml
-[dependencies]
-fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
-clap = { version = "4.3.4", features = ["derive"] }
-
-[features]
-default = ["renderer"]
-renderer = ["fframes/compile-time-svgtree"]   # the editor bridge builds with default-features = false
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-```
+For the web editor copy `examples/hello-world/editor` next to it and adapt step 9; gate the
+`cli` and `compile-time-svgtree` features behind a `renderer` feature like hello-world does,
+the editor bridge builds the library with `default-features = false`.
 
 ### 2. Media
 
 Embed static assets with `include_media_dir!`. The path is relative to the **workspace root**
 and every file in the folder becomes a field of the generated struct; fonts are registered by
-their family name.
+their family name. Audio (`mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a`) is decoded to mono at
+compile time; files loaded with `MediaDirectory` keep stereo.
 
 ```rust
 use fframes::include_media_dir;
@@ -535,29 +517,99 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
   draws nothing in their place, and the editor shows a placeholder.
 - Requires the `compile-time-svgtree` feature (the default `renderer` feature of the examples).
 
-### 8. Render it
+### 7c. Audio mix
 
-`main.rs` calls `fframes::render(output, &video, backend, &options)`; keep the CLI flags of the
-hello-world example (`--output`, `--video-codec`, `--concurrency`, `--verbose`).
+`fn audio` places files on the timeline. Tuples still work; `AudioTrack` adds mix settings:
 
 ```rust
-let media = MyVideoMedia::prepare()?;
-fframes::render(
-    "out.mp4",
-    &MyVideo { media: &media, title: "World" },
-    fframes::cpu::CpuRenderingBackend { cache_capacity: 20, ..Default::default() },
-    &RenderOptions {
-        media: Some(&media),
-        logger: fframes_logger::FFramesLoggerVariant::Compact,
-        video_encoder_options: EncoderOptions {
-            preferred_encoder: Some("libx264"),
-            codec_params: Some(&[("crf", "23"), ("preset", "slow")]),
-            ..Default::default()
-        },
-        ..Default::default()
-    },
-)?;
+use fframes::{AudioMap, AudioTrack, AudioTimestamp::*, FadeCurve};
+
+AudioMap::from([
+    AudioTrack::new("music.mp3", Second(0.)..Eof).gain_db(-16.).fade_in(1.).fade_out(2.).duck_under_voice(),
+    AudioTrack::new("voice.wav", Second(0.5)..Eof).voice(),
+    AudioTrack::new("whoosh.wav", Second(4.25)..Eof).gain_db(-6.).pan(-0.4),
+    AudioTrack::new("take.wav", Second(10.)..Second(14.)).offset(3.2),  // plays 3.2s..7.2s of the file
+])
 ```
+
+- Tracks start at their exact sample (`Second(4.25)` is not rounded to a frame), overlapping
+  tracks are summed linearly and the master bus has a -1 dBFS lookahead limiter
+  (`RenderOptions::audio_mix`), output is stereo. Other sample rates are resampled with a
+  windowed sinc.
+- `duck_under_voice()` lowers a track by 12 dB while any `.voice()` track plays, ramping down
+  before the voice starts (`Ducking { depth_db, attack, hold, release, merge_gap }` to tune).
+- Fade curves: `EqualPower` (default), `Linear`, `SCurve`, `Exponential`. Cuts (offsets,
+  range renders) get 5 ms de-click fades.
+- Verify without listening: `audio analyze` (integrated/short-term loudness in LUFS, true
+  peak, clipping, silent ranges, loudness per scene, `--waveform` PNG with scenes and cues)
+  and `audio at 4.2s` (which files play, where in the file, at what level, ducked or not).
+  Aim for about -14 LUFS integrated for web video and a true peak below -1 dBTP.
+
+### 8. Render it: `fframes::cli`
+
+`main.rs` hands the video to `fframes::cli` (feature `cli`), which gives every video the same
+command line:
+
+```rust
+use fframes::cli;
+
+fn main() -> std::process::ExitCode {
+    let media = MyVideoMedia::prepare().expect("media");
+    let video = MyVideo { media: &media, title: "World" };
+    cli::new(&video, RenderOptions { media: Some(&media), ..Default::default() }).run()
+}
+```
+
+The rest is optional and chains in any order:
+
+```rust
+cli::new(&video, options)
+    // Render with Skia. Frame previews (frame, strip, onion, snapshot) use the backend's own
+    // renderer, so they match the video; the CPU backend is the default.
+    .backend(SkiaFFramesRenderer::new_metal(&gpu, SkiaPipelineConfig::default())?)
+    // The `preview` command: a real-time window with audio (fframes_native_player).
+    .preview(fframes_native_player::cli_preview)
+    // What `render` writes without `-o`.
+    .default_output("out.webm")
+    .run()
+```
+
+Flags of your own go into a `#[derive(clap::Args)]` struct. Parse first when the video is built
+from them:
+
+```rust
+use fframes::cli::{self, clap};
+
+#[derive(Debug, clap::Args)]
+struct Args {
+    #[arg(long, default_value = "World", global = true)]
+    title: String,
+}
+
+let args = cli::parse::<Args>();
+let video = MyVideo { media: &media, title: &args.app.title.clone() };
+cli::new(&video, options).args(args).run()
+```
+
+See `examples/teej-podcast/src/main.rs`; `cargo fframes new` generates the same setup.
+
+| command | what |
+| --- | --- |
+| `render [RANGE] [-o out.mp4] [--draft]` | the video or a range of it (default command); `--draft` = half size + fastest preset |
+| `frame 1s,50%,Intro@end [-o dir] [--svg]` | PNGs of single frames plus the problems found in them |
+| `strip [RANGE] -n 12` | labelled contact sheet of evenly spaced frames, one image to review motion |
+| `onion RANGE -n 6` | frames blended into one image, shows the path of a movement |
+| `svg TIME` | the frame as SVG after conversion |
+| `timeline` | size, fps, scenes with frame and second ranges, audio tracks |
+| `inspect [RANGE] [--every 0.25s]` | missing media/fonts/glyphs, text cut by the canvas edge, NaN transforms, panics; exit code 2 on errors |
+| `snapshot TIMES [--update]` | compare frames with approved PNGs, writes `.actual.png` and `.diff.png` |
+| `audio render/analyze/at` | WAV of the mix, loudness report and waveform, tracks playing at a time |
+| `preview [TIME] [--paused] [--mute]` | real-time GPU window (`fframes_native_player`), blocks until closed |
+
+Global flags: `--json` (one JSON document on stdout, JSON progress events on stderr),
+`--scale 0.5`. Times: frames `120`, `3.2s`, `1:05`, `50%`, `start`/`end`, scenes `Intro`
+(`IntroScene` also matches), `#3`, `Intro[1]`, `Intro@1.5s`/`@50%`/`@end`; ranges `a..b`,
+`a..`, `..b`, `all` or a scene name.
 
 - Backends: `fframes::cpu::CpuRenderingBackend` (default, tiny-skia, multi-threaded) or the
   Skia backend from `fframes_skia_renderer` with `SkiaFFramesRenderer::new_vulkan(&SkiaVulkanCtx::new(W, H)?, SkiaPipelineConfig { .. })`
@@ -566,8 +618,10 @@ fframes::render(
   backend on 1080p (see `cargo run --release -p fframes_skia_renderer --features vulkan --example svgr_vs_skia`).
 - macOS: request `hevc_videotoolbox` only with `fframes = { features = ["videotoolbox"] }`
   (see `examples/teej-podcast/Cargo.toml`), otherwise the encoder silently falls back.
-- One frame to a PNG (fast iteration): `fframes::render_frame(index, &video, backend, &options)`
-  returns RGBA bytes; `examples/teej-podcast` exposes it as `--preview --preview-frame N`.
+- In code: `fframes::Previewer::new(&video, &options)` keeps fonts, images and caches between
+  frames (`render`, `render_inspected`, `svg`, `inspect`, `timeline()`, `timeline_report()`);
+  `RenderOptions::frame_range` renders part of a video with matching audio.
+- A panic in `render_frame` fails the render with the frame, second and scene it happened in.
 - `just render my-video` renders and opens the result; `just bench my-video` times it.
 
 ### 9. Editor preview
@@ -601,18 +655,23 @@ pub fn create_wasm_bridge() -> WasmBridge {
 
 ### 10. Verify before you finish
 
+Look at the video without playing it (`R` = `cargo run --release -p my-video --`):
+
 ```bash
-just clippy                                   # -D warnings
-cargo fmt --all
-just check-wasm my-video
-cd examples/my-video && cargo run --release   # render, then look at frames:
-ffmpeg -ss 5 -i out.mp4 -frames:v 1 frame5.png
+$R timeline                         # the structure is what you intended
+$R inspect                          # no errors or warnings in any frame
+$R strip -n 12                      # overall flow; `strip Intro -n 8` for one scene
+$R frame Intro@end,Outro@50%        # full size details, check text stays inside its boxes
+$R audio analyze --waveform w.png   # levels, silence, cue positions
+$R render                           # final file
+cargo test -p my-video              # frame snapshots
+just clippy && cargo fmt --all && just check-wasm my-video   # if it has an editor bridge
 ```
 
 Snapshot the compile-time tree against the runtime parser with
 `fframes_test_utils::assert_compile_time_svgr_eq_runtime(name, svgr)` (see
 `examples/marketing/src/tests.rs`); the first run writes `_svgr_snapshots/`, later runs diff.
-Inspect at least one rendered frame per distinct layout and confirm text stays inside its boxes.
+Pixel snapshots of frames: `fframes::snapshot::assert_frames(&mut previewer, &mut renderer, &["Intro@1s"], &Default::default())`.
 
 ## Important Notes
 

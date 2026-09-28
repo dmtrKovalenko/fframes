@@ -1,0 +1,238 @@
+//! {{title}}: a two-scene fframes video, a product announcement and a data story.
+//!
+//! The video is a list of scenes. Each scene is a Rust struct that returns an SVG tree for
+//! every frame; `svgr!` is SVG with `{rust expressions}` in attributes and text. The layout
+//! is drawn on a 1920x1080 grid and scaled to the output size.
+//! Check your work with the CLI in `main.rs` (`cargo run --release -- --help`).
+use fframes::{
+    AnimateRuntimeInput, AudioMap, Color, Duration, FFramesContext, FontQuery, Frame, Scene,
+    Scenes, Svgr, TextOverflow, Transform, Video,
+    animation::{AnimationRuntime, Easing},
+    include_media_dir,
+};
+use std::sync::LazyLock;
+
+// Every file of `media/` is embedded into the binary. Fonts are used by family name.
+include_media_dir!(pub struct {{Struct}}Media, "{{media_path}}");
+
+pub const WIDTH: usize = {{width}};
+pub const HEIGHT: usize = {{height}};
+pub const SCENE_SECONDS: f32 = 6.0;
+const TOTAL_SECONDS: f32 = SCENE_SECONDS * 2.0;
+
+const PAPER: &str = "#eeeae2";
+const INK: &str = "#152c2b";
+const MUTED: &str = "#53645e";
+const GREEN: &str = "#709542";
+const LIME: &str = "#d2f87a";
+const FONT: &str = "DM Sans";
+/// The only weight in `media/`; add font files for more.
+const WEIGHT: u16 = 500;
+
+/// Fast start, long settle: good for things sliding into place.
+static EASE: LazyLock<AnimationRuntime> =
+    LazyLock::new(|| AnimationRuntime::new(0.8, &Easing::CubicBezier(0.16, 1.0, 0.3, 1.0)));
+/// Springs stop at their own settle time, 3 s is only the upper bound.
+static SPRING: LazyLock<AnimationRuntime> = LazyLock::new(|| {
+    AnimationRuntime::new(3.0, &Easing::Spring { mass: 1.0, stiffness: 180.0, damping: 20.0 })
+});
+
+pub struct {{Struct}}Video<'a> {
+    pub media: &'a {{Struct}}Media,
+    product: ProductScene<'a>,
+    data: DataScene,
+}
+
+impl<'a> {{Struct}}Video<'a> {
+    pub fn new(media: &'a {{Struct}}Media, title: &'a str) -> Self {
+        Self {
+            media,
+            product: ProductScene { title },
+            data: DataScene,
+        }
+    }
+}
+
+impl std::fmt::Debug for {{Struct}}Video<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("{{Struct}}Video").finish()
+    }
+}
+
+impl Video for {{Struct}}Video<'_> {
+    const FPS: usize = {{fps}};
+    const WIDTH: usize = WIDTH;
+    const HEIGHT: usize = HEIGHT;
+    const BACKGROUND_COLOR: Color = Color::WHITE;
+
+    fn duration(&self) -> Duration<'_> {
+        // The sum of the scene durations.
+        Duration::Auto
+    }
+
+    fn audio(&self) -> AudioMap<'_> {
+        // Put audio files into `media/` and place them on the timeline, e.g.:
+        //
+        // use fframes::{AudioTrack, AudioTimestamp::*};
+        // AudioMap::from([
+        //     AudioTrack::new("music.mp3", Second(0.)..Eof).gain_db(-16.).fade_out(1.).duck_under_voice(),
+        //     AudioTrack::new("voice.wav", Second(0.5)..Eof).voice(),
+        //     AudioTrack::new("pop.wav", Second(SCENE_SECONDS + 0.25)..Eof).gain_db(-8.),
+        // ])
+        AudioMap::none()
+    }
+
+    fn define_scenes(&self) -> Scenes<'_> {
+        Scenes::from(vec![&self.product as &dyn Scene, &self.data])
+    }
+
+    fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+        // SVG skips zero-width rects, so the progress bar starts as a hairline.
+        let progress = (frame.seconds() / TOTAL_SECONDS * 1536.0).max(0.5);
+        fframes::svgr!(
+            <svg xmlns="http://www.w3.org/2000/svg" width={WIDTH} height={HEIGHT} viewBox="0 0 1920 1080">
+                <rect width="1920" height="1080" fill={PAPER} />
+                {ctx.render_scenes(&frame)}
+                <path d="M192 946 H1728" stroke="#b4bdb1" stroke-width="2" />
+                <rect x="192" y="945" width={progress} height="3" fill={GREEN} />
+                <text x="192" y="1002" font-family={FONT} font-weight={WEIGHT} font-size="28" fill={MUTED}>"MADE WITH FFRAMES"</text>
+                <text x="1728" y="1002" text-anchor="end" font-family={FONT} font-weight={WEIGHT} font-size="28" fill={MUTED}>"SVG + RUST"</text>
+            </svg>
+        )
+    }
+}
+
+/// 0 to 1 over 0.8 s from `start` (seconds into the scene).
+fn ramp(frame: &Frame, start: f32) -> f32 {
+    frame.animate_runtime(AnimateRuntimeInput { on_second: start, from: 0.0, to: 1.0, animation_runtime: &EASE })
+}
+
+/// Vertical offset that springs from 56 px to 0 at `start`.
+fn rise(frame: &Frame, start: f32) -> f32 {
+    frame.animate_runtime(AnimateRuntimeInput { on_second: start, from: 56.0, to: 0.0, animation_runtime: &SPRING })
+}
+
+/// The scene label at the top.
+fn label<'a>(number: &'a str, title: &'a str) -> Svgr<'a> {
+    fframes::svgr!(<g font-family={FONT} font-size="30" font-weight={WEIGHT} fill={INK}>
+        <circle cx="209" cy="147" r="17" fill={GREEN} />
+        <text x="252" y="158">{title}</text>
+        <text x="1728" y="158" text-anchor="end">{number}</text>
+    </g>)
+}
+
+/// Largest size up to `preferred` at which `text` fits `max_width`, measured with the real font.
+fn fit_size<'a>(frame: &mut Frame, ctx: &FFramesContext<'a, '_>, text: &'a str, preferred: usize, max_width: usize) -> usize {
+    let mut size = preferred;
+    loop {
+        let font = FontQuery { family: FONT, size, weight: WEIGHT, ..Default::default() };
+        match frame.text_width(ctx, font, text) {
+            Some(width) if width > max_width && size > 24 => size -= 4,
+            _ => return size,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ProductScene<'a> {
+    title: &'a str,
+}
+
+impl Scene for ProductScene<'_> {
+    fn duration(&self) -> Duration<'_> {
+        Duration::Seconds(SCENE_SECONDS)
+    }
+
+    fn render_frame<'a>(&'a self, mut frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+        // The title shrinks to fit the left column.
+        let title_size = fit_size(&mut frame, ctx, self.title, 208, 760);
+
+        // Status rows enter one after another, 0.12 s apart.
+        let rows: Vec<Svgr> = [("Build", "Ready"), ("Review", "Ready"), ("Publish", "Ready")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, (name, status))| {
+                let y = 470 + i * 105;
+                let start = 0.7 + i as f32 * 0.12;
+                fframes::svgr!(<g opacity={ramp(&frame, start)} transform={Transform::translate(0, rise(&frame, start))}>
+                    <rect x="1088" y={y - 46} width="540" height="82" rx="14" fill="#29403d" />
+                    <text x="1124" y={y + 8} font-size="38" fill={PAPER}>{name}</text>
+                    <text x="1586" y={y + 8} text-anchor="end" font-size="30" fill={LIME}>{status}</text>
+                </g>)
+            })
+            .collect();
+        let angle = frame.seconds() * 8.0;
+
+        fframes::svgr!(<g font-family={FONT} font-weight={WEIGHT}>
+            {label("01 / 02", "PRODUCT ANNOUNCEMENT")}
+            <text x="183" y="445" font-size={title_size} letter-spacing="-6" fill={INK}>{self.title}</text>
+            <text x="192" y="543" font-size="52" fill={INK}>"Your next release,"</text>
+            <text x="192" y="610" font-size="52" fill={INK}>"in motion."</text>
+            <g opacity={ramp(&frame, 0.4)}>
+                <rect x="192" y="703" width="380" height="76" rx="38" fill={INK} />
+                <text x="382" y="753" text-anchor="middle" font-size="32" fill={LIME}>"A FICTIONAL PRODUCT"</text>
+            </g>
+            <g transform={Transform::translate(0, rise(&frame, 0.0))}>
+                <rect x="1000" y="262" width="728" height="576" rx="32" fill={INK} />
+                <circle cx="1095" cy="352" r="14" fill={LIME} />
+                <text x="1138" y="365" font-size="38" fill={PAPER}>"Release / 01"</text>
+                {rows}
+                <g transform={format!("translate(1650 278) rotate({angle})")}>
+                    <circle r="73" fill={LIME} />
+                    <path d="M-34 0 H34 M0 -34 V34 M-24 -24 L24 24 M-24 24 L24 -24" stroke={INK} stroke-width="7" />
+                </g>
+            </g>
+        </g>)
+    }
+}
+
+#[derive(Debug)]
+struct DataScene;
+
+impl Scene for DataScene {
+    fn duration(&self) -> Duration<'_> {
+        Duration::Seconds(SCENE_SECONDS)
+    }
+
+    fn render_frame<'a>(&'a self, mut frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+        // Bars grow one after another; the counter lands on the last bar's value.
+        let bars: Vec<Svgr> = [("01", 24.0), ("02", 41.0), ("03", 58.0), ("04", 76.0)]
+            .into_iter()
+            .enumerate()
+            .map(|(i, (name, value))| {
+                let p = ramp(&frame, 0.25 + i as f32 * 0.1);
+                let height = (value * 4.3 * p).max(0.5);
+                let x = 982 + i * 188;
+                let fill = if i == 3 { GREEN } else { "#b4bdb1" };
+                fframes::svgr!(<g>
+                    <rect x={x} y={798.0 - height} width="126" height={height} rx="8" fill={fill} />
+                    <text x={x + 63} y={775.0 - height} text-anchor="middle" font-size="36" fill={INK}>{format!("{:.0}", value * p)}</text>
+                    <text x={x + 63} y="851" text-anchor="middle" font-size="30" fill={MUTED}>{name}</text>
+                </g>)
+            })
+            .collect();
+        let count = 76.0 * ramp(&frame, 0.55);
+
+        // `text_fit` cuts a line that is too long and returns a `Cow<str>`; `svgr!` needs
+        // an owned `String` or a `&str`.
+        let heading = frame
+            .text_fit(
+                ctx,
+                FontQuery { family: FONT, size: 108, weight: WEIGHT, ..Default::default() },
+                "Give numbers a rhythm.",
+                1536,
+                TextOverflow::Ellipsis,
+            )
+            .map(|text| text.into_owned())
+            .unwrap_or_else(|| "Give numbers a rhythm.".to_owned());
+
+        fframes::svgr!(<g font-family={FONT} font-weight={WEIGHT}>
+            {label("02 / 02", "DATA STORY")}
+            <text x="192" y="314" font-size="108" letter-spacing="-4" fill={INK}>{heading}</text>
+            <text x="180" y="646" font-size="248" letter-spacing="-12" fill={INK}>{format!("{count:.0}")}</text>
+            <text x="192" y="734" font-size="46" fill={INK}>"Weekly activations"</text>
+            <text x="192" y="802" font-size="30" fill={MUTED}>"ILLUSTRATIVE DATA / WEEKS 01-04"</text>
+            {bars}
+        </g>)
+    }
+}

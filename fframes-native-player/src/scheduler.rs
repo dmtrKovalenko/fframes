@@ -175,11 +175,14 @@ impl Scheduler {
                 video_decoders.clone(),
             );
 
-            match video.render_frame(frame, ctx).into_svg_tree(
-                usvg_options,
-                &mut converter_cache,
-                font_db,
-            ) {
+            // A panicking frame is reported with its time and scene and skipped.
+            let tree = fframes::render_frame_guarded(video, frame, ctx)
+                .map_err(fframes::FFramesRendererError::from)
+                .and_then(|svgr| {
+                    Ok(svgr.into_svg_tree(usvg_options, &mut converter_cache, font_db)?)
+                });
+
+            match tree {
                 Ok(tree) => {
                     if self.complete(&job, tree) {
                         on_frame_ready();

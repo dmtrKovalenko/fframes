@@ -4,6 +4,8 @@ description = "Real-time native preview window for fframes videos, rendered with
 version = "1.0.0-beta.6.rc-3.2"
 edition = "2024"
 license = "MIT"
+repository = "https://github.com/dmtrKovalenko/fframes"
+homepage = "https://fframes.studio"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 
 [lib]

@@ -1,23 +1,18 @@
-use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, fframes_logger};
+use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
 use marketing_example::{MarketingMedia, MarketingVideo};
+use std::process::ExitCode;
 
-fn main() {
+fn main() -> ExitCode {
     let media = MarketingMedia::prepare().unwrap();
 
-    fframes::render(
-        "out.mp4",
+    cli::new(
         &MarketingVideo {
             audio_track: "marketing.mp3",
             media: &media,
         },
-        fframes::cpu::CpuRenderingBackend {
-            cache_capacity: 30,
-            ..Default::default()
-        },
-        &RenderOptions {
+        RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
-            logger: fframes_logger::FFramesLoggerVariant::Compact,
             video_encoder_options: EncoderOptions {
                 preferred_encoder: Some("libx265"),
                 sample_rate: 44100,
@@ -26,5 +21,9 @@ fn main() {
             ..Default::default()
         },
     )
-    .unwrap();
+    .backend(fframes::cpu::CpuRenderingBackend {
+        cache_capacity: 30,
+        ..Default::default()
+    })
+    .run()
 }

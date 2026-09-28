@@ -12,6 +12,7 @@ members = [
     "fframes-native-player",
     "media-dir-macro",
     "render-bench",
+    "cargo-fframes",
     # Examples
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
@@ -44,6 +45,7 @@ members = [
 
     # maybe clean this up?
     # "fframes-lyon-renderer",
+    "examples/signal-lab",
 ]
 
 [workspace.dependencies]

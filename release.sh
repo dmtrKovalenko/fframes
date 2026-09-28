@@ -10,15 +10,22 @@ fi
 cargo install cargo-edit
 cargo set-version "$VERSION"
 
+# Crates first, in dependency order, so a failing npm publish can not hold back the Rust
+# release. `cargo publish` waits until each crate is in the index before the next one.
+for crate in \
+  webvtt-parser \
+  svgr-macro \
+  fframes-media \
+  media-dir-macro \
+  fframes \
+  fframes-editor-controller \
+  fframes-skia-renderer \
+  fframes-native-player \
+  cargo-fframes; do
+  echo "Publishing $crate"
+  (cd "$crate" && cargo publish --allow-dirty --no-verify)
+done
+
 cd fframes-editor
 yarn build:prod
 yarn publish --no-git-tag-version --access public --new-version "$VERSION"
-
-cd ../webvtt-parser && cargo publish --allow-dirty --no-verify
-cd ../svgr-macro && cargo publish --allow-dirty --no-verify
-cd ../fframes-media && cargo publish --allow-dirty --no-verify
-cd ../media-dir-macro && cargo publish --allow-dirty --no-verify
-cd ../fframes && cargo publish --allow-dirty --no-verify
-cd ../fframes-editor-controller && cargo publish --allow-dirty --no-verify
-cd ../fframes-renderer && cargo publish --allow-dirty --no-verify
-cd ../fframes-skia-renderer && cargo publish --allow-dirty --no-verify

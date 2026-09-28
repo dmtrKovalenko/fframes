@@ -13,7 +13,7 @@ fframes_test_utils = { path = "../../fframes-test-utils" }
 
 [features]
 default = ["renderer"]
-renderer = ["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 
 [lib]
 name = "low_poly_art_example"

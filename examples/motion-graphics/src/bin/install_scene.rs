@@ -1,33 +1,30 @@
-use clap::Parser;
 use fframes::StaticMediaProvider;
+use fframes::cli::{self, clap};
 use motion_graphics_example::{InstallSceneVideo, MotionGraphicsMedia, render_options};
+use std::process::ExitCode;
 
-#[derive(Debug, Parser)]
-#[clap(name = "install_scene", about = "Render the install fff scene")]
+/// Render the install fff scene.
+#[derive(Debug, clap::Args)]
 struct Args {
-    #[clap(short, long, default_value = "install_fff.mp4")]
-    output: String,
-    #[clap(long, default_value = "libx264")]
-    video_codec: Option<String>,
-    #[clap(short, long)]
-    verbose: bool,
+    #[arg(long, default_value = "libx264", global = true)]
+    video_codec: String,
 }
 
-fn main() {
-    let args = Args::parse();
+fn main() -> ExitCode {
+    let args = cli::parse::<Args>();
     let media = MotionGraphicsMedia::prepare().unwrap();
+    let video_codec = args.app.video_codec.clone();
 
-    let backend = fframes::cpu::CpuRenderingBackend {
+    cli::new(
+        &InstallSceneVideo::new(&media),
+        render_options(&media, Some(&video_codec), false),
+    )
+    .args(args)
+    .backend(fframes::cpu::CpuRenderingBackend {
         concurrency: 1,
         cache_capacity: 10,
         ..Default::default()
-    };
-
-    fframes::render(
-        args.output.as_str(),
-        &InstallSceneVideo::new(&media),
-        backend,
-        &render_options(&media, args.video_codec.as_deref(), args.verbose),
-    )
-    .unwrap();
+    })
+    .default_output("install_fff.mp4")
+    .run()
 }

@@ -5,6 +5,13 @@ use usvgr::fontdb;
 
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
+    /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip`, `onion` and
+    /// `snapshot`) the way this backend renders the video, so previews match the output.
+    /// `None` uses the built-in CPU renderer.
+    fn frame_renderer(&self) -> Option<Box<dyn super::FrameRenderer + '_>> {
+        None
+    }
+
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized + Send>(
         self,
         frame: crate::Frame,

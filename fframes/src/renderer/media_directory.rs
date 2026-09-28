@@ -78,7 +78,9 @@ impl MediaDirectory {
                     match (extension, raw_file) {
                         ("mp3" | "wav" | "flac" | "aac" | "pcm" | "ogg" | "mp2", _) => {
                             let audio_data =
-                                crate::media::PreloadedAudioData::decode_raw_file(None, path)?;
+                                crate::media::PreloadedAudioData::decode_raw_file_stereo(
+                                    None, path,
+                                )?;
 
                             audio_hash.lock()?.insert(
                                 filename.to_owned(),
@@ -117,7 +119,7 @@ impl MediaDirectory {
                             );
 
                             if let Ok(audio_data) =
-                                crate::media::PreloadedAudioData::decode_raw_file(None, path)
+                                crate::media::PreloadedAudioData::decode_raw_file_stereo(None, path)
                             {
                                 audio_hash.lock()?.insert(
                                     filename.to_owned(),

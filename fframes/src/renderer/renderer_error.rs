@@ -25,6 +25,8 @@ pub enum RenderEncodingError {
     RenderError,
     CStringError(std::ffi::NulError),
     Utf8Error(Utf8Error),
+    /// `Video::render_frame` panicked.
+    FramePanicked(super::FramePanic),
 }
 
 impl fmt::Display for RenderEncodingError {
@@ -62,6 +64,7 @@ impl fmt::Display for RenderEncodingError {
                 Self::CStringError(err) => format!("Failed to convert string to c string: {err:?}"),
                 Self::RenderError => "Rendering pipeline failed.".to_owned(),
                 Self::Utf8Error(err) => format!("Failed to convert bytes to utf8 string: {err:?}"),
+                Self::FramePanicked(panic) => panic.to_string(),
             }
         )
     }
@@ -88,6 +91,20 @@ pub enum FFramesRendererError {
 
     /// Any custom rendering backend implementation-specific error
     Custom(String),
+
+    /// `Video::render_frame` panicked. Carries the frame, second and scene it happened in.
+    FramePanicked(super::FramePanic),
+}
+
+impl FFramesRendererError {
+    /// Lifts errors that are about a specific frame out of the chunk that rendered it.
+    pub fn from_chunk(chunk: usize, error: RenderEncodingError) -> Self {
+        match error {
+            RenderEncodingError::Aborted => Self::Aborted,
+            RenderEncodingError::FramePanicked(panic) => Self::FramePanicked(panic),
+            error => Self::RenderChunkError(chunk, error),
+        }
+    }
 }
 
 impl Error for FFramesRendererError {}
@@ -127,6 +144,7 @@ impl fmt::Debug for FFramesRendererError {
                 Self::MediaError(err) => format!("Media processing error: {err:?}"),
                 Self::Skia(err) => format!("Skia error: {err}"),
                 Self::Aborted => "Aborted by the user".to_owned(),
+                Self::FramePanicked(panic) => panic.to_string(),
             }
         )
     }
@@ -168,5 +186,17 @@ impl From<Utf8Error> for FFramesRendererError {
 impl From<crate::media::FFramesMediaError> for FFramesRendererError {
     fn from(err: crate::media::FFramesMediaError) -> Self {
         Self::MediaError(err)
+    }
+}
+
+impl From<super::FramePanic> for FFramesRendererError {
+    fn from(panic: super::FramePanic) -> Self {
+        Self::FramePanicked(panic)
+    }
+}
+
+impl From<super::FramePanic> for RenderEncodingError {
+    fn from(panic: super::FramePanic) -> Self {
+        Self::FramePanicked(panic)
     }
 }

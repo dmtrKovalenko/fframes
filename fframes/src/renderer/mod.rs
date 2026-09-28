@@ -36,6 +36,18 @@ pub use scheduler::*;
 
 mod segment_writer;
 pub use segment_writer::*;
+mod frame_guard;
+pub use frame_guard::*;
+
+mod preview;
+pub use preview::*;
+
+#[cfg(feature = "cpu_renderer")]
+pub mod sheet;
+pub mod snapshot;
+
+#[cfg(feature = "cli")]
+pub mod cli;
 
 pub use rayon;
 #[cfg(test)]

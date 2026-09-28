@@ -77,6 +77,10 @@ hyperfine example *ARGS:
   )
   hyperfine $EXECUTABLE --warmup 2
 
+# Create a video crate in examples/ (flags: --format portrait --fps 60 --backend skia-metal ...)
+new name *ARGS:
+  cargo run -q -p cargo-fframes -- fframes new {{name}} --dir examples/{{name}} --yes {{ARGS}}
+
 check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown
 

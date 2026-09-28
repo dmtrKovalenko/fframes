@@ -11,7 +11,7 @@ fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
 
 [features]
 default = ["renderer"]
-renderer = ["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 
 [lib]
 name = "podcast_example"

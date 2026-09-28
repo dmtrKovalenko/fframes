@@ -2,6 +2,16 @@ use crate::ffmpeg_sys_fframes::{
     AV_CH_LAYOUT_MONO, AVChannelLayout, AVChannelLayout__bindgen_ty_1, AVChannelOrder,
 };
 
+pub const STEREO_CH_LAYOUT: AVChannelLayout = AVChannelLayout {
+    order: AVChannelOrder::AV_CHANNEL_ORDER_NATIVE,
+    nb_channels: 2,
+    u: AVChannelLayout__bindgen_ty_1 {
+        mask: crate::ffmpeg_sys_fframes::AV_CH_LAYOUT_STEREO,
+    },
+    opaque: std::ptr::null_mut(),
+};
+
+#[allow(dead_code)]
 pub const MONO_CH_LAYOUT: AVChannelLayout = AVChannelLayout {
     order: AVChannelOrder::AV_CHANNEL_ORDER_NATIVE,
     nb_channels: 1,

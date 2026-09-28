@@ -139,8 +139,12 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
     // encoded at once. Half of the threads is plenty to feed the GPU and leaves the rest
     // to the encoders.
     let generators = (workers / 2).max(1);
+    // The scheduler and segments work in output frames; `frame_offset` maps them back to
+    // video frames when only a range is rendered.
+    let frame_range = render_options.output_frame_range(ctx.duration_in_frames);
+    let frame_offset = frame_range.start;
     let scheduler = FrameScheduler::new(
-        ctx.duration_in_frames,
+        frame_range.len(),
         generators,
         render_options
             .video_encoder_options
@@ -187,6 +191,7 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
                     worker,
                     video,
                     scheduler,
+                    frame_offset,
                     usvg_options,
                     font_db,
                     tree_sender,
@@ -285,6 +290,7 @@ fn generate_frames<'a, 'media: 'a, TVideo: Video + Sync + Send>(
     worker: usize,
     video: &'a TVideo,
     scheduler: &FrameScheduler,
+    frame_offset: usize,
     usvg_options: &'a usvgr::Options<'a>,
     font_db: &'a usvgr::fontdb::Database,
     tree_sender: SyncSender<(FrameClaim, usvgr::Tree)>,
@@ -312,16 +318,17 @@ fn generate_frames<'a, 'media: 'a, TVideo: Video + Sync + Send>(
             return Err(FFramesRendererError::Aborted);
         }
 
+        let video_frame = claim.frame + frame_offset;
         let frame = fframes::Frame::__internal_make_for_renderer(
-            claim.frame,
-            claim.frame,
+            video_frame,
+            video_frame,
             ctx.time_base.fps,
             break_lines_cache.clone(),
             video_decoders_worker.clone(),
         );
 
         // Direct path: Svgr -> usvgr::Tree (no string serialization, no Dom parsing)
-        let tree = video.render_frame(frame, ctx).into_svg_tree(
+        let tree = fframes::render_frame_guarded(video, frame, ctx)?.into_svg_tree(
             usvg_options,
             &mut converter_cache,
             font_db,
@@ -359,7 +366,14 @@ fn render_frames<TBackend: SkiaBackend>(
     background_color: skia_safe::Color,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
-    let (mut surface, mut gpu_context) = backend.create_skia_surface()?;
+    // Scaled renders (`scale_resolution`) need a surface of the output size, not the one the
+    // backend was created with.
+    let output_size = (
+        ctx.current_video_size.width as i32,
+        ctx.current_video_size.height as i32,
+    );
+    let (mut surface, mut gpu_context) =
+        crate::surface_with_size(backend, output_size.0, output_size.1)?;
     let image_info = surface.image_info();
     let frame_size = image_info.compute_byte_size(image_info.min_row_bytes());
     let row_bytes = image_info.min_row_bytes();
@@ -394,8 +408,12 @@ fn render_frames<TBackend: SkiaBackend>(
         let pixmap = skia_safe::Pixmap::new(&image_info, &mut pixels, row_bytes)
             .ok_or_else(|| FFramesRendererError::Custom("Failed to create pixmap".to_string()))?;
 
-        surface.canvas().clear(background_color);
-        crate::render::render_tree(&tree, surface.canvas(), &mut render_cache);
+        let canvas = surface.canvas();
+        canvas.clear(background_color);
+        canvas.save();
+        crate::apply_fit(canvas, &tree, output_size.0, output_size.1);
+        crate::render::render_tree(&tree, canvas, &mut render_cache);
+        canvas.restore();
 
         if let Some(gpu_context) = gpu_context.as_mut() {
             gpu_context.flush_submit_and_sync_cpu();

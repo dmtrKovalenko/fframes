@@ -1,0 +1,18 @@
+[package]
+name = "{{crate_name}}"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+{{fframes_dep}}
+{{skia_dep}}{{codecs}}
+[lib]
+name = "{{lib_name}}"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "{{crate_name}}"
+path = "src/main.rs"
+{{standalone_tables}}

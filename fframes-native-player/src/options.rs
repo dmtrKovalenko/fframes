@@ -41,6 +41,8 @@ pub struct PlayerOptions<'a, 'media> {
     pub render_threads: Option<usize>,
     /// How many frames ahead of the playhead may be prepared.
     pub prefetch_frames: usize,
+    /// Master bus of the audio mix, see `RenderOptions::audio_mix`.
+    pub audio_mix: fframes::AudioMixOptions,
 }
 
 impl Default for PlayerOptions<'_, '_> {
@@ -58,6 +60,7 @@ impl Default for PlayerOptions<'_, '_> {
             audio: true,
             render_threads: None,
             prefetch_frames: 12,
+            audio_mix: Default::default(),
         }
     }
 }

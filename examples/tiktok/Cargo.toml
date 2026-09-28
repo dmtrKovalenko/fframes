@@ -10,7 +10,7 @@ libm="0.2.8"
 
 [features]
 default=["renderer"]
-renderer=["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 
 [lib]
 name = "tiktok_example"

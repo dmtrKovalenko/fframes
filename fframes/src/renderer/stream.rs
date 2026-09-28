@@ -1,5 +1,5 @@
 use super::EncoderOptions;
-use super::ffmpeg_helper::MONO_CH_LAYOUT;
+use super::ffmpeg_helper::STEREO_CH_LAYOUT;
 use super::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use crate::ffmpeg_action;
 use crate::ffmpeg_loggable_action;
@@ -63,6 +63,33 @@ pub unsafe fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate
     match supported {
         Some(rates) if !rates.contains(&sample_rate) => rates[0],
         _ => sample_rate,
+    }
+}
+
+/// The requested sample format if the encoder takes it, otherwise one `fill_from_stereo` can
+/// write (libopus, for example, only accepts `flt` and `s16`).
+unsafe fn fit_sample_format(codec: *const AVCodec, requested: AVSampleFormat) -> AVSampleFormat {
+    use AVSampleFormat::*;
+    let supported = unsafe {
+        supported_codec_config::<AVSampleFormat>(
+            codec,
+            AVCodecConfig::AV_CODEC_CONFIG_SAMPLE_FORMAT,
+        )
+    };
+
+    match supported {
+        Some(formats) if !formats.contains(&requested) => [
+            AV_SAMPLE_FMT_FLTP,
+            AV_SAMPLE_FMT_FLT,
+            AV_SAMPLE_FMT_S16,
+            AV_SAMPLE_FMT_S16P,
+            AV_SAMPLE_FMT_S32,
+            AV_SAMPLE_FMT_S32P,
+        ]
+        .into_iter()
+        .find(|format| formats.contains(format))
+        .unwrap_or(formats[0]),
+        _ => requested,
     }
 }
 
@@ -279,7 +306,7 @@ impl Stream {
                 );
             }
 
-            (*c).sample_fmt = encoder_options.sample_format;
+            (*c).sample_fmt = fit_sample_format(codec, encoder_options.sample_format);
             (*c).sample_rate = validated_sample_rate;
             (*c).bit_rate = encoder_options.bitrate.unwrap_or(192000);
             (*st).time_base = AVRational {
@@ -287,7 +314,7 @@ impl Stream {
                 den: validated_sample_rate,
             };
 
-            (*c).ch_layout = MONO_CH_LAYOUT;
+            (*c).ch_layout = STEREO_CH_LAYOUT;
             if let Some((tag, options)) = encoder_options.tag.zip((*st).codecpar.as_mut()) {
                 options.codec_tag = tag as u32;
             }
@@ -317,8 +344,8 @@ impl Stream {
             Self::set_swr_option(swr_ctx, "in_sample_rate", (*c).sample_rate);
             Self::set_swr_option(swr_ctx, "out_sample_rate", (*c).sample_rate);
 
-            Self::set_swr_chlayout(swr_ctx, "in_chlayout", &MONO_CH_LAYOUT);
-            Self::set_swr_chlayout(swr_ctx, "out_chlayout", &MONO_CH_LAYOUT);
+            Self::set_swr_chlayout(swr_ctx, "in_chlayout", &STEREO_CH_LAYOUT);
+            Self::set_swr_chlayout(swr_ctx, "out_chlayout", &STEREO_CH_LAYOUT);
 
             Self::set_swr_fmt(swr_ctx, "in_sample_fmt", AVSampleFormat::AV_SAMPLE_FMT_FLTP);
             Self::set_swr_fmt(swr_ctx, "out_sample_fmt", (*c).sample_fmt);

@@ -80,16 +80,17 @@ impl<'a> Duration<'a> {
         }
     }
 
-    pub(super) fn to_frames_async<TFun: Fn(&str) -> super::error::Result<usize>>(
+    /// `resolve_audio_duration` returns the duration of a media file in seconds.
+    pub(super) fn to_frames_async<TFun: Fn(&str) -> super::error::Result<f64>>(
         &'a self,
         fps: usize,
         related_audio_map: &AudioMap,
         resolve_audio_duration: &'a TFun,
     ) -> crate::error::Result<usize> {
         match self {
-            Duration::FromAudio(audio) | Duration::FromVideo(audio) => {
-                resolve_audio_duration(audio)
-            }
+            Duration::FromAudio(audio) | Duration::FromVideo(audio) => Ok(
+                crate::audio_map::seconds_to_frames_floor(resolve_audio_duration(audio)?, fps),
+            ),
             Duration::Seconds(seconds) => Ok((seconds * fps as f32) as usize),
             Duration::Frames(frames) => Ok(*frames),
             Duration::Auto => {
@@ -106,7 +107,7 @@ impl<'a> Duration<'a> {
 
                 let max_frame = resolved_audio_map
                     .into_iter()
-                    .map(|(_, range)| range.end.as_usize())
+                    .map(|track| track.range.end.as_usize())
                     .max()
                     .ok_or(crate::error::FFramesError::MissingDurationOrScenes)?;
 

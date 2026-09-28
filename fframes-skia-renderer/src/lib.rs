@@ -12,6 +12,9 @@ pub use skia_backend::*;
 mod instant_rendering;
 pub use instant_rendering::*;
 
+mod frame_renderer;
+pub use frame_renderer::*;
+
 pub mod render;
 
 #[cfg(feature = "debug")]

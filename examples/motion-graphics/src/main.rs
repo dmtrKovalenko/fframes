@@ -1,32 +1,28 @@
-use clap::Parser;
 use fframes::StaticMediaProvider;
+use fframes::cli::{self, clap};
 use motion_graphics_example::{MotionGraphicsMedia, MotionGraphicsVideo, render_options};
+use std::process::ExitCode;
 
-#[derive(Debug, Parser)]
+#[derive(Debug, clap::Args)]
 struct Args {
-    #[clap(short, long, default_value = "out.mp4")]
-    output: String,
-    #[clap(long, default_value = "libx264")]
-    video_codec: Option<String>,
-    #[clap(short, long)]
-    verbose: bool,
+    #[arg(long, default_value = "libx264", global = true)]
+    video_codec: String,
 }
 
-fn main() {
-    let args = Args::parse();
+fn main() -> ExitCode {
+    let args = cli::parse::<Args>();
     let media = MotionGraphicsMedia::prepare().unwrap();
+    let video_codec = args.app.video_codec.clone();
 
-    let backend = fframes::cpu::CpuRenderingBackend {
+    cli::new(
+        &MotionGraphicsVideo { media: &media },
+        render_options(&media, Some(&video_codec), false),
+    )
+    .args(args)
+    .backend(fframes::cpu::CpuRenderingBackend {
         concurrency: 1,
         cache_capacity: 10,
         ..Default::default()
-    };
-
-    fframes::render(
-        args.output.as_str(),
-        &MotionGraphicsVideo { media: &media },
-        backend,
-        &render_options(&media, args.video_codec.as_deref(), args.verbose),
-    )
-    .unwrap();
+    })
+    .run()
 }

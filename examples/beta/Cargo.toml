@@ -16,11 +16,17 @@ fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+# `preview`: real-time GPU window
+fframes_native_player.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_native_player = { workspace = true, features = ["metal"] }
 
 [features]
 default = ["renderer"]
 renderer = [
 	"fframes/compile-time-svgtree",
+	"fframes/cli",
 	"hello-world-example/renderer",
 	"marketing-example/renderer",
 	"podcast-example/renderer",

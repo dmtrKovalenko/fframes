@@ -1,6 +1,6 @@
 use super::{
-    FrameScheduler, SegmentWriter, get_thread_count, render_backend::FFramesRenderBackend,
-    renderer_error::RenderEncodingError,
+    FrameRenderer, FrameScheduler, SegmentWriter, get_thread_count,
+    render_backend::FFramesRenderBackend, renderer_error::RenderEncodingError,
 };
 use crate::{
     AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, TextCache,
@@ -58,6 +58,10 @@ impl Default for CpuRenderingBackend {
 }
 
 impl FFramesRenderBackend for CpuRenderingBackend {
+    fn frame_renderer(&self) -> Option<Box<dyn FrameRenderer + '_>> {
+        Some(Box::new(super::CpuFrameRenderer::new(self.cache_capacity)))
+    }
+
     fn render<'a, 'media: 'a, TVideo: Video + Sync + Sized>(
         self,
         output: impl AsRef<Path>,
@@ -88,9 +92,14 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             TVideo::BACKGROUND_COLOR.a,
         );
 
+        // The scheduler and segments work in output frames; `frame_offset` maps them back to
+        // video frames when only a range is rendered.
+        let frame_range = render_options.output_frame_range(ctx.duration_in_frames);
+        let frame_offset = frame_range.start;
+
         let video_size = &ctx.current_video_size;
         let scheduler = FrameScheduler::new(
-            ctx.duration_in_frames,
+            frame_range.len(),
             self.concurrency,
             render_options
                 .video_encoder_options
@@ -136,22 +145,24 @@ impl FFramesRenderBackend for CpuRenderingBackend {
                 }
 
                 pixmap.fill(background_color);
-                let svg = video.render_frame(
+                let video_frame = claim.frame + frame_offset;
+                let svg = super::render_frame_guarded(
+                    video,
                     Frame::__internal_make_for_renderer(
-                        claim.frame,
-                        claim.frame,
+                        video_frame,
+                        video_frame,
                         ctx.time_base.fps,
                         break_lines_cache.clone(),
                         worker_local_decoders.clone(),
                     ),
                     ctx,
-                );
+                )?;
 
                 let rtree = svg.into_svg_tree(usvg_options, &mut converter_cache, font_db)?;
 
                 svgr::render(
                     &rtree,
-                    svgr::tiny_skia::Transform::default(),
+                    super::fit_transform(&rtree, pixmap.width(), pixmap.height()),
                     &mut pixmap.as_mut(),
                     &mut svgr_cache,
                     &pixmap_pool,
@@ -221,26 +232,20 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         font_db: &usvgr::fontdb::Database,
         ctx: crate::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<Vec<u8>> {
-        let mut pixmap = svgr::tiny_skia::Pixmap::new(ctx.current_video_size.width as u32, ctx.current_video_size.height as u32)
-            .ok_or_else(|| FFramesRendererError::Internal("Failed to allocate pixmap for rendering. This may indicate that this machine is out of memory.".to_owned()))?;
-
         let mut converter_cache = usvgr::Cache::default();
-        let rtree = video.render_frame(frame, &ctx).into_svg_tree(
+        let rtree = super::render_frame_guarded(video, frame, &ctx)?.into_svg_tree(
             usvg_options,
             &mut converter_cache,
             font_db,
         )?;
 
-        let ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
-        svgr::render(
+        let frame = super::CpuFrameRenderer::new(0).render_tree(
             &rtree,
-            svgr::tiny_skia::Transform::default(),
-            &mut pixmap.as_mut(),
-            &mut SvgrCache::none(),
-            &PixmapPool::new(),
-            &ctx,
-        );
+            TVideo::BACKGROUND_COLOR,
+            ctx.current_video_size.width as u32,
+            ctx.current_video_size.height as u32,
+        )?;
 
-        Ok(pixmap.take())
+        Ok(frame.pixels)
     }
 }

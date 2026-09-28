@@ -1,8 +1,5 @@
 use crate::media::{ImageData, Subtitles};
-use crate::{
-    AudioData, AudioTimelineSamples, AudioTimelineUnit, FontSource, Frame, MediaProvider,
-    ResolvedAudioMap, ResolvedScenesTimeline, Svgr,
-};
+use crate::{AudioData, FontSource, Frame, MediaProvider, ResolvedScenesTimeline, Svgr};
 use fframes_media::VideoMedia;
 use std::iter::FromIterator;
 use std::sync::atomic::AtomicBool;
@@ -32,9 +29,11 @@ impl VideoSize {
             return Self { width, height };
         }
 
+        // Rounded to even sizes: yuv420 encoders reject odd dimensions.
+        let even = |size: usize| (((size as f64 * scale) / 2.).round() as usize * 2).max(2);
         Self {
-            width: (width as f64 * scale) as usize,
-            height: (height as f64 * scale) as usize,
+            width: even(width),
+            height: even(height),
         }
     }
 }
@@ -60,19 +59,53 @@ pub struct FFramesContext<'a, 'media: 'a> {
 
 impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
     pub fn get_audio(&self, filename: impl AsRef<str>) -> Option<&'media AudioData<'media>> {
-        self.media_source?.resolve_audio(filename.as_ref())
+        let filename = filename.as_ref();
+        let audio = self.media_source.and_then(|m| m.resolve_audio(filename));
+        if audio.is_none() {
+            crate::diagnostics::report_missing_media(
+                crate::diagnostics::MediaKind::Audio,
+                filename,
+            );
+        }
+        audio
     }
 
     pub fn get_subtitles(&self, filename: impl AsRef<str>) -> Option<&'media Subtitles<'media>> {
-        self.media_source?.resolve_subtitles(filename.as_ref())
+        let filename = filename.as_ref();
+        let subtitles = self
+            .media_source
+            .and_then(|m| m.resolve_subtitles(filename));
+        if subtitles.is_none() {
+            crate::diagnostics::report_missing_media(
+                crate::diagnostics::MediaKind::Subtitles,
+                filename,
+            );
+        }
+        subtitles
     }
 
     pub fn get_image(&self, filename: impl AsRef<str>) -> Option<&'media ImageData<'media>> {
-        self.media_source?.resolve_image(filename.as_ref())
+        let filename = filename.as_ref();
+        let image = self.media_source.and_then(|m| m.resolve_image(filename));
+        if image.is_none() {
+            crate::diagnostics::report_missing_media(
+                crate::diagnostics::MediaKind::Image,
+                filename,
+            );
+        }
+        image
     }
 
     pub fn get_video(&self, filename: impl AsRef<str>) -> Option<&'media VideoMedia> {
-        self.media_source?.resolve_video(filename.as_ref())
+        let filename = filename.as_ref();
+        let video = self.media_source.and_then(|m| m.resolve_video(filename));
+        if video.is_none() {
+            crate::diagnostics::report_missing_media(
+                crate::diagnostics::MediaKind::Video,
+                filename,
+            );
+        }
+        video
     }
 
     pub fn render_scenes(&self, global_frame: &Frame) -> Svgr<'a> {
@@ -103,91 +136,6 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
 
             pointers_equal.then_some(info)
         })
-    }
-
-    /// This is internal method that is used by the renderer which mixes audio data and returns the final as fltp in a vector.
-    #[allow(clippy::option_map_unit_fn)]
-    pub fn get_mixed_audio_data_in_fltp(
-        &self,
-        audio_map: &ResolvedAudioMap<AudioTimelineSamples>,
-        start_sample: AudioTimelineSamples,
-        frame_size: usize,
-    ) -> Vec<f32> {
-        let mut audio_data = vec![0.0; frame_size];
-        let encoder_rate = self.time_base.sample_rate;
-
-        let media_source = if let Some(media_source) = self.media_source {
-            media_source
-        } else {
-            return vec![];
-        };
-
-        audio_map.0.iter().for_each(|(f, sample_range)| {
-            if sample_range.contains(&start_sample) {
-                let start_of_this_frame_in_file =
-                    start_sample.as_usize() - sample_range.start.as_usize();
-
-                let audio = media_source.resolve_audio(f);
-
-                if let Some(audio) = audio {
-                    let source_rate = audio.sample_rate() as usize;
-
-                    if source_rate == 0 {
-                        return;
-                    }
-
-                    if source_rate == encoder_rate {
-                        // The last frame of a file is usually partial: mix what is left.
-                        let end = (start_of_this_frame_in_file + frame_size)
-                            .min(audio.duration_in_samples());
-                        if let Some(range) = audio.get_range(start_of_this_frame_in_file..end) {
-                            Self::mix_audio_samples(&mut audio_data, range);
-                        }
-                    } else {
-                        // The source runs at a different rate: linearly interpolate
-                        // the encoder's sample positions from the source samples.
-                        let ratio = source_rate as f64 / encoder_rate as f64;
-                        let source_start = (start_of_this_frame_in_file as f64 * ratio) as usize;
-                        let source_needed = ((frame_size as f64 * ratio).ceil() as usize) + 2;
-                        let source_len = audio.duration_in_samples();
-                        let source_end = (source_start + source_needed).min(source_len);
-
-                        if let Some(range) = audio.get_range(source_start..source_end) {
-                            let source_at = |index: usize| range.get(index).copied().unwrap_or(0.0);
-                            let resampled: Vec<f32> = (0..frame_size)
-                                .map(|i| {
-                                    // Positions are computed from the file start so
-                                    // consecutive encoder frames stay phase aligned.
-                                    let exact = (start_of_this_frame_in_file + i) as f64 * ratio;
-                                    let index = exact as usize - source_start;
-                                    let frac = (exact - exact.floor()) as f32;
-                                    source_at(index) * (1.0 - frac) + source_at(index + 1) * frac
-                                })
-                                .collect();
-                            Self::mix_audio_samples(&mut audio_data, &resampled);
-                        }
-                    }
-                }
-            }
-        });
-
-        audio_data
-    }
-
-    /// Mixes `range` into `audio_data` so that overlapping tracks stay within
-    /// `[-1, 1]` without hard clipping: `a + b - a*b` when both samples have
-    /// the same sign (mirrored for negative values), a plain sum otherwise.
-    #[inline]
-    fn mix_audio_samples(audio_data: &mut [f32], range: &[f32]) {
-        for (mixed, sample) in audio_data.iter_mut().zip(range) {
-            let a = *mixed;
-            let b = *sample;
-            *mixed = if a * b > 0.0 {
-                a + b - a * b * a.signum()
-            } else {
-                a + b
-            };
-        }
     }
 }
 

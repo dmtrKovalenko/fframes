@@ -134,42 +134,95 @@ impl EncoderFrame {
         }
     }
 
-    pub unsafe fn fill_from_audio_data(
+    /// Writes one block of stereo audio in the encoder's sample format and channel count.
+    pub unsafe fn fill_from_stereo(
         &mut self,
-        frame_index: i64,
-        audio_data: Vec<f32>,
-    ) -> *mut AVFrame {
-        let is_writable = unsafe { av_frame_make_writable(self.av_frame) };
-        if is_writable < 0 {
-            panic!("Can not reuse frame allocations");
-        }
-
+        pts: i64,
+        left: &[f32],
+        right: &[f32],
+    ) -> RenderEncodingResult<*mut AVFrame> {
         unsafe {
-            (*self.av_frame).pts = frame_index;
+            if av_frame_make_writable(self.av_frame) < 0 {
+                return Err(RenderEncodingError::CantAllocate(
+                    "writable audio frame".to_owned(),
+                ));
+            }
+
+            let frame = self.av_frame;
+            let n = left.len().min(right.len());
+            (*frame).pts = pts;
+            (*frame).nb_samples = n as i32;
+            let channels = (*frame).ch_layout.nb_channels.max(1) as usize;
+            let sample = |channel: usize, i: usize| match channels {
+                1 => (left[i] + right[i]) * 0.5,
+                _ if channel == 0 => left[i],
+                _ if channel == 1 => right[i],
+                // Additional channels of a larger layout stay silent.
+                _ => 0.,
+            };
+            let to_i16 = |v: f32| (v.clamp(-1., 1.) * 32767.).round() as i16;
+            let to_i32 = |v: f32| (v.clamp(-1., 1.) as f64 * 2147483647.).round() as i32;
+
+            use AVSampleFormat::*;
+            let format: AVSampleFormat = std::mem::transmute((*frame).format);
+            match format {
+                AV_SAMPLE_FMT_FLTP => {
+                    for c in 0..channels {
+                        let plane = std::slice::from_raw_parts_mut(
+                            (*frame).extended_data.add(c).read() as *mut f32,
+                            n,
+                        );
+                        (0..n).for_each(|i| plane[i] = sample(c, i));
+                    }
+                }
+                AV_SAMPLE_FMT_FLT => {
+                    let data =
+                        std::slice::from_raw_parts_mut((*frame).data[0] as *mut f32, n * channels);
+                    (0..n).for_each(|i| {
+                        (0..channels).for_each(|c| data[i * channels + c] = sample(c, i))
+                    });
+                }
+                AV_SAMPLE_FMT_S16P => {
+                    for c in 0..channels {
+                        let plane = std::slice::from_raw_parts_mut(
+                            (*frame).extended_data.add(c).read() as *mut i16,
+                            n,
+                        );
+                        (0..n).for_each(|i| plane[i] = to_i16(sample(c, i)));
+                    }
+                }
+                AV_SAMPLE_FMT_S16 => {
+                    let data =
+                        std::slice::from_raw_parts_mut((*frame).data[0] as *mut i16, n * channels);
+                    (0..n).for_each(|i| {
+                        (0..channels).for_each(|c| data[i * channels + c] = to_i16(sample(c, i)))
+                    });
+                }
+                AV_SAMPLE_FMT_S32P => {
+                    for c in 0..channels {
+                        let plane = std::slice::from_raw_parts_mut(
+                            (*frame).extended_data.add(c).read() as *mut i32,
+                            n,
+                        );
+                        (0..n).for_each(|i| plane[i] = to_i32(sample(c, i)));
+                    }
+                }
+                AV_SAMPLE_FMT_S32 => {
+                    let data =
+                        std::slice::from_raw_parts_mut((*frame).data[0] as *mut i32, n * channels);
+                    (0..n).for_each(|i| {
+                        (0..channels).for_each(|c| data[i * channels + c] = to_i32(sample(c, i)))
+                    });
+                }
+                format => {
+                    return Err(RenderEncodingError::Internal(format!(
+                        "audio sample format {format:?} is not supported, use fltp, flt, s16 or s32"
+                    )));
+                }
+            }
+
+            Ok(frame)
         }
-
-        if audio_data.is_empty() {
-            return self.av_frame;
-        }
-
-        let fltp_audio_bytes = audio_data
-            .into_iter()
-            .flat_map(|data| data.to_le_bytes())
-            .collect::<Vec<u8>>();
-
-        unsafe {
-            // Copy data into the AVFrame's allocated buffer instead of assigning pointer
-            let frame_buffer = (*self.av_frame).data[0];
-            let buffer_size = (*self.av_frame).linesize[0] as usize;
-            let copy_size = fltp_audio_bytes.len().min(buffer_size);
-
-            std::ptr::copy_nonoverlapping(fltp_audio_bytes.as_ptr(), frame_buffer, copy_size);
-
-            // Update the actual number of samples in the frame
-            (*self.av_frame).nb_samples = (copy_size / 4) as i32; // 4 bytes per f32
-        }
-
-        self.av_frame
     }
 
     pub unsafe fn fill_from_rgba_pixmap(&mut self, rgba_pixels: &[u8]) -> *mut AVFrame {

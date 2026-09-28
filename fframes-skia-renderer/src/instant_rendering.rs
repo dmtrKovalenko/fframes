@@ -135,13 +135,22 @@ impl<TBackend: SkiaBackend> SkiaFFramesRenderer<'_, TBackend> {
             fframes_ctx.video_decoders.clone(),
         );
 
-        let tree = video.render_frame(fframe, &ctx).into_svg_tree(
+        let tree = fframes::render_frame_guarded(video, fframe, &ctx)?.into_svg_tree(
             &fframes_ctx.usvg_options,
             &mut native_ctx.converter_cache,
             fframes_ctx.runtime.font_source.as_db_ref(),
         )?;
 
-        native_ctx.surface.canvas().clear(skia_safe::Color::BLACK);
+        let background = TVideo::BACKGROUND_COLOR;
+        native_ctx
+            .surface
+            .canvas()
+            .clear(skia_safe::Color::from_argb(
+                background.a,
+                background.r,
+                background.g,
+                background.b,
+            ));
         crate::render::render_tree(
             &tree,
             native_ctx.surface.canvas(),

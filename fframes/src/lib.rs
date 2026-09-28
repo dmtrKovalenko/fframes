@@ -1,5 +1,7 @@
+mod audio_analysis;
 mod audio_data;
 mod audio_map;
+mod audio_mix;
 mod audio_window_functions;
 mod color;
 mod duration;
@@ -12,6 +14,7 @@ mod scenes;
 mod shader;
 mod svgr;
 mod text;
+mod time_spec;
 mod video;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -21,6 +24,7 @@ pub use renderer::*;
 
 // Methods that we are not pub use ::* should be declared here:
 pub mod animation;
+pub mod diagnostics;
 pub mod error;
 pub mod log;
 
@@ -29,8 +33,10 @@ mod tests;
 mod transform;
 mod video_data;
 
+pub use audio_analysis::*;
 pub use audio_data::*;
 pub use audio_map::*;
+pub use audio_mix::*;
 pub use audio_window_functions::*;
 pub use color::*;
 pub use duration::*;
@@ -44,6 +50,7 @@ pub use shader::*;
 pub use svgr::*;
 pub use svgr_macro::*;
 pub use text::*;
+pub use time_spec::*;
 pub use transform::*;
 pub use video::*;
 pub use video_data::*;

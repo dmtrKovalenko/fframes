@@ -12,4 +12,4 @@ futures = "0.3.17"
 
 [features]
 default=["renderer"]
-renderer=["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]

@@ -1,32 +1,10 @@
-use clap::Parser;
-use fframes::{EncoderOptions, MediaDirectory, RenderOptions, Video, fframes_logger};
+use fframes::{EncoderOptions, MediaDirectory, RenderOptions, Video, cli};
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
-use image::{ImageBuffer, Rgba};
 use std::path::Path;
+use std::process::ExitCode;
 use teej_podcast_example::{Chapter, TeejPodcast};
 
-#[derive(Debug, Parser)]
-struct Args {
-    #[clap(short, long, default_value = "out.mp4")]
-    output: String,
-    #[clap(long)]
-    video_codec: Option<String>,
-    #[clap(long)]
-    audio_codec: Option<String>,
-    #[clap(short, long)]
-    concurrency: Option<usize>,
-    #[clap(short, long)]
-    pub font: Option<String>,
-    /// Render a single frame to PNG for preview instead of the full video
-    #[clap(long)]
-    preview: bool,
-    /// Frame index to render when using --preview (default: 24, i.e. 1 second at 24fps)
-    #[clap(long, default_value = "24")]
-    preview_frame: usize,
-}
-
-fn main() {
-    let args = Args::parse();
+fn main() -> ExitCode {
     let media_folder = MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
     let dynamic_media = media_folder.process_media_source().unwrap();
     let vulkan_ctx = SkiaVulkanCtx::new(TeejPodcast::WIDTH, TeejPodcast::HEIGHT).unwrap();
@@ -51,7 +29,6 @@ fn main() {
     let options = RenderOptions {
         media: Some(&dynamic_media),
         load_system_fonts: true,
-        logger: fframes_logger::FFramesLoggerVariant::Compact,
         video_encoder_options: EncoderOptions {
             #[cfg(target_os = "macos")]
             preferred_encoder: Some("hevc_videotoolbox"),
@@ -73,38 +50,19 @@ fn main() {
         ..Default::default()
     };
 
-    let backend = SkiaFFramesRenderer::new_vulkan(
-        &vulkan_ctx,
-        SkiaPipelineConfig {
-            buffer_queue_size: 20,
-            concurrency_policy:
-                fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::MaxPerformance,
-            ..Default::default()
-        },
-    )
-    .expect("Failed to create renderer");
-
-    if args.preview {
-        let frame_buffer = fframes::render_frame(args.preview_frame, &video, backend, &options)
-            .expect("Failed to render preview frame");
-
-        let img = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
-            TeejPodcast::WIDTH as u32,
-            TeejPodcast::HEIGHT as u32,
-            frame_buffer,
+    cli::new(&video, options)
+        .backend(
+            SkiaFFramesRenderer::new_vulkan(
+                &vulkan_ctx,
+                SkiaPipelineConfig {
+                    buffer_queue_size: 20,
+                    concurrency_policy:
+                        fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::MaxPerformance,
+                    ..Default::default()
+                },
+            )
+            .expect("Failed to create renderer"),
         )
-        .expect("Failed to create image buffer");
-
-        img.save("frame_preview.png")
-            .expect("Failed to save preview image");
-
-        println!(
-            "Saved frame {} preview to frame_preview.png ({}x{})",
-            args.preview_frame,
-            TeejPodcast::WIDTH,
-            TeejPodcast::HEIGHT
-        );
-    } else {
-        fframes::render(args.output.as_str(), &video, backend, &options).unwrap();
-    }
+        .preview(fframes_native_player::cli_preview)
+        .run()
 }

@@ -1,50 +1,43 @@
-use clap::Parser;
 use fframes::StaticMediaProvider;
+use fframes::cli::{self, clap};
 use motion_graphics_example::{MotionGraphicsMedia, QuoteCardVideo, render_options};
+use std::process::ExitCode;
 
-#[derive(Debug, Parser)]
-#[clap(
-    name = "quote",
-    about = "Render a quote card video with auto-sized text"
-)]
+/// A quote card video with auto-sized text.
+#[derive(Debug, clap::Args)]
 struct Args {
-    /// The text to render, e.g. "PERFORMANCE" or "SPEED\n!=\nFAST" for multi-line
+    /// The text, e.g. "PERFORMANCE" or "SPEED\n!=\nFAST" for several lines.
+    #[arg(long, default_value = "PERFORMANCE", global = true)]
     text: String,
-    #[clap(short, long)]
-    output: Option<String>,
-    #[clap(long, default_value = "libx264")]
-    video_codec: Option<String>,
-    #[clap(short, long)]
+    #[arg(long, default_value = "libx264", global = true)]
+    video_codec: String,
+    #[arg(short, long, global = true)]
     concurrency: Option<usize>,
-    #[clap(short, long)]
-    verbose: bool,
 }
 
-fn main() {
-    let args = Args::parse();
+fn main() -> ExitCode {
+    let args = cli::parse::<Args>();
     let media = MotionGraphicsMedia::prepare().unwrap();
 
-    // Support literal \n in shell args as line breaks
-    let text = args.text.replace("\\n", "\n");
+    // A literal \n in the shell argument is a line break.
+    let text = args.app.text.replace("\\n", "\n");
+    let video_codec = args.app.video_codec.clone();
+    let concurrency = args.app.concurrency.unwrap_or(1);
+    let output = format!(
+        "quote_{}.mp4",
+        text.to_lowercase().replace(['\n', ' '], "_")
+    );
 
-    let output = args.output.unwrap_or_else(|| {
-        format!(
-            "quote_{}.mp4",
-            text.to_lowercase().replace(['\n', ' '], "_")
-        )
-    });
-
-    let backend = fframes::cpu::CpuRenderingBackend {
-        concurrency: args.concurrency.unwrap_or(1),
+    cli::new(
+        &QuoteCardVideo::new(&media, &text),
+        render_options(&media, Some(&video_codec), false),
+    )
+    .args(args)
+    .default_output(output)
+    .backend(fframes::cpu::CpuRenderingBackend {
+        concurrency,
         cache_capacity: 10,
         ..Default::default()
-    };
-
-    fframes::render(
-        output.as_str(),
-        &QuoteCardVideo::new(&media, &text),
-        backend,
-        &render_options(&media, args.video_codec.as_deref(), args.verbose),
-    )
-    .unwrap();
+    })
+    .run()
 }

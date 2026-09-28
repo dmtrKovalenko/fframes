@@ -1,0 +1,16 @@
+[package]
+name = "cargo-fframes"
+version = "1.0.0-beta.6.rc-3.2"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/dmtrKovalenko/fframes"
+homepage = "https://fframes.studio"
+description = "Creates new fframes video projects: `cargo fframes new my-video`"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+dialoguer = { version = "0.11", default-features = false }
+
+[[bin]]
+name = "cargo-fframes"
+path = "src/main.rs"

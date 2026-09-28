@@ -1,22 +1,19 @@
+use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
 use std::path::PathBuf;
-
-use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, fframes_logger, render};
+use std::process::ExitCode;
 use tiktok_example::{GooseMedia, GooseVideo};
 
-fn main() {
-    let media = GooseMedia::prepare().unwrap();
+fn main() -> ExitCode {
+    // VP9 with alpha: the video has a transparent background.
 
-    render(
-        "out.webm",
+    let media = GooseMedia::prepare().unwrap();
+    let tmp = PathBuf::from("test_render");
+
+    cli::new(
         &GooseVideo { media: &media },
-        fframes::cpu::CpuRenderingBackend {
-            cache_capacity: 200,
-            ..Default::default()
-        },
-        &RenderOptions {
+        RenderOptions {
             media: Some(&media),
-            logger: fframes_logger::FFramesLoggerVariant::Compact,
-            tmp_files_directory: Some(&PathBuf::from("test_render")),
+            tmp_files_directory: Some(&tmp),
             video_encoder_options: EncoderOptions {
                 preferred_encoder: Some("libvpx-vp9"),
                 pixel_format: fframes::AVPixelFormat::AV_PIX_FMT_YUVA420P,
@@ -31,5 +28,10 @@ fn main() {
             ..Default::default()
         },
     )
-    .unwrap();
+    .backend(fframes::cpu::CpuRenderingBackend {
+        cache_capacity: 200,
+        ..Default::default()
+    })
+    .default_output("out.webm")
+    .run()
 }

@@ -1,12 +1,12 @@
 use beta_example::{BetaExamples, BetaVideo};
 use fframes::{
     CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
-    StaticMediaProvider, cpu::CpuRenderingBackend, fframes_logger, lazy_static::lazy_static,
+    StaticMediaProvider, cli, cpu::CpuRenderingBackend, lazy_static::lazy_static,
 };
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use marketing_example::{MarketingMedia, MarketingVideo};
 use podcast_example::PodcastVideo;
-use std::{path::Path, sync::Arc};
+use std::{path::Path, process::ExitCode, sync::Arc};
 use tiktok_example::{GooseMedia, GooseVideo};
 
 lazy_static! {
@@ -15,7 +15,7 @@ lazy_static! {
     static ref HELLO_WORLD_MEDIA: HelloWorldMedia = HelloWorldMedia::prepare().unwrap();
 }
 
-fn main() {
+fn main() -> ExitCode {
     let media_folder = MediaDirectory::read_folder(Path::new("./media")).unwrap();
     let fs_media = media_folder.process_media_source().unwrap();
 
@@ -26,8 +26,7 @@ fn main() {
         &fs_media as &dyn MediaProvider,
     ]);
 
-    fframes::render(
-        "out.mp4",
+    cli::new(
         &BetaVideo {
             iphone_scene: beta_example::IphoneScene {
                 hours: 12,
@@ -52,14 +51,9 @@ fn main() {
                 }),
             },
         },
-        CpuRenderingBackend {
-            cache_capacity: 200,
-            ..Default::default()
-        },
-        &RenderOptions {
+        RenderOptions {
             media: Some(&media),
             load_system_fonts: true,
-            logger: fframes_logger::FFramesLoggerVariant::Compact,
             video_encoder_options: EncoderOptions {
                 preferred_encoder: Some("libx264"),
                 ..Default::default()
@@ -68,5 +62,10 @@ fn main() {
             ..Default::default()
         },
     )
-    .unwrap();
+    .backend(CpuRenderingBackend {
+        cache_capacity: 200,
+        ..Default::default()
+    })
+    .preview(fframes_native_player::cli_preview)
+    .run()
 }

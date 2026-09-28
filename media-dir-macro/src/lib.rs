@@ -221,7 +221,8 @@ enum MediaVariant {
 impl MediaVariant {
     fn from_extension(file_name: &str, path: &Path) -> Option<Self> {
         match path.extension()?.to_str()? {
-            "mp3" => Some(MediaVariant::Audio),
+            // Decoded to mono samples at compile time, every format ffmpeg reads works.
+            "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" => Some(MediaVariant::Audio),
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
             "vtt" => Some(MediaVariant::Subtitles),
@@ -276,6 +277,7 @@ impl MediaFile {
                 let fframes_media::PreloadedAudioData {
                     samples,
                     sample_rate,
+                    ..
                 } = fframes_media::PreloadedAudioData::decode_raw_file(None, &self.path).unwrap();
 
                 let bytes = bytemuck::cast_slice::<f32, u8>(&samples);
@@ -295,6 +297,7 @@ impl MediaFile {
                                 )
                             },
                             sample_rate: #sample_rate,
+                            right: None,
                         }
                     )
                 }

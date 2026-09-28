@@ -46,9 +46,9 @@ impl fframes::Video for MotionGraphicsVideo<'_> {
             at 0.8 => 1.5, animate 720.0_f32 => 620.0, Easing::EaseInOut,
         ));
 
-        // Accent line expands from center
+        // Accent line expands from center (from a hairline: SVG skips zero-width rects)
         let accent_width = frame.animate(&fframes::timeline!(
-            at 1.0 => 1.6, animate 0.0_f32 => 1000.0, Easing::EaseInOut,
+            at 1.0 => 1.6, animate 0.5_f32 => 1000.0, Easing::EaseInOut,
         ));
 
         // "(for real)" — slides up from below into a clip box

@@ -166,6 +166,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             sample_rate: sample_rate as u32,
             // Can't guarantee the lifetime of the input slice
             samples: std::borrow::Cow::Owned(input.to_vec()),
+            right: None,
         };
 
         let mut media_provider = self.media_provider.lock().unwrap();

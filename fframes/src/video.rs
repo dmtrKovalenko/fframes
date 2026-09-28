@@ -94,7 +94,7 @@ impl<'a> ResolvedScenesTimeline<'a> {
     fn from_scenes(
         time_base: &TimeBase,
         scenes: &[SceneWithAudio<'a>],
-        resolve_audio_duration: &impl Fn(&str) -> super::error::Result<usize>,
+        resolve_audio_duration: &impl Fn(&str) -> super::error::Result<f64>,
     ) -> Result<Self> {
         let scenes_count = scenes.len();
         let mut final_duration = 0;
@@ -144,7 +144,7 @@ pub struct ResolvedRenderingTimeline<'a, TAudioUnit: AudioTimelineUnit + std::fm
 pub fn resolve_timeline<
     'a,
     TAudioUnit: AudioTimelineUnit + std::fmt::Debug + Copy,
-    TFun: Fn(&str) -> super::error::Result<usize>,
+    TFun: Fn(&str) -> super::error::Result<f64>,
 >(
     duration: &Duration,
     scenes: &ScenesWithAudio<'a>,

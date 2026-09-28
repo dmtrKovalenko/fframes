@@ -1,0 +1,23 @@
+[package]
+name = "signal-lab"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fframes = { workspace = true, features = ["compile-time-svgtree", "cli"] }
+fframes_skia_renderer = { workspace = true, features = ["metal"] }
+fframes_native_player = { workspace = true, features = ["metal"] }
+
+[target.'cfg(not(windows))'.dependencies]
+fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
+
+[lib]
+name = "signal_lab"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "signal-lab"
+path = "src/main.rs"
+

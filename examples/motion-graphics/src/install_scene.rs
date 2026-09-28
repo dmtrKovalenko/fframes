@@ -148,7 +148,7 @@ impl fframes::Video for InstallSceneVideo<'_> {
 
         // === Accent line below title ===
         let accent_width = frame.animate(&fframes::timeline!(
-            at 0.4 => 1.0, animate 0.0_f32 => 600.0, Easing::EaseInOut,
+            at 0.4 => 1.0, animate 0.5_f32 => 600.0, Easing::EaseInOut,
         ));
 
         // === Fade out ===

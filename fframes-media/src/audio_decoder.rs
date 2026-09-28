@@ -5,7 +5,17 @@ use std::ffi::CString;
 use std::path::Path;
 use std::ptr;
 
+/// How the decoder maps the file's channels to the output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChannelMode {
+    /// Everything is downmixed to one channel.
+    Mono,
+    /// Mono stays mono, stereo stays stereo, anything larger is downmixed to stereo.
+    KeepStereo,
+}
+
 pub struct AudioDecoder {
+    out_channels: usize,
     fmt_context: *mut AVFormatContext,
     decoding_ctx: *mut AVCodecContext,
     swr_ctx: *mut SwrContext,
@@ -17,6 +27,14 @@ pub struct AudioDecoder {
 
 impl AudioDecoder {
     pub fn new(filename: impl AsRef<Path>, sample_rate: Option<u32>) -> Result<Self> {
+        Self::new_with_channels(filename, sample_rate, ChannelMode::Mono)
+    }
+
+    pub fn new_with_channels(
+        filename: impl AsRef<Path>,
+        sample_rate: Option<u32>,
+        channel_mode: ChannelMode,
+    ) -> Result<Self> {
         unsafe {
             av_log_set_level(AV_LOG_FATAL);
 
@@ -120,17 +138,32 @@ impl AudioDecoder {
                 0,
             );
 
+            // Some containers leave the layout unspecified, swr needs a real one.
+            let mut in_layout = (*decoding_ctx).ch_layout;
+            if in_layout.order == AVChannelOrder::AV_CHANNEL_ORDER_UNSPEC {
+                av_channel_layout_default(&mut in_layout, in_layout.nb_channels.max(1));
+            }
+
+            let out_channels = match channel_mode {
+                ChannelMode::KeepStereo if in_layout.nb_channels >= 2 => 2,
+                _ => 1,
+            };
+
             av_opt_set_chlayout(
                 swr_ctx as *mut _ as *mut std::ffi::c_void,
                 CString::new("in_chlayout")?.as_ptr(),
-                &(*decoding_ctx).ch_layout,
+                &in_layout,
                 0,
             );
 
             av_opt_set_chlayout(
                 swr_ctx as *mut _ as *mut std::ffi::c_void,
                 CString::new("out_chlayout")?.as_ptr(),
-                &MONO_CH_LAYOUT,
+                if out_channels == 2 {
+                    &STEREO_CH_LAYOUT
+                } else {
+                    &MONO_CH_LAYOUT
+                },
                 0,
             );
 
@@ -177,6 +210,7 @@ impl AudioDecoder {
             }
 
             Ok(Self {
+                out_channels,
                 fmt_context,
                 decoding_ctx,
                 swr_ctx,
@@ -188,7 +222,48 @@ impl AudioDecoder {
         }
     }
 
-    unsafe fn decode_packet(&mut self, samples: &mut Vec<f32>) -> Result<()> {
+    /// Appends `max_samples` of swr output to every channel buffer. `input` is null to drain.
+    unsafe fn convert_into(
+        &mut self,
+        channels: &mut [Vec<f32>],
+        max_samples: i32,
+        input: *mut *const u8,
+        input_samples: i32,
+    ) -> Result<()> {
+        unsafe {
+            let lengths: Vec<usize> = channels.iter().map(Vec::len).collect();
+            let mut planes: Vec<*mut u8> = channels
+                .iter_mut()
+                .zip(&lengths)
+                .map(|(channel, len)| {
+                    channel.reserve(max_samples.max(0) as usize);
+                    channel.as_mut_ptr().add(*len) as *mut u8
+                })
+                .collect();
+
+            let ret = swr_convert(
+                self.swr_ctx,
+                planes.as_mut_ptr(),
+                max_samples,
+                input,
+                input_samples,
+            );
+            if ret < 0 {
+                return Err(FFramesMediaError::LibAVAudioDecodingError((
+                    ret,
+                    "Error while resampling".to_string(),
+                )));
+            }
+
+            for (channel, len) in channels.iter_mut().zip(lengths) {
+                channel.set_len(len + ret as usize);
+            }
+
+            Ok(())
+        }
+    }
+
+    unsafe fn decode_packet(&mut self, channels: &mut [Vec<f32>]) -> Result<()> {
         unsafe {
             let mut ret;
 
@@ -227,33 +302,28 @@ impl AudioDecoder {
                     AVRounding::AV_ROUND_UP,
                 );
 
-                let current_length = samples.len();
-                samples.reserve(nb_samples as usize);
-                let ret = swr_convert(
-                    self.swr_ctx,
-                    [samples.as_mut_ptr().add(current_length)].as_ptr() as *mut *mut _,
+                self.convert_into(
+                    channels,
                     nb_samples as i32,
-                    (*self.frame).data.as_mut_ptr() as *mut _ as *mut *const u8,
+                    (*self.frame).extended_data as *mut *const u8,
                     (*self.frame).nb_samples,
-                );
-
-                if ret < 0 {
-                    return Err(FFramesMediaError::LibAVAudioDecodingError((
-                        ret,
-                        "Error while resampling".to_string(),
-                    )));
-                }
-
-                samples.set_len(current_length + ret as usize);
+                )?;
             }
 
             Ok(())
         }
     }
 
+    /// Decodes the whole file into one mono channel (see `ChannelMode`).
     pub fn decode_all_samples(&mut self) -> Result<(u32, Vec<f32>)> {
+        let (sample_rate, mut channels) = self.decode_all_channels()?;
+        Ok((sample_rate, channels.swap_remove(0)))
+    }
+
+    /// Decodes the whole file, one buffer per output channel.
+    pub fn decode_all_channels(&mut self) -> Result<(u32, Vec<Vec<f32>>)> {
         unsafe {
-            let mut samples = Vec::new();
+            let mut samples = vec![Vec::new(); self.out_channels];
 
             while av_read_frame(self.fmt_context, self.avpkt) >= 0 {
                 if (*self.avpkt).stream_index == self.stream_idx
@@ -276,22 +346,7 @@ impl AudioDecoder {
             // Drain samples the resampler still buffers.
             let delay = swr_get_delay(self.swr_ctx, self.out_sample_rate as i64);
             if delay > 0 {
-                let current_length = samples.len();
-                samples.reserve(delay as usize);
-                let ret = swr_convert(
-                    self.swr_ctx,
-                    [samples.as_mut_ptr().add(current_length)].as_ptr() as *mut *mut _,
-                    delay as i32,
-                    std::ptr::null_mut(),
-                    0,
-                );
-                if ret < 0 {
-                    return Err(FFramesMediaError::LibAVAudioDecodingError((
-                        ret,
-                        "Error while draining the resampler".to_string(),
-                    )));
-                }
-                samples.set_len(current_length + ret as usize);
+                self.convert_into(&mut samples, delay as i32, std::ptr::null_mut(), 0)?;
             }
 
             Ok((self.out_sample_rate, samples))
@@ -326,6 +381,15 @@ impl Drop for AudioDecoder {
 pub const fn FFMPEG_AVERROR(e: std::os::raw::c_int) -> std::os::raw::c_int {
     -e
 }
+
+const STEREO_CH_LAYOUT: AVChannelLayout = AVChannelLayout {
+    order: AVChannelOrder::AV_CHANNEL_ORDER_NATIVE,
+    nb_channels: 2,
+    u: AVChannelLayout__bindgen_ty_1 {
+        mask: AV_CH_LAYOUT_STEREO,
+    },
+    opaque: std::ptr::null_mut(),
+};
 
 const MONO_CH_LAYOUT: AVChannelLayout = AVChannelLayout {
     order: AVChannelOrder::AV_CHANNEL_ORDER_NATIVE,
@@ -367,5 +431,21 @@ mod tests {
         let mut decoder = AudioDecoder::new(PathBuf::from("test_audio/audio.aac"), None).unwrap();
         let result = decoder.decode_all_samples();
         assert_eq!(result.unwrap().1.len(), 927744);
+    }
+
+    #[test]
+    fn keeps_stereo_channels() {
+        let mut decoder = AudioDecoder::new_with_channels(
+            PathBuf::from("test_audio/audio.wav"),
+            None,
+            ChannelMode::KeepStereo,
+        )
+        .unwrap();
+        let (_, channels) = decoder.decode_all_channels().unwrap();
+        let mut mono = AudioDecoder::new(PathBuf::from("test_audio/audio.wav"), None).unwrap();
+        let (_, mono) = mono.decode_all_samples().unwrap();
+
+        assert_eq!(channels.len(), 2, "the test files are stereo");
+        assert!(channels.iter().all(|c| c.len() == mono.len()));
     }
 }

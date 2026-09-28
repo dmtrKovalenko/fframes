@@ -9,7 +9,7 @@ clap = { version = "4.3.4", features = ["derive"] }
 
 [features]
 default = ["renderer"]
-renderer = ["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

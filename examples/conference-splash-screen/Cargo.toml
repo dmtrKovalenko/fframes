@@ -13,7 +13,7 @@ image = "0.25.4"
 
 [features]
 default = ["renderer"]
-renderer = ["fframes/compile-time-svgtree"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -24,4 +24,9 @@ doctest = false
 [[bin]]
 name = "conference_splash_screen_bin"
 path = "src/main.rs"
+required-features = ["renderer"]
+
+[[bin]]
+name = "render_all"
+path = "src/bin/render_all.rs"
 required-features = ["renderer"]
