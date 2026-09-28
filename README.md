@@ -1,10 +1,41 @@
-## Requirements
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="landing/brand/fframes-wordmark-dark.svg" />
+    <img alt="fframes" src="landing/brand/fframes-wordmark.svg" width="360" />
+  </picture>
+</p>
+
+<p align="center">
+  <b>Video vibe coding framework that is actually fast.</b><br />
+  Write your video in Rust and SVG, render it on the GPU.
+</p>
+
+## Get started
+
+With your coding agent, add the fframes skill and ask for a video:
+
+```sh
+npx skills add dmtrKovalenko/fframes
+```
+
+With cargo:
+
+```sh
+cargo install --locked cargo-fframes --git https://github.com/dmtrKovalenko/fframes
+cargo fframes new my-video
+```
+
+The API reference is on [docs.rs/fframes](https://docs.rs/fframes).
+
+## Advanced
+
+### Requirements
 
 [Rust](https://www.rust-lang.org/learn/get-started) and [NodeJS](https://nodejs.org/en/download/) (for local development) toolchains.
 
 FFrames will install and compile ffmpeg during the development as we rely on the ffmpeg libav libraries, so there are dependencies on the system encoders required to build libav libraries. Here's what you'll need:
 
-#### Linux
+##### Linux
 
 for debian based distros:
 ```sh
@@ -20,12 +51,12 @@ for nix users:
 nix-shell
 ```
 
-#### MacOS:
+##### MacOS:
 ```sh
 brew install pkg-config ffmpeg x264 x265 opus nasm ninja
 ```
 
-## Beta testing
+### Beta testing
 
 Once everything is installed please install the just command runner and init the repo.
 
@@ -44,7 +75,7 @@ fframes_renderer = { version = "0.1.0", features = ["h264", "libav-agree-gpl"] }
 
 All the build and linking of codecs and other system libs are leveraging the ffmpeg build system, so for troubleshooting please refer the [ffmpeg compilation guide](https://trac.ffmpeg.org/wiki/CompilationGuide).
 
-## Usage
+### Usage
 
 For the beta testing we provide a couple of examples you can use as a reference:
 
@@ -74,11 +105,11 @@ In order to create your custom video just copy an example. It is not recommended
 
 Please provide any of your feedback and ideas as issues, and feel free to contribute, but ideally, start from the issue.
 
-## Installation
+### Installation
 
 All the libraries are already published to the crates io including the most recent nightly version. So you can already install and use them independently.
 
-## Contributing
+### Contributing
 
 To change something in the editor please run this command in the separate terminal:
 
@@ -86,7 +117,7 @@ To change something in the editor please run this command in the separate termin
 just watch-editor
 ```
 
-## License
+### License
 
 Please make sure that this project is under GPLv3 license while in beta. So you are not permitted to modify and redistribute it.
 This will likely be changed once the project will be released.
