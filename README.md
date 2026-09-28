@@ -78,15 +78,16 @@ Every command runs as `cargo run --release -- <command>` inside the project:
 | --- | --- |
 | `timeline` | the scenes with their frame and second ranges, and every audio track with its mix settings |
 | `inspect` | problems in a frame every 0.25 s and the first and last frame of every scene; exit code 2 on errors |
-| `strip Intro -n 12` | `strip.png`, a labelled contact sheet |
-| `frame Intro@end,Outro@50%` | full-size PNGs in `frames/` |
-| `onion "Intro@0..Intro@1s" -n 6` | `onion.png`, the blended movement |
+| `strip <scene> -n 12` | `strip.png`, a labelled contact sheet |
+| `frame <scene>@end,<scene>@50%` | full-size PNGs in `frames/` |
+| `onion "<scene>@0..<scene>@1s" -n 6` | `onion.png`, the blended movement |
 | `audio analyze --waveform w.png` | the loudness report and a waveform with scene lines and cue ticks |
 | `snapshot` | a comparison with approved PNGs, `.diff.png` marks what changed |
 | `preview` | the real-time window, for a human |
 | `render [--draft]` | the video, or a part of it |
 
-Add `--json` to parse the output. Times read as `120` (frame), `3.2s`, `50%`, `Intro@1.2s`, and ranges like `Intro@0..Intro@1s`.
+`<scene>` is the name of a scene struct in your video. Times read as `120` (frame), `3.2s`, `50%`, `<scene>@1.2s`, and
+ranges like `<scene>@0..<scene>@1s`. Add `--json` to parse the output.
 
 ## Why it is fast
 
