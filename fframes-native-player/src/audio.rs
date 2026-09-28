@@ -197,7 +197,7 @@ fn build_stream<T: SizedSample + FromSample<f32>>(
                         (0.0, 0.0)
                     };
                     match frame {
-                        [mono] => *mono = T::from_sample((left + right) * 0.5),
+                        [mono] => *mono = T::from_sample(f32::midpoint(left, right)),
                         [l, r, rest @ ..] => {
                             *l = T::from_sample(left);
                             *r = T::from_sample(right);
