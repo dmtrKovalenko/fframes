@@ -1,0 +1,16 @@
+$ npx remotion render build TextGrid out/remotion.mp4 --codec=h264 --concurrency=8
+Getting composition
+Composition          TextGrid
+Codec                h264
+Output               out/remotion.mp4
+Concurrency          8x
+Rendered 0/300
+Rendered 50/300, time remaining: 7s
+Rendered 100/300, time remaining: 5s
+Rendered 150/300, time remaining: 3s
+Rendered 200/300, time remaining: 2s
+Rendered 250/300, time remaining: 1s
+Encoded 300/300
++                    out/remotion.mp4 109.5 MB
+
+wall time: 9.58 s  (300 frames, 1,000,200 text nodes, 31.3 fps)

@@ -1,0 +1,197 @@
+{
+  "machine": "Apple M4 Max, 16 cores, 64 GB, macOS 26.5.1",
+  "load_avg": {
+    "min": 10.52,
+    "max": 30.33,
+    "median": 19.2,
+    "note": "1-minute load average sampled right before each run"
+  },
+  "remotion_version": "4.0.529",
+  "fframes_backend": "fframes_vulkan_ctx2 (Skia GPU via fframes_skia_renderer); fframes git 1070159",
+  "encoder": "libx264, crf 18, preset medium, yuv420p on both sides (Remotion defaults for --codec=h264)",
+  "frames": 300,
+  "text_nodes_per_frame": 3334,
+  "text_nodes_total": 1000200,
+  "runs": {
+    "remotion_default": [
+      10.41,
+      10.683,
+      10.564,
+      10.591,
+      10.183
+    ],
+    "remotion_best": {
+      "concurrency": 8,
+      "prebundled": true,
+      "times": [
+        9.0,
+        9.865,
+        9.623,
+        9.16,
+        9.414
+      ]
+    },
+    "fframes_gpu": [
+      6.518,
+      6.358,
+      6.254,
+      6.28,
+      6.291
+    ],
+    "fframes_cpu": [
+      7.084,
+      6.855,
+      6.8,
+      6.677,
+      6.766
+    ],
+    "all": {
+      "remotion_default": [
+        10.41,
+        10.683,
+        10.564,
+        10.591,
+        10.183
+      ],
+      "remotion_prebundled_c8": [
+        9.0,
+        9.865,
+        9.623,
+        9.16,
+        9.414
+      ],
+      "remotion_prebundled_c12": [
+        9.677,
+        9.484,
+        9.861,
+        9.461,
+        9.739
+      ],
+      "remotion_prebundled_c16": [
+        9.984,
+        10.064,
+        10.048,
+        9.669,
+        12.105
+      ],
+      "fframes_metal_ctx1": [
+        7.803,
+        7.504,
+        7.495,
+        7.318,
+        7.336
+      ],
+      "fframes_metal_ctx2": [
+        6.555,
+        6.47,
+        6.465,
+        6.305,
+        6.456
+      ],
+      "fframes_vulkan_ctx2": [
+        6.518,
+        6.358,
+        6.254,
+        6.28,
+        6.291
+      ],
+      "fframes_cpu": [
+        7.084,
+        6.855,
+        6.8,
+        6.677,
+        6.766
+      ],
+      "remotion_prebundled_c8_ultrafast": [
+        7.322,
+        7.411,
+        8.75,
+        8.849,
+        9.151
+      ],
+      "fframes_metal_ctx2_ultrafast": [
+        2.699,
+        2.608,
+        2.498,
+        2.569,
+        2.6
+      ],
+      "fframes_cpu_ultrafast": [
+        3.206,
+        3.096,
+        3.136,
+        3.162,
+        3.149
+      ],
+      "remotion_prebundled_c8_ultrafast_sweep": [
+        9.017,
+        8.354,
+        8.485
+      ],
+      "remotion_prebundled_c12_ultrafast_sweep": [
+        7.4,
+        6.622,
+        7.603
+      ],
+      "remotion_prebundled_c16_ultrafast_sweep": [
+        7.86,
+        7.588,
+        7.088
+      ]
+    }
+  },
+  "median_seconds": {
+    "remotion_default": 10.564,
+    "remotion_prebundled_c8": 9.414,
+    "remotion_prebundled_c12": 9.677,
+    "remotion_prebundled_c16": 10.048,
+    "fframes_metal_ctx1": 7.495,
+    "fframes_metal_ctx2": 6.465,
+    "fframes_vulkan_ctx2": 6.291,
+    "fframes_cpu": 6.8,
+    "remotion_prebundled_c8_ultrafast": 8.75,
+    "fframes_metal_ctx2_ultrafast": 2.6,
+    "fframes_cpu_ultrafast": 3.149,
+    "remotion_prebundled_c8_ultrafast_sweep": 8.485,
+    "remotion_prebundled_c12_ultrafast_sweep": 7.4,
+    "remotion_prebundled_c16_ultrafast_sweep": 7.588
+  },
+  "fps": {
+    "remotion_default": 28.4,
+    "remotion_prebundled_c8": 31.9,
+    "remotion_prebundled_c12": 31.0,
+    "remotion_prebundled_c16": 29.9,
+    "fframes_metal_ctx1": 40.0,
+    "fframes_metal_ctx2": 46.4,
+    "fframes_vulkan_ctx2": 47.7,
+    "fframes_cpu": 44.1,
+    "remotion_prebundled_c8_ultrafast": 34.3,
+    "fframes_metal_ctx2_ultrafast": 115.4,
+    "fframes_cpu_ultrafast": 95.3,
+    "remotion_prebundled_c8_ultrafast_sweep": 35.4,
+    "remotion_prebundled_c12_ultrafast_sweep": 40.5,
+    "remotion_prebundled_c16_ultrafast_sweep": 39.5
+  },
+  "speedup": {
+    "remotion_best_over_fframes_gpu": 1.5,
+    "remotion_default_over_fframes_gpu": 1.68,
+    "remotion_best_over_fframes_cpu": 1.38,
+    "ultrafast_remotion_best_over_fframes_gpu": 2.85,
+    "ultrafast_remotion_best_over_fframes_cpu": 2.35
+  },
+  "ultrafast_secondary": {
+    "note": "x264 preset ultrafast on both sides (crf 18): encoder no longer the bottleneck",
+    "remotion_best": {
+      "config": "remotion_prebundled_c12_ultrafast_sweep",
+      "median": 7.4
+    },
+    "fframes_gpu": {
+      "config": "fframes_metal_ctx2_ultrafast",
+      "median": 2.6
+    },
+    "fframes_cpu": {
+      "config": "fframes_cpu_ultrafast",
+      "median": 3.149
+    }
+  }
+}

@@ -1,0 +1,52 @@
+// Raymarched gyroid tunnel flythrough, lit by orange rings.
+uniform float3 iResolution;
+uniform float uT;
+uniform float uSpeed;
+uniform float uGlow;
+uniform float4 uHot;
+uniform float4 uBone;
+
+float2 path(float z) { return float2(sin(z * 0.19) * 1.6, cos(z * 0.15) * 1.1); }
+float gyroid(float3 p) { return dot(sin(p), cos(p.yzx)); }
+float map(float3 p) {
+    float3 q = p; q.xy -= path(p.z);
+    float tube = 1.9 - length(q.xy);
+    float g = gyroid(p * 1.35) / 1.35;
+    return (tube + g * 0.35) * 0.7;
+}
+half4 main(float2 coord) {
+    float2 uv = (coord - 0.5 * iResolution.xy) / iResolution.y;
+    uv.y = -uv.y;
+    float z = uT * uSpeed;
+    float3 ro = float3(path(z), z);
+    float3 ta = float3(path(z + 1.5), z + 1.5);
+    float3 fw = normalize(ta - ro);
+    float3 rt = normalize(cross(float3(0.0, 1.0, 0.0), fw));
+    float3 up = cross(fw, rt);
+    float roll = sin(z * 0.11) * 0.35;
+    float2 ruv = float2(uv.x * cos(roll) - uv.y * sin(roll), uv.x * sin(roll) + uv.y * cos(roll));
+    float3 rd = normalize(fw + ruv.x * rt + ruv.y * up);
+    float t = 0.0;
+    float3 glow = float3(0.0);
+    float hit = 0.0;
+    for (int i = 0; i < 80; i++) {
+        float3 p = ro + rd * t;
+        float d = map(p);
+        // rings every 2.5 units along z, pulsing
+        float ring = abs(fract(p.z * 0.4) - 0.5);
+        float band = exp(-ring * 40.0);
+        glow += uHot.rgb * band * 0.012 / (0.05 + abs(d) * 6.0);
+        glow += uBone.rgb * 0.0025 / (0.03 + abs(d) * 20.0);
+        if (d < 0.002) { hit = 1.0; break; }
+        t += d;
+        if (t > 30.0) break;
+    }
+    float fog = exp(-t * 0.09);
+    float3 p = ro + rd * t;
+    float lines = abs(fract(gyroid(p * 4.0) * 1.5) - 0.5);
+    float3 surf = mix(float3(0.02), uBone.rgb * 0.35, smoothstep(0.08, 0.0, lines)) * hit * fog;
+    float3 col = surf + glow * uGlow * fog;
+    col = col / (1.0 + col);
+    col = pow(col, float3(0.9));
+    return half4(half3(col), 1.0);
+}

@@ -1,0 +1,34 @@
+// Perspective grid floor rushing towards the camera, with a glowing horizon.
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uSpeed;
+uniform float uHorizon;   // 0..1 screen height of the horizon
+uniform float uBright;
+uniform float4 uInk;
+uniform float4 uHot;
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution.xy;
+    float y = uv.y - uHorizon;
+    float3 col = float3(0.0);
+    float a = 0.0;
+    if (y > 0.002) {
+        float z = 0.35 / y;
+        float x = (uv.x - 0.5) * z * (iResolution.x / iResolution.y) * 2.2;
+        float zz = z * 2.0 + iTime * uSpeed;
+        float fx = abs(fract(x) - 0.5);
+        float fz = abs(fract(zz) - 0.5);
+        float wx = 0.012 * z + 0.004;
+        float wz = 0.02 * z * z + 0.01;
+        float lx = 1.0 - smoothstep(0.0, wx * 1.5, fx - 0.0);
+        float lz = 1.0 - smoothstep(0.0, wz, fz);
+        float l = max(lx, lz) * exp(-z * 0.12);
+        float fade = smoothstep(0.0, 0.15, y);
+        col = mix(uHot.rgb, uInk.rgb, smoothstep(0.0, 0.5, y)) * l * fade;
+        a = l * fade;
+    }
+    float hz = exp(-abs(y) * 60.0) * 0.8 + exp(-abs(y) * 8.0) * 0.18;
+    col += uHot.rgb * hz;
+    a = clamp(a + hz, 0.0, 1.0);
+    return half4(half3(col * uBright), a * uBright);
+}

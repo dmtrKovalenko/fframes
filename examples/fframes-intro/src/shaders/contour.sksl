@@ -1,0 +1,52 @@
+// Topographic contour field around a moving gravity well. Lines are drawn
+// with an analytic width (height gradient) so they stay one pixel thin.
+uniform float3 iResolution;
+uniform float iTime;
+uniform float2 uWell;      // well position in 0..1 screen space
+uniform float uDepth;      // well depth
+uniform float uDensity;    // contour lines per unit height
+uniform float uBright;     // overall line brightness
+uniform float4 uInk;       // line color
+uniform float4 uHot;       // color near the well
+
+float hash(float2 p) { return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
+float noise(float2 p) {
+    float2 i = floor(p); float2 f = fract(p);
+    float2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + float2(1, 0)), u.x), mix(hash(i + float2(0, 1)), hash(i + float2(1, 1)), u.x), u.y);
+}
+float fbm(float2 p) {
+    float v = 0.0; float a = 0.5;
+    for (int i = 0; i < 4; i++) { v += a * noise(p); p = p * 2.02 + float2(11.0, 7.0); a *= 0.5; }
+    return v;
+}
+float height(float2 p, float t) {
+    float2 w = uWell * float2(iResolution.x / iResolution.y, 1.0);
+    float2 d = p - w;
+    float r2 = dot(d, d);
+    float well = -uDepth / (1.0 + r2 * 18.0);
+    float swirl = atan(d.y, d.x);
+    return fbm(p * 1.4 + float2(t * 0.02, -t * 0.015)) * 0.55 + well + 0.02 * sin(swirl * 3.0 + r2 * 20.0 - t);
+}
+half4 main(float2 coord) {
+    float2 p = coord / iResolution.y;
+    float t = iTime;
+    float e = 1.0 / iResolution.y;
+    float h = height(p, t);
+    float hx = height(p + float2(e, 0.0), t);
+    float hy = height(p + float2(0.0, e), t);
+    float grad = length(float2(hx - h, hy - h)) * uDensity + 1e-5;
+    float f = abs(fract(h * uDensity) - 0.5);
+    float line = 1.0 - smoothstep(0.6, 1.6, f / grad);
+    // every 5th line is a major contour
+    float major = abs(fract(h * uDensity / 5.0) - 0.5);
+    float lineMajor = 1.0 - smoothstep(0.6, 2.2, major / (grad / 5.0));
+    float2 w = uWell * float2(iResolution.x / iResolution.y, 1.0);
+    float hot = exp(-dot(p - w, p - w) * 9.0);
+    float3 col = mix(uInk.rgb, uHot.rgb, clamp(hot * 1.6, 0.0, 1.0));
+    float a = clamp((line * 0.45 + lineMajor * 0.55) * uBright * (0.35 + hot * 1.4), 0.0, 1.0);
+    // soft glow at the well
+    float3 glow = uHot.rgb * hot * 0.18 * uBright;
+    float3 c = col * a + glow;
+    return half4(half3(c), clamp(a + hot * 0.18 * uBright, 0.0, 1.0));
+}

@@ -76,7 +76,7 @@ impl Frame {
     pub fn clone_with_scene_offset(frame: &Frame, offset: usize) -> Self {
         Self {
             index: frame.index - offset,
-            global_index: frame.global_index + offset,
+            global_index: frame.global_index,
             fps: frame.fps,
             text_cache: frame.text_cache.clone(),
             worker_local_video_decoders: frame.worker_local_video_decoders.clone(),
@@ -466,5 +466,18 @@ impl Frame {
             })
             .ok()
             .flatten()
+    }
+}
+
+#[cfg(test)]
+mod scene_offset_tests {
+    use super::Frame;
+
+    #[test]
+    fn scene_frames_keep_the_global_index() {
+        let global = Frame::new(100, 100, 60);
+        let scene = Frame::clone_with_scene_offset(&global, 40);
+        assert_eq!(scene.index, 60);
+        assert_eq!(scene.global_index, 100);
     }
 }

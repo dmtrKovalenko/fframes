@@ -1,0 +1,29 @@
+// An image "developing": dithered orange duotone behind a scan line that
+// sweeps from left to right, full color after it.
+uniform float3 iResolution;
+uniform shader iChannel0;
+uniform float2 uImg;
+uniform float uProgress;   // 0..1 position of the scan line
+uniform float uReveal;     // 0..1 overall visibility
+uniform float4 uInk;
+uniform float4 uHot;
+
+half4 main(float2 coord) {
+    float2 src = coord / iResolution.xy * uImg;
+    float4 c = float4(iChannel0.eval(src));
+    float lum = dot(c.rgb, float3(0.299, 0.587, 0.114));
+    float2 px = floor(coord / 3.0);
+    float ign = fract(52.9829189 * fract(0.06711056 * px.x + 0.00583715 * px.y));
+    float d = lum > ign ? 1.0 : 0.0;
+    float3 duo = mix(uInk.rgb, uHot.rgb, d);
+    float x = coord.x / iResolution.x;
+    float edge = smoothstep(uProgress - 0.002, uProgress + 0.002, x);
+    float3 col = mix(c.rgb, duo, edge);
+    // bright scan line
+    float scan = exp(-abs(x - uProgress) * iResolution.x * 0.15);
+    col += uHot.rgb * scan * 1.2;
+    // dither fades in from nothing: pixels appear by threshold
+    float appear = step(ign, uReveal);
+    float a = appear;
+    return half4(half3(col * a), a);
+}

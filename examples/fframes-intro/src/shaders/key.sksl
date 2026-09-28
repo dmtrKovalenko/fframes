@@ -1,0 +1,38 @@
+// Green screen key for a decoded video frame (iChannel0), then either the
+// despilled footage or an orange halftone print of it.
+uniform float3 iResolution;
+uniform shader iChannel0;
+uniform float2 uImg;       // source frame size in pixels
+uniform float uHalftone;   // 0 = footage, 1 = halftone
+uniform float uCell;       // halftone cell size in output pixels
+uniform float4 uInk;
+uniform float4 uPaper;
+uniform float uAlpha;
+
+float4 sampleKeyed(float2 coord) {
+    float2 src = coord / iResolution.xy * uImg;
+    float4 c = float4(iChannel0.eval(src));
+    float key = c.g - max(c.r, c.b);
+    float a = 1.0 - smoothstep(0.06, 0.2, key);
+    float3 rgb = c.rgb;
+    rgb.g = min(rgb.g, max(rgb.r, rgb.b) * 1.02);
+    return float4(rgb, a);
+}
+half4 main(float2 coord) {
+    float4 k = sampleKeyed(coord);
+    float lum = dot(k.rgb, float3(0.299, 0.587, 0.114));
+    // halftone: sample the cell center, dot radius from luminance
+    float2 rc = float2(coord.x * 0.866 - coord.y * 0.5, coord.x * 0.5 + coord.y * 0.866);
+    float2 cell = floor(rc / uCell);
+    float2 ctr = (cell + 0.5) * uCell;
+    float2 ctrScreen = float2(ctr.x * 0.866 + ctr.y * 0.5, -ctr.x * 0.5 + ctr.y * 0.866);
+    float4 ks = sampleKeyed(ctrScreen);
+    float l2 = dot(ks.rgb, float3(0.299, 0.587, 0.114));
+    float r = uCell * 0.62 * sqrt(clamp(l2 * 1.25, 0.0, 1.0)) * ks.a;
+    float dotMask = 1.0 - smoothstep(r - 0.8, r + 0.8, length(rc - ctr));
+    float3 ht = mix(uInk.rgb, uPaper.rgb, smoothstep(0.55, 0.95, l2));
+    float htA = dotMask;
+    float3 col = mix(k.rgb * k.a, ht * htA, uHalftone);
+    float a = mix(k.a, htA, uHalftone) * uAlpha;
+    return half4(half3(col * uAlpha), a);
+}

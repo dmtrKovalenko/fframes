@@ -1,0 +1,205 @@
+ffe4739|2021-09-19|POC
+084e025|2021-09-19|Remove cyricllic file
+3959498|2021-10-04|[WIP] Use raw C ffmpeg API
+6cc57bd|2021-10-10|Working ffmpeg bindings
+eba33b2|2021-10-19|Working ffmpeg output
+bbb9abc|2021-10-31|Implement correct pix fmt
+31a5040|2021-11-08|WIP
+a34d535|2021-11-22|Implement correct parallelization for compressed ffmpeg packets
+2cd4f54|2021-11-22|feat: Implement webvtt parser
+c30a738|2021-11-22|Remove not needed media
+ffff986|2021-11-22|chore: Fix some warns
+86e8410|2021-11-22|feat: Improve error handling for errors inside subtitle groups
+f6c8f9d|2021-12-09|Implement marketing video 🎉
+a642580|2021-12-10|feat: Improve svgr parser
+ba37e0f|2021-12-15|[Wip] Prototype editor
+52338e7|2021-12-25|WIP: create ediotr
+22d1abe|2022-01-08|feat: Implement editor skeletomn
+fad9449|2022-01-10|wip: Implement timeline scene rendering
+b77b4bb|2022-01-12|Render sections in timeline
+12d9744|2022-01-19|WIP
+e2250dd|2022-02-07|fix: improve vtt parser  (#1)
+110ef64|2022-02-07|fix: improve vtt parser  (#1)
+f685db6|2022-01-25|Implement audio map
+f040949|2022-02-07|feat: Editor audio support
+0ac36be|2022-02-08|Remove big file
+2a2afc6|2022-02-08|Merge branch 'main' of github.com:dmtrKovalenko/fframes
+32a3c67|2022-02-08|Merge branch 'main' of github.com:dmtrKovalenko/fframes
+4a65313|2022-02-08|chore: Use rust naming convention in core
+9cd034b|2022-02-08|Support crossplatform images
+938ad2b|2022-02-08|Remove handlebars
+40656f3|2022-02-12|Implement correct audio playing
+66fd3bb|2022-02-13|feat: Resource loading for rendering backend
+54890ba|2022-02-13|Commit new files
+f81b466|2022-02-16|Migrate concatenator to rust
+980eed1|2022-02-19|feat: Tempdirs for files and finish renderer
+dcbc40c|2022-02-26|Commit new files
+b307d14|2022-02-26|Commit new files
+a99686a|2022-03-04|feat: Implement logger varaints
+aee11ef|2022-03-09|feat: Implement logger
+5fbee4a|2022-03-11|chore: Investigate large audio files processing
+f9fe9e1|2022-03-15|fix: Build
+c2f3b60|2022-04-05|feat: Public api for animation timelines
+88e69d2|2022-05-02|Implement GPU rendering prototype
+676b74a|2022-05-16|Implement timeline scrolling
+bc93467|2022-05-30|feat: Dock control bar
+36ee922|2022-07-10|Check
+e931635|2022-07-11|Add new video
+51b2fe5|2022-07-15|feat: Emit audio when rendering
+0b7b21b|2022-07-16|This is hard
+f90afea|2022-07-17|Correctly hanle no audio in the editor
+b87cb29|2022-07-24|Implment audio mixing for rendering
+048ca89|2022-07-27|fix: Editor crash when AudioMap::none
+13c526f|2022-07-27|feat: Inject audio for gpu renderer
+5384f6a|2022-08-03|Polish the audio editing
+a9641f1|2022-08-03|cargo fmt --all
+2378342|2022-08-04|feat: Polish the UI experience
+ca328fb|2022-08-04|Cleanup
+b2d186a|2022-08-05|feat: Restructure examples
+eaaabfe|2022-08-07|Use clippy
+2e8463c|2022-08-15|feat: Implement color animations
+8e68971|2022-08-15|fix: Do not seek on hover when window is not focused
+d8d53cb|2022-08-15|fix: Correctly set the font family name to match renderer
+54fca57|2022-08-17|chore: cleanup
+002fd0d|2022-08-17|Use react vdom for editor svg changes
+60143c9|2022-08-17|chore(deps): Update to react 18 stable
+0f89d72|2022-08-17|chore: Add more commands & cleanup
+7f7e686|2022-08-18|feat(editor): Fullscreen mode
+a23fccd|2022-08-18|fix: Only block xlink:href over the image
+1ae285c|2022-08-19|chore: Refactor podcast
+ecc320b|2022-09-01|feat: Multiscene videos
+11ec35e|2022-09-04|chore: Multiscene example
+2188229|2022-09-05|chore: Migrate to custom resvg and usvg
+2734103|2022-09-05|chore: Replace raw strings with a struct
+f08a8ca|2022-09-05|chore: Polish lint
+c8669c0|2022-09-05|chore(docs): Add license and more detailed readme
+22d2931|2022-09-05|chore: Change license extensions for github
+fa78cd9|2022-09-05|Push a license
+fc2da47|2022-09-28|feat: Support duplicated audio tracks and correctly display them
+48da527|2022-10-02|fix(editor): Read if video has audio or not without race condition
+567e0e9|2022-10-02|fix: Invalid wasm attribute name
+b96d458|2022-10-07|chore: Use unraceable hasAudio for editor player UI
+b6773e1|2022-11-02|feat: Beta invitation video (#8)
+4cbf624|2022-11-09|fix: wrong media_dir path in beta video example (#9)
+76e57cb|2022-11-10|Update README.md (#10)
+3241759|2022-11-20|feat: Rendering cache (#11)
+dcf13b4|2022-12-10|feat: e2e tests (#12)
+b5bdf6c|2022-12-12|feat: concurrency option for CpuRenderingBackend (#13)
+63d9600|2022-12-18|ffmpeg v5 support
+16daf31|2022-12-18|Revert "ffmpeg v5 support"
+26a7b24|2022-12-25|feat: ffmpeg v5 (#14)
+66dc5cf|2022-12-28|chore: Remove unstable async-closures feature usages (#15)
+f0403fc|2023-01-15|feat: Text wrapping feature + layout and shaping cache (#17)
+2ff6495|2023-01-23|feat: Text layouting cache (#19)
+764c94a|2023-02-22|feat: Compile time inlined svgtrees (#20)
+49183b6|2023-03-10|feat: Scene related audio maps + more efficient timeline resolving  (#21)
+b5ff1a4|2023-03-24|feat: A lot of audio improvements  (#22)
+88aeb21|2023-03-25|chore(ci): Use ffmpeg 5.1.2 docker container (#25)
+56b8921|2023-03-25|Vim style keywords (#23)
+e6d88a4|2023-03-25|Bump svgr (#24)
+0240486|2023-03-30|feat: Editor scenes and controls (#26)
+7353805|2023-04-04|fix: no-audio-videos editing and setMagnet behavior (#27)
+715fcc8|2023-05-30|chore: Update README.md (#29)
+7b6f118|2023-07-13|chore(deps): Upgrade ffmpeg to v6 (#30)
+ab9a350|2023-07-17|feat: Cross-codecs rendering (#28)
+7e36f16|2023-07-26|chore: Consolidate exports api (#31)
+2e51b52|2023-08-15|fix: Wasm prelude not complete (#33)
+a7c07c7|2023-10-10|feat: Rework media files linking and loading (#32)
+e4f26f3|2023-10-10|feat: Check rustfmt for the whole codebase
+62233b0|2023-11-09|fix: DTS collision in the final concatenator (#36)
+5d5aabc|2023-12-06|feat: New audio announce example (#37)
+f5f5279|2023-12-10|chore: Setup CI for spellchecking using typos ci (#38)
+b809d09|2023-12-10|chore: Setup CI for spellchecking using typos ci (#38)
+fcc66c5|2024-01-19|chore: Add .ignore file
+5963d02|2024-01-19|Merge branch 'main' of github.com:dmtrKovalenko/fframes
+4903972|2024-02-10|fix: Bump ffmpeg-next version and update gitignore (#40)
+e648723|2024-03-07|feat: Use libav for audio decoding and convert all samples to SMTP (#41)
+f5c0929|2024-03-20|feat(waves example): Use wav file in the audio announce (#42)
+9a5e921|2024-03-20|chore(deps): Cleanup unused and upgrade used deps (#43)
+4500519|2024-03-22|chore: Upgrade svgr to 0.30.0 and fix minor issues (#44)
+c6696a5|2024-03-22|BREAKING CHANGE: Rename fn audio_map -> audio (#45)
+921ee0b|2024-04-03|chore(beta release): 1.0.0-beta.1
+8d831f4|2024-04-08|chore(deps): Update typos spellcheck (#55)
+9f4a0cc|2024-04-08|fix(ci): not working on pull requests from forks (#54)
+403bf15|2024-04-08|chore: syncpack (#52)
+d0e4783|2024-04-08|fix(examples): audio-announce example import (#53)
+ea4c684|2024-05-07|feat: Upgrade to ffmpeg v7 (#56)
+eea31a5|2024-05-13|feat: Do not clone static and input strings in svgr (#57)
+44a492e|2024-08-30|Update gst
+d27a63c|2024-09-01|feat: Use custom ffmpet-sys script
+2d04af8|2024-09-02|fix(ci): Do not use ffmpeg container on CI (#60)
+38625aa|2024-09-02|chore(readme): add required codec dependencies
+58b2153|2024-09-03|fix: wasm local builds and upgrade vite (#61)
+674fcef|2024-09-03|chore: remove unused pritnln
+bc70039|2024-09-03|chore(static media): add build script to rerun cargo on files change
+7c75914|2024-09-05|chore(ci): do not use CI matrix until the repo is private
+3a67583|2024-09-24|feat: Artbitary types with form conversion in svgtrees (#64)
+a1d3848|2024-09-24|refactor: Spring easing defintion API (#63)
+cb4015b|2024-10-14|feat: Video file inputs (#67)
+737e43f|2024-10-15|feat: Looping on videos and more animatables (#69)
+9329ecb|2024-10-25|feat: Standalone codecs feature flags (#71)
+70ea033|2024-10-25|feat: Add `render_frame` function to renderere (#72)
+4d4f062|2024-10-25|feat: Nightly release (#73)
+9ee8486|2024-10-27|feat: New conference splash screen example (#70)
+4bda415|2024-10-30|fix: Crash with render_frame and video media (#75)
+87a443b|2024-10-31|fix: Duration::Auto infer from audio_map (#77)
+fc0ce6b|2024-10-31|feat: Allow to scale resolution and change framerate on the flight (#76)
+c5a532d|2024-11-05|fix: Not building videotoolbox for macos (#78)
+0d0c540|2024-11-22|chore(docs): Missing requirements (linux) in the README.md (#82)
+05daf66|2024-11-22|feat: Truly silent and a quiet logger (#79)
+af50725|2024-11-22|fix: Editor frontend postinstall script
+4662d4a|2024-11-22|chore: Fix release script typo
+d972df2|2024-11-22|chore: Fix workspace publishing
+f863123|2024-11-22|chore: Fix release scripting
+4d21b69|2024-12-17|chore(deps): Rust 1.83 (#83)
+7b7b18b|2024-12-17|feat: Support codec tags in encoding params (#85)
+622251a|2024-12-17|chore(docs): Update compilation guilde
+c0e19b3|2024-12-18|fix: Wrong tag source
+207a6ea|2024-12-18|feat: Correctly set video bit rate
+bf54107|2025-01-03|chore(release): Do not verify the release scripot
+8fcfb61|2025-01-04|fix: Looping delay (#93)
+6dfa0cf|2025-01-06|changing to modulus (#94)
+0279f8f|2025-01-10|fix(video): Looping for mutlicore (#97)
+6b863af|2025-01-14|chore(docs): More explicit Linux installation docs (#99)
+e7869e6|2025-01-25|feat: Implement skia render backend (#100)
+05cfb24|2025-02-12|feat: Teej podcast example + PERFORMANCE (#101)
+89d64f4|2025-02-13|fix: Wasm compilation process (#103)
+a3b19a3|2025-02-18|Update LICENSE
+db4abc5|2025-02-19|fix: Unnecessary macros errors (#104)
+56e01e2|2025-02-22|fix: LSP errors on negative float tokenizing (#105)
+4e3efeb|2025-02-28|chore: Upgrade to 2024 edition (#106)
+835f8e6|2025-03-22|feat: New example and animation redesign (#107)
+9366504|2025-03-25|fix: Wrong width/height data on the decoded video frame (#109)
+0c700c9|2025-03-27|feat: add shell.nix (#110)
+f2115a1|2025-03-31|feat!: Change the wasm bridge structure (#108)
+9704caa|2025-04-09|chore(deps): Update svgr and ffmpeg-sys-next (#113)
+1616a32|2025-04-10|feat: Inline assembly optimization for pix fmt conversion (#81)f
+f492a0b|2025-04-10|fix(deps): Wrong Cargo.toml version of svgr
+f3b95a9|2025-04-10|fix(deps): Bump the vesion of ffmpeg-sys-next
+e8be5f1|2025-04-10|chore: Do not publish test audio files to crates
+55aa08e|2025-04-10|fix: Accellerated pix fmt conversion for vertical video
+a6ec9a6|2025-04-14|fix: Misc bugs with svgr and timeline (#114)
+5849487|2025-04-14|chore: Improve marketing example
+ac327d4|2025-04-15|chore: Revert rescript files default formatting (#115)
+f31b548|2025-04-22|feat: Implement hardware acceleration for decoded video files (#116)
+af3f447|2025-04-21|chore(docs): Update README.md
+f6af3e8|2025-04-25|feat: Instant rendering for GPU (#117)
+e69cac0|2025-04-25|fix: Vulkan hw acelleration type type
+3118713|2025-04-25|feat: Add `frame.text_width` api for resolving precise text width (#118)
+980912f|2025-04-28|feat: Abort rendering api (#119)
+722fba5|2025-05-11|feat: image exif data parsing (#112)
+7fc456b|2025-06-03|feat: Improve rendering allocation strategy (#120)
+22d6543|2025-06-12|chore(docs): add note to install ninja via Homebrew for macOS builds to README.md (#123)
+763a88c|2025-06-30|feat: Transparent videos support  (#122)
+927ddf0|2025-06-30|chore: Auto format examples (#125)
+0b0214f|2025-10-25|feat: Timeline zooming + upgrade rust  (#126)
+3f7e3c4|2025-10-29|chore: Update conference example  (#128)
+da24efd|2025-11-17|chore(docs): Update README.md - add debian system libs (#129)
+a1fe4c3|2026-09-15|feat: Much faster skia renderer + static cache for nodes  (#130)
+248344f|2026-09-27|ci: Keep the cargo cache warm on main and check wasm in parallel (#134)
+87861f6|2026-09-27|feat: Native real-time player powered by the skia renderer (#133)
+52a91ca|2026-09-27|feat: Windows support + ffmpeg-sys-next 9.0 (#135)
+1ed1cdb|2026-09-27|feat: GPU shader layers for the skia renderer (#136)
+d3cfc3f|2026-09-27|perf: Faster CPU and GPU rendering, render-bench over every example (#138)
+410b4be|2026-09-27|feat: Agent-friendly CLI, stereo audio mixer and project scaffolding (#139)
+1070159|2026-09-27|feat: New design for the web editor and the native player (#137)
