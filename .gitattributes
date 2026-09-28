@@ -1,1 +1,18 @@
 * text=auto eol=lf
+
+# media is binary: never convert line endings
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.mp3 binary
+*.wav binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.wasm binary
