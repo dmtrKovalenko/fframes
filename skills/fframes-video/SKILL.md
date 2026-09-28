@@ -87,10 +87,11 @@ my-video/
   README.md         # the commands below
 ```
 
-Every command below is `cargo run --release -- <command>`. Define a short alias:
+Every command below is `cargo run --release -- <command>`. Define a short shell function (a
+variable like `R="cargo run --release --"` does not split into words in zsh, the macOS shell):
 
 ```bash
-R="cargo run --release --"
+R() { cargo run --release -- "$@"; }
 ```
 
 ## 3. The loop
@@ -250,5 +251,17 @@ command to watch it.
 - Build fails in the Skia bindings (`fframes-skia-bindings`) with bindgen or libclang errors: point `LIBCLANG_PATH` at a
   working libclang (on macOS Xcode's:
   `export LIBCLANG_PATH=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib`).
+- Skia bindings fail to compile on macOS 27 / Xcode 27 with ``cannot find type `_Traits` ``
+  in `std___hash_table___node_allocator`: Xcode 27's libc++ needs a bindgen rule that
+  `fframes-skia-bindings` 0.91.1 does not have yet (rust-skia fixed it in
+  [#1335](https://github.com/rust-skia/rust-skia/pull/1335)). Until a release includes it, patch a
+  local copy: copy `~/.cargo/registry/src/*/fframes-skia-bindings-0.91.1` to
+  `vendor/fframes-skia-bindings`, add `"std::__hash_table.*",` after `"std::__tree.*",` in
+  `OPAQUE_TYPES` in its `build_support/skia_bindgen.rs`, and add to the project's own `Cargo.toml`:
+  `[patch.crates-io]` `fframes-skia-bindings = { path = "vendor/fframes-skia-bindings" }`.
+  The compiled Skia build is reused, so the rebuild takes minutes.
+- ``can't find crate for `fframes_media_dir_macro` `` on macOS 27 while the file exists: the
+  proc macro was linked by an older Rust whose output the macOS 27 loader rejects (a "LINKEDIT
+  string pool" error). Update Rust (`rustup update`; 1.98 works) and rebuild.
 - Text renders in the wrong font or not at all: `inspect` shows "No match for ... font-family";
   add the font file to `media/` and use its exact family name.
