@@ -19,7 +19,10 @@ pub const COND: &str = "Anton";
 pub const MONO: &str = "IBM Plex Mono";
 pub const SERIF: &str = "Instrument Serif";
 
-static WIDTHS: LazyLock<Mutex<HashMap<(String, usize, u16, bool, String), f32>>> =
+/// (family, size, weight, italic, text)
+type WidthKey = (String, usize, u16, bool, String);
+
+static WIDTHS: LazyLock<Mutex<HashMap<WidthKey, f32>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Width of a string in pixels, measured once per (font, text) and cached.
@@ -41,7 +44,11 @@ pub fn measure(
         family,
         size,
         weight,
-        style: if italic { FontStyle::Italic } else { FontStyle::Normal },
+        style: if italic {
+            FontStyle::Italic
+        } else {
+            FontStyle::Normal
+        },
         ..Default::default()
     };
     // `text_width` wants the text to live as long as the context; results are
@@ -74,7 +81,14 @@ pub fn corners(x: f32, y: f32, w: f32, h: f32, arm: f32, color: &str, width: f32
 }
 
 /// A small mono label, uppercase tracking like engineering drawings.
-pub fn label(x: f32, y: f32, text: String, color: &str, size: f32, anchor: &'static str) -> Svgr<'static> {
+pub fn label(
+    x: f32,
+    y: f32,
+    text: String,
+    color: &str,
+    size: f32,
+    anchor: &'static str,
+) -> Svgr<'static> {
     fframes::svgr!(
         <text x={x} y={y} font-family={MONO} font-weight="500" font-size={size} letter-spacing="2.5"
               fill={color.to_owned()} text-anchor={anchor}>{text}</text>
@@ -132,7 +146,7 @@ pub fn thousands(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);
@@ -200,8 +214,25 @@ pub struct Slam {
 }
 
 impl Slam {
-    pub fn new(x: f32, y: f32, text: impl Into<String>, family: &'static str, size: f32, fill: &'static str) -> Self {
-        Slam { x, y, text: text.into(), family, size, fill, spacing: -size * 0.035, anchor: "start", italic: false }
+    pub fn new(
+        x: f32,
+        y: f32,
+        text: impl Into<String>,
+        family: &'static str,
+        size: f32,
+        fill: &'static str,
+    ) -> Self {
+        Slam {
+            x,
+            y,
+            text: text.into(),
+            family,
+            size,
+            fill,
+            spacing: -size * 0.035,
+            anchor: "start",
+            italic: false,
+        }
     }
     pub fn anchor(mut self, anchor: &'static str) -> Self {
         self.anchor = anchor;
@@ -231,7 +262,11 @@ impl Slam {
             )
         };
         let mut layers = Vec::new();
-        let trail = [(0.16, EMBER, 0.35), (0.10, "#c4531c", 0.5), (0.05, ORANGE, 0.65)];
+        let trail = [
+            (0.16, EMBER, 0.35),
+            (0.10, "#c4531c", 0.5),
+            (0.05, ORANGE, 0.65),
+        ];
         for (lag, color, o) in trail {
             let (ox, oy) = off(since - lag);
             let (cx, cy) = off(since);

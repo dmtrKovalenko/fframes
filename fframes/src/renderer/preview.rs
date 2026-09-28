@@ -30,7 +30,7 @@ impl std::fmt::Debug for RgbaFrame {
 impl RgbaFrame {
     /// Wraps premultiplied RGBA pixels (what tiny-skia and Skia produce).
     pub fn from_premultiplied(width: u32, height: u32, mut pixels: Vec<u8>) -> Self {
-        for px in pixels.chunks_exact_mut(4) {
+        for px in pixels.as_chunks_mut::<4>().0 {
             let a = px[3];
             if a != 255 && a != 0 {
                 for c in &mut px[..3] {

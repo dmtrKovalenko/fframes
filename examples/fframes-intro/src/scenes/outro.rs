@@ -7,7 +7,7 @@ use crate::beat::*;
 use crate::shaders::SHADERS;
 use crate::ui::*;
 
-beat_scene!(OutroScene, Some(200.0), None);
+beat_scene!(OutroScene, Some(240.0), None);
 
 const WORD_SIZE: usize = 300;
 
@@ -61,7 +61,10 @@ impl Scene for OutroScene {
 
         let tag = prog(lb, 4.0, 4.6);
         let cmds = [
-            ("npx skills add dmtrKovalenko/fframes", "WITH YOUR CODING AGENT"),
+            (
+                "npx skills add dmtrKovalenko/fframes",
+                "WITH YOUR CODING AGENT",
+            ),
             ("cargo fframes new my-video", "OR BY HAND"),
         ];
         let cmd_rows: Vec<Svgr> = cmds

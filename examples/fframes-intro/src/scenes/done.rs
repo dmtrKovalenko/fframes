@@ -5,7 +5,7 @@ use fframes::{Duration, FFramesContext, Frame, Scene, Svgr};
 use crate::beat::*;
 use crate::ui::*;
 
-beat_scene!(DoneScene, Some(196.0), Some(200.0));
+beat_scene!(DoneScene, Some(236.0), Some(240.0));
 
 const COMMAND: &str = "cargo fframes new my-video";
 

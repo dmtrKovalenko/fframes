@@ -113,9 +113,8 @@ All numbers are in `results.tsv` and `results_ultrafast_sweep.tsv` and are summa
   and Remotion wrote 300). This looks like a bug in the CPU render path and should be
   checked before quoting CPU numbers next to GPU numbers. It changes the CPU time by
   about 0.3%.
-- Earlier passes were discarded: `results_backtoback.tsv` (no idle time between runs, load
-  average up to 75) and `results_contaminated_1740_1806.tsv` (other renders ran on the machine
-  at the same time). They show the same ordering with more noise.
+- Earlier passes with no idle time between runs, or with other renders on the machine, were
+  discarded. They showed the same ordering with more noise.
 - Single machine, Apple Silicon only. Linux or x86 results can differ, especially for
   Chrome and MoltenVK compared with native Vulkan.
 

@@ -17,7 +17,11 @@ pub const LEFT: (f32, f32, f32, f32) = (150.0, 300.0, 790.0, 444.0);
 pub const RIGHT: (f32, f32, f32, f32) = (980.0, 300.0, 790.0, 444.0);
 
 pub fn clip_input() -> SyncVideoFrameInput<'static> {
-    SyncVideoFrameInput { start_from: 0.0, looping: true, editor_fallback_image: None }
+    SyncVideoFrameInput {
+        start_from: 0.0,
+        looping: true,
+        editor_fallback_image: None,
+    }
 }
 
 /// The keyed guest from the right feed: footage (0) or halftone print (1).
@@ -94,9 +98,15 @@ impl Scene for VideoScene {
 
         let (lx, ly, lw, lh) = LEFT;
         let (rx, ry, rw, rh) = RIGHT;
-        let left_img = left.map(|i| fframes::svgr!(<image href={i.href()} x={lx} y={ly} width={lw} height={lh} />)).unwrap_or_default();
+        let left_img = left
+            .map(|i| fframes::svgr!(<image href={i.href()} x={lx} y={ly} width={lw} height={lh} />))
+            .unwrap_or_default();
         let right_img = if keyed {
-            let flicker = if lb < 4.25 { (hash(lb * 211.0) > 0.5) as i32 as f32 } else { 1.0 };
+            let flicker = if lb < 4.25 {
+                (hash(lb * 211.0) > 0.5) as i32 as f32
+            } else {
+                1.0
+            };
             fframes::svgr!(
                 <g>
                     <clipPath id="vid-right"><rect x={rx} y={ry} width={rw} height={rh} /></clipPath>

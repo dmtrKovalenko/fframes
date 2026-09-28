@@ -562,10 +562,9 @@ impl<'m> AudioMixer<'m> {
         let len = left.len().min(right.len());
         let (left, right) = (&mut left[..len], &mut right[..len]);
 
-        if self.limiter.is_none() {
-            self.mix_raw(start, left, right);
-        } else {
-            let latency = self.limiter.as_ref().map_or(0, Limiter::latency);
+        // The limiter is taken out while `mix_raw` borrows the mixer and put back after.
+        if let Some(mut limiter) = self.limiter.take() {
+            let latency = limiter.latency();
             let mut raw_l = vec![0.; len];
             let mut raw_r = vec![0.; len];
 
@@ -574,7 +573,6 @@ impl<'m> AudioMixer<'m> {
                 let mut prime_l = vec![0.; latency];
                 let mut prime_r = vec![0.; latency];
                 self.mix_raw(start, &mut prime_l, &mut prime_r);
-                let limiter = self.limiter.as_mut().expect("limiter is set");
                 limiter.reset();
                 for (l, r) in prime_l.into_iter().zip(prime_r) {
                     limiter.process(l, r);
@@ -582,13 +580,15 @@ impl<'m> AudioMixer<'m> {
             }
 
             self.mix_raw(start + latency, &mut raw_l, &mut raw_r);
-            let limiter = self.limiter.as_mut().expect("limiter is set");
             for i in 0..len {
                 let (l, r) = limiter.process(raw_l[i], raw_r[i]);
                 left[i] = l;
                 right[i] = r;
             }
             self.next_raw = Some(start + latency + len);
+            self.limiter = Some(limiter);
+        } else {
+            self.mix_raw(start, left, right);
         }
 
         if self.declick {

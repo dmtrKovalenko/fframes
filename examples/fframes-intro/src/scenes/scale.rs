@@ -33,7 +33,11 @@ impl Scene for ScaleScene {
 fn question(lb: f32) -> Svgr<'static> {
     let shrink = cubic_in_out(prog(lb, 3.0, 4.0));
     let s = lerp(1.0, 0.28, shrink);
-    let t = format!("translate({} {}) scale({s})", lerp(0.0, 150.0 - 150.0 * s, shrink), lerp(0.0, 34.0, shrink));
+    let t = format!(
+        "translate({} {}) scale({s})",
+        lerp(0.0, 150.0 - 150.0 * s, shrink),
+        lerp(0.0, 34.0, shrink)
+    );
     fframes::svgr!(
         <g transform={t}>
             {Slam::new(150.0, 440.0, "HOW", DISPLAY, 330.0, BONE).draw(lb, -260.0, 0.0)}
@@ -66,7 +70,13 @@ fn wall(lb: f32) -> Svgr<'static> {
         let h = hash(i as f32 * 1.37 + (lb * 4.0).floor());
         let word = WORDS[(hash(i as f32) * WORDS.len() as f32) as usize % WORDS.len()];
         let fresh = fill * 1.02 - key < 0.03;
-        let color = if fresh || h > 0.97 { ORANGE } else if h > 0.55 { "#b3aca2" } else { "#6b665f" };
+        let color = if fresh || h > 0.97 {
+            ORANGE
+        } else if h > 0.55 {
+            "#b3aca2"
+        } else {
+            "#6b665f"
+        };
         let x = x0 + c as f32 * dx;
         let y = y0 + r as f32 * dy;
         nodes.push(fframes::svgr!(<text x={x} y={y} font-family={MONO} font-size="13" font-weight="500" fill={color}>{word}</text>));

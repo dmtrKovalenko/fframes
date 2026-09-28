@@ -39,12 +39,25 @@ impl Scene for PromptScene {
         let line2: String = shown.chars().skip(split).collect();
         let adv = 64.0 * 0.6;
         let on_second = typed > split;
-        let caret_x = 240.0 + if on_second { (typed - split) as f32 } else { typed as f32 } * adv;
+        let caret_x = 240.0
+            + if on_second {
+                (typed - split) as f32
+            } else {
+                typed as f32
+            } * adv;
         let caret_y = if on_second { 612.0 } else { 522.0 };
 
         let after = t - enter_at;
-        let lift = if after > 0.0 { -expo_out(after / 0.25) * 200.0 } else { 0.0 };
-        let enter_flash = if after > 0.0 { (-after * 9.0).exp() } else { 0.0 };
+        let lift = if after > 0.0 {
+            -expo_out(after / 0.25) * 200.0
+        } else {
+            0.0
+        };
+        let enter_flash = if after > 0.0 {
+            (-after * 9.0).exp()
+        } else {
+            0.0
+        };
 
         let lines: Vec<Svgr> = OUTPUT
             .iter()

@@ -2,11 +2,14 @@
 //! from real runs (see render-bench/vs-remotion and this project's CLI) and
 //! are refreshed before the final render.
 
+/// Lines of Rust in fframes plus its SVG renderer fork, svgr (`wc -l` over
+/// the git-tracked `.rs` files of both repositories).
+pub const LINES_OF_RUST: u64 = 89_372;
 /// Frames in this video.
-pub const FRAMES: u64 = 6_558;
+pub const FRAMES: u64 = 7_650;
 /// Wall-clock seconds of the final render of this video (Skia on Metal,
 /// libx264, with audio).
-pub const RENDER_SECONDS: f32 = 36.7;
+pub const RENDER_SECONDS: f32 = 40.5;
 
 /// Benchmark: 1,000,000 text nodes (300 frames × 3,334 nodes, 1920x1080,
 /// H.264, libx264 ultrafast crf 18 on both), median wall-clock seconds of

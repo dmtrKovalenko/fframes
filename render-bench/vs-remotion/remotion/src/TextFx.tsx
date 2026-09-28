@@ -7,7 +7,23 @@
 import React from 'react';
 import {AbsoluteFill, staticFile, useCurrentFrame} from 'remotion';
 import {loadFont} from '@remotion/fonts';
-import {hslToHex} from './shared';
+
+// HSL (degrees, 0..1, 0..1) to #rrggbb, the same math as hsl_to_hex in textfx.rs.
+const hslToHex = (h: number, s: number, l: number): string => {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) [r, g, b] = [c, x, 0];
+  else if (hp < 2) [r, g, b] = [x, c, 0];
+  else if (hp < 3) [r, g, b] = [0, c, x];
+  else if (hp < 4) [r, g, b] = [0, x, c];
+  else if (hp < 5) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const m = l - c / 2;
+  const q = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${q(r)}${q(g)}${q(b)}`;
+};
 
 loadFont({family: 'DM Sans', url: staticFile('DMSans-Regular.ttf'), weight: '400'});
 

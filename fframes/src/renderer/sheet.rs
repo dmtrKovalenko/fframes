@@ -12,7 +12,7 @@ pub struct SheetCell {
 
 fn to_pixmap(frame: &RgbaFrame) -> FFramesRendererResult<tiny_skia::Pixmap> {
     let mut data = frame.pixels.clone();
-    for px in data.chunks_exact_mut(4) {
+    for px in data.as_chunks_mut::<4>().0 {
         let a = px[3] as u32;
         if a != 255 {
             for c in &mut px[..3] {

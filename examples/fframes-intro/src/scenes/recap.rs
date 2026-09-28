@@ -5,9 +5,11 @@ use fframes::{Duration, FFramesContext, Frame, Scene, Svgr};
 use crate::beat::*;
 use crate::ui::*;
 
-beat_scene!(RecapScene, Some(184.0), Some(196.0));
+beat_scene!(RecapScene, Some(224.0), Some(236.0));
 
-const WORDS: &[&str] = &["TEXT", "IMAGES", "VIDEO", "SHADERS", "AUDIO", "GPU", "EFFECTS", "AGENTS"];
+const WORDS: &[&str] = &[
+    "TEXT", "IMAGES", "VIDEO", "SHADERS", "AUDIO", "GPU", "EFFECTS", "AGENTS",
+];
 
 impl Scene for RecapScene {
     fn duration(&self) -> Duration<'_> {

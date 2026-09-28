@@ -9,24 +9,63 @@
 //! ```
 //! Backends: `metal`, `vulkan` (MoltenVK), `cpu`. `GPU_CONTEXTS=n` for n Skia contexts.
 
-#[path = "../shared.rs"]
-mod shared;
-
 use std::path::Path;
 use std::time::Instant;
 
 use fframes::{
-    AudioMap, Color, Duration, EncoderOptions, FFramesContext, Frame, MediaDirectory, RenderOptions,
-    Svgr, Video, fframes_logger::FFramesLoggerVariant,
+    AudioMap, Color, Duration, EncoderOptions, FFramesContext, Frame, MediaDirectory,
+    RenderOptions, Svgr, Video, fframes_logger::FFramesLoggerVariant,
 };
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
-use shared::hsl_to_hex;
+use fframes_skia_renderer::{
+    SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig,
+};
+
+/// HSL (degrees, 0..1, 0..1) to `#rrggbb`, the same math as `hslToHex` in TextFx.tsx.
+fn hsl_to_hex(h: f64, s: f64, l: f64) -> String {
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let hp = h / 60.0;
+    let x = c * (1.0 - ((hp % 2.0) - 1.0).abs());
+    let (r, g, b) = if hp < 1.0 {
+        (c, x, 0.0)
+    } else if hp < 2.0 {
+        (x, c, 0.0)
+    } else if hp < 3.0 {
+        (0.0, c, x)
+    } else if hp < 4.0 {
+        (0.0, x, c)
+    } else if hp < 5.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+    let m = l - c / 2.0;
+    let q = |v: f64| ((v + m) * 255.0).round() as u8;
+    format!("#{:02x}{:02x}{:02x}", q(r), q(g), q(b))
+}
 
 const NODES: usize = 3334;
 const FRAMES: usize = 300;
 const WORDS: [&str; 20] = [
-    "fframes", "Rust", "Skia", "GPU", "render", "SVG", "frame", "video", "motion", "text",
-    "1,000,000", "60 fps", "pixels", "shader", "glyph", "kerning", "encode", "H.264", "effects", "wave",
+    "fframes",
+    "Rust",
+    "Skia",
+    "GPU",
+    "render",
+    "SVG",
+    "frame",
+    "video",
+    "motion",
+    "text",
+    "1,000,000",
+    "60 fps",
+    "pixels",
+    "shader",
+    "glyph",
+    "kerning",
+    "encode",
+    "H.264",
+    "effects",
+    "wave",
 ];
 const WAVE_WORDS: [&str; 4] = ["fframes", "WAVE", "rendering", "motion"];
 const GRADIENTS: usize = 6;
@@ -98,17 +137,17 @@ impl Video for TextFx {
             ));
         }
         for (v, color) in SHADOW_COLORS.iter().enumerate() {
-            let a = f * 0.08 + v as f64 * 1.5708;
+            let a = f * 0.08 + v as f64 * std::f64::consts::FRAC_PI_2;
             let (dx, dy) = (5.0 * a.cos(), 5.0 * a.sin());
             defs.push(fframes::svgr!(
-                <filter id={format!("shadow{v}")} x="-0.5" y="-1" width="2" height="3">
+                <filter id={format!("shadow{v}")} x="-0.25" y="-0.6" width="1.5" height="2.2">
                     <feDropShadow dx={format!("{dx:.3}")} dy={format!("{dy:.3}")} stdDeviation="3" flood-color={*color} />
                 </filter>
             ));
         }
         let glow_sigma = 3.0 + 2.0 * (0.5 + 0.5 * (f * 0.1).sin());
         defs.push(fframes::svgr!(
-            <filter id="glow" x="-0.5" y="-1" width="2" height="3">
+            <filter id="glow" x="-0.25" y="-0.6" width="1.5" height="2.2">
                 <feGaussianBlur in="SourceGraphic" stdDeviation={format!("{glow_sigma:.3}")} result="b" />
                 <feMerge>
                     <feMergeNode in="b" />
@@ -156,7 +195,11 @@ impl Video for TextFx {
                 (r(5) - 0.5) * 60.0 + 25.0 * (f * 0.04 * speed + phase).sin()
             };
             let scale = 0.8 + 0.35 * (f * 0.06 * speed + phase * 0.7).sin();
-            let skew = if r(7) < 0.4 { 20.0 * (f * 0.05 + phase).sin() } else { 0.0 };
+            let skew = if r(7) < 0.4 {
+                20.0 * (f * 0.05 + phase).sin()
+            } else {
+                0.0
+            };
             let opacity = 0.35 + 0.65 * (0.5 + 0.5 * (f * 0.07 * speed + phase * 2.0).sin());
             let hue = (r(8) * 360.0 + f * 3.0 * speed) % 360.0;
             let color = hsl_to_hex(hue, 0.85, 0.62);
@@ -167,7 +210,9 @@ impl Video for TextFx {
             } else {
                 WORDS[(r(10) * WORDS.len() as f64) as usize].to_string()
             };
-            let tf = format!("translate({x:.3} {y:.3}) rotate({rot:.3}) skewX({skew:.3}) scale({scale:.4})");
+            let tf = format!(
+                "translate({x:.3} {y:.3}) rotate({rot:.3}) skewX({skew:.3}) scale({scale:.4})"
+            );
             let op = format!("{opacity:.3}");
 
             nodes.push(match kind {
@@ -220,8 +265,14 @@ impl Video for TextFx {
 }
 
 fn pipeline() -> SkiaPipelineConfig {
-    let contexts = std::env::var("GPU_CONTEXTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-    SkiaPipelineConfig { concurrency_policy: SkiaPipelineConcurrencyPolicy::Concurrency(contexts), ..Default::default() }
+    let contexts = std::env::var("GPU_CONTEXTS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    SkiaPipelineConfig {
+        concurrency_policy: SkiaPipelineConcurrencyPolicy::Concurrency(contexts),
+        ..Default::default()
+    }
 }
 
 fn main() {
@@ -235,7 +286,8 @@ fn main() {
 
     let started = Instant::now();
     // Only DMSans-Regular.ttf (byte-identical to ../remotion/public/DMSans-Regular.ttf).
-    let media_dir = MediaDirectory::read_folder(concat!(env!("CARGO_MANIFEST_DIR"), "/media")).unwrap();
+    let media_dir =
+        MediaDirectory::read_folder(concat!(env!("CARGO_MANIFEST_DIR"), "/media")).unwrap();
     let media = media_dir.process_media_source().unwrap();
     let options = RenderOptions {
         media: Some(&media),
@@ -249,22 +301,45 @@ fn main() {
         },
         ..Default::default()
     };
-    let video = TextFx { only: std::env::var("TEXTFX_ONLY").ok() };
-    eprintln!("fframes textfx: {NODES} text nodes/frame x {FRAMES} frames, backend={backend}, 1920x1080@30 (libx264 crf 18, preset {preset})");
+    let video = TextFx {
+        only: std::env::var("TEXTFX_ONLY").ok(),
+    };
+    eprintln!(
+        "fframes textfx: {NODES} text nodes/frame x {FRAMES} frames, backend={backend}, 1920x1080@30 (libx264 crf 18, preset {preset})"
+    );
     let result = match backend.as_str() {
-        "cpu" => fframes::render(&out, &video, fframes::cpu::CpuRenderingBackend::default(), &options),
+        "cpu" => fframes::render(
+            &out,
+            &video,
+            fframes::cpu::CpuRenderingBackend::default(),
+            &options,
+        ),
         "vulkan" => {
-            let ctx = fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(1920, 1080).expect("vulkan");
-            fframes::render(&out, &video, SkiaFFramesRenderer::new_vulkan(&ctx, pipeline()).unwrap(), &options)
+            let ctx =
+                fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(1920, 1080).expect("vulkan");
+            fframes::render(
+                &out,
+                &video,
+                SkiaFFramesRenderer::new_vulkan(&ctx, pipeline()).unwrap(),
+                &options,
+            )
         }
         #[cfg(target_os = "macos")]
         "metal" => {
             let ctx = fframes_skia_renderer::metal::SkiaMetalCtx::new(1920, 1080).expect("metal");
-            fframes::render(&out, &video, SkiaFFramesRenderer::new_metal(&ctx, pipeline()).unwrap(), &options)
+            fframes::render(
+                &out,
+                &video,
+                SkiaFFramesRenderer::new_metal(&ctx, pipeline()).unwrap(),
+                &options,
+            )
         }
         other => panic!("unknown backend {other}"),
     };
     result.expect("render failed");
     let secs = started.elapsed().as_secs_f64();
-    eprintln!("fframes textfx: {FRAMES} frames to {out} in {secs:.2}s ({:.1} fps)", FRAMES as f64 / secs);
+    eprintln!(
+        "fframes textfx: {FRAMES} frames to {out} in {secs:.2}s ({:.1} fps)",
+        FRAMES as f64 / secs
+    );
 }

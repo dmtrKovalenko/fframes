@@ -8,9 +8,9 @@ pub const FPS: usize = 60;
 /// One beat of the soundtrack, in seconds (132.007 BPM, measured).
 pub const BEAT: f32 = 0.454_522;
 /// First downbeat of the soundtrack (bar 1, beat 1).
-pub const DOWNBEAT0: f32 = 2.148_510;
+pub const DOWNBEAT0: f32 = 2.148_51;
 /// The music ends with a decay; the video stops with it.
-pub const TOTAL_SECONDS: f32 = 109.3;
+pub const TOTAL_SECONDS: f32 = 127.5;
 
 pub fn beat_time(beat: f32) -> f32 {
     DOWNBEAT0 + beat * BEAT
@@ -59,26 +59,33 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
 
 pub fn expo_out(t: f32) -> f32 {
     let t = clamp01(t);
-    if t >= 1.0 { 1.0 } else { 1.0 - 2f32.powf(-10.0 * t) }
+    if t >= 1.0 {
+        1.0
+    } else {
+        1.0 - 2f32.powf(-10.0 * t)
+    }
 }
 
 pub fn expo_in(t: f32) -> f32 {
     let t = clamp01(t);
-    if t <= 0.0 { 0.0 } else { 2f32.powf(10.0 * t - 10.0) }
+    if t <= 0.0 {
+        0.0
+    } else {
+        2f32.powf(10.0 * t - 10.0)
+    }
 }
 
 pub fn cubic_in_out(t: f32) -> f32 {
     let t = clamp01(t);
-    if t < 0.5 { 4.0 * t * t * t } else { 1.0 - (-2.0 * t + 2.0).powi(3) / 2.0 }
+    if t < 0.5 {
+        4.0 * t * t * t
+    } else {
+        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+    }
 }
 
 pub fn quart_out(t: f32) -> f32 {
     1.0 - (1.0 - clamp01(t)).powi(4)
-}
-
-pub fn quad_in(t: f32) -> f32 {
-    let t = clamp01(t);
-    t * t
 }
 
 /// Damped spring from 0 to 1 (mass 1), `t` in seconds since release.

@@ -32,7 +32,11 @@ impl Scene for ImageScene {
                 .color("uHot", Color::hex(ORANGE)),
         );
         let s = 0.94 + 0.06 * enter;
-        let t = format!("translate(960 {}) scale({s}) translate(-960 -{})", y + h / 2.0, y + h / 2.0);
+        let t = format!(
+            "translate(960 {}) scale({s}) translate(-960 -{})",
+            y + h / 2.0,
+            y + h / 2.0
+        );
         fframes::svgr!(
             <g opacity={1.0 - exit}>
                 <g transform={t}>

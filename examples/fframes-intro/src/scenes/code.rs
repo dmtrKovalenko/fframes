@@ -16,12 +16,56 @@ const ST: &str = "#f3a676";
 
 /// The code, as colored tokens per line.
 const CODE: &[&[(&str, &str)]] = &[
-    &[("impl ", KW), ("Video ", TY), ("for ", KW), ("Intro ", TY), ("{", PU)],
-    &[("    const ", KW), ("FPS", PL), (": ", PU), ("usize ", TY), ("= ", PU), ("60", ST), (";", PU)],
+    &[
+        ("impl ", KW),
+        ("Video ", TY),
+        ("for ", KW),
+        ("Intro ", TY),
+        ("{", PU),
+    ],
+    &[
+        ("    const ", KW),
+        ("FPS", PL),
+        (": ", PU),
+        ("usize ", TY),
+        ("= ", PU),
+        ("60", ST),
+        (";", PU),
+    ],
     &[],
-    &[("    fn ", KW), ("render_frame", PL), ("(", PU), ("&self", KW), (", ", PU), ("frame", PL), (": ", PU), ("Frame", TY), (") -> ", PU), ("Svgr ", TY), ("{", PU)],
-    &[("        let ", KW), ("y ", PL), ("= ", PU), ("spring", PL), ("(frame.", PU), ("seconds", PL), ("());", PU)],
-    &[("        svgr!", KW), ("(<", PU), ("text ", PL), ("y", TY), ("={y}>", PU), ("\"EVERY FRAME\"", ST), ("</", PU), ("text", PL), (">)", PU)],
+    &[
+        ("    fn ", KW),
+        ("render_frame", PL),
+        ("(", PU),
+        ("&self", KW),
+        (", ", PU),
+        ("frame", PL),
+        (": ", PU),
+        ("Frame", TY),
+        (") -> ", PU),
+        ("Svgr ", TY),
+        ("{", PU),
+    ],
+    &[
+        ("        let ", KW),
+        ("y ", PL),
+        ("= ", PU),
+        ("spring", PL),
+        ("(frame.", PU),
+        ("seconds", PL),
+        ("());", PU),
+    ],
+    &[
+        ("        svgr!", KW),
+        ("(<", PU),
+        ("text ", PL),
+        ("y", TY),
+        ("={y}>", PU),
+        ("\"EVERY FRAME\"", ST),
+        ("</", PU),
+        ("text", PL),
+        (">)", PU),
+    ],
     &[("    }", PU)],
     &[("}", PU)],
 ];
@@ -42,7 +86,10 @@ impl Scene for CodeScene {
         if lb >= 46.0 - 32.0 {
             return silence(lb - 14.0);
         }
-        let total: usize = CODE.iter().map(|l| l.iter().map(|(t, _)| t.chars().count()).sum::<usize>()).sum();
+        let total: usize = CODE
+            .iter()
+            .map(|l| l.iter().map(|(t, _)| t.chars().count()).sum::<usize>())
+            .sum();
         let typed = (expo_out(prog(lb, 0.0, 7.0)).powf(0.7) * total as f32) as usize;
         let mut left = typed;
         let mut rows = Vec::new();

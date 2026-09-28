@@ -1,9 +1,0 @@
-$ GPU_CONTEXTS=2 target/release/vs-remotion-bench vulkan out/fframes.mp4
-fframes: 3334 text nodes/frame x 300 frames, backend=vulkan, 1920x1080@30 h264 (libx264 crf 18, preset medium)
-Rendering 300 frames
-Success! Watch your video: 
-$ ffplay render-bench/vs-remotion/fframes/out/fframes.mp4
-Generated files /var/folders/2g/7x1n64cj2pxcqrg1rk68nws80000gn/T/fframes-skia-b2703c41-a854-42c6-9ef9-e87f04b21ec6
-fframes: rendered 300 frames (1000200 text nodes) to render-bench/vs-remotion/fframes/out/fframes.mp4 in 6.08s (49.3 fps)
-
-wall time: 6.14 s  (300 frames, 1,000,200 text nodes, 48.8 fps)

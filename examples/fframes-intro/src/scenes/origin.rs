@@ -17,15 +17,72 @@ struct Commit {
     message: &'static str,
 }
 
+/// `git log` of the repository, written by build.rs.
 static COMMITS: LazyLock<Vec<Commit>> = LazyLock::new(|| {
-    include_str!("../../data/commits.txt")
+    include_str!(concat!(env!("OUT_DIR"), "/commits.txt"))
         .lines()
         .filter_map(|line| {
             let mut parts = line.splitn(3, '|');
-            Some(Commit { hash: parts.next()?, date: parts.next()?, message: parts.next()? })
+            Some(Commit {
+                hash: parts.next()?,
+                date: parts.next()?,
+                message: parts.next()?,
+            })
         })
         .collect()
 });
+
+/// Numbers derived from the history: commit count and the span from the
+/// first commit to the latest one.
+struct History {
+    count: usize,
+    days: i64,
+    since: String,
+    until: String,
+}
+
+static HISTORY: LazyLock<History> = LazyLock::new(|| {
+    let first = COMMITS.first().map(|c| c.date).unwrap_or("2021-09-19");
+    let last = COMMITS.last().map(|c| c.date).unwrap_or(first);
+    History {
+        count: COMMITS.len(),
+        days: day_number(last) - day_number(first),
+        since: month_label(first),
+        until: month_label(last),
+    }
+});
+
+/// Days since 1970-01-01 of a `YYYY-MM-DD` date (Howard Hinnant's algorithm).
+fn day_number(date: &str) -> i64 {
+    let mut parts = date.split('-').map(|p| p.parse::<i64>().unwrap_or(1));
+    let (y, m, d) = (
+        parts.next().unwrap_or(1970),
+        parts.next().unwrap_or(1),
+        parts.next().unwrap_or(1),
+    );
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// `2021-09-19` as `SEP 2021`.
+fn month_label(date: &str) -> String {
+    const MONTHS: [&str; 12] = [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    ];
+    let month = date
+        .get(5..7)
+        .and_then(|m| m.parse::<usize>().ok())
+        .unwrap_or(1);
+    format!(
+        "{} {}",
+        MONTHS[(month - 1).min(11)],
+        date.get(..4).unwrap_or("")
+    )
+}
 
 impl Scene for OriginScene {
     fn duration(&self) -> Duration<'_> {
@@ -64,17 +121,42 @@ impl Scene for OriginScene {
     }
 }
 
-/// Beats 0-8: "2021" one digit per beat, then the commit it comes from.
+/// Beats 0-8: the year of the first commit, one digit per beat, then the
+/// commit itself.
 fn first_commit(frame: &mut Frame, ctx: &FFramesContext, lb: f32) -> Svgr<'static> {
+    let Some(first) = COMMITS.first() else {
+        return Svgr::empty();
+    };
+    let year = first.date.get(..4).unwrap_or("2021");
+    let years_ago = format!("{} YEARS AGO", HISTORY.days / 365);
+    let date_and_author = format!("{}   Dmitriy Kovalenko", first.date);
+    let message = format!("“{}”", first.message);
     let exit = expo_in(prog(lb, 7.6, 8.0));
     let command = "$ git log --reverse | head -1";
     let typed = ((lb / 0.8) * command.len() as f32) as usize;
     let command: String = command.chars().take(typed.min(command.len())).collect();
 
-    let year = letters(frame, ctx, 150.0, 690.0, "2021", DISPLAY, 440, 400, BONE, -8.0, |i| {
-        let s = snap(lb - i as f32);
-        (0.0, (1.0 - s) * 160.0, prog(lb, i as f32, i as f32 + 0.15), 0.85 + 0.15 * s)
-    });
+    let year = letters(
+        frame,
+        ctx,
+        150.0,
+        690.0,
+        year,
+        DISPLAY,
+        440,
+        400,
+        BONE,
+        -8.0,
+        |i| {
+            let s = snap(lb - i as f32);
+            (
+                0.0,
+                (1.0 - s) * 160.0,
+                prog(lb, i as f32, i as f32 + 0.15),
+                0.85 + 0.15 * s,
+            )
+        },
+    );
     let underline = quart_out(prog(lb, 3.0, 4.0)) * 1120.0;
     let meta = prog(lb, 4.0, 4.4);
     let hash_w = 7.0 * 36.0 * 0.6;
@@ -85,19 +167,20 @@ fn first_commit(frame: &mut Frame, ctx: &FFramesContext, lb: f32) -> Svgr<'stati
             {year}
             <rect x="160" y="740" width={underline.max(0.5)} height="10" fill={ORANGE} />
             <g opacity={meta}>
-                <text x="160" y="826" font-family={MONO} font-weight="600" font-size="36" fill={ORANGE}>"ffe4739"</text>
-                <text x={160.0 + hash_w + 30.0} y="826" font-family={MONO} font-weight="500" font-size="36" fill={BONE}>"2021-09-19   Dmitriy Kovalenko"</text>
-                <text x="1030" y="832" font-family={SERIF} font-style="italic" font-size="64" fill={ORANGE}>"“POC”"</text>
+                <text x="160" y="826" font-family={MONO} font-weight="600" font-size="36" fill={ORANGE}>{first.hash}</text>
+                <text x={160.0 + hash_w + 30.0} y="826" font-family={MONO} font-weight="500" font-size="36" fill={BONE}>{date_and_author}</text>
+                <text x="1030" y="832" font-family={SERIF} font-style="italic" font-size="64" fill={ORANGE}>{message}</text>
             </g>
             {callout(160.0 + hash_w / 2.0, 842.0, 160.0 + hash_w / 2.0, 980.0, "FIRST COMMIT".to_owned(), ORANGE, prog(lb, 5.0, 5.8))}
-            {callout(1270.0, 520.0, 1420.0, 360.0, "FIVE YEARS AGO".to_owned(), BONE, prog(lb, 5.5, 6.3))}
-            {title_block(prog(lb, 6.0, 6.4))}
+            {callout(1270.0, 520.0, 1420.0, 360.0, years_ago, BONE, prog(lb, 5.5, 6.3))}
+            {title_block(first.date, prog(lb, 6.0, 6.4))}
         </g>
     )
 }
 
 /// Engineering-drawing title block, bottom right.
-fn title_block(o: f32) -> Svgr<'static> {
+fn title_block(date: &'static str, o: f32) -> Svgr<'static> {
+    let sheets = format!("1 OF {}", HISTORY.count);
     if o <= 0.0 {
         return Svgr::empty();
     }
@@ -111,16 +194,19 @@ fn title_block(o: f32) -> Svgr<'static> {
             <text x="1416" y="882">"dmtrKovalenko"</text>
             <text x="1616" y="882" fill={GREY}>"REV 1"</text>
             <text x="1306" y="932" fill={GREY}>"SHEET"</text>
-            <text x="1416" y="932">"1 OF 205"</text>
-            <text x="1616" y="932" fill={ORANGE}>"2021-09-19"</text>
+            <text x="1416" y="932">{sheets}</text>
+            <text x="1616" y="932" fill={ORANGE}>{date}</text>
         </g>
     )
 }
 
-/// Beats 8-16: all 205 commits scroll past, accelerating, the year flips.
+/// Beats 8-16: every commit scrolls past, accelerating, the year flips.
 fn history(lb: f32) -> Svgr<'static> {
     let commits = &*COMMITS;
     let n = commits.len();
+    if n == 0 {
+        return Svgr::empty();
+    }
     let enter = expo_out(prog(lb, 0.0, 0.5));
     let exit = expo_in(prog(lb, 7.6, 8.0));
     // position in the list (float), ease in-out across the 8 beats
@@ -167,19 +253,39 @@ fn history(lb: f32) -> Svgr<'static> {
 
 /// Beats 16-32: the numbers, one per bar, then "video = f(frame)".
 fn stats(frame: &mut Frame, ctx: &FFramesContext, lb: f32) -> Svgr<'static> {
-    let items: [(&str, &str, &str); 3] = [
-        ("5", "YEARS", "SEP 2021 → SEP 2026  ·  1,834 DAYS"),
-        ("205", "COMMITS", "FROM “POC” TO v1.0.0-beta.7"),
-        ("89,372", "LINES OF RUST", "FFMPEG · SVG · SKIA · EDITOR · CLI"),
+    let h = &*HISTORY;
+    // (value, unit, caption); values count up as they enter
+    let items: [(u64, &str, String); 3] = [
+        (
+            (h.days / 365) as u64,
+            "YEARS",
+            format!(
+                "{} → {}  ·  {} DAYS",
+                h.since,
+                h.until,
+                thousands(h.days as u64)
+            ),
+        ),
+        (
+            h.count as u64,
+            "COMMITS",
+            "FROM THE FIRST “POC” TO TODAY".to_owned(),
+        ),
+        (
+            crate::facts::LINES_OF_RUST,
+            "LINES OF RUST",
+            "FFMPEG · SVG · SKIA · EDITOR · CLI".to_owned(),
+        ),
     ];
     let bar = (lb / 4.0).floor() as usize;
     let local = lb - bar as f32 * 4.0;
     if bar < 3 {
-        let (num, unit, caption) = items[bar];
+        let (value, unit, caption) = items[bar].clone();
+        let num = thousands(value);
         let enter = expo_out(prog(local, 0.0, 0.7));
         let exit = expo_in(prog(local, 3.65, 4.0));
         let x = 150.0 + (1.0 - enter) * 260.0 - exit * 300.0;
-        let num_w = measure(frame, ctx, DISPLAY, 400, 400, false, num) - 10.0 * num.len() as f32;
+        let num_w = measure(frame, ctx, DISPLAY, 400, 400, false, &num) - 10.0 * num.len() as f32;
         let unit_s = snap(local - 0.5);
         let unit_w = measure(frame, ctx, DISPLAY, 110, 400, false, unit) - 3.0 * unit.len() as f32;
         // the unit goes next to the number when it fits, below it otherwise
@@ -189,12 +295,7 @@ fn stats(frame: &mut Frame, ctx: &FFramesContext, lb: f32) -> Svgr<'static> {
             (8.0, 130.0, 130.0)
         };
         let cap = prog(local, 1.0, 1.4);
-        // numeric stats count up; "5" stays as is
-        let shown = match num {
-            "205" => format!("{}", (205.0 * expo_out(prog(local, 0.0, 1.2))).round() as u32),
-            "51,099" => thousands((51_099.0 * expo_out(prog(local, 0.0, 1.4))).round() as u64),
-            n => n.to_owned(),
-        };
+        let shown = thousands((value as f32 * expo_out(prog(local, 0.0, 1.3))).round() as u64);
         return fframes::svgr!(
             <g opacity={1.0 - exit}>
                 <g transform={format!("translate({x} 0)")}>

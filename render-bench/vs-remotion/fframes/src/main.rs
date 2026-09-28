@@ -15,11 +15,16 @@ use fframes::{
     AudioMap, Color, Duration, EncoderOptions, FFramesContext, Frame, MediaDirectory,
     RenderOptions, Svgr, Video, fframes_logger::FFramesLoggerVariant,
 };
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
+use fframes_skia_renderer::{
+    SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig,
+};
 
 /// Skia pipeline config. `GPU_CONTEXTS=n` renders on n GPU contexts in parallel (default 1).
 fn pipeline() -> SkiaPipelineConfig {
-    let contexts = std::env::var("GPU_CONTEXTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    let contexts = std::env::var("GPU_CONTEXTS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
     SkiaPipelineConfig {
         concurrency_policy: SkiaPipelineConcurrencyPolicy::Concurrency(contexts),
         ..Default::default()
@@ -83,7 +88,7 @@ impl Video for TextGrid {
             let y = row * CELL_H + 11.0 + 3.0 * (f * 0.09 + fl * 0.23).cos();
             let alpha = 0.3 + 0.7 * (0.5 + 0.5 * (f * 0.2 + fl * 0.05).sin());
             let (r, g, b) = hsl_to_rgb((fl * 0.9 + f * 4.0) % 360.0, 0.75, 0.62);
-            let label = if (i + fi) % 9 == 0 {
+            let label = if (i + fi).is_multiple_of(9) {
                 "fframes".to_string()
             } else {
                 ((fi * 37 + i * 101) % 10000).to_string()
@@ -133,11 +138,19 @@ fn main() {
     };
 
     let video = TextGrid;
-    eprintln!("fframes: {NODES} text nodes/frame x 300 frames, backend={backend}, 1920x1080@30 h264 (libx264 crf 18, preset {preset})");
+    eprintln!(
+        "fframes: {NODES} text nodes/frame x 300 frames, backend={backend}, 1920x1080@30 h264 (libx264 crf 18, preset {preset})"
+    );
     let result = match backend.as_str() {
-        "cpu" => fframes::render(&out, &video, fframes::cpu::CpuRenderingBackend::default(), &options),
+        "cpu" => fframes::render(
+            &out,
+            &video,
+            fframes::cpu::CpuRenderingBackend::default(),
+            &options,
+        ),
         "vulkan" => {
-            let ctx = fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(1920, 1080).expect("vulkan");
+            let ctx =
+                fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(1920, 1080).expect("vulkan");
             fframes::render(
                 &out,
                 &video,

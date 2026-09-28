@@ -1,4 +1,4 @@
-//! A 109 second introduction to fframes, made with fframes.
+//! A 128 second introduction to fframes, made with fframes.
 //!
 //! Everything is placed on the beat grid of the soundtrack (see `beat.rs`).
 //! Scenes are named after what they show; `cargo run --release -- timeline`
@@ -11,8 +11,8 @@ pub mod shaders;
 pub mod ui;
 
 use fframes::{
-    AudioMap, AudioTimestamp::*, AudioTrack, Color, Duration, FFramesContext, Frame, Scene,
-    Scenes, ShaderUniforms, Svgr, Video, include_media_dir,
+    AudioMap, AudioTimestamp::*, AudioTrack, Color, Duration, FFramesContext, Frame, Scene, Scenes,
+    ShaderUniforms, Svgr, Video, include_media_dir,
 };
 
 use beat::*;
@@ -40,11 +40,12 @@ const SECTIONS: &[(f32, &str)] = &[
     (72.0, "07 / SHADER"),
     (80.0, "08 / SCALE"),
     (96.0, "09 / BENCHMARK"),
-    (128.0, "10 / AGENTS"),
-    (168.0, "11 / GPU"),
-    (184.0, "12 / RECAP"),
-    (196.0, "13 / DONE"),
-    (200.0, "14 / FFRAMES"),
+    (128.0, "10 / PREVIEW"),
+    (160.0, "11 / AGENTS"),
+    (208.0, "12 / GPU"),
+    (224.0, "13 / RECAP"),
+    (236.0, "14 / DONE"),
+    (240.0, "15 / FFRAMES"),
 ];
 
 /// Sound effects, placed on the beat minus the file's attack.
@@ -71,12 +72,13 @@ impl Video for IntroVideo {
             sfx("sfx_shutter.mp3", beat_time(62.0) - 0.02, -2.0),
             sfx("sfx_glitch.mp3", beat_time(70.0) - 0.2, -8.0),
             sfx("sfx_impact.mp3", beat_time(96.0), -10.0),
-            sfx("sfx_impact.mp3", beat_time(168.0), -11.0),
-            sfx("sfx_typing.mp3", beat_time(196.2), -18.0),
-            sfx("sfx_impact.mp3", beat_time(200.0), -7.0),
-            sfx("sfx_braam.mp3", beat_time(200.0), -9.0),
+            sfx("sfx_impact.mp3", beat_time(144.0), -12.0),
+            sfx("sfx_impact.mp3", beat_time(208.0), -11.0),
+            sfx("sfx_typing.mp3", beat_time(236.2), -18.0),
+            sfx("sfx_impact.mp3", beat_time(240.0), -7.0),
+            sfx("sfx_braam.mp3", beat_time(240.0), -9.0),
         ];
-        for b in [56.0, 62.0, 66.0, 72.0, 80.0, 128.0, 184.0] {
+        for b in [56.0, 62.0, 66.0, 72.0, 80.0, 128.0, 160.0, 224.0] {
             tracks.push(sfx("sfx_whoosh.mp3", beat_time(b) - 0.18, -15.0));
         }
         for b in agents::CARD_BEATS {
@@ -97,6 +99,7 @@ impl Video for IntroVideo {
             &ShaderScene,
             &ScaleScene,
             &BenchmarkScene,
+            &PreviewScene,
             &AgentsScene,
             &RenderScene,
             &RecapScene,
@@ -109,7 +112,9 @@ impl Video for IntroVideo {
         let b = gbeat(&frame);
         let grain = SHADERS.grain.draw(
             &frame,
-            ShaderUniforms::new().float("uGrain", 0.07).float("uVignette", 0.55),
+            ShaderUniforms::new()
+                .float("uGrain", 0.07)
+                .float("uVignette", 0.55),
         );
         fframes::svgr!(
             <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
@@ -124,7 +129,7 @@ impl Video for IntroVideo {
 
 fn hud(frame: &Frame, b: f32) -> Svgr<'static> {
     // the HUD sits out the silent bar and the logo slam
-    let hidden = (196.0..204.0).contains(&b);
+    let hidden = (236.0..244.0).contains(&b);
     let appear = prog(gsec(frame), 0.1, 0.5);
     if hidden || appear <= 0.0 {
         return Svgr::empty();
@@ -135,8 +140,16 @@ fn hud(frame: &Frame, b: f32) -> Svgr<'static> {
         .find(|(start, _)| b >= *start)
         .map(|(_, name)| *name)
         .unwrap_or("");
-    let bar = if b < 0.0 { 0 } else { (b / 4.0).floor() as i32 + 1 };
-    let beat_in_bar = if b < 0.0 { 0 } else { (b.rem_euclid(4.0)).floor() as i32 + 1 };
+    let bar = if b < 0.0 {
+        0
+    } else {
+        (b / 4.0).floor() as i32 + 1
+    };
+    let beat_in_bar = if b < 0.0 {
+        0
+    } else {
+        (b.rem_euclid(4.0)).floor() as i32 + 1
+    };
     let tc = timecode(gsec(frame));
     let fnum = format!("F {:05}", frame.global_index);
     let bpm = format!("132 BPM   BAR {bar:03}.{beat_in_bar}");
@@ -159,11 +172,11 @@ fn hud(frame: &Frame, b: f32) -> Svgr<'static> {
 }
 
 /// Sections where the full beat plays: the picture pumps with the kick.
-const PUMPING: &[(f32, f32)] = &[(48.0, 80.0), (96.0, 128.0), (168.0, 196.0), (200.0, 228.0)];
+const PUMPING: &[(f32, f32)] = &[(48.0, 80.0), (96.0, 160.0), (208.0, 236.0), (240.0, 268.0)];
 /// Cuts that glitch for a few frames.
-const GLITCH_CUTS: &[f32] = &[32.0, 56.0, 62.0, 66.0, 72.0, 80.0, 128.0, 184.0];
+const GLITCH_CUTS: &[f32] = &[32.0, 56.0, 62.0, 66.0, 72.0, 80.0, 128.0, 144.0, 224.0];
 /// Drops that flash.
-const DROPS: &[f32] = &[48.0, 96.0, 168.0];
+const DROPS: &[f32] = &[48.0, 96.0, 144.0, 208.0];
 
 fn energy<'a>(frame: &Frame, ctx: &FFramesContext<'a, '_>, b: f32) -> Svgr<'a> {
     let pumping = PUMPING.iter().any(|(s, e)| (*s..*e).contains(&b));
@@ -178,8 +191,7 @@ fn energy<'a>(frame: &Frame, ctx: &FFramesContext<'a, '_>, b: f32) -> Svgr<'a> {
     let since_cut = GLITCH_CUTS
         .iter()
         .map(|c| (b - c) * BEAT * FPS as f32)
-        .filter(|f| *f >= 0.0 && *f < 3.0)
-        .next();
+        .find(|f| *f >= 0.0 && *f < 3.0);
     let scene = if let Some(f) = since_cut {
         let bands: Vec<Svgr> = (0..6)
             .map(|i| {

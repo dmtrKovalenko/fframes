@@ -8,7 +8,7 @@ use crate::facts;
 use crate::shaders::SHADERS;
 use crate::ui::*;
 
-beat_scene!(RenderScene, Some(168.0), Some(184.0));
+beat_scene!(RenderScene, Some(208.0), Some(224.0));
 
 const THUMBS: usize = 10;
 
@@ -66,7 +66,11 @@ impl Scene for RenderScene {
         let secs = facts::RENDER_SECONDS * expo_out(prog(lb, 4.0, 6.0));
         let a = snap(lb);
         let b = snap(lb - 4.0);
-        let realtime = if facts::RENDER_SECONDS > 0.0 { crate::beat::TOTAL_SECONDS / facts::RENDER_SECONDS } else { 0.0 };
+        let realtime = if facts::RENDER_SECONDS > 0.0 {
+            crate::beat::TOTAL_SECONDS / facts::RENDER_SECONDS
+        } else {
+            0.0
+        };
         let c = prog(lb, 8.0, 8.3);
         let exit = expo_in(prog(lb, 15.7, 16.0));
 

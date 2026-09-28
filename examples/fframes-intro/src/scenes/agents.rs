@@ -8,10 +8,10 @@ use crate::beat::*;
 use crate::shaders::SHADERS;
 use crate::ui::*;
 
-beat_scene!(AgentsScene, Some(128.0), Some(168.0));
+beat_scene!(AgentsScene, Some(160.0), Some(208.0));
 
 /// Global beats of the stutter hits that bring in a new card.
-pub const CARD_BEATS: &[f32] = &[135.0, 139.0, 143.0, 147.0, 151.0, 155.0];
+pub const CARD_BEATS: &[f32] = &[175.0, 179.0, 183.0, 187.0, 191.0, 195.0];
 
 const NODES: &[&str] = &["WRITE", "TIMELINE", "INSPECT", "STRIP", "FRAME", "RENDER"];
 
@@ -32,41 +32,49 @@ const CARDS: &[Card] = &[
         node: 1,
         command: "cargo run -- timeline",
         body: Body::Lines(&[
-            ("1920x1080 @ 60 fps, 6558 frames (109.30s)", BONE),
+            ("1920x1080 @ 60 fps, 7650 frames (127.50s)", BONE),
             ("#0   PromptScene      0.00s..2.15s", GREY),
             ("#1   OriginScene      2.15s..16.70s", GREY),
             ("#2   CodeScene       16.70s..23.97s", GREY),
             ("#3   GpuScene        23.97s..27.60s", GREY),
-            ("audio music.wav       0.000s..109.300s", ORANGE),
+            ("audio music.wav       0.000s..127.500s", ORANGE),
         ]),
     },
     Card {
         node: 2,
         command: "cargo run -- inspect",
         body: Body::Lines(&[
-            ("checked 465 frames: 10 findings", BONE),
-            ("0 errors · 10 warnings: marquee rows and", GREY),
-            ("two slams that enter from off the canvas", GREY),
+            ("checked 540 frames: 13 findings", BONE),
+            ("0 errors · 13 warnings: marquee rows and", GREY),
+            ("type that overflows the canvas on purpose", GREY),
         ]),
     },
-    Card { node: 3, command: "cargo run -- strip all -n 30", body: Body::Image("strip_self.jpg", 1.887) },
-    Card { node: 4, command: "cargo run -- frame Shader@2.7s", body: Body::Image("frame_self.jpg", 1.778) },
+    Card {
+        node: 3,
+        command: "cargo run -- strip all -n 30",
+        body: Body::Image("strip_self.jpg", 1.887),
+    },
+    Card {
+        node: 4,
+        command: "cargo run -- frame Shader@2.7s",
+        body: Body::Image("frame_self.jpg", 1.778),
+    },
     Card {
         node: 0,
         command: "cargo run -- audio analyze",
         body: Body::Lines(&[
-            ("integrated -14.2 LUFS, range 10.3 LU", BONE),
+            ("integrated -14.1 LUFS, range 10.3 LU", BONE),
             ("true peak -1.2 dBTP, clipped samples 0", BONE),
             ("GpuScene        23.97s..27.60s   -13.0 LUFS", GREY),
-            ("BenchmarkScene  45.78s..60.33s   -13.1 LUFS", GREY),
+            ("BenchmarkScene  45.78s..60.33s   -13.0 LUFS", GREY),
         ]),
     },
     Card {
         node: 5,
         command: "cargo run -- render --draft",
         body: Body::Lines(&[
-            ("out.mp4 frames 0..6558 (0.00s..109.30s)", GREY),
-            ("960x540 in 3.6s", ORANGE),
+            ("out.mp4 frames 0..7650 (0.00s..127.50s)", GREY),
+            ("960x540 in 5.3s", ORANGE),
         ]),
     },
 ];
@@ -93,19 +101,19 @@ impl Scene for AgentsScene {
                 .color("uHot", Color::hex(ORANGE)),
         );
         let bg = fframes::svgr!(<image href={bg.href()} x="0" y="0" width="1920" height="1080" />);
-        if lb >= 32.0 {
-            return fframes::svgr!(<g>{bg}{confession(lb - 32.0)}</g>);
+        if lb >= 40.0 {
+            return fframes::svgr!(<g>{bg}{confession(lb - 40.0)}</g>);
         }
         let title_a = snap(lb);
         let title_b = snap(lb - 1.5);
-        let exit = expo_in(prog(lb, 31.6, 32.0));
+        let exit = expo_in(prog(lb, 39.6, 40.0));
 
         // which card is on screen
-        let local_cards: Vec<f32> = CARD_BEATS.iter().map(|b| b - 128.0).collect();
+        let local_cards: Vec<f32> = CARD_BEATS.iter().map(|b| b - 160.0).collect();
         let active = local_cards.iter().rposition(|b| lb >= *b);
         let card_svg = match active {
-            Some(i) => card(ctx, &CARDS[i], lb - local_cards[i], false),
-            None => prompt_card(lb - 2.5),
+            Some(i) => card(ctx, &CARDS[i], lb - local_cards[i]),
+            None => prompt_card(lb - 6.0),
         };
         let lit = active.map(|i| CARDS[i].node);
 
@@ -133,14 +141,21 @@ fn ring(lb: f32, lit: Option<usize>) -> Svgr<'static> {
     let dash = format!("{} {}", circ * draw, circ);
     let mut nodes = Vec::new();
     for (i, name) in NODES.iter().enumerate() {
-        let a = -std::f32::consts::FRAC_PI_2 + i as f32 / NODES.len() as f32 * std::f32::consts::TAU;
+        let a =
+            -std::f32::consts::FRAC_PI_2 + i as f32 / NODES.len() as f32 * std::f32::consts::TAU;
         let (x, y) = (RING_X + a.cos() * RING_R, RING_Y + a.sin() * RING_R);
         let at = 2.5 + i as f32 * 0.4;
         let s = snap(lb - at);
         let on = lit == Some(i);
         let lx = RING_X + a.cos() * (RING_R + 44.0);
         let ly = RING_Y + a.sin() * (RING_R + 44.0) + 8.0;
-        let anchor = if a.cos() > 0.3 { "start" } else if a.cos() < -0.3 { "end" } else { "middle" };
+        let anchor = if a.cos() > 0.3 {
+            "start"
+        } else if a.cos() < -0.3 {
+            "end"
+        } else {
+            "middle"
+        };
         let size = 18.0 + if on { 8.0 } else { 0.0 };
         nodes.push(fframes::svgr!(
             <g opacity={prog(lb, at, at + 0.1)}>
@@ -182,10 +197,9 @@ fn ring(lb: f32, lit: Option<usize>) -> Svgr<'static> {
 }
 
 /// A terminal card: the command, then its output lines or image.
-fn card(ctx: &FFramesContext, card: &Card, l: f32, leaving: bool) -> Svgr<'static> {
+fn card(ctx: &FFramesContext, card: &Card, l: f32) -> Svgr<'static> {
     let (x, y, w) = (150.0, 440.0, 800.0);
     let enter = snap(l);
-    let exit = if leaving { 1.0 } else { 0.0 };
     let typed = ((l / 0.5) * card.command.len() as f32).min(card.command.len() as f32) as usize;
     let command: String = card.command.chars().take(typed).collect();
     let body_o = prog(l, 0.45, 0.6);
@@ -199,7 +213,10 @@ fn card(ctx: &FFramesContext, card: &Card, l: f32, leaving: bool) -> Svgr<'stati
                     fframes::svgr!(<text x={x + 28.0} y={y + 110.0 + i as f32 * 36.0} font-family={MONO} font-weight="500" font-size="23" fill={*color} opacity={o}>{*text}</text>)
                 })
                 .collect();
-            (fframes::svgr!(<g>{rows}</g>), 90.0 + lines.len() as f32 * 36.0 + 20.0)
+            (
+                fframes::svgr!(<g>{rows}</g>),
+                90.0 + lines.len() as f32 * 36.0 + 20.0,
+            )
         }
         Body::Image(name, aspect) => {
             let iw = w - 56.0;
@@ -208,11 +225,14 @@ fn card(ctx: &FFramesContext, card: &Card, l: f32, leaving: bool) -> Svgr<'stati
                 .get_image(name)
                 .map(|img| fframes::svgr!(<image href={img.href()} x={x + 28.0} y={y + 84.0} width={iw} height={ih} />))
                 .unwrap_or_default();
-            (fframes::svgr!(<g opacity={body_o}>{img}</g>), 84.0 + ih + 28.0)
+            (
+                fframes::svgr!(<g opacity={body_o}>{img}</g>),
+                84.0 + ih + 28.0,
+            )
         }
     };
     fframes::svgr!(
-        <g opacity={prog(l, 0.0, 0.08) * (1.0 - exit * 0.0)} transform={format!("translate({} 0)", (1.0 - enter) * -80.0)}>
+        <g opacity={prog(l, 0.0, 0.08)} transform={format!("translate({} 0)", (1.0 - enter) * -80.0)}>
             <rect x={x} y={y} width={w} height={h} fill="#0e0d0c" fill-opacity="0.92" stroke="#3d3a35" stroke-width="1.5" />
             <rect x={x} y={y} width="4" height={h} fill={ORANGE} />
             <text x={x + 28.0} y={y + 52.0} font-family={MONO} font-weight="600" font-size="25" fill={ORANGE}>"$"</text>
@@ -245,7 +265,11 @@ fn prompt_card(l: f32) -> Svgr<'static> {
     let text = crate::scenes::prompt::PROMPT;
     let typed = ((l / 3.0) * text.len() as f32).min(text.len() as f32) as usize;
     let shown: String = text.chars().take(typed).collect();
-    let (first, second) = if shown.len() > 33 { (shown[..33].to_owned(), shown[33..].to_owned()) } else { (shown, String::new()) };
+    let (first, second) = if shown.len() > 33 {
+        (shown[..33].to_owned(), shown[33..].to_owned())
+    } else {
+        (shown, String::new())
+    };
     let enter = snap(l);
     fframes::svgr!(
         <g opacity={prog(l, 0.0, 0.1)} transform={format!("translate({} 0)", (1.0 - enter) * -80.0)}>

@@ -35,7 +35,11 @@ impl Scene for BenchmarkScene {
                 .color("uInk", Color::hex("#6f6a63"))
                 .color("uHot", Color::hex(ORANGE)),
         );
-        let body = if lb < RESULT_AT { race(lb) } else { table(lb - TABLE_AT) };
+        let body = if lb < RESULT_AT {
+            race(lb)
+        } else {
+            table(lb - TABLE_AT)
+        };
         fframes::svgr!(
             <g>
                 <image href={grid.href()} x="0" y="0" width="1920" height="1080" />
@@ -55,8 +59,20 @@ fn race(lb: f32) -> Svgr<'static> {
     let real = prog(lb, RACE_START, RACE_START + RACE_BEATS) * slowest();
     let speedup = slowest() / (RACE_BEATS * BEAT);
     let lanes = [
-        (BENCH_REMOTION_LABEL, "CHROME + REACT, SCREENSHOT PER FRAME", BENCH_REMOTION_S, GREY, 470.0),
-        (BENCH_FFRAMES_LABEL, "RUST, SVG TREE → GPU", BENCH_FFRAMES_S, ORANGE, 700.0),
+        (
+            BENCH_REMOTION_LABEL,
+            "CHROME + REACT, SCREENSHOT PER FRAME",
+            BENCH_REMOTION_S,
+            GREY,
+            470.0,
+        ),
+        (
+            BENCH_FFRAMES_LABEL,
+            "RUST, SVG TREE → GPU",
+            BENCH_FFRAMES_S,
+            ORANGE,
+            700.0,
+        ),
     ];
     let rows: Vec<Svgr> = lanes
         .iter()

@@ -96,8 +96,10 @@ pub fn diff_frames(
     let mut diff = Vec::with_capacity(expected.pixels.len());
     for (e, a) in expected
         .pixels
-        .chunks_exact(4)
-        .zip(actual.pixels.chunks_exact(4))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(actual.pixels.as_chunks::<4>().0)
     {
         let differs = e
             .iter()

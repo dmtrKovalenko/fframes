@@ -1,6 +1,6 @@
 use fframes::{
-    AudioMixOptions, LimiterOptions, CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
-    StaticMediaProvider, cli,
+    AudioMixOptions, CombinedMediaProvider, EncoderOptions, LimiterOptions, MediaDirectory,
+    MediaProvider, RenderOptions, StaticMediaProvider, cli,
 };
 use fframes_intro::{HEIGHT, IntroMedia, IntroVideo, WIDTH};
 use fframes_skia_renderer::{
@@ -31,7 +31,10 @@ fn main() -> ExitCode {
             audio_mix: AudioMixOptions {
                 master_gain_db: 3.5,
                 // room for inter-sample peaks: true peak stays under -1 dBTP
-                limiter: Some(LimiterOptions { ceiling_db: -1.3, ..Default::default() }),
+                limiter: Some(LimiterOptions {
+                    ceiling_db: -1.3,
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
             ..Default::default()

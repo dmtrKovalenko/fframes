@@ -20,7 +20,6 @@ float4 sampleKeyed(float2 coord) {
 }
 half4 main(float2 coord) {
     float4 k = sampleKeyed(coord);
-    float lum = dot(k.rgb, float3(0.299, 0.587, 0.114));
     // halftone: sample the cell center, dot radius from luminance
     float2 rc = float2(coord.x * 0.866 - coord.y * 0.5, coord.x * 0.5 + coord.y * 0.866);
     float2 cell = floor(rc / uCell);
