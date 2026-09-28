@@ -160,7 +160,7 @@ impl EncoderFrame {
             (*frame).nb_samples = n as i32;
             let channels = (*frame).ch_layout.nb_channels.max(1) as usize;
             let sample = |channel: usize, i: usize| match channels {
-                1 => (left[i] + right[i]) * 0.5,
+                1 => f32::midpoint(left[i], right[i]),
                 _ if channel == 0 => left[i],
                 _ if channel == 1 => right[i],
                 // Additional channels of a larger layout stay silent.

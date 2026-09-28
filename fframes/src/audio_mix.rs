@@ -454,7 +454,7 @@ impl<'m> AudioMixer<'m> {
                 }
             } else {
                 // Equal power, compensated to unity at the center.
-                let x = (pan + 1.) * 0.5 * std::f32::consts::FRAC_PI_2;
+                let x = f32::midpoint(pan, 1.) * std::f32::consts::FRAC_PI_2;
                 (
                     (std::f32::consts::SQRT_2 * x.cos()).min(1.),
                     (std::f32::consts::SQRT_2 * x.sin()).min(1.),

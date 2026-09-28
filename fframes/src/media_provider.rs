@@ -33,19 +33,19 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     );
 
     fn get_all_audio_data(&self) -> Vec<(&AudioData<'_>, &str)> {
-        Vec::with_capacity(0)
+        Vec::new()
     }
 
     fn get_all_font_data(&self) -> Vec<(&[u8], &str)> {
-        Vec::with_capacity(0)
+        Vec::new()
     }
 
     fn get_all_image_data(&self) -> Vec<(&media::ImageData<'_>, &str)> {
-        Vec::with_capacity(0)
+        Vec::new()
     }
 
     fn get_all_video_data(&self) -> Vec<(&media::VideoMedia, &str)> {
-        Vec::with_capacity(0)
+        Vec::new()
     }
 }
 

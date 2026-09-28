@@ -1304,7 +1304,7 @@ fn waveform_image<'a, 'm: 'a, V: Video>(
         let to = ((x + 1) * per_column).min(left.len());
         let (mut lo, mut hi) = (0f32, 0f32);
         for i in from..to {
-            let v = (left[i] + right[i]) * 0.5;
+            let v = f32::midpoint(left[i], right[i]);
             lo = lo.min(v);
             hi = hi.max(v);
         }
