@@ -11,6 +11,7 @@ members = [
     "fframes-skia-renderer",
     "fframes-native-player",
     "media-dir-macro",
+    "render-bench",
     # Examples
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
@@ -36,6 +37,10 @@ members = [
     "examples/pixel-memory/editor/editor-bridge",
     "examples/motion-graphics",
     "examples/motion-graphics/editor/editor-bridge",
+    "examples/shaders",
+    "examples/shaders/editor/editor-bridge",
+    "examples/neon-triangle",
+    "examples/neon-triangle/editor/editor-bridge",
 
     # maybe clean this up?
     # "fframes-lyon-renderer",
@@ -46,12 +51,9 @@ members = [
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
 # svgr = { path = "../svgr/crates/svgr" }
 # usvgr = { path = "../svgr/crates/usvgr" }
-svgr = "0.45.1"
-usvgr = "0.45.1"
-ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "8.0.1", features = [
-    "build",
-    "static",
-] }
+svgr = "0.46.0"
+usvgr = "0.46.0"
+ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "9.0.0" }
 wasm-bindgen = "0.2.100"
 kamadak-exif = "0.6.1"
 

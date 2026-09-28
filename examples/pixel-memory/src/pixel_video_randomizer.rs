@@ -207,6 +207,8 @@ impl<'a> RandomPhotos<'a> {
             .into_iter()
             .map(|(_, name)| name)
             .collect();
+        // media providers do not guarantee an order, sort so a seeded rng reproduces a video
+        images.sort_unstable();
         images.shuffle(rng);
 
         let mut videos: Vec<_> = source
@@ -214,6 +216,7 @@ impl<'a> RandomPhotos<'a> {
             .into_iter()
             .map(|(_, name)| name)
             .collect();
+        videos.sort_unstable();
         videos.shuffle(rng);
 
         Self {

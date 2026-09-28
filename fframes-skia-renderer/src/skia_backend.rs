@@ -1,14 +1,11 @@
-use fframes::rayon::prelude::*;
 use std::path::Path;
-use std::sync::Arc;
 
 use crate::backends::SkiaBackend;
 use crate::skia_pipeline;
 use crate::skia_pipeline::Pipeline;
 pub use crate::skia_pipeline::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
 use fframes::{AudioTimelineSamples, ResolvedRenderingTimeline, Video, usvgr};
-use fframes::{FFramesRenderBackend, FFramesRendererError, FFramesRendererResult, concatenator};
-use uuid::Uuid;
+use fframes::{FFramesRenderBackend, FFramesRendererResult};
 
 #[derive(Clone)]
 pub struct SkiaFFramesRenderer<'a, T: SkiaBackend + Sync + Send> {
@@ -58,6 +55,16 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
             font_db,
         )?;
 
+        // A fresh GPU surface holds undefined memory; match the pipeline,
+        // which clears every frame to the video background.
+        let background = TVideo::BACKGROUND_COLOR;
+        surface.canvas().clear(skia_safe::Color::from_argb(
+            background.a,
+            background.r,
+            background.g,
+            background.b,
+        ));
+
         let mut render_cache = crate::render::RenderCache::new();
         crate::render::render_tree(&rtree, surface.canvas(), &mut render_cache);
 
@@ -96,100 +103,26 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
     where
         Self: Sized,
     {
-        let output = output.as_ref();
         let background_color = skia_safe::Color::from_argb(
             TVideo::BACKGROUND_COLOR.a,
             TVideo::BACKGROUND_COLOR.r,
             TVideo::BACKGROUND_COLOR.g,
             TVideo::BACKGROUND_COLOR.b,
         );
-        let concurrent_pipelines = match self.pipeline_config.concurrency_policy {
-            SkiaPipelineConcurrencyPolicy::MaxPerformance => {
-                let threads_available = fframes::get_thread_count();
-                threads_available / 3
-            }
-            SkiaPipelineConcurrencyPolicy::Concurrency(pipelines) => pipelines,
-            SkiaPipelineConcurrencyPolicy::OnePipeline => 1,
-        };
 
-        if concurrent_pipelines < 2 {
-            skia_pipeline::start(Pipeline {
-                background_color,
-                ctx,
-                font_db,
-                frame_range: &(0..ctx.duration_in_frames),
-                include_audio: true,
-                logger: Arc::clone(&logger),
-                output,
-                pipeline_config: self.pipeline_config,
-                render_options,
-                skia: self.backend,
-                timeline,
-                usvg_options,
-                video,
-            })?;
-
-            logger.success(output, None);
-        } else {
-            let chunks = render_options
-                .video_encoder_options
-                .split_gop_chunks(ctx.duration_in_frames, concurrent_pipelines);
-
-            let session_id = Uuid::new_v4();
-            let tmp_path = std::env::temp_dir().join(format!("fframes-skia-{session_id}"));
-            let directory = render_options.tmp_files_directory.unwrap_or(&tmp_path);
-            if !directory.exists() {
-                std::fs::create_dir(directory)?;
-            }
-
-            let extension = output
-                .extension()
-                .ok_or(fframes::FFramesRendererError::InvalidOutput)?;
-
-            let files = chunks
-                .par_iter()
-                .enumerate()
-                .map(|(file, chunk)| {
-                    let file = directory.join(format!(
-                        "{file}.{extension}",
-                        file = file,
-                        extension = extension.to_string_lossy().as_ref()
-                    ));
-
-                    skia_pipeline::start(Pipeline {
-                        background_color,
-                        ctx,
-                        font_db,
-                        frame_range: chunk,
-                        include_audio: false,
-                        logger: Arc::clone(&logger),
-                        output: &file,
-                        pipeline_config: self.pipeline_config,
-                        render_options,
-                        skia: self.backend,
-                        timeline,
-                        usvg_options,
-                        video,
-                    })?;
-
-                    Ok(file)
-                })
-                .collect::<FFramesRendererResult<Vec<_>>>()?;
-
-            unsafe {
-                concatenator::concat_video_files_with_audio(
-                    files.as_slice(),
-                    output,
-                    timeline.audio_map.as_ref(),
-                    render_options,
-                    ctx,
-                    &logger,
-                )
-                .map_err(FFramesRendererError::ConcatChunkError)?;
-            }
-
-            logger.success(output, Some(directory));
-        }
+        skia_pipeline::render(Pipeline {
+            background_color,
+            ctx,
+            font_db,
+            logger,
+            output: output.as_ref(),
+            pipeline_config: self.pipeline_config,
+            render_options,
+            skia: self.backend,
+            timeline,
+            usvg_options,
+            video,
+        })?;
 
         Ok(())
     }

@@ -61,6 +61,11 @@ play example:
 bench example *ARGS:
   cd examples/{{example}} && cargo build --release {{ARGS}} && time cargo run --release {{ARGS}}
 
+# Per-stage and end-to-end CPU/GPU rendering benchmark over every example,
+# e.g. `just render-bench --json before.json` then `just render-bench --compare before.json`
+render-bench *ARGS:
+  DYLD_LIBRARY_PATH=/opt/homebrew/lib:${DYLD_LIBRARY_PATH:-} cargo run --release -p render-bench -- {{ARGS}}
+
 hyperfine example *ARGS:
   #!/bin/bash
   set -eou pipefail
@@ -76,7 +81,7 @@ check-wasm example:
   cd examples/{{example}}/editor/editor-bridge && cargo check --lib --target wasm32-unknown-unknown
 
 check-examples:
-  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast && just check-wasm motion-graphics
+  just check-wasm hello-world && just check-wasm podcast && just check-wasm tiktok && just check-wasm beta && just check-wasm low-poly-art && just check-wasm teej-podcast && just check-wasm motion-graphics && just check-wasm shaders && just check-wasm neon-triangle
 
 install-ffmpeg version: 
   git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg

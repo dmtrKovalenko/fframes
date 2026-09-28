@@ -24,7 +24,7 @@ impl TestImage {
 
     fn with_solid_color(width: i32, height: i32, r: u8, g: u8, b: u8, a: u8) -> Self {
         let mut img = Self::new(width, height);
-        for chunk in img.rgba_pixels.chunks_exact_mut(4) {
+        for chunk in img.rgba_pixels.as_chunks_mut::<4>().0 {
             chunk[0] = r;
             chunk[1] = g;
             chunk[2] = b;
@@ -35,7 +35,7 @@ impl TestImage {
 
     fn random(width: i32, height: i32) -> Self {
         let mut img = Self::new(width, height);
-        for chunk in img.rgba_pixels.chunks_exact_mut(4) {
+        for chunk in img.rgba_pixels.as_chunks_mut::<4>().0 {
             chunk[0] = rand::random();
             chunk[1] = rand::random();
             chunk[2] = rand::random();
@@ -83,7 +83,7 @@ fn verify_yuv_values(input: YuvVerifyInput) {
 
             // Verify Y value using the same formula as in the implementation
             let expected_y =
-                ((16_i32 + (66 * r as i32 + 129 * g as i32 + 25 * b as i32)) >> 8) as u8;
+                (16_i32 + ((66 * r as i32 + 129 * g as i32 + 25 * b as i32 + 128) >> 8)) as u8;
             assert_eq!(
                 input.y[y_idx], expected_y,
                 "Y mismatch at ({}, {}): expected {}, got {}",
@@ -310,5 +310,53 @@ fn yuv_neon_matches_base_with_padded_linesize() {
         assert_eq!(y_pixels_base, y_pixels_neon, "Y planes differ");
         assert_eq!(cb_pixels_base, cb_pixels_neon, "Cb planes differ");
         assert_eq!(cr_pixels_base, cr_pixels_neon, "Cr planes differ");
+    }
+}
+
+type ConvertFn = unsafe fn(i32, i32, i32, i32, i32, &[u8], *mut u8, *mut u8, *mut u8);
+
+/// BT.601 limited range: players map Y 16 to black and 235 to white. Writing
+/// full-range values into an untagged limited stream crushes shadows.
+#[test]
+fn yuv_uses_limited_range_levels() {
+    use crate::renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
+
+    for (rgb, expected_y) in [(0u8, 16u8), (255, 235)] {
+        let TestImage {
+            width,
+            height,
+            rgba_pixels,
+            mut y_pixels,
+            mut cb_pixels,
+            mut cr_pixels,
+        } = TestImage::with_solid_color(16, 16, rgb, rgb, rgb, 255);
+
+        for accelerated in [false, true] {
+            let convert: ConvertFn = if accelerated {
+                fill_yuv420_from_rgba_pixmap_accelerated
+            } else {
+                fill_yuv420_from_rgba_pixmap_base
+            };
+            unsafe {
+                convert(
+                    width,
+                    height,
+                    width,
+                    width / 2,
+                    width / 2,
+                    &rgba_pixels,
+                    y_pixels.as_mut_ptr(),
+                    cb_pixels.as_mut_ptr(),
+                    cr_pixels.as_mut_ptr(),
+                );
+            }
+
+            assert!(
+                y_pixels.iter().all(|&y| y == expected_y),
+                "{rgb}: {y_pixels:?}"
+            );
+            assert!(cb_pixels.iter().all(|&c| c == 128), "{rgb}: {cb_pixels:?}");
+            assert!(cr_pixels.iter().all(|&c| c == 128), "{rgb}: {cr_pixels:?}");
+        }
     }
 }

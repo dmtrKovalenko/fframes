@@ -7,7 +7,6 @@ use std::cell::UnsafeCell;
 use std::collections::VecDeque;
 use std::ffi::{CString, c_void};
 use std::mem::size_of;
-use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
@@ -196,6 +195,8 @@ pub struct FFmpegDecoder {
     pkt: *mut AVPacket,
     custom_time_base: AVRational,
     duration_in_frames: i64,
+    /// The offset of the previous `decode_up_to` call, in `custom_time_base` units.
+    last_offset: Option<i64>,
 }
 
 unsafe impl Send for FFmpegDecoder {}
@@ -314,7 +315,11 @@ impl FFmpegFrameBuf {
 
             // fast path for the cpu renderer which will always have capacity 1
             if queue.capacity() == 1 && queue.len() == 1 {
-                return queue.get_mut(0);
+                // the pts identifies the image (and its renderer cache entries), it has to
+                // follow the pixels
+                let image = queue.get_mut(0)?;
+                image.pts = latest_pts;
+                return Some(image);
             }
 
             if queue.len() == queue.capacity() {
@@ -466,7 +471,9 @@ impl FFmpegDecoder {
             let filename = path
                 .file_name()
                 .ok_or_else(|| FFramesMediaError::MediaDirectoryProvided)?;
-            let full_path_cstr = CString::new(path.as_os_str().as_bytes())?;
+            // libavformat expects UTF-8 paths on every platform (it converts them to
+            // wide strings itself on Windows), so raw OS bytes are not portable here.
+            let full_path_cstr = CString::new(path.to_string_lossy().as_ref())?;
 
             let mut fmt_ctx: *mut AVFormatContext = ptr::null_mut();
             let ret = avformat_open_input(
@@ -542,6 +549,7 @@ impl FFmpegDecoder {
                 custom_time_base,
                 duration_in_frames,
                 current_loop: 0,
+                last_offset: None,
             })
         }
     }
@@ -708,6 +716,19 @@ impl FFmpegDecoder {
     /// Generally safe but uses libav functions
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
         unsafe {
+            // Going back needs a seek, otherwise the newer frame that was already decoded
+            // would be returned. Far jumps forward seek to the closest keyframe instead of
+            // decoding every frame in between (frames can be requested out of order by
+            // parallel renderers).
+            let seek_ahead_frames = 2 * self.custom_time_base.den.max(1) as i64;
+            let needs_seek = self.last_offset.is_some_and(|last_offset| {
+                offset < last_offset || offset - last_offset > seek_ahead_frames
+            });
+            self.last_offset = Some(offset);
+            if needs_seek {
+                self.seek_to_offset(offset)?;
+            }
+
             let target_pts = av_rescale_q(
                 offset,
                 self.custom_time_base,

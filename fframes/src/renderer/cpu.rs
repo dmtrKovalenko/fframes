@@ -1,21 +1,24 @@
 use super::{
-    RenderEncodingResult, get_thread_count, render_backend::FFramesRenderBackend,
+    FrameScheduler, SegmentWriter, get_thread_count, render_backend::FFramesRenderBackend,
     renderer_error::RenderEncodingError,
 };
 use crate::{
     AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, TextCache,
     Video, VideoDecodersWorker, usvgr,
 };
-use rayon::prelude::*;
-use std::{path::Path, sync::Arc};
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 use svgr::{PixmapPool, SvgrCache, tiny_skia::Color};
 use usvgr::fontdb;
 use uuid::Uuid;
 
 use super::{
     concatenator,
-    encoder::{Encoder, EncoderOutput},
-    encoder_frame::EncoderFrame,
     fframes_logger::FFramesLogger,
     renderer_error::{FFramesRendererError, FFramesRendererResult},
 };
@@ -85,107 +88,114 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             TVideo::BACKGROUND_COLOR.a,
         );
 
-        let files = render_options
-            .video_encoder_options
-            .split_gop_chunks(ctx.duration_in_frames, self.concurrency)
-            .par_iter()
-            .enumerate()
-            .map(|(thread_number, chunk_range)| {
-                let file = directory.join(format!(
-                    "{thread_number}.{}",
-                    extension.to_string_lossy().as_ref(),
-                ));
+        let video_size = &ctx.current_video_size;
+        let scheduler = FrameScheduler::new(
+            ctx.duration_in_frames,
+            self.concurrency,
+            render_options
+                .video_encoder_options
+                .min_segment_frames(ctx.time_base.fps),
+        );
+        let writer = SegmentWriter::new(
+            directory,
+            extension.to_string_lossy().as_ref(),
+            (
+                video_size.width as i32,
+                video_size.height as i32,
+                ctx.time_base.fps as i32,
+            ),
+            render_options,
+            &logger,
+        );
+        let failed = AtomicBool::new(false);
 
-                unsafe {
-                    Encoder::with_output(
-                        EncoderOutput::IntermediateChunk,
-                        ctx.current_video_size.width as i32,
-                        ctx.current_video_size.height as i32,
-                        ctx.time_base.fps as i32,
-                        &file,
-                        render_options,
-                        &logger,
-                        &mut |encoder| {
-                            let mut frame = EncoderFrame::new(&encoder.video_stream)?;
+        let render_worker = |worker: usize| -> FFramesRendererResult<()> {
+            let pixmap_pool = PixmapPool::new();
+            let worker_local_decoders = VideoDecodersWorker::new(1);
+            let mut svgr_cache = SvgrCache::new(self.cache_capacity);
+            let break_lines_cache = TextCache::new(self.text_cache_capacity);
+            let mut converter_cache = usvgr::Cache::new_with_text_cache(self.text_cache_capacity);
 
-                            let pixmap_pool = PixmapPool::new();
-                            let worker_local_decoders = VideoDecodersWorker::new(1);
-                            let mut svgr_cache = SvgrCache::new(self.cache_capacity);
-                            let break_lines_cache = TextCache::new(self.text_cache_capacity);
-                            let mut converter_cache =
-                                usvgr::Cache::new_with_text_cache(self.text_cache_capacity);
+            let mut pixmap =
+                svgr::tiny_skia::Pixmap::new(video_size.width as u32, video_size.height as u32)
+                    .ok_or_else(|| {
+                        FFramesRendererError::RenderChunkError(
+                            worker,
+                            RenderEncodingError::CantAllocate("pixmap".to_owned()),
+                        )
+                    })?;
+            let svgr_ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
 
-                            let mut pixmap = svgr::tiny_skia::Pixmap::new(
-                                ctx.current_video_size.width as u32,
-                                ctx.current_video_size.height as u32,
-                            )
-                            .ok_or_else(|| {
-                                RenderEncodingError::CantAllocate("pixmap".to_owned())
-                            })?;
-
-                            let svgr_ctx = svgr::Context::new_from_pixmap_unsafe(&pixmap);
-                            chunk_range.to_owned().enumerate().try_for_each(
-                                |(index, fr)| -> RenderEncodingResult<()> {
-                                    if ctx.abort_signal.is_some_and(AbortSignal::is_aborted) {
-                                        return Err(RenderEncodingError::Aborted);
-                                    }
-
-                                    pixmap.fill(background_color);
-                                    let svg = video.render_frame(
-                                        Frame::__internal_make_for_renderer(
-                                            fr,
-                                            fr,
-                                            ctx.time_base.fps,
-                                            break_lines_cache.clone(),
-                                            worker_local_decoders.clone(),
-                                        ),
-                                        ctx,
-                                    );
-
-                                    let rtree = svg.into_svg_tree(
-                                        usvg_options,
-                                        &mut converter_cache,
-                                        font_db,
-                                    )?;
-
-                                    svgr::render(
-                                        &rtree,
-                                        svgr::tiny_skia::Transform::default(),
-                                        &mut pixmap.as_mut(),
-                                        &mut svgr_cache,
-                                        &pixmap_pool,
-                                        &svgr_ctx,
-                                    );
-
-                                    frame.fill_from_rgba_pixmap(pixmap.data());
-                                    // we use frame indexes as pts which if fine because the av_packet_rescale_ts will
-                                    // automatically convert it to the correct timebase
-                                    frame.set_pts(fr as i64);
-                                    encoder.send_frame(&encoder.video_stream, &frame)?;
-                                    logger.log_frame(index, thread_number);
-
-                                    Ok(())
-                                },
-                            )?;
-
-                            encoder.submit_leftover_b_frames(
-                                &frame,
-                                &encoder.video_stream,
-                                chunk_range.end - chunk_range.start,
-                            )?;
-
-                            Ok(())
-                        },
-                    )
+            let mut rendered_frames = 0;
+            while let Some(claim) = scheduler.claim(worker) {
+                if failed.load(Ordering::Relaxed) {
+                    return Ok(());
                 }
-                .map_err(|av_err| match av_err {
-                    RenderEncodingError::Aborted => FFramesRendererError::Aborted,
-                    av_err => FFramesRendererError::RenderChunkError(thread_number, av_err),
-                })?;
+                if ctx.abort_signal.is_some_and(AbortSignal::is_aborted) {
+                    return Err(FFramesRendererError::Aborted);
+                }
 
-                Ok(file)
-            })
-            .collect::<FFramesRendererResult<Vec<_>>>()?;
+                pixmap.fill(background_color);
+                let svg = video.render_frame(
+                    Frame::__internal_make_for_renderer(
+                        claim.frame,
+                        claim.frame,
+                        ctx.time_base.fps,
+                        break_lines_cache.clone(),
+                        worker_local_decoders.clone(),
+                    ),
+                    ctx,
+                );
+
+                let rtree = svg.into_svg_tree(usvg_options, &mut converter_cache, font_db)?;
+
+                svgr::render(
+                    &rtree,
+                    svgr::tiny_skia::Transform::default(),
+                    &mut pixmap.as_mut(),
+                    &mut svgr_cache,
+                    &pixmap_pool,
+                    &svgr_ctx,
+                );
+
+                writer
+                    .submit(claim, pixmap.data())
+                    .map_err(|err| FFramesRendererError::RenderChunkError(worker, err))?;
+                logger.log_frame(rendered_frames, worker);
+                rendered_frames += 1;
+            }
+
+            Ok(())
+        };
+
+        std::thread::scope(|scope| {
+            let workers: Vec<_> = (0..scheduler.workers())
+                .map(|worker| {
+                    let render_worker = &render_worker;
+                    let failed = &failed;
+                    scope.spawn(move || {
+                        let result = render_worker(worker);
+                        if result.is_err() {
+                            failed.store(true, Ordering::Relaxed);
+                        }
+                        result
+                    })
+                })
+                .collect();
+
+            workers
+                .into_iter()
+                .map(|worker| {
+                    worker.join().map_err(|_| {
+                        FFramesRendererError::Internal("Rendering thread panicked".to_owned())
+                    })?
+                })
+                .collect::<FFramesRendererResult<Vec<_>>>()
+        })?;
+
+        let files = writer
+            .finish()
+            .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
 
         unsafe {
             concatenator::concat_video_files_with_audio(

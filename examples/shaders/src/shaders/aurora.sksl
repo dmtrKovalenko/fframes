@@ -1,0 +1,46 @@
+// Domain-warped fbm noise, tinted by two animated colors.
+uniform float3 iResolution;
+uniform float iTime;
+uniform float4 uColorA;
+uniform float4 uColorB;
+uniform float uSpeed;
+
+float hash(float2 p) {
+    return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(float2 p) {
+    float2 i = floor(p);
+    float2 f = fract(p);
+    float2 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+        mix(hash(i), hash(i + float2(1.0, 0.0)), u.x),
+        mix(hash(i + float2(0.0, 1.0)), hash(i + float2(1.0, 1.0)), u.x),
+        u.y
+    );
+}
+
+float fbm(float2 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    for (int i = 0; i < 5; i++) {
+        value += amplitude * noise(p);
+        p = p * 2.03 + float2(17.0, 9.2);
+        amplitude *= 0.5;
+    }
+    return value;
+}
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution.y;
+    float t = iTime * uSpeed;
+
+    float2 q = float2(fbm(uv * 1.6 + t * 0.10), fbm(uv * 1.6 + float2(5.2, 1.3) - t * 0.08));
+    float n = fbm(uv * 2.2 + 3.0 * q + float2(0.0, t * 0.15));
+
+    float3 color = mix(float3(0.02, 0.02, 0.05), uColorA.rgb, smoothstep(0.25, 0.85, n));
+    color = mix(color, uColorB.rgb, smoothstep(0.55, 1.0, q.x * n * 1.6));
+
+    float vignette = smoothstep(1.4, 0.3, length(coord / iResolution.xy - 0.5) * 1.6);
+    return half4(half3(color * vignette), 1.0);
+}

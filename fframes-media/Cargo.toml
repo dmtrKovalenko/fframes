@@ -31,6 +31,12 @@ image = { version = "0.25.6", default-features = false, features = [
 usvgr.workspace = true
 libc = "0.2.159"
 
+# FFmpeg is compiled from source and linked statically everywhere except Windows, where
+# building it needs an MSYS2 + MSVC toolchain. There it is linked from a prebuilt
+# FFmpeg 9 distribution found through FFMPEG_DIR or vcpkg (see README).
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+ffmpeg-sys-fframes = { workspace = true, features = ["build", "static"] }
+
 [features]
 # by default we enable only platform specific encoders that 
 # would be always populated by the platform sysroot itself

@@ -30,11 +30,11 @@ pub(crate) struct PipelineMetrics {
 }
 
 impl PipelineMetrics {
-    pub(crate) fn new(generator_threads: usize) -> Self {
+    pub(crate) fn new(generators: usize, renderers: usize, encoders: usize) -> Self {
         Self {
-            generator_metrics: Arc::new(ThreadMetrics::new(generator_threads)),
-            renderer_metrics: Arc::new(ThreadMetrics::new(1)),
-            encoder_metrics: Arc::new(ThreadMetrics::new(1)),
+            generator_metrics: Arc::new(ThreadMetrics::new(generators)),
+            renderer_metrics: Arc::new(ThreadMetrics::new(renderers)),
+            encoder_metrics: Arc::new(ThreadMetrics::new(encoders)),
         }
     }
 

@@ -330,7 +330,7 @@ dependencies = [
  "quote",
  "regex",
  "rustc-hash",
- "shlex",
+ "shlex 1.3.0",
  "syn 2.0.100",
 ]
 
@@ -466,13 +466,14 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.19"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e3a13707ac958681c13b39b458c073d0d9bc8a22cb1b2f4c8e55eb72c13f362"
+checksum = "f360145194ee8e21db5ee7f3fcd4fe52210864c75c985dae33218202c8bbe040"
 dependencies = [
+ "find-msvc-tools",
  "jobserver",
  "libc",
- "shlex",
+ "shlex 2.0.1",
 ]
 
 [[package]]
@@ -1049,9 +1050,9 @@ dependencies = [
 
 [[package]]
 name = "ffmpeg-sys-next"
-version = "8.0.1"
+version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bca20aa4ee774fe384c2490096c122b0b23cf524a9910add0686691003d797b"
+checksum = "9b939bf79dd5949412a4b81cfe21a07f48ea21b47fcbb5f57816c8c2de5ae30b"
 dependencies = [
  "bindgen",
  "cc",
@@ -1219,6 +1220,12 @@ dependencies = [
  "libredox",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "find-msvc-tools"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
 
 [[package]]
 name = "flate2"
@@ -2032,6 +2039,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys 0.3.1",
+]
+
+[[package]]
+name = "neon-triangle-bridge-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "fframes-editor-controller",
+ "neon-triangle-example",
+ "once_cell",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "neon-triangle-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "clap",
+ "fframes",
+ "fframes_skia_renderer",
+ "image",
 ]
 
 [[package]]
@@ -3009,6 +3036,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
+name = "render-bench"
+version = "0.0.0"
+dependencies = [
+ "audio-announce-example",
+ "beta-example",
+ "clap",
+ "conference-splash-screen-example",
+ "fframes",
+ "fframes-skia-safe",
+ "fframes_skia_renderer",
+ "hello-world-example",
+ "low-poly-art-example",
+ "marketing-example",
+ "motion-graphics-example",
+ "pixel-example",
+ "png",
+ "podcast-example",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "svgr",
+ "teej_podcast_example",
+ "tiktok-example",
+]
+
+[[package]]
 name = "rgb"
 version = "0.8.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3230,10 +3283,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "shaders-bridge-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "fframes-editor-controller",
+ "once_cell",
+ "shaders-example",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "shaders-example"
+version = "1.0.0-beta.6.rc-3.2"
+dependencies = [
+ "clap",
+ "fframes",
+ "fframes_skia_renderer",
+ "image",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "shlex"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "simd-adler32"
@@ -3411,9 +3490,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "svgr"
-version = "0.45.1"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dfcea2ffe8b9a59a4b3b5ed35c6c75f788fc479026057bcc7826f783bf9ee47"
+checksum = "fac2e661050721c00a3ea807bf2855a54f27ad726166b1ce881280b9bb6a2182"
 dependencies = [
  "gif 0.12.0",
  "jpeg-decoder",
@@ -3435,15 +3514,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rust-fuzzy-search",
+ "simplecss",
  "syn 2.0.100",
  "usvgr",
 ]
 
 [[package]]
 name = "svgrtypes"
-version = "0.45.1"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bbcde848db2bd5401c349f18d0377f2ef64f6a0a509b6820e1856f716d67137"
+checksum = "f28c9992491123c065bc90c089e4ead6a951dfde8273f2fa2c26a3efa7baa10d"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -3850,9 +3930,9 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 
 [[package]]
 name = "usvgr"
-version = "0.45.1"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfb96de3ca33ec7947688e0bfdbfdf621099bbe112296f374c362548410bfe85"
+checksum = "0161ea03cdcccf46f6581868223f38f7e619e4eb9f40457c2cb7c9a1be709654"
 dependencies = [
  "ahash",
  "base64 0.21.7",

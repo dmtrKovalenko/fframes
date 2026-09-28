@@ -24,42 +24,54 @@ pub struct Stream {
 unsafe impl Send for Stream {}
 unsafe impl Sync for Stream {}
 
-pub unsafe fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32 {
+/// Returns the list of values the encoder supports for `config`, or `None` when the
+/// encoder accepts any value (or libav can't tell).
+///
+/// # Safety
+/// `T` must match the element type libav documents for `config`.
+unsafe fn supported_codec_config<'a, T>(
+    codec: *const AVCodec,
+    config: AVCodecConfig,
+) -> Option<&'a [T]> {
     unsafe {
-        if (*codec).supported_samplerates.is_null() {
-            return sample_rate; // we are likely in some bad state here
+        let mut configs: *const std::ffi::c_void = std::ptr::null();
+        let mut count = 0;
+        let ret = avcodec_get_supported_config(
+            std::ptr::null(),
+            codec,
+            config,
+            0,
+            &mut configs,
+            &mut count,
+        );
+
+        if ret < 0 || configs.is_null() || count <= 0 {
+            return None;
         }
 
-        let mut i = 0;
-        // it is terminated by 0
-        while *(*codec).supported_samplerates.add(i) != 0 {
-            if *(*codec).supported_samplerates.add(i) == sample_rate {
-                return sample_rate;
-            }
-            i += 1;
-        }
-
-        *(*codec).supported_samplerates
+        Some(std::slice::from_raw_parts(
+            configs as *const T,
+            count as usize,
+        ))
     }
 }
 
-unsafe fn is_pixel_format_supported(
-    pixel_format: AVPixelFormat,
-    supported_formats: *const AVPixelFormat,
-) -> bool {
-    let mut index = 0;
-    loop {
-        let format = unsafe { *supported_formats.offset(index) };
-        if format == AVPixelFormat::AV_PIX_FMT_NONE {
-            return false;
-        }
+pub unsafe fn validate_sample_rate_fits_codec(codec: *const AVCodec, sample_rate: i32) -> i32 {
+    let supported =
+        unsafe { supported_codec_config::<i32>(codec, AVCodecConfig::AV_CODEC_CONFIG_SAMPLE_RATE) };
 
-        if format == pixel_format {
-            return true;
-        }
-
-        index += 1;
+    match supported {
+        Some(rates) if !rates.contains(&sample_rate) => rates[0],
+        _ => sample_rate,
     }
+}
+
+unsafe fn is_pixel_format_supported(codec: *const AVCodec, pixel_format: AVPixelFormat) -> bool {
+    let supported = unsafe {
+        supported_codec_config::<AVPixelFormat>(codec, AVCodecConfig::AV_CODEC_CONFIG_PIX_FORMAT)
+    };
+
+    supported.is_none_or(|formats| formats.contains(&pixel_format))
 }
 
 impl Stream {
@@ -105,7 +117,9 @@ impl Stream {
             if codec.is_null() {
                 codec = avcodec_find_encoder(codec_id);
 
-                if let Some(preferred_codec_name) = preferred_encoder {
+                if let Some(preferred_codec_name) = preferred_encoder
+                    && !codec.is_null()
+                {
                     let found_encoder_name = CStr::from_ptr((*codec).name);
 
                     eprintln!(
@@ -155,13 +169,21 @@ impl Stream {
             (*st).time_base = AVRational { num: 1, den: fps };
             (*c).time_base = (*st).time_base;
 
-            if !is_pixel_format_supported(encoder_options.pixel_format, (*codec).pix_fmts) {
+            if !is_pixel_format_supported(codec, encoder_options.pixel_format) {
                 return Err(RenderEncodingError::InvalidPixFmt(
                     encoder_options.pixel_format,
                 ));
             }
 
             (*c).pix_fmt = encoder_options.pixel_format;
+            // Both RGBA → YUV paths (the built-in yuv420 converter and
+            // swscale's default) produce BT.601 limited range. Say so: an
+            // untagged HD stream is decoded as BT.709, shifting colors.
+            let pix_fmt_desc = av_pix_fmt_desc_get(encoder_options.pixel_format);
+            if !pix_fmt_desc.is_null() && (*pix_fmt_desc).flags & AV_PIX_FMT_FLAG_RGB as u64 == 0 {
+                (*c).color_range = AVColorRange::AVCOL_RANGE_MPEG;
+                (*c).colorspace = AVColorSpace::AVCOL_SPC_SMPTE170M;
+            }
             (*c).gop_size = encoder_options.gop_size;
             (*c).qmin = encoder_options.qmin;
             (*c).qmax = encoder_options.qmax;

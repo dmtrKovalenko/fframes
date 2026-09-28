@@ -231,6 +231,7 @@ impl Encoder {
                     logger.log_audio_frame();
                     audio_frame_pts += frame_size;
                 }
+                self.flush_stream(audio_stream)?;
 
                 logger.finish_audio_encoding();
             }
@@ -242,6 +243,7 @@ impl Encoder {
     unsafe fn fill_streams_from_files(&self, files: &[PathBuf]) -> Result<(), RenderEncodingError> {
         unsafe {
             let mut last_video_mux_dts: Option<i64> = None;
+            let mut next_video_start = 0i64;
             let mut last_audio_mux_dts: Option<i64> = None;
             let mut packet = AvPacketAutoFree::new();
 
@@ -292,6 +294,9 @@ impl Encoder {
                     ));
                 }
 
+                let mut video_shift: Option<i64> = None;
+                let mut file_video_end = next_video_start;
+
                 loop {
                     let res = av_read_frame(input_format_ctx, packet.get());
                     if res < 0 {
@@ -311,16 +316,37 @@ impl Encoder {
                             // Handle video packet (preserve original keyframe flags)
                             packet.get_mut().stream_index = (*self.video_stream.st).index;
 
-                            if let Some(last_mux_dts) = last_video_mux_dts.as_mut() {
-                                validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
-                            }
-                            last_video_mux_dts = Some((*packet.get()).dts);
-
                             av_packet_rescale_ts(
                                 packet.get(),
                                 (*input_video_stream).time_base,
                                 (*self.video_stream.st).time_base,
                             );
+
+                            // Every file continues exactly where the previous one ended.
+                            // Its own start is not reliable: mp4 stores a non zero start
+                            // in an edit list with millisecond precision.
+                            let shift = *video_shift.get_or_insert_with(|| {
+                                let start = if (*input_video_stream).start_time == AV_NOPTS_VALUE {
+                                    (*packet.get()).pts
+                                } else {
+                                    av_rescale_q(
+                                        (*input_video_stream).start_time,
+                                        (*input_video_stream).time_base,
+                                        (*self.video_stream.st).time_base,
+                                    )
+                                };
+                                next_video_start - start
+                            });
+                            packet.get_mut().pts += shift;
+                            packet.get_mut().dts += shift;
+                            file_video_end =
+                                file_video_end.max((*packet.get()).pts + (*packet.get()).duration);
+
+                            if let Some(last_mux_dts) = last_video_mux_dts.as_mut() {
+                                validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc)?;
+                            }
+                            last_video_mux_dts = Some((*packet.get()).dts);
+
                             let ret = av_interleaved_write_frame(self.oc, packet.get());
                             if ret < 0 {
                                 avformat_close_input(&mut input_format_ctx);
@@ -366,6 +392,7 @@ impl Encoder {
                 }
 
                 avformat_close_input(&mut input_format_ctx);
+                next_video_start = file_video_end;
             }
 
             Ok(())

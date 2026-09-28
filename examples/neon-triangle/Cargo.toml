@@ -1,0 +1,29 @@
+[package]
+name = "neon-triangle-example"
+version = "1.0.0-beta.6.rc-3.2"
+edition = "2024"
+
+[dependencies]
+fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl"] }
+clap = { version = "4.3.4", features = ["derive"] }
+
+# Shaders are executed by the Skia backend; the editor bridge (wasm) only
+# needs `fframes` and shows a placeholder in their place.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+image = "0.25.5"
+
+[features]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "neon_triangle_example"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "neon_triangle_example_bin"
+path = "src/main.rs"
+required-features = ["renderer"]
