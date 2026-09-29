@@ -19,7 +19,7 @@ fi
 
 tag=$(git describe --tags --abbrev=0)
 last=${tag#v}
-count=$(printf '%02d' "$(git rev-list --count "$tag..HEAD")")
+count=$(git rev-list --count "$tag..HEAD")
 if [[ "$last" == *-* ]]; then
   echo "$last.rc-$count"
 else
