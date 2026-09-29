@@ -49,6 +49,8 @@ ffmpeg-sys-fframes = { workspace = true, features = ["build", "static"] }
 # by default we enable only platform specific encoders that 
 # would be always populated by the platform sysroot itself
 default = []
+# Preserve prebuilt downloads and omit host CPU flags when building from source.
+build-portable = ["ffmpeg-sys-fframes/build-portable"]
 # enable various encoder & decoders libraries
 h264 = ["ffmpeg-sys-fframes/build-lib-x264"]
 h265 = ["ffmpeg-sys-fframes/build-lib-x265"]

@@ -7,6 +7,10 @@ edition = "2024"
 fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
 clap = { version = "4.3.4", features = ["derive"] }
 
+# Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+fframes = { workspace = true, features = ["build-portable"] }
+
 [features]
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree", "fframes/cli"]

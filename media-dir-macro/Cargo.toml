@@ -30,6 +30,7 @@ fframes-media.workspace = true
 fframes-media = { workspace = true, features = ["videotoolbox"] }
 
 [features]
+build-portable = ["fframes-media/build-portable"]
 exif = ["fframes-media/kamadak-exif"]
 nightly = []
 metadata = []

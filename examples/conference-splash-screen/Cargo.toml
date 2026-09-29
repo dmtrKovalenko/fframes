@@ -11,6 +11,10 @@ serde_json = "1.0.132"
 rayon = "1.10.0"
 image = "0.25.4"
 
+# Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+fframes = { workspace = true, features = ["build-portable"] }
+
 [features]
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree", "fframes/cli"]

@@ -207,6 +207,27 @@ compile them from source (up to ~20 minutes). Later builds take seconds. `--back
 fframes links ffmpeg's libav libraries statically. A prebuilt build is downloaded for macOS and Linux (arm64 and x86_64) and
 compiled from source for other targets or `FFMPEG_FORCE_BUILD=1`; either way the system encoders they link against have to be installed.
 
+The examples enable `fframes/build-portable` on native non-Windows targets. CI builds the
+whole workspace, combining the examples' x264, x265, VPX and Opus features; no published
+FFmpeg archive currently matches that combination, so it falls back to a source build.
+Without `build-portable`, that build uses `-march=native -mtune=native`. Caching it and
+restoring it on a runner with a different CPU can cause `SIGILL` (illegal instruction).
+The feature omits those flags for source builds while keeping matching prebuilt downloads
+enabled, and also applies to FFmpeg used by the compile-time media macro.
+
+Within this workspace, use the same setting for native builds that will be cached or run on
+other machines:
+
+```toml
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+fframes = { workspace = true, features = ["build-portable"] }
+```
+
+`build-portable` also enables FFmpeg's source-build support, so the examples exclude Windows
+(which links a shared FFmpeg installation) and browser targets. Setting `FFMPEG_MARCH` or
+`FFMPEG_MTUNE`, even to an empty string, bypasses prebuilt downloads; prefer the feature when
+you want portable source fallbacks and prebuilt downloads.
+
 <details>
 <summary><b>macOS</b></summary>
 

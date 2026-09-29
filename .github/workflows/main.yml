@@ -19,10 +19,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # Cached FFmpeg libraries must run on every runner CPU. Empty values omit
-  # the build script's default -march=native and -mtune=native flags.
-  FFMPEG_MARCH: ""
-  FFMPEG_MTUNE: ""
 
 jobs:
   spellcheck:
@@ -111,7 +107,9 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       # FFmpeg is built from source (the workspace unifies the codecs of every
       # example, no prebuilt matches that) and every example is compiled
-      # twice (check + test); debuginfo and incremental artifacts alone push
+      # twice (check + test). The examples enable build-portable so cached
+      # FFmpeg libraries work across runner CPUs without disabling prebuilt
+      # downloads. Debuginfo and incremental artifacts alone push
       # the target dir past the runner's disk.
       CARGO_INCREMENTAL: 0
       CARGO_PROFILE_DEV_DEBUG: 0

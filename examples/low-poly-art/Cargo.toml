@@ -11,6 +11,10 @@ fframes = { workspace = true }
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }
 
+# Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+fframes = { workspace = true, features = ["build-portable"] }
+
 [features]
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree", "fframes/cli"]

@@ -19,6 +19,10 @@ fframes_native_player.workspace = true
 [target.'cfg(not(windows))'.dependencies]
 fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
 
+# Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+fframes = { workspace = true, features = ["build-portable"] }
+
 [lib]
 name = "fframes_intro"
 path = "src/lib.rs"

@@ -67,6 +67,10 @@ cli = ["cpu_renderer", "dep:clap", "dep:serde_json"]
 exif = ["fframes-media/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 
+# Keep FFmpeg source fallbacks portable, including compile-time media decoding.
+# Enable on native non-Windows targets; Windows uses a shared FFmpeg installation.
+build-portable = ["fframes-media/build-portable", "fframes-media-dir-macro/build-portable"]
+
 # enable various encoders & decoders
 h264 = ["fframes-media/h264"]
 h265 = ["fframes-media/h265"]
