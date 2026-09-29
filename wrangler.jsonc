@@ -1,9 +1,12 @@
 // landing/ as static assets on Cloudflare. Workers Builds runs `wrangler deploy` for main
 // and `wrangler preview` for pull requests, which needs the (empty) previews block.
+// The build step publishes skills/ under landing/.well-known/agent-skills for
+// `npx skills add https://fframes.studio`.
 {
   "name": "fframes",
   "account_id": "86ddf0334885d2955aa80c778509d857",
   "compatibility_date": "2026-09-01",
+  "build": { "command": "node scripts/build-skills-index.mjs", "watch_dir": "skills" },
   "assets": { "directory": "./landing" },
   "previews": {}
 }

@@ -62,7 +62,7 @@ impl Scene for OutroScene {
         let tag = prog(lb, 4.0, 4.6);
         let cmds = [
             (
-                "npx skills add dmtrKovalenko/fframes",
+                "npx skills add https://fframes.studio",
                 "WITH YOUR CODING AGENT",
             ),
             ("cargo fframes new my-video", "OR BY HAND"),

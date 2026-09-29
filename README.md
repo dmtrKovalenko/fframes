@@ -33,7 +33,7 @@
 fframes ships a skill for coding agents. Add it once:
 
 ```sh
-npx skills add dmtrKovalenko/fframes
+npx skills add https://fframes.studio
 ```
 
 Then describe the video you want, the way you would brief a motion designer. The skill takes your agent from an empty
