@@ -126,6 +126,9 @@ pub struct EncoderOptions<'a> {
     /// Dynamic set of options specific to encoder. Every encoder accepts its own purely dynamic set of options, e.g.
     /// the most popular example for h264 & h265 codecs are options like `-crf 18 -tune animation -preset ultrafast`.
     ///
+    /// Intermediate segments encode in parallel and default to one codec thread each.
+    /// Override this with `("threads", "N")`, or `("threads", "0")` for automatic sizing.
+    ///
     /// You can pass this set of options like:
     /// ```rust
     /// let encoder_options = fframes_renderer::EncoderOptions { codec_params: Some(&[("crf", "23"), ("tune", "animation"), ("preset", "ultrafast")]),
@@ -304,6 +307,9 @@ impl Encoder {
                 fps,
                 oc,
                 &render_options.video_encoder_options,
+                // Segments already encode in parallel. Letting each encoder auto-size
+                // its own thread pool multiplies both threads and buffered frames.
+                i32::from(matches!(output, EncoderOutput::IntermediateChunk)),
             )?;
             if logger.should_dump_format_info() {
                 av_dump_format(oc, 0, c_filename.as_ptr(), 1);
@@ -474,3 +480,52 @@ impl Encoder {
 
 unsafe impl Send for Encoder {}
 unsafe impl Sync for Encoder {}
+
+#[cfg(all(test, feature = "h264"))]
+mod tests {
+    use super::*;
+    use crate::{FFramesLoggerVariant, renderer::fframes_logger::make_logger};
+
+    #[test]
+    fn parallel_segments_limit_codec_threads_and_allow_overrides() {
+        let directory =
+            std::env::temp_dir().join(format!("fframes-threads-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&directory).unwrap();
+        let logger = make_logger(FFramesLoggerVariant::Silent);
+
+        for (index, (params, expected)) in [
+            (vec![("preset", "veryfast")], 1),
+            (vec![("preset", "veryfast"), ("threads", "2")], 2),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let options = RenderOptions {
+                video_encoder_options: EncoderOptions {
+                    preferred_encoder: Some("libx264"),
+                    codec_params: Some(&params),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let encoder = unsafe {
+                Encoder::new(
+                    EncoderOutput::IntermediateChunk,
+                    64,
+                    64,
+                    30,
+                    &directory.join(format!("{index}.mp4")),
+                    &options,
+                    &logger,
+                )
+            }
+            .unwrap_or_else(|err| panic!("failed to open test encoder: {err}"));
+            assert_eq!(
+                unsafe { (*encoder.video_stream.enc).thread_count },
+                expected
+            );
+        }
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+}

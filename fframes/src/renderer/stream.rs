@@ -182,6 +182,7 @@ impl Stream {
         fps: i32,
         oc: *mut AVFormatContext,
         encoder_options: &EncoderOptions,
+        thread_count: i32,
     ) -> RenderEncodingResult<Self> {
         unsafe {
             let (codec, codec_id, st, c) = Self::prepare_stream_codec(
@@ -193,6 +194,9 @@ impl Stream {
             (*c).codec_id = codec_id;
             (*c).width = width;
             (*c).height = height;
+            // avcodec_open2 applies codec_params afterwards, so an explicit `threads`
+            // option still overrides this default (including `threads=0` for auto).
+            (*c).thread_count = thread_count;
             (*st).time_base = AVRational { num: 1, den: fps };
             (*c).time_base = (*st).time_base;
 
