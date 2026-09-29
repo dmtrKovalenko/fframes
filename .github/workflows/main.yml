@@ -19,6 +19,10 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Cached FFmpeg libraries must run on every runner CPU. Empty values omit
+  # the build script's default -march=native and -mtune=native flags.
+  FFMPEG_MARCH: ""
+  FFMPEG_MTUNE: ""
 
 jobs:
   spellcheck:
@@ -163,7 +167,8 @@ jobs:
         with: 
           cache: true
           cache-on-failure: true
-          cache-key: "v3-rust"
+          # Discard FFmpeg libraries previously compiled for a runner's native CPU.
+          cache-key: "v4-portable-ffmpeg"
           # PR scoped caches are only visible to that PR and push main's cache out
           # of the 10GB quota, so only main saves. PRs restore main's cache.
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -220,7 +225,7 @@ jobs:
         with:
           cache: true
           cache-on-failure: true
-          cache-key: "v3-rust-wasm"
+          cache-key: "v4-portable-ffmpeg-wasm"
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
           target: wasm32-unknown-unknown
 
