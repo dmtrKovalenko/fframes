@@ -92,10 +92,12 @@
 //!
 //! # `FFmpeg`
 //!
-//! Decoding, encoding and muxing use the `FFmpeg` libraries through `ffmpeg-sys-next`, re-exported
-//! as [`ffmpeg_sys_fframes`]. On Linux and macOS `FFmpeg` is compiled from source during
-//! `cargo build` and linked statically, so the toolchain listed in the repository README (nasm,
-//! yasm, clang, the codec dev packages) must be installed. On Windows a prebuilt `FFmpeg` 9 is
+//! Decoding, encoding and muxing use the `FFmpeg` libraries through `ffmpeg-sys-fframes`, re-exported
+//! as [`ffmpeg_sys_fframes`]. On Linux and macOS `FFmpeg` is linked statically: a prebuilt build
+//! for the target and codec features is downloaded during `cargo build`, and compiled from source
+//! when there is none, which needs the toolchain listed in the repository README (nasm, clang).
+//! The codec features link the system codec libraries (x264, x265, ...), so their dev packages
+//! must be installed either way. On Windows a prebuilt `FFmpeg` 9 is
 //! linked through `FFMPEG_DIR` or vcpkg and the codec features are not available.
 //!
 mod audio_analysis;

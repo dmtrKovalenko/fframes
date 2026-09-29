@@ -66,15 +66,14 @@ fonts and decorations with a design made for the video the user asked for.
 
 **Use the Skia GPU backend (the default).** `cargo fframes new` picks Skia on Metal (macOS) or
 Vulkan (Linux, Windows). It renders about 10x faster than the CPU backend and gives you the
-real-time `preview` window. The first build compiles Skia and ffmpeg from source and takes
-about 20 minutes, so start it right away and write the video while it runs:
+real-time `preview` window. The first build downloads prebuilt Skia and ffmpeg and compiles the
+Rust dependencies, a few minutes; start it right away and write the video while it runs:
 
 ```bash
-cd my-video && cargo build --release        # run in the background, it is slow only once
+cd my-video && cargo build --release        # run in the background, the first build is the slow one
 ```
 
-`--backend cpu` needs no Skia build but has no preview window; pick it only when there is no
-GPU or no time for the first build.
+`--backend cpu` needs no Skia but has no preview window; pick it only when there is no GPU.
 
 The project renders as generated:
 
@@ -246,20 +245,19 @@ command to watch it.
 
 ## Troubleshooting
 
-- Build fails in `ffmpeg-sys-next`: a system library from step 1 is missing (`nasm`,
+- Build fails in `ffmpeg-sys-fframes`: a system library from step 1 is missing (`nasm`,
   `pkg-config`, the codec `-dev` packages).
-- Build fails in the Skia bindings (`fframes-skia-bindings`) with bindgen or libclang errors: point `LIBCLANG_PATH` at a
+- Build fails in the Skia bindings (`skia-bindings`) with bindgen or libclang errors (Skia
+  is only compiled from source when no prebuilt matches, e.g. `metal` and `vulkan` together): point `LIBCLANG_PATH` at a
   working libclang (on macOS Xcode's:
   `export LIBCLANG_PATH=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib`).
 - Skia bindings fail to compile on macOS 27 / Xcode 27 with ``cannot find type `_Traits` ``
-  in `std___hash_table___node_allocator`: Xcode 27's libc++ needs a bindgen rule that
-  `fframes-skia-bindings` 0.91.1 does not have yet (rust-skia fixed it in
-  [#1335](https://github.com/rust-skia/rust-skia/pull/1335)). Until a release includes it, patch a
-  local copy: copy `~/.cargo/registry/src/*/fframes-skia-bindings-0.91.1` to
-  `vendor/fframes-skia-bindings`, add `"std::__hash_table.*",` after `"std::__tree.*",` in
-  `OPAQUE_TYPES` in its `build_support/skia_bindgen.rs`, and add to the project's own `Cargo.toml`:
-  `[patch.crates-io]` `fframes-skia-bindings = { path = "vendor/fframes-skia-bindings" }`.
-  The compiled Skia build is reused, so the rebuild takes minutes.
+  in `std___hash_table___node_allocator`: only happens when Skia is compiled from source (the
+  prebuilt binaries ship their bindings). `skia-bindings` 0.153.3 lacks the bindgen rule
+  (rust-skia [#1335](https://github.com/rust-skia/rust-skia/pull/1335)); use one GPU backend so
+  the prebuilt download matches, or patch a copy of `skia-bindings-0.153.3` (add
+  `"std::__hash_table.*",` after `"std::__tree.*",` in `OPAQUE_TYPES` in
+  `build_support/skia_bindgen.rs`) through `[patch.crates-io]`.
 - ``can't find crate for `fframes_media_dir_macro` `` on macOS 27 while the file exists: the
   proc macro was linked by an older Rust whose output the macOS 27 loader rejects (a "LINKEDIT
   string pool" error). Update Rust (`rustup update`; 1.98 works) and rebuild.

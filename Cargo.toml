@@ -100,7 +100,8 @@ float_cmp = "allow"
 # usvgr = { path = "../svgr/crates/usvgr" }
 svgr = "0.46.0"
 usvgr = "0.46.0"
-ffmpeg-sys-fframes = { package = "ffmpeg-sys-next", version = "9.0.0" }
+# ffmpeg-sys-next with prebuilt FFmpeg binaries: https://github.com/dmtrKovalenko/rust-ffmpeg-sys
+ffmpeg-sys-fframes = "9.0.0"
 wasm-bindgen = "0.2.100"
 kamadak-exif = "0.6.1"
 

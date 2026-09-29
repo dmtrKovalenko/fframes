@@ -104,14 +104,11 @@ fn convert_linear_gradient(
     let start = skia_safe::Point::new(gradient.x1(), gradient.y1());
     let end = skia_safe::Point::new(gradient.x2(), gradient.y2());
 
-    skia_safe::Shader::linear_gradient(
-        (start, end),
-        skia_safe::gradient_shader::GradientShaderColors::Colors(&colors),
-        Some(positions.as_slice()),
-        mode,
-        None,
-        Some(&transform),
-    )
+    let colors = skia_safe::gradient::Colors::new(&colors, Some(&positions), mode, None);
+    let gradient =
+        skia_safe::gradient::Gradient::new(colors, skia_safe::gradient::Interpolation::default());
+
+    skia_safe::gradient::shaders::linear_gradient((start, end), &gradient, &transform)
 }
 
 fn convert_radial_gradient(
@@ -125,34 +122,35 @@ fn convert_radial_gradient(
     let center = skia_safe::Point::new(gradient.cx(), gradient.cy());
     let focal = skia_safe::Point::new(gradient.fx(), gradient.fy());
 
-    skia_safe::Shader::two_point_conical_gradient(
-        focal,
-        0.0,
-        center,
-        gradient.r().get(),
-        skia_safe::gradient_shader::GradientShaderColors::Colors(&colors),
-        Some(positions.as_slice()),
-        mode,
-        None,
-        Some(&transform),
+    let radius = gradient.r().get();
+    let colors = skia_safe::gradient::Colors::new(&colors, Some(&positions), mode, None);
+    let gradient =
+        skia_safe::gradient::Gradient::new(colors, skia_safe::gradient::Interpolation::default());
+
+    skia_safe::gradient::shaders::two_point_conical_gradient(
+        (focal, 0.0),
+        (center, radius),
+        &gradient,
+        &transform,
     )
 }
 
 fn convert_gradient_stops(
     gradient: &usvgr::BaseGradient,
     opacity: usvgr::Opacity,
-) -> (Vec<skia_safe::Color>, Vec<f32>) {
+) -> (Vec<skia_safe::Color4f>, Vec<f32>) {
     let mut colors = Vec::with_capacity(gradient.stops().len());
     let mut positions = Vec::with_capacity(gradient.stops().len());
 
     for stop in gradient.stops() {
         let alpha = stop.opacity() * opacity;
-        colors.push(skia_safe::Color::from_argb(
+        // Quantized to 8 bits per channel like the CPU renderer, so both draw the same pixels.
+        colors.push(skia_safe::Color4f::from(skia_safe::Color::from_argb(
             alpha.to_u8(),
             stop.color().red,
             stop.color().green,
             stop.color().blue,
-        ));
+        )));
         positions.push(stop.offset().get());
     }
 

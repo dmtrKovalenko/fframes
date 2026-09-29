@@ -105,7 +105,8 @@ jobs:
         os: [ubuntu-latest]
     env:
       DEBIAN_FRONTEND: noninteractive
-      # Skia and FFmpeg are built from source and every example is compiled
+      # FFmpeg is built from source (the workspace unifies the codecs of every
+      # example, no prebuilt matches that) and every example is compiled
       # twice (check + test); debuginfo and incremental artifacts alone push
       # the target dir past the runner's disk.
       CARGO_INCREMENTAL: 0

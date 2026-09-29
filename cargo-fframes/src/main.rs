@@ -38,7 +38,7 @@ enum Command {
 enum Backend {
     /// Built-in tiny-skia renderer: no GPU and no Skia build, but ~10x slower and no preview window.
     Cpu,
-    /// Skia on the GPU through Metal (macOS, default there). The first build compiles Skia (~20 min).
+    /// Skia on the GPU through Metal (macOS, default there). Skia is downloaded prebuilt.
     SkiaMetal,
     /// Skia on the GPU through Vulkan (default on Linux and Windows).
     SkiaVulkan,
@@ -272,7 +272,7 @@ fn ask(args: NewArgs) -> Result<Project, String> {
         Some(backend) => backend,
         None if interactive => {
             let items = [
-                "skia-metal   - GPU on macOS: fast renders + preview window, first build ~20 min",
+                "skia-metal   - GPU on macOS: fast renders + preview window",
                 "skia-vulkan  - GPU on Linux/Windows (macOS via MoltenVK)",
                 "cpu          - no Skia build, slower renders, no preview window",
             ];
@@ -495,7 +495,7 @@ fn new(args: NewArgs) -> Result<(), String> {
         ("height", project.height.to_string()),
         ("fps", project.fps.to_string()),
         ("media_path", media_path),
-        // Codec features build ffmpeg from source; Windows links a prebuilt ffmpeg instead.
+        // Codec features link a static ffmpeg (prebuilt or compiled); Windows links a prebuilt ffmpeg DLL.
         (
             "codecs",
             format!(
@@ -580,9 +580,6 @@ fn new(args: NewArgs) -> Result<(), String> {
     );
     if workspace.is_some() {
         println!("Added it to the fframes workspace members.");
-    }
-    if project.backend != Backend::Cpu {
-        println!("The first build compiles Skia from source, which takes a while.");
     }
     println!(
         "\nNext:\n  {cd}\n  {run} timeline\n  {run} frame 1s,50%,end   # writes frames/*.png\n  {run} strip -n 12        # writes strip.png{preview}\n  {run} render             # writes out.mp4\n  cargo test               # frame snapshots",

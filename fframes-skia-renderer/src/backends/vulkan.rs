@@ -201,13 +201,15 @@ impl SkiaBackend for SkiaVulkanCtx {
                 % self.queues.len()];
 
             // Initialize Skia Vulkan backend context
-            let backend_context = gpu::vk::BackendContext::new(
+            let backend_context = gpu::vk::BackendContext::new_builder(
                 self.instance.handle().as_raw() as _,
                 self.physical_device.as_raw() as _,
                 self.device.handle().as_raw() as _,
                 (queue.as_raw() as _, self.queue_family_index as usize),
-                &get_proc as _,
-            );
+                &get_proc,
+                None,
+            )
+            .build();
 
             // Configure context options (same as in Metal implementation)
             let mut gpu_context_opts = gpu::ContextOptions::new();

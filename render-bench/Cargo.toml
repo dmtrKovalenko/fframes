@@ -9,7 +9,7 @@ publish = false
 clap = { version = "4.3.4", features = ["derive"] }
 fframes = { workspace = true, features = ["compile-time-svgtree", "h264", "libav-agree-gpl"] }
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
-skia-safe = { version = "0.91.0", package = "fframes-skia-safe" }
+skia-safe = "0.153.3"
 svgr.workspace = true
 rand = "0.8.5"
 serde = { version = "1", features = ["derive"] }

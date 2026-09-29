@@ -9,15 +9,27 @@ authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 [lib]
 doctest = false
 [dependencies]
-skia-safe = { version = "0.91.0", package = "fframes-skia-safe", features = [
-    "svg",
-] }
+# Upstream rust-skia publishes prebuilt Skia binaries (downloaded by its build script) for a
+# fixed set of feature combinations. The features below are chosen to match one of them for
+# every GPU backend, otherwise Skia is compiled from source (~20 minutes, needs libclang):
+#   macOS metal:             ganesh, gl, metal, svg, textlayout
+#   macOS vulkan (MoltenVK): ganesh, gl, svg, textlayout, vulkan
+#   Linux/Windows vulkan:    ganesh, svg, textlayout, vulkan, webp
+# See https://github.com/rust-skia/skia-binaries/releases for the available keys.
+skia-safe = { version = "0.153.3", features = ["svg"] }
 thingbuf = "0.1.6"
 fframes.workspace = true
 ash = { version = "0.38.0", optional = true }
 metal-rs = { package = "metal", version = "0.32.0", optional = true }
 uuid = "1.12.1"
 foreign-types-shared = "0.3.1"
+
+# Cargo merges these features into the skia-safe dependency above.
+[target.'cfg(target_os = "macos")'.dependencies]
+skia-safe = { version = "0.153.3", features = ["svg", "gl"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+skia-safe = { version = "0.153.3", features = ["svg", "webp"] }
 
 [dev-dependencies]
 fframes = { workspace = true, features = ["compile-time-svgtree"] }
@@ -28,9 +40,9 @@ low-poly-art-example = { path = "../examples/low-poly-art" }
 [features]
 default = ["gpu", "binary-cache"]
 binary-cache = ["skia-safe/binary-cache"]
-gpu = ["skia-safe/gpu"]
-metal = ["skia-safe/metal", "metal-rs"]
-vulkan = ["skia-safe/vulkan", "ash"]
+gpu = ["skia-safe/ganesh"]
+metal = ["gpu", "skia-safe/metal", "metal-rs"]
+vulkan = ["gpu", "skia-safe/vulkan", "ash"]
 d3d = ["skia-safe/d3d"]
 gl = ["skia-safe/gl"]
 x11 = ["skia-safe/x11"]

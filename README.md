@@ -196,14 +196,15 @@ cd my-video && cargo run --release -- preview
 ```
 
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
-`--title` and `--backend`. The first build compiles Skia and ffmpeg from source and takes a while; later builds take
-seconds. `--backend cpu` skips the Skia build (no preview window, slower renders). To track `main`, install with
+`--title` and `--backend`. The first build downloads prebuilt Skia and ffmpeg libraries and takes a few minutes; later
+builds take seconds. `--backend cpu` skips Skia (no preview window, slower renders). To track `main`, install with
 `--git https://github.com/dmtrKovalenko/fframes`.
 
 ## Requirements
 
 [Rust](https://www.rust-lang.org/learn/get-started) and, for working on the editor, [NodeJS](https://nodejs.org/en/download/).
-fframes compiles ffmpeg's libav libraries during the build, so the system encoders they link against have to be installed.
+fframes links ffmpeg's libav libraries statically. A prebuilt build is downloaded for macOS and Linux (arm64 and x86_64) and
+compiled from source for other targets or `FFMPEG_FORCE_BUILD=1`; either way the system encoders they link against have to be installed.
 
 <details>
 <summary><b>macOS</b></summary>
@@ -274,8 +275,9 @@ troubleshooting please refer the [ffmpeg compilation guide](https://trac.ffmpeg.
 <details>
 <summary><b>Troubleshooting</b></summary>
 
-- **Build fails in `ffmpeg-sys-next`:** a system library from the list above is missing (`nasm`, `pkg-config`, the codec packages).
-- **Build fails in the Skia bindings with a bindgen or libclang error:** point `LIBCLANG_PATH` at a working libclang,
+- **Build fails in `ffmpeg-sys-fframes`:** a system library from the list above is missing (`nasm`, `pkg-config`, the codec packages).
+- **Build fails in the Skia bindings with a bindgen or libclang error** (only when Skia is compiled from source, e.g. with
+  both `metal` and `vulkan` enabled): point `LIBCLANG_PATH` at a working libclang,
   on macOS Xcode's: `export LIBCLANG_PATH=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib`.
 - **Text renders in the wrong font:** `inspect` reports `No match for ... font-family`; put the font file in the
   project's `media/` folder and use its exact family name.
