@@ -66,8 +66,10 @@ fonts and decorations with a design made for the video the user asked for.
 
 **Use the Skia GPU backend (the default).** `cargo fframes new` picks Skia on Metal (macOS) or
 Vulkan (Linux, Windows). It renders about 10x faster than the CPU backend and gives you the
-real-time `preview` window. The first build downloads prebuilt Skia and ffmpeg and compiles the
-Rust dependencies, a few minutes; start it right away and write the video while it runs:
+real-time `preview` window. On macOS and Linux the first build downloads prebuilt Skia and ffmpeg
+and only compiles the Rust dependencies (about a minute; other targets, or `metal` and `vulkan`
+together, compile Skia from source for ~20 minutes). Start it right away and write the video
+while it runs:
 
 ```bash
 cd my-video && cargo build --release        # run in the background, the first build is the slow one

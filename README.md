@@ -196,8 +196,9 @@ cd my-video && cargo run --release -- preview
 ```
 
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
-`--title` and `--backend`. The first build downloads prebuilt Skia and ffmpeg libraries and takes a few minutes; later
-builds take seconds. `--backend cpu` skips Skia (no preview window, slower renders). To track `main`, install with
+`--title` and `--backend`. On macOS and Linux (arm64, x86_64) the first build downloads prebuilt Skia and ffmpeg
+libraries and takes under a minute on a fast machine; other targets and feature combinations
+compile them from source (up to ~20 minutes). Later builds take seconds. `--backend cpu` skips Skia (no preview window, slower renders). To track `main`, install with
 `--git https://github.com/dmtrKovalenko/fframes`.
 
 ## Requirements
