@@ -76,10 +76,10 @@ impl Scene for OutroScene {
                 let y = 760.0 + i as f32 * 78.0;
                 fframes::svgr!(
                     <g opacity={prog(lb, at, at + 0.1)} transform={format!("translate(0 {})", (1.0 - s) * 30.0)}>
-                        <rect x="520" y={y - 44.0} width="880" height="62" fill="#0f0e0d" fill-opacity="0.9" stroke="#3d3a35" stroke-width="1.5" />
-                        <text x="548" y={y} font-family={MONO} font-weight="600" font-size="26" fill={ORANGE}>"$"</text>
-                        <text x="578" y={y} font-family={MONO} font-weight="500" font-size="26" fill={BONE}>{*cmd}</text>
-                        <text x="1380" y={y} text-anchor="end" font-family={MONO} font-weight="500" font-size="15" letter-spacing="2" fill={GREY}>{*note}</text>
+                        <rect x="400" y={y - 44.0} width="1120" height="62" fill="#0f0e0d" fill-opacity="0.9" stroke="#3d3a35" stroke-width="1.5" />
+                        <text x="428" y={y} font-family={MONO} font-weight="600" font-size="26" fill={ORANGE}>"$"</text>
+                        <text x="458" y={y} font-family={MONO} font-weight="500" font-size="26" fill={BONE}>{*cmd}</text>
+                        <text x="1500" y={y} text-anchor="end" font-family={MONO} font-weight="500" font-size="15" letter-spacing="2" fill={GREY}>{*note}</text>
                     </g>
                 )
             })
@@ -94,7 +94,8 @@ impl Scene for OutroScene {
                     <g transform={format!("translate(960 {y}) scale({word_s}) translate(-960 -{y})")} opacity={word_in.min(1.0)}>
                         <text x={x0} y={y} font-family={SERIF} font-style="italic" font-size={WORD_SIZE} fill={BONE}>"fframes"</text>
                     </g>
-                    <text x="960" y="640" text-anchor="middle" font-family={MONO} font-weight="500" font-size="30" letter-spacing="2" fill={BONE} opacity={tag}>"video vibe coding framework that is actually fast"</text>
+                    <text x="1470" y="265" text-anchor="end" font-family={MONO} font-weight="500" font-size="28" letter-spacing="2" fill={GREY} opacity={tag}>{crate::facts::RELEASE_LABEL}</text>
+                    <text x="960" y="590" text-anchor="middle" font-family={MONO} font-weight="500" font-size="30" letter-spacing="2" fill={BONE} opacity={tag}>"video vibe coding framework that is actually fast"</text>
                     {cmd_rows}
                     <g opacity={url}>
                         <text x="960" y="990" text-anchor="middle" font-family={MONO} font-weight="600" font-size="26" letter-spacing="3" fill={ORANGE}>"GITHUB.COM/DMTRKOVALENKO/FFRAMES"</text>
