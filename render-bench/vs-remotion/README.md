@@ -19,3 +19,13 @@ expected pixels exactly before a speedup is reported.
 
 The runner writes timings, versions and pixel hashes to `results.json`, with a
 summary in `results.md`. Generated results and dependency lockfiles are ignored.
+
+Measured on Linux ARM64 Docker with Remotion 4.0.529 and React 19.2.0,
+source `fe45c03`. All 180 measured frames match exactly.
+
+| Renderer           | Median for 30 frames |
+| ------------------ | -------------------: |
+| fframes + Skia CPU |              4.403 s |
+| Remotion           |            116.465 s |
+
+Speedup for this workload: **26.45×**.
