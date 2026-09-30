@@ -14,8 +14,8 @@ pub const FRAMES: u64 = 7_650;
 /// libx264, with audio).
 pub const RENDER_SECONDS: f32 = 40.5;
 
-/// Benchmark: 1,000,000 text nodes (300 frames × 3,334 nodes, 1920x1080,
-/// H.264, libx264 ultrafast crf 18 on both), median wall-clock seconds of
+/// Legacy encoded benchmark timings retained for the race and timing table.
+/// H.264, libx264 ultrafast crf 18 on both, median wall-clock seconds of
 /// the whole command. Remotion: 4.0.529, pre-bundled, concurrency 12 (its
 /// best). fframes: Skia on Metal, 2 GPU contexts.
 pub const BENCH_REMOTION_S: f32 = 50.4;

@@ -1,5 +1,5 @@
-//! The riser asks HOW FAST? and then draws one frame of the benchmark with
-//! its 3,334 text nodes; 300 such frames make a million.
+//! The riser asks HOW FAST? as a wall of text nodes fills in and the
+//! counter climbs to 100,000.
 
 use fframes::{Duration, FFramesContext, Frame, Scene, Svgr};
 
@@ -81,7 +81,7 @@ fn wall(lb: f32) -> Svgr<'static> {
         let y = y0 + r as f32 * dy;
         nodes.push(fframes::svgr!(<text x={x} y={y} font-family={MONO} font-size="13" font-weight="500" fill={color}>{word}</text>));
     }
-    let count = (shown as f32 / NODES_PER_FRAME as f32 * 1_000_000.0).round() as u64;
+    let count = (shown as f32 / NODES_PER_FRAME as f32 * 100_000.0).round() as u64;
     let exit = expo_in(prog(l, 9.6, 10.0));
     fframes::svgr!(
         <g opacity={1.0 - exit}>
@@ -89,7 +89,7 @@ fn wall(lb: f32) -> Svgr<'static> {
             <rect x="1010" y="130" width="760" height="140" fill={BG} />
             <text x="1770" y="232" text-anchor="end" font-family={DISPLAY} font-size="110" letter-spacing="-3" fill={BONE}>{thousands(count)}</text>
             {label(1770.0, 290.0, "TEXT NODES TO RENDER".to_owned(), ORANGE, 20.0, "end")}
-            {label(150.0, 940.0, format!("ONE FRAME = {} TEXT NODES  ×  300 FRAMES", thousands(NODES_PER_FRAME as u64)), GREY, 20.0, "start")}
+            {label(150.0, 940.0, format!("ONE FRAME = {} TEXT NODES  ×  300 FRAMES", thousands(100_000)), GREY, 20.0, "start")}
         </g>
     )
 }

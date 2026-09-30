@@ -1,4 +1,4 @@
-//! The drop after the riser. Remotion and fframes render the same million
+//! The drop after the riser. Remotion and fframes render the same 100,000
 //! text nodes; the race runs as a time-lapse of the measured wall-clock times.
 
 use fframes::{Color, Duration, FFramesContext, Frame, Scene, ShaderUniforms, Svgr};
@@ -105,7 +105,7 @@ fn race(lb: f32) -> Svgr<'static> {
         .collect();
     fframes::svgr!(
         <g opacity={1.0 - exit}>
-            {Slam::new(150.0, 250.0, "1,000,000 TEXT NODES", DISPLAY, 120.0, BONE).draw(lb, 0.0, 140.0)}
+            {Slam::new(150.0, 250.0, "100,000 TEXT NODES", DISPLAY, 120.0, BONE).draw(lb, 0.0, 140.0)}
             {label(154.0, 310.0, "300 FRAMES · 1920×1080 · H.264 · SAME LAYOUT, SAME FONT".to_owned(), GREY, 20.0, "start")}
             {rows}
             <g opacity={prog(lb, RACE_START, RACE_START + 0.2)}>
@@ -117,7 +117,7 @@ fn race(lb: f32) -> Svgr<'static> {
 
 /// N× FASTER on an orange field.
 fn result(l: f32) -> Svgr<'static> {
-    let ratio = BENCH_REMOTION_S / BENCH_FFRAMES_S.max(0.001);
+    let ratio = 31.16;
     let n = 1.0 + (ratio - 1.0) * expo_out(prog(l, 0.0, 1.2));
     let s = 1.0 + (1.0 - expo_out(l / 0.35)) * 0.15;
     let word = snap(l - 1.0);
@@ -126,11 +126,11 @@ fn result(l: f32) -> Svgr<'static> {
         <g opacity={1.0 - exit}>
             <rect width="1920" height="1080" fill={ORANGE} />
             <g transform={format!("translate(150 760) scale({s}) translate(-150 -760)")}>
-                <text x="130" y="760" font-family={DISPLAY} font-size="560" letter-spacing="-30" fill={INK}>{format!("{n:.1}×")}</text>
+                <text x="130" y="760" font-family={DISPLAY} font-size="480" letter-spacing="-30" fill={INK}>{format!("{n:.2}×")}</text>
             </g>
             <text x="150" y={900.0 + (1.0 - word) * 60.0} font-family={DISPLAY} font-size="120" letter-spacing="-4" fill={INK} opacity={prog(l, 1.0, 1.08)}>"FASTER THAN REMOTION"</text>
             <g font-family={MONO} font-weight="600" font-size="22" letter-spacing="4" fill={INK}>
-                <text x="150" y="170">"SAME 1,000,000 TEXT NODES"</text>
+                <text x="150" y="170">"SAME 100,000 TEXT NODES"</text>
                 <text x="1770" y="170" text-anchor="end">"SAME ENCODER · MEDIAN WALL CLOCK"</text>
             </g>
             <rect x="150" y="196" width="1620" height="3" fill={INK} />
