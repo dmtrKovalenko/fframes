@@ -9,10 +9,12 @@ Results and frame PNGs go to `out/`; use `--out DIR` to choose a directory.
 
 One fixed scene: 99,000 rectangles and 1,000 changing text digits at 1000×1000.
 Remotion renders an unkeyed list with 12 dependent effect/state updates per element;
-fframes computes the same final content directly with Skia CPU. This measures an
+fframes computes the same final content directly with Skia CPU and, when available,
+Skia GPU (Metal on macOS, Vulkan elsewhere). GPU is skipped when no hardware device
+is available. This measures an
 effect-heavy React workload, not typical Remotion performance.
 
-Both render serially without a video encoder. The reported time is the median of
+All render serially without a video encoder. The reported time is the median of
 three 30-frame runs after three warm-up frames. It includes PNG compression and
 excludes startup, warm-up and disk writes. Every measured frame must match the
 expected pixels exactly before a speedup is reported.

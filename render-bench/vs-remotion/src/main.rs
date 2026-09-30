@@ -5,7 +5,7 @@ use fframes::{
     AudioMap, Duration, FFramesContext, Frame, Previewer, RenderOptions, StaticMediaProvider, Svgr,
     Video,
 };
-use fframes_skia_renderer::{SkiaCpuCtx, SkiaFrameRenderer};
+use fframes_skia_renderer::{SkiaBackend, SkiaCpuCtx, SkiaFrameRenderer};
 
 fframes::include_media_dir!(struct BenchMedia, "render-bench/vs-remotion/media");
 
@@ -46,14 +46,72 @@ impl Video for Grid {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn gpu_backend() -> Result<fframes_skia_renderer::metal::SkiaMetalCtx, Box<dyn std::error::Error>> {
+    Ok(fframes_skia_renderer::metal::SkiaMetalCtx::new(SIDE, SIDE)?)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn gpu_backend() -> Result<fframes_skia_renderer::vulkan::SkiaVulkanCtx, Box<dyn std::error::Error>>
+{
+    use ash::vk;
+
+    // Select hardware explicitly; lavapipe/llvmpipe is a CPU renderer.
+    let entry = unsafe { ash::Entry::load()? };
+    let app = vk::ApplicationInfo::default().api_version(vk::API_VERSION_1_1);
+    let instance = unsafe {
+        entry.create_instance(
+            &vk::InstanceCreateInfo::default().application_info(&app),
+            None,
+        )?
+    };
+    let devices = unsafe { instance.enumerate_physical_devices()? };
+    let device = devices.into_iter().find(|&device| {
+        unsafe { instance.get_physical_device_properties(device) }.device_type
+            != vk::PhysicalDeviceType::CPU
+    });
+    let Some(device) = device else {
+        unsafe { instance.destroy_instance(None) };
+        return Err("no hardware Vulkan GPU available".into());
+    };
+    Ok(
+        fframes_skia_renderer::vulkan::SkiaVulkanCtx::new_with_device(
+            entry, instance, device, SIDE, SIDE,
+        )?,
+    )
+}
+
 fn main() {
-    let out = std::env::args()
-        .nth(1)
-        .expect("usage: vs-remotion-bench OUTPUT_DIR");
-    let out = Path::new(&out);
+    let args: Vec<_> = std::env::args().collect();
+    assert_eq!(args.len(), 3, "usage: vs-remotion-bench cpu|gpu OUTPUT_DIR");
+    let out = Path::new(&args[2]);
     std::fs::create_dir_all(out).expect("output directory");
+    match args[1].as_str() {
+        "cpu" => run(&SkiaCpuCtx::new(SIDE, SIDE), "skia-cpu", out),
+        "gpu" => match gpu_backend().and_then(|backend| {
+            backend.create_skia_surface()?;
+            Ok(backend)
+        }) {
+            Ok(backend) => run(
+                &backend,
+                if cfg!(target_os = "macos") {
+                    "skia-metal"
+                } else {
+                    "skia-vulkan"
+                },
+                out,
+            ),
+            Err(error) => println!(
+                "{}",
+                serde_json::json!({"status": "skipped", "reason": error.to_string()})
+            ),
+        },
+        _ => panic!("expected cpu or gpu"),
+    }
+}
+
+fn run(backend: &impl SkiaBackend, name: &str, out: &Path) {
     let video = Grid;
-    let backend = SkiaCpuCtx::new(SIDE, SIDE);
     let media = BenchMedia::prepare().expect("benchmark font");
     let options = RenderOptions {
         media: Some(&media),
@@ -61,7 +119,7 @@ fn main() {
         ..Default::default()
     };
     let mut preview = Previewer::new(&video, &options).expect("preview initialization");
-    let mut renderer = SkiaFrameRenderer::new(&backend);
+    let mut renderer = SkiaFrameRenderer::new(backend);
     let mut samples = Vec::new();
     for frame in 0..FRAMES + WARMUP {
         let start = Instant::now();
@@ -93,6 +151,6 @@ fn main() {
     }
     println!(
         "{}",
-        serde_json::json!({"backend": "skia-cpu", "nodes": NODES, "samples": samples})
+        serde_json::json!({"backend": name, "nodes": NODES, "samples": samples})
     );
 }

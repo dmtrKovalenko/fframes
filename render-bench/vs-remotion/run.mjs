@@ -157,7 +157,7 @@ if (args[0] === "--worker") {
     frames: 30,
     warmup: 3,
     timeout: 300000,
-    backend: "skia-cpu",
+    backends: ["skia-cpu", "skia-gpu-if-available"],
     chrome: option("chrome", process.env.CHROME_PATH ?? "/usr/bin/chromium"),
   };
   const binary = path.resolve(
@@ -179,7 +179,7 @@ if (args[0] === "--worker") {
     if (err.code !== "ENOENT") throw err;
   }
   const report = {
-    schema_version: 4,
+    schema_version: 5,
     comparison: "Remotion renderFrames vs fframes Previewer + Skia",
     workload: "99% rectangles, 1% changing 3x5 text digits; text painted last",
     plan,
@@ -225,7 +225,8 @@ if (args[0] === "--worker") {
   };
   for (let round = 0; round < plan.rounds; round++) {
     const nodes = plan.nodes;
-    const order = round % 2 ? ["remotion", "fframes"] : ["fframes", "remotion"];
+    const engines = ["fframes", "fframes-gpu", "remotion"];
+    const order = engines.map((_, i) => engines[(i + round) % engines.length]);
     for (const engine of order) {
       const directory = path.join(out, `${nodes}-${engine}-${round}`);
       await fs.mkdir(directory, { recursive: true });
@@ -243,10 +244,10 @@ if (args[0] === "--worker") {
         `round ${round + 1}/${plan.rounds}: ${nodes} nodes, ${engine}`
       );
       const result =
-        engine === "fframes"
+        engine !== "remotion"
           ? await isolated(
               binary,
-              [directory],
+              [engine === "fframes" ? "cpu" : "gpu", directory],
               plan.timeout,
               path.join(directory, "process.log")
             )
@@ -270,12 +271,14 @@ if (args[0] === "--worker") {
         if (result.status !== "ok")
           throw new Error(result.error || result.status);
         Object.assign(record, JSON.parse(result.stdout));
-        record.pixel_sha256 = await verify(
-          directory,
-          record.samples.map(s => s.frame),
-          nodes
-        );
-        record.verified = true;
+        if (record.status !== "skipped") {
+          record.pixel_sha256 = await verify(
+            directory,
+            record.samples.map(s => s.frame),
+            nodes
+          );
+          record.verified = true;
+        }
       } catch (err) {
         record.status =
           result.status === "ok" ? "invalid-output" : result.status;
