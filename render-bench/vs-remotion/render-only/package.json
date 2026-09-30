@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "bench": "node run.mjs",
-    "test": "node --test report.test.mjs"
+    "test": "node --test *.test.mjs"
   },
   "dependencies": {
     "esbuild": "0.28.2",

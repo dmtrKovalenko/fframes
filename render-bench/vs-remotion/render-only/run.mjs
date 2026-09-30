@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { spawn, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { isolated } from "./process.mjs";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { build } from "esbuild";
@@ -67,6 +68,12 @@ async function browserWorker(config) {
   });
   try {
     const page = await browser.newPage();
+    let rejectCrash;
+    const crashed = new Promise((_, reject) => {
+      rejectCrash = reject;
+    });
+    crashed.catch(() => {});
+    page.on("error", rejectCrash);
     await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 1 });
     await page.setContent(
       '<!doctype html><html><head><style>html,body{margin:0;background:#000}</style></head><body><div id="root"></div></body></html>'
@@ -83,10 +90,13 @@ async function browserWorker(config) {
       );
       const commit_ms = performance.now() - start;
       // Screenshot forces rasterization/readback and returns a PNG in memory.
-      const bytes = await page.screenshot({
-        type: "png",
-        optimizeForSpeed: true,
-      });
+      const bytes = await Promise.race([
+        page.screenshot({
+          type: "png",
+          optimizeForSpeed: true,
+        }),
+        crashed,
+      ]);
       const total_ms = performance.now() - start;
       if (frame >= config.warmup) {
         samples.push({
@@ -116,50 +126,6 @@ async function browserWorker(config) {
   } finally {
     await browser.close();
   }
-}
-async function isolated(command, argv, timeout, logPath) {
-  return await new Promise(resolve => {
-    const child = spawn(command, argv, {
-      cwd: here,
-      detached: process.platform !== "win32",
-      env: { ...process.env, NODE_ENV: "production" },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "",
-      stderr = "",
-      expired = false;
-    const stop = () => {
-      try {
-        if (process.platform === "win32") child.kill("SIGKILL");
-        else process.kill(-child.pid, "SIGKILL");
-      } catch {}
-    };
-    const timer = setTimeout(() => {
-      expired = true;
-      stop();
-    }, timeout);
-    child.stdout.on("data", b => {
-      stdout += b;
-    });
-    child.stderr.on("data", b => {
-      stderr += b;
-    });
-    child.on("error", err => {
-      stderr += String(err);
-    });
-    child.on("close", async (code, signal) => {
-      clearTimeout(timer);
-      stop();
-      await fs.writeFile(logPath, stdout + "\n" + stderr);
-      resolve({
-        status: expired ? "timeout" : code === 0 ? "ok" : "failed",
-        code,
-        signal,
-        stdout,
-        error: stderr.slice(-4000),
-      });
-    });
-  });
 }
 if (args[0] === "--worker") {
   const config = JSON.parse(await fs.readFile(args[1], "utf8"));
