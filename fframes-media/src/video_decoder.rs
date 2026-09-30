@@ -191,6 +191,8 @@ pub struct FFmpegDecoder {
     duration_in_frames: i64,
     /// The offset of the previous `decode_up_to` call, in `custom_time_base` units.
     last_offset: Option<i64>,
+    /// A null packet has been sent; receive delayed frames until decoder EOF.
+    draining: bool,
 }
 
 unsafe impl Send for FFmpegDecoder {}
@@ -544,6 +546,7 @@ impl FFmpegDecoder {
                 duration_in_frames,
                 current_loop: 0,
                 last_offset: None,
+                draining: false,
             })
         }
     }
@@ -645,6 +648,8 @@ impl FFmpegDecoder {
 
             (*self.frame_buf.latest_av_frame).pts = -1;
             avcodec_flush_buffers(self.video_stream_info.codec_ctx);
+            self.draining = false;
+            av_packet_unref(self.pkt);
 
             Ok(())
         }
@@ -733,71 +738,65 @@ impl FFmpegDecoder {
                 return Ok(true);
             }
 
+            let target_frame = if self.hw_frame.is_null() {
+                self.frame_buf.latest_av_frame
+            } else {
+                self.hw_frame
+            };
+
             loop {
-                // Clear packet before reading new frame
-                av_packet_unref(self.pkt);
-
-                let read_result = av_read_frame(self.fmt_ctx, self.pkt);
-                if read_result < 0 {
-                    return Ok(false);
-                }
-
-                // Use scope to ensure packet is always unreferenced
-                // it is important to unref packet every time after av_read_frame is done
-                let decoder_result: Result<_> = {
-                    if (*self.pkt).stream_index == self.video_stream_info.stream_index {
-                        let ret = avcodec_send_packet(self.video_stream_info.codec_ctx, self.pkt);
-                        if ret < 0 {
-                            return Err(FFramesMediaError::LibAVAudioDecodingError((
-                                ret,
-                                "Error submitting packet for decoding".to_string(),
-                            )));
+                // A previous call may have returned with more decoded frames queued.
+                // Consume them before sending another packet (which could return EAGAIN).
+                let ret = avcodec_receive_frame(self.video_stream_info.codec_ctx, target_frame);
+                match ret {
+                    0 => {
+                        if (*target_frame).pts >= target_pts {
+                            self.transfer_hardware_surface_data(target_frame)?;
+                            return Ok(true);
                         }
-
-                        let target_frame = if self.hw_frame.is_null() {
-                            self.frame_buf.latest_av_frame
-                        } else {
-                            self.hw_frame
-                        };
-
-                        loop {
-                            let ret = avcodec_receive_frame(
-                                self.video_stream_info.codec_ctx,
-                                target_frame,
-                            );
-
-                            match ret {
-                                0 => {
-                                    if (*target_frame).pts >= target_pts {
-                                        self.transfer_hardware_surface_data(target_frame)?;
-
-                                        return Ok(true);
-                                    }
-                                }
-                                val if val == AVERROR(EAGAIN) => {
-                                    break;
-                                }
-                                _ => {
-                                    av_packet_unref(self.pkt);
-
-                                    return Err(FFramesMediaError::LibAVAudioDecodingError((
-                                        ret,
-                                        "Decoding error".to_string(),
-                                    )));
-                                }
-                            }
-                        }
+                        continue;
                     }
-
-                    Ok(false)
-                };
-
-                // Always unref packet after processing
-                av_packet_unref(self.pkt);
-
-                if let Ok(true) = decoder_result {
-                    return Ok(true);
+                    AVERROR_EOF => return Ok(false),
+                    val if val == AVERROR(EAGAIN) && !self.draining => {}
+                    _ => {
+                        return Err(FFramesMediaError::LibAVAudioDecodingError((
+                            ret,
+                            "Error receiving decoded video frame".to_string(),
+                        )));
+                    }
                 }
+
+                // The decoder needs more input. Skip packets from other streams and
+                // signal demuxer EOF exactly once so delayed B-frames can be received.
+                let read_result = loop {
+                    av_packet_unref(self.pkt);
+                    let ret = av_read_frame(self.fmt_ctx, self.pkt);
+                    if ret < 0 || (*self.pkt).stream_index == self.video_stream_info.stream_index {
+                        break ret;
+                    }
+                };
+                if read_result < 0 && read_result != AVERROR_EOF {
+                    av_packet_unref(self.pkt);
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        read_result,
+                        "Error reading video packet".to_string(),
+                    )));
+                }
+
+                let packet = if read_result == AVERROR_EOF {
+                    ptr::null()
+                } else {
+                    self.pkt.cast_const()
+                };
+                let ret = avcodec_send_packet(self.video_stream_info.codec_ctx, packet);
+                av_packet_unref(self.pkt);
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error submitting packet for decoding".to_string(),
+                    )));
+                }
+                self.draining = read_result == AVERROR_EOF;
             }
         }
     }
