@@ -81,7 +81,7 @@ fn wall(lb: f32) -> Svgr<'static> {
         let y = y0 + r as f32 * dy;
         nodes.push(fframes::svgr!(<text x={x} y={y} font-family={MONO} font-size="13" font-weight="500" fill={color}>{word}</text>));
     }
-    let count = (shown as f32 / NODES_PER_FRAME as f32 * 100_000.0).round() as u64;
+    let count = (shown as f32 / NODES_PER_FRAME as f32 * 1_000_000.0).round() as u64;
     let exit = expo_in(prog(l, 9.6, 10.0));
     fframes::svgr!(
         <g opacity={1.0 - exit}>

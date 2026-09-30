@@ -1,0 +1,2375 @@
+{
+  "schema_version": 3,
+  "comparison": "Remotion renderFrames vs fframes Previewer + Skia",
+  "workload": "99% rectangles, 1% changing 3x5 text digits; text painted last",
+  "plan": {
+    "nodes": [
+      100000
+    ],
+    "modes": [
+      "keyed-direct",
+      "unkeyed-direct",
+      "unkeyed-effects"
+    ],
+    "rounds": 3,
+    "frames": 30,
+    "warmup": 3,
+    "timeout": 300000,
+    "backend": "skia-cpu",
+    "device": "CPU; no physical GPU",
+    "chrome": "/usr/bin/chromium"
+  },
+  "environment": {
+    "platform": "linux",
+    "arch": "arm64",
+    "cpus": "unknown",
+    "logical_cpus": 18,
+    "memory_bytes": 8317267968,
+    "node": "v24.21.0",
+    "remotion": "4.0.529",
+    "react": "19.2.0",
+    "git": "c7e56f9b3e9fd54904fd73f6c46efe89e0b08c1a",
+    "dirty": false,
+    "command": [
+      "/usr/local/lib/node_modules/node/bin/node",
+      "/workspace/fframes-render-bench/render-bench/vs-remotion/render-only/run.mjs",
+      "--nodes",
+      "100000",
+      "--rounds",
+      "3",
+      "--frames",
+      "30",
+      "--warmup",
+      "3",
+      "--timeout-ms",
+      "300000",
+      "--binary",
+      "/workspace/fframes/target-benchmark/release/render-only-bench",
+      "--out",
+      "/tmp/fframes-remotion-measured"
+    ],
+    "font_sha256": "2f01206b0381c5151400a235eb3858f1754ad2d1d75e0bbf088937c5ccbe3654",
+    "binary_sha256": "8d283d86d79fa9f86f050ca85b6579e344b7c58f10930340479be8b73a9bbc06",
+    "browser_bundle_sha256": "84255956bf1b806e7f83ee1e7fa40ded26ae1f0d78fba29db9aef6cce3a4e06c"
+  },
+  "records": [
+    {
+      "nodes": 100000,
+      "engine": "fframes",
+      "round": 0,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        0.3,
+        0.12,
+        0.09
+      ],
+      "code": 0,
+      "signal": null,
+      "backend": "skia-cpu",
+      "samples": [
+        {
+          "frame": 3,
+          "png_ms": 1.5440830000000147,
+          "render_ms": 120.267417,
+          "total_ms": 121.81150000000001
+        },
+        {
+          "frame": 4,
+          "png_ms": 1.5712919999999997,
+          "render_ms": 125.48554200000001,
+          "total_ms": 127.05683400000001
+        },
+        {
+          "frame": 5,
+          "png_ms": 1.553750000000008,
+          "render_ms": 121.059583,
+          "total_ms": 122.61333300000001
+        },
+        {
+          "frame": 6,
+          "png_ms": 1.5482910000000203,
+          "render_ms": 126.32358399999998,
+          "total_ms": 127.871875
+        },
+        {
+          "frame": 7,
+          "png_ms": 1.5626670000000047,
+          "render_ms": 122.18525,
+          "total_ms": 123.747917
+        },
+        {
+          "frame": 8,
+          "png_ms": 1.5639579999999995,
+          "render_ms": 122.018292,
+          "total_ms": 123.58225
+        },
+        {
+          "frame": 9,
+          "png_ms": 1.5693749999999937,
+          "render_ms": 122.82104100000001,
+          "total_ms": 124.390416
+        },
+        {
+          "frame": 10,
+          "png_ms": 1.5812919999999906,
+          "render_ms": 119.27629200000001,
+          "total_ms": 120.857584
+        },
+        {
+          "frame": 11,
+          "png_ms": 1.5558329999999927,
+          "render_ms": 123.988583,
+          "total_ms": 125.544416
+        },
+        {
+          "frame": 12,
+          "png_ms": 1.552666000000002,
+          "render_ms": 121.605542,
+          "total_ms": 123.158208
+        },
+        {
+          "frame": 13,
+          "png_ms": 1.548000000000016,
+          "render_ms": 122.51795899999999,
+          "total_ms": 124.065959
+        },
+        {
+          "frame": 14,
+          "png_ms": 1.5542499999999961,
+          "render_ms": 122.464208,
+          "total_ms": 124.018458
+        },
+        {
+          "frame": 15,
+          "png_ms": 1.5734580000000022,
+          "render_ms": 121.230542,
+          "total_ms": 122.804
+        },
+        {
+          "frame": 16,
+          "png_ms": 1.5652080000000126,
+          "render_ms": 123.878083,
+          "total_ms": 125.44329100000002
+        },
+        {
+          "frame": 17,
+          "png_ms": 1.5752500000000254,
+          "render_ms": 123.95062499999999,
+          "total_ms": 125.52587500000001
+        },
+        {
+          "frame": 18,
+          "png_ms": 1.558540999999991,
+          "render_ms": 123.769417,
+          "total_ms": 125.327958
+        },
+        {
+          "frame": 19,
+          "png_ms": 1.542166999999992,
+          "render_ms": 122.04391700000001,
+          "total_ms": 123.586084
+        },
+        {
+          "frame": 20,
+          "png_ms": 1.578125,
+          "render_ms": 120.02725,
+          "total_ms": 121.605375
+        },
+        {
+          "frame": 21,
+          "png_ms": 1.5793749999999847,
+          "render_ms": 126.288542,
+          "total_ms": 127.86791699999999
+        },
+        {
+          "frame": 22,
+          "png_ms": 1.5563749999999885,
+          "render_ms": 123.748333,
+          "total_ms": 125.30470799999999
+        },
+        {
+          "frame": 23,
+          "png_ms": 1.599749999999986,
+          "render_ms": 126.08545900000001,
+          "total_ms": 127.685209
+        },
+        {
+          "frame": 24,
+          "png_ms": 1.5788329999999888,
+          "render_ms": 122.45904200000001,
+          "total_ms": 124.037875
+        },
+        {
+          "frame": 25,
+          "png_ms": 1.5570419999999956,
+          "render_ms": 124.283833,
+          "total_ms": 125.840875
+        },
+        {
+          "frame": 26,
+          "png_ms": 1.5593750000000028,
+          "render_ms": 121.064375,
+          "total_ms": 122.62375
+        },
+        {
+          "frame": 27,
+          "png_ms": 1.5530830000000009,
+          "render_ms": 122.63799999999999,
+          "total_ms": 124.19108299999999
+        },
+        {
+          "frame": 28,
+          "png_ms": 1.585000000000008,
+          "render_ms": 122.37070899999999,
+          "total_ms": 123.955709
+        },
+        {
+          "frame": 29,
+          "png_ms": 1.573082999999997,
+          "render_ms": 118.664833,
+          "total_ms": 120.237916
+        },
+        {
+          "frame": 30,
+          "png_ms": 1.5883329999999916,
+          "render_ms": 119.134167,
+          "total_ms": 120.7225
+        },
+        {
+          "frame": 31,
+          "png_ms": 1.5592079999999982,
+          "render_ms": 122.212209,
+          "total_ms": 123.771417
+        },
+        {
+          "frame": 32,
+          "png_ms": 1.5573750000000075,
+          "render_ms": 141.416666,
+          "total_ms": 142.974041
+        }
+      ],
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "keyed-direct",
+      "round": 0,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.47,
+        0.4,
+        0.18
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 351.1189589999997
+        },
+        {
+          "frame": 4,
+          "total_ms": 366.344208
+        },
+        {
+          "frame": 5,
+          "total_ms": 367.66483400000016
+        },
+        {
+          "frame": 6,
+          "total_ms": 364.7147500000001
+        },
+        {
+          "frame": 7,
+          "total_ms": 366.3917919999999
+        },
+        {
+          "frame": 8,
+          "total_ms": 403.818542
+        },
+        {
+          "frame": 9,
+          "total_ms": 397.4103749999995
+        },
+        {
+          "frame": 10,
+          "total_ms": 385.82066699999996
+        },
+        {
+          "frame": 11,
+          "total_ms": 404.48304199999984
+        },
+        {
+          "frame": 12,
+          "total_ms": 412.779458
+        },
+        {
+          "frame": 13,
+          "total_ms": 400.2112499999994
+        },
+        {
+          "frame": 14,
+          "total_ms": 382.62837500000023
+        },
+        {
+          "frame": 15,
+          "total_ms": 365.5510000000004
+        },
+        {
+          "frame": 16,
+          "total_ms": 384.232583
+        },
+        {
+          "frame": 17,
+          "total_ms": 380.45204099999955
+        },
+        {
+          "frame": 18,
+          "total_ms": 420.52350000000024
+        },
+        {
+          "frame": 19,
+          "total_ms": 413.7203750000008
+        },
+        {
+          "frame": 20,
+          "total_ms": 420.38850100000127
+        },
+        {
+          "frame": 21,
+          "total_ms": 418.3923759999998
+        },
+        {
+          "frame": 22,
+          "total_ms": 395.27900000000045
+        },
+        {
+          "frame": 23,
+          "total_ms": 365.61366700000144
+        },
+        {
+          "frame": 24,
+          "total_ms": 420.3687090000003
+        },
+        {
+          "frame": 25,
+          "total_ms": 449.8227509999997
+        },
+        {
+          "frame": 26,
+          "total_ms": 449.37062499999956
+        },
+        {
+          "frame": 27,
+          "total_ms": 416.37395800000013
+        },
+        {
+          "frame": 28,
+          "total_ms": 432.8558329999996
+        },
+        {
+          "frame": 29,
+          "total_ms": 418.3342499999999
+        },
+        {
+          "frame": 30,
+          "total_ms": 438.2105840000004
+        },
+        {
+          "frame": 31,
+          "total_ms": 453.4530419999992
+        },
+        {
+          "frame": 32,
+          "total_ms": 423.2292500000003
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "unkeyed-direct",
+      "round": 0,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.8,
+        0.51,
+        0.22
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 287.057041
+        },
+        {
+          "frame": 4,
+          "total_ms": 317.68208400000003
+        },
+        {
+          "frame": 5,
+          "total_ms": 279.03758400000015
+        },
+        {
+          "frame": 6,
+          "total_ms": 282.67654200000015
+        },
+        {
+          "frame": 7,
+          "total_ms": 282.4393749999999
+        },
+        {
+          "frame": 8,
+          "total_ms": 283.9749999999999
+        },
+        {
+          "frame": 9,
+          "total_ms": 283.4029169999999
+        },
+        {
+          "frame": 10,
+          "total_ms": 285.19675000000007
+        },
+        {
+          "frame": 11,
+          "total_ms": 302.84220899999946
+        },
+        {
+          "frame": 12,
+          "total_ms": 304.72058300000026
+        },
+        {
+          "frame": 13,
+          "total_ms": 290.7520420000001
+        },
+        {
+          "frame": 14,
+          "total_ms": 283.48320800000056
+        },
+        {
+          "frame": 15,
+          "total_ms": 303.41029100000014
+        },
+        {
+          "frame": 16,
+          "total_ms": 283.28954200000044
+        },
+        {
+          "frame": 17,
+          "total_ms": 299.24216700000034
+        },
+        {
+          "frame": 18,
+          "total_ms": 280.02250099999947
+        },
+        {
+          "frame": 19,
+          "total_ms": 300.74145899999985
+        },
+        {
+          "frame": 20,
+          "total_ms": 335.62800100000004
+        },
+        {
+          "frame": 21,
+          "total_ms": 280.65158299999985
+        },
+        {
+          "frame": 22,
+          "total_ms": 301.0171250000003
+        },
+        {
+          "frame": 23,
+          "total_ms": 299.2912919999999
+        },
+        {
+          "frame": 24,
+          "total_ms": 284.02520900000036
+        },
+        {
+          "frame": 25,
+          "total_ms": 300.0636260000001
+        },
+        {
+          "frame": 26,
+          "total_ms": 299.95195799999965
+        },
+        {
+          "frame": 27,
+          "total_ms": 301.37254199999916
+        },
+        {
+          "frame": 28,
+          "total_ms": 281.53179099999943
+        },
+        {
+          "frame": 29,
+          "total_ms": 302.238292
+        },
+        {
+          "frame": 30,
+          "total_ms": 282.69695899999897
+        },
+        {
+          "frame": 31,
+          "total_ms": 282.2730419999989
+        },
+        {
+          "frame": 32,
+          "total_ms": 300.80466700000034
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "unkeyed-effects",
+      "round": 0,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        2.81,
+        1.28,
+        0.53
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 2241.5007929999992
+        },
+        {
+          "frame": 4,
+          "total_ms": 2234.5319180000006
+        },
+        {
+          "frame": 5,
+          "total_ms": 2480.5563349999993
+        },
+        {
+          "frame": 6,
+          "total_ms": 2263.1347510000014
+        },
+        {
+          "frame": 7,
+          "total_ms": 2372.136667999999
+        },
+        {
+          "frame": 8,
+          "total_ms": 2416.5780430000013
+        },
+        {
+          "frame": 9,
+          "total_ms": 2265.7697100000005
+        },
+        {
+          "frame": 10,
+          "total_ms": 2486.244168000001
+        },
+        {
+          "frame": 11,
+          "total_ms": 2432.4825010000022
+        },
+        {
+          "frame": 12,
+          "total_ms": 2434.5465430000004
+        },
+        {
+          "frame": 13,
+          "total_ms": 2248.85671
+        },
+        {
+          "frame": 14,
+          "total_ms": 2248.8252500000017
+        },
+        {
+          "frame": 15,
+          "total_ms": 2217.1932929999966
+        },
+        {
+          "frame": 16,
+          "total_ms": 2468.7358349999995
+        },
+        {
+          "frame": 17,
+          "total_ms": 3386.459542999997
+        },
+        {
+          "frame": 18,
+          "total_ms": 3813.9535440000036
+        },
+        {
+          "frame": 19,
+          "total_ms": 4174.427501999999
+        },
+        {
+          "frame": 20,
+          "total_ms": 4084.9455850000013
+        },
+        {
+          "frame": 21,
+          "total_ms": 3859.0291270000016
+        },
+        {
+          "frame": 22,
+          "total_ms": 3082.006459999997
+        },
+        {
+          "frame": 23,
+          "total_ms": 2511.147459
+        },
+        {
+          "frame": 24,
+          "total_ms": 2720.6352100000004
+        },
+        {
+          "frame": 25,
+          "total_ms": 2429.2564589999965
+        },
+        {
+          "frame": 26,
+          "total_ms": 2451.8126679999987
+        },
+        {
+          "frame": 27,
+          "total_ms": 3254.827833999996
+        },
+        {
+          "frame": 28,
+          "total_ms": 3060.8895429999975
+        },
+        {
+          "frame": 29,
+          "total_ms": 2838.3748760000017
+        },
+        {
+          "frame": 30,
+          "total_ms": 3304.072002000001
+        },
+        {
+          "frame": 31,
+          "total_ms": 3064.2347509999963
+        },
+        {
+          "frame": 32,
+          "total_ms": 3016.3102519999957
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "keyed-direct",
+      "round": 1,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        2.68,
+        1.33,
+        0.56
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 400.4993330000002
+        },
+        {
+          "frame": 4,
+          "total_ms": 432.3287919999998
+        },
+        {
+          "frame": 5,
+          "total_ms": 414.52404099999967
+        },
+        {
+          "frame": 6,
+          "total_ms": 402.2571250000001
+        },
+        {
+          "frame": 7,
+          "total_ms": 413.49054200000046
+        },
+        {
+          "frame": 8,
+          "total_ms": 452.8107920000002
+        },
+        {
+          "frame": 9,
+          "total_ms": 536.8262919999997
+        },
+        {
+          "frame": 10,
+          "total_ms": 548.9957090000007
+        },
+        {
+          "frame": 11,
+          "total_ms": 602.8888750000006
+        },
+        {
+          "frame": 12,
+          "total_ms": 530.6305839999995
+        },
+        {
+          "frame": 13,
+          "total_ms": 585.4404169999998
+        },
+        {
+          "frame": 14,
+          "total_ms": 547.0779169999996
+        },
+        {
+          "frame": 15,
+          "total_ms": 500.4170009999998
+        },
+        {
+          "frame": 16,
+          "total_ms": 429.5176249999986
+        },
+        {
+          "frame": 17,
+          "total_ms": 491.83600000000115
+        },
+        {
+          "frame": 18,
+          "total_ms": 575.5627510000013
+        },
+        {
+          "frame": 19,
+          "total_ms": 452.1451670000006
+        },
+        {
+          "frame": 20,
+          "total_ms": 447.3824999999997
+        },
+        {
+          "frame": 21,
+          "total_ms": 451.4944999999989
+        },
+        {
+          "frame": 22,
+          "total_ms": 452.09320899999875
+        },
+        {
+          "frame": 23,
+          "total_ms": 534.5669170000001
+        },
+        {
+          "frame": 24,
+          "total_ms": 496.26841700000114
+        },
+        {
+          "frame": 25,
+          "total_ms": 517.5324169999985
+        },
+        {
+          "frame": 26,
+          "total_ms": 434.07129200000054
+        },
+        {
+          "frame": 27,
+          "total_ms": 415.23333400000047
+        },
+        {
+          "frame": 28,
+          "total_ms": 415.3627089999991
+        },
+        {
+          "frame": 29,
+          "total_ms": 434.967541
+        },
+        {
+          "frame": 30,
+          "total_ms": 435.0191670000004
+        },
+        {
+          "frame": 31,
+          "total_ms": 484.5962500000005
+        },
+        {
+          "frame": 32,
+          "total_ms": 507.5729169999977
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "unkeyed-direct",
+      "round": 1,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        2.63,
+        1.38,
+        0.59
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 314.33804199999986
+        },
+        {
+          "frame": 4,
+          "total_ms": 318.3042919999998
+        },
+        {
+          "frame": 5,
+          "total_ms": 297.39762599999995
+        },
+        {
+          "frame": 6,
+          "total_ms": 299.7149159999999
+        },
+        {
+          "frame": 7,
+          "total_ms": 300.1235419999998
+        },
+        {
+          "frame": 8,
+          "total_ms": 301.79754200000025
+        },
+        {
+          "frame": 9,
+          "total_ms": 297.97462499999983
+        },
+        {
+          "frame": 10,
+          "total_ms": 299.9042499999996
+        },
+        {
+          "frame": 11,
+          "total_ms": 301.07895800000006
+        },
+        {
+          "frame": 12,
+          "total_ms": 349.2893330000006
+        },
+        {
+          "frame": 13,
+          "total_ms": 335.43383299999914
+        },
+        {
+          "frame": 14,
+          "total_ms": 299.92812499999945
+        },
+        {
+          "frame": 15,
+          "total_ms": 305.2798329999996
+        },
+        {
+          "frame": 16,
+          "total_ms": 311.5722079999996
+        },
+        {
+          "frame": 17,
+          "total_ms": 300.9944580000001
+        },
+        {
+          "frame": 18,
+          "total_ms": 297.561917
+        },
+        {
+          "frame": 19,
+          "total_ms": 299.5918330000004
+        },
+        {
+          "frame": 20,
+          "total_ms": 300.00795800000014
+        },
+        {
+          "frame": 21,
+          "total_ms": 301.3445840000004
+        },
+        {
+          "frame": 22,
+          "total_ms": 285.5794160000005
+        },
+        {
+          "frame": 23,
+          "total_ms": 298.3946670000005
+        },
+        {
+          "frame": 24,
+          "total_ms": 332.81533300000046
+        },
+        {
+          "frame": 25,
+          "total_ms": 300.43333300000086
+        },
+        {
+          "frame": 26,
+          "total_ms": 332.71320900000137
+        },
+        {
+          "frame": 27,
+          "total_ms": 282.3747079999994
+        },
+        {
+          "frame": 28,
+          "total_ms": 282.3112920000003
+        },
+        {
+          "frame": 29,
+          "total_ms": 302.1672920000001
+        },
+        {
+          "frame": 30,
+          "total_ms": 296.66291699999965
+        },
+        {
+          "frame": 31,
+          "total_ms": 283.38179200000013
+        },
+        {
+          "frame": 32,
+          "total_ms": 318.77750000000015
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "unkeyed-effects",
+      "round": 1,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.66,
+        1.37,
+        0.65
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 1960.549626
+        },
+        {
+          "frame": 4,
+          "total_ms": 1962.2713759999988
+        },
+        {
+          "frame": 5,
+          "total_ms": 2114.933708999999
+        },
+        {
+          "frame": 6,
+          "total_ms": 2101.0540849999998
+        },
+        {
+          "frame": 7,
+          "total_ms": 1970.4895420000012
+        },
+        {
+          "frame": 8,
+          "total_ms": 1967.174458999998
+        },
+        {
+          "frame": 9,
+          "total_ms": 1985.9160420000007
+        },
+        {
+          "frame": 10,
+          "total_ms": 1966.1007930000014
+        },
+        {
+          "frame": 11,
+          "total_ms": 2091.8924590000024
+        },
+        {
+          "frame": 12,
+          "total_ms": 2118.7258340000008
+        },
+        {
+          "frame": 13,
+          "total_ms": 2016.2616259999995
+        },
+        {
+          "frame": 14,
+          "total_ms": 2088.097291000002
+        },
+        {
+          "frame": 15,
+          "total_ms": 1964.8083339999976
+        },
+        {
+          "frame": 16,
+          "total_ms": 2730.2692099999986
+        },
+        {
+          "frame": 17,
+          "total_ms": 2739.589834999999
+        },
+        {
+          "frame": 18,
+          "total_ms": 2364.824042
+        },
+        {
+          "frame": 19,
+          "total_ms": 1981.6336670000019
+        },
+        {
+          "frame": 20,
+          "total_ms": 1985.233334000004
+        },
+        {
+          "frame": 21,
+          "total_ms": 2014.1774589999986
+        },
+        {
+          "frame": 22,
+          "total_ms": 1937.2152090000018
+        },
+        {
+          "frame": 23,
+          "total_ms": 2008.4538759999996
+        },
+        {
+          "frame": 24,
+          "total_ms": 2166.9489170000015
+        },
+        {
+          "frame": 25,
+          "total_ms": 2266.955876
+        },
+        {
+          "frame": 26,
+          "total_ms": 1985.5977089999942
+        },
+        {
+          "frame": 27,
+          "total_ms": 2033.2899590000015
+        },
+        {
+          "frame": 28,
+          "total_ms": 2016.8228339999987
+        },
+        {
+          "frame": 29,
+          "total_ms": 2099.8555840000045
+        },
+        {
+          "frame": 30,
+          "total_ms": 1964.8580010000078
+        },
+        {
+          "frame": 31,
+          "total_ms": 1917.3332930000033
+        },
+        {
+          "frame": 32,
+          "total_ms": 1901.703125999993
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "fframes",
+      "round": 1,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.61,
+        1.36,
+        0.65
+      ],
+      "code": 0,
+      "signal": null,
+      "backend": "skia-cpu",
+      "samples": [
+        {
+          "frame": 3,
+          "png_ms": 1.5718750000000057,
+          "render_ms": 119.09375,
+          "total_ms": 120.665625
+        },
+        {
+          "frame": 4,
+          "png_ms": 1.560417000000001,
+          "render_ms": 114.842958,
+          "total_ms": 116.403375
+        },
+        {
+          "frame": 5,
+          "png_ms": 1.5878339999999724,
+          "render_ms": 127.254416,
+          "total_ms": 128.84224999999998
+        },
+        {
+          "frame": 6,
+          "png_ms": 1.602000000000018,
+          "render_ms": 125.70504199999999,
+          "total_ms": 127.30704200000001
+        },
+        {
+          "frame": 7,
+          "png_ms": 1.5522500000000008,
+          "render_ms": 126.71833299999999,
+          "total_ms": 128.270583
+        },
+        {
+          "frame": 8,
+          "png_ms": 1.5592090000000098,
+          "render_ms": 122.58170799999999,
+          "total_ms": 124.140917
+        },
+        {
+          "frame": 9,
+          "png_ms": 1.5405839999999955,
+          "render_ms": 117.219083,
+          "total_ms": 118.759667
+        },
+        {
+          "frame": 10,
+          "png_ms": 1.5545419999999837,
+          "render_ms": 115.98937500000001,
+          "total_ms": 117.543917
+        },
+        {
+          "frame": 11,
+          "png_ms": 1.5587079999999958,
+          "render_ms": 121.613125,
+          "total_ms": 123.17183299999999
+        },
+        {
+          "frame": 12,
+          "png_ms": 1.5478749999999906,
+          "render_ms": 120.029542,
+          "total_ms": 121.577417
+        },
+        {
+          "frame": 13,
+          "png_ms": 1.5499169999999935,
+          "render_ms": 118.286208,
+          "total_ms": 119.836125
+        },
+        {
+          "frame": 14,
+          "png_ms": 1.5505409999999955,
+          "render_ms": 119.148876,
+          "total_ms": 120.699417
+        },
+        {
+          "frame": 15,
+          "png_ms": 1.5539580000000086,
+          "render_ms": 116.438667,
+          "total_ms": 117.992625
+        },
+        {
+          "frame": 16,
+          "png_ms": 1.58054199999998,
+          "render_ms": 121.386958,
+          "total_ms": 122.96749999999999
+        },
+        {
+          "frame": 17,
+          "png_ms": 1.5596250000000111,
+          "render_ms": 121.589833,
+          "total_ms": 123.14945800000001
+        },
+        {
+          "frame": 18,
+          "png_ms": 1.571792000000002,
+          "render_ms": 118.42999999999999,
+          "total_ms": 120.001792
+        },
+        {
+          "frame": 19,
+          "png_ms": 1.5564170000000104,
+          "render_ms": 123.98091699999999,
+          "total_ms": 125.537334
+        },
+        {
+          "frame": 20,
+          "png_ms": 1.5575000000000045,
+          "render_ms": 120.141625,
+          "total_ms": 121.69912500000001
+        },
+        {
+          "frame": 21,
+          "png_ms": 1.551374999999993,
+          "render_ms": 119.61395800000001,
+          "total_ms": 121.165333
+        },
+        {
+          "frame": 22,
+          "png_ms": 1.545541,
+          "render_ms": 118.552167,
+          "total_ms": 120.097708
+        },
+        {
+          "frame": 23,
+          "png_ms": 1.5558750000000003,
+          "render_ms": 118.113542,
+          "total_ms": 119.669417
+        },
+        {
+          "frame": 24,
+          "png_ms": 1.5430829999999958,
+          "render_ms": 118.136375,
+          "total_ms": 119.679458
+        },
+        {
+          "frame": 25,
+          "png_ms": 1.5474579999999918,
+          "render_ms": 118.604792,
+          "total_ms": 120.15225
+        },
+        {
+          "frame": 26,
+          "png_ms": 1.5603750000000076,
+          "render_ms": 118.56224999999999,
+          "total_ms": 120.122625
+        },
+        {
+          "frame": 27,
+          "png_ms": 1.5341669999999965,
+          "render_ms": 121.625916,
+          "total_ms": 123.160083
+        },
+        {
+          "frame": 28,
+          "png_ms": 1.5544170000000008,
+          "render_ms": 121.576375,
+          "total_ms": 123.130792
+        },
+        {
+          "frame": 29,
+          "png_ms": 1.5414999999999992,
+          "render_ms": 117.122625,
+          "total_ms": 118.664125
+        },
+        {
+          "frame": 30,
+          "png_ms": 1.5484170000000148,
+          "render_ms": 120.33308299999999,
+          "total_ms": 121.8815
+        },
+        {
+          "frame": 31,
+          "png_ms": 1.5770420000000058,
+          "render_ms": 125.48262499999998,
+          "total_ms": 127.05966699999999
+        },
+        {
+          "frame": 32,
+          "png_ms": 1.577208999999982,
+          "render_ms": 129.133416,
+          "total_ms": 130.710625
+        }
+      ],
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "unkeyed-direct",
+      "round": 2,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.6,
+        1.37,
+        0.66
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 269.416375
+        },
+        {
+          "frame": 4,
+          "total_ms": 283.1185839999998
+        },
+        {
+          "frame": 5,
+          "total_ms": 300.5972919999999
+        },
+        {
+          "frame": 6,
+          "total_ms": 282.5470409999998
+        },
+        {
+          "frame": 7,
+          "total_ms": 282.50925000000007
+        },
+        {
+          "frame": 8,
+          "total_ms": 283.57066699999996
+        },
+        {
+          "frame": 9,
+          "total_ms": 283.0419999999999
+        },
+        {
+          "frame": 10,
+          "total_ms": 283.5160840000003
+        },
+        {
+          "frame": 11,
+          "total_ms": 282.9488750000005
+        },
+        {
+          "frame": 12,
+          "total_ms": 284.4319580000001
+        },
+        {
+          "frame": 13,
+          "total_ms": 282.878917
+        },
+        {
+          "frame": 14,
+          "total_ms": 299.5276669999994
+        },
+        {
+          "frame": 15,
+          "total_ms": 301.75379200000043
+        },
+        {
+          "frame": 16,
+          "total_ms": 335.1207919999997
+        },
+        {
+          "frame": 17,
+          "total_ms": 280.85145900000043
+        },
+        {
+          "frame": 18,
+          "total_ms": 283.4787919999999
+        },
+        {
+          "frame": 19,
+          "total_ms": 302.8960419999994
+        },
+        {
+          "frame": 20,
+          "total_ms": 280.89050000000043
+        },
+        {
+          "frame": 21,
+          "total_ms": 282.244334
+        },
+        {
+          "frame": 22,
+          "total_ms": 283.473876
+        },
+        {
+          "frame": 23,
+          "total_ms": 286.4471249999997
+        },
+        {
+          "frame": 24,
+          "total_ms": 284.09141699999964
+        },
+        {
+          "frame": 25,
+          "total_ms": 300.4763749999993
+        },
+        {
+          "frame": 26,
+          "total_ms": 315.4707920000001
+        },
+        {
+          "frame": 27,
+          "total_ms": 280.51379199999974
+        },
+        {
+          "frame": 28,
+          "total_ms": 283.40429199999926
+        },
+        {
+          "frame": 29,
+          "total_ms": 317.9237919999996
+        },
+        {
+          "frame": 30,
+          "total_ms": 301.3162080000002
+        },
+        {
+          "frame": 31,
+          "total_ms": 279.25337500000023
+        },
+        {
+          "frame": 32,
+          "total_ms": 284.2621259999996
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "unkeyed-effects",
+      "round": 2,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.91,
+        1.56,
+        0.79
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 2163.4797100000005
+        },
+        {
+          "frame": 4,
+          "total_ms": 2618.983667999999
+        },
+        {
+          "frame": 5,
+          "total_ms": 2358.824500999999
+        },
+        {
+          "frame": 6,
+          "total_ms": 2303.7005419999987
+        },
+        {
+          "frame": 7,
+          "total_ms": 2238.4923759999983
+        },
+        {
+          "frame": 8,
+          "total_ms": 2263.7440840000017
+        },
+        {
+          "frame": 9,
+          "total_ms": 2252.4417090000024
+        },
+        {
+          "frame": 10,
+          "total_ms": 2233.215167999999
+        },
+        {
+          "frame": 11,
+          "total_ms": 2348.069750999999
+        },
+        {
+          "frame": 12,
+          "total_ms": 2294.9727920000005
+        },
+        {
+          "frame": 13,
+          "total_ms": 2232.332250999996
+        },
+        {
+          "frame": 14,
+          "total_ms": 2406.0941260000036
+        },
+        {
+          "frame": 15,
+          "total_ms": 2229.5352090000015
+        },
+        {
+          "frame": 16,
+          "total_ms": 2187.935252000003
+        },
+        {
+          "frame": 17,
+          "total_ms": 2242.9811259999988
+        },
+        {
+          "frame": 18,
+          "total_ms": 2335.2891679999957
+        },
+        {
+          "frame": 19,
+          "total_ms": 2246.4706680000018
+        },
+        {
+          "frame": 20,
+          "total_ms": 2238.4238760000007
+        },
+        {
+          "frame": 21,
+          "total_ms": 2166.2346680000046
+        },
+        {
+          "frame": 22,
+          "total_ms": 2253.8611670000028
+        },
+        {
+          "frame": 23,
+          "total_ms": 2195.3619589999944
+        },
+        {
+          "frame": 24,
+          "total_ms": 2284.114168
+        },
+        {
+          "frame": 25,
+          "total_ms": 2148.9664600000033
+        },
+        {
+          "frame": 26,
+          "total_ms": 2247.8098339999997
+        },
+        {
+          "frame": 27,
+          "total_ms": 2185.2111250000016
+        },
+        {
+          "frame": 28,
+          "total_ms": 2254.1181679999936
+        },
+        {
+          "frame": 29,
+          "total_ms": 2180.4770010000066
+        },
+        {
+          "frame": 30,
+          "total_ms": 2152.6740430000063
+        },
+        {
+          "frame": 31,
+          "total_ms": 2211.6669180000026
+        },
+        {
+          "frame": 32,
+          "total_ms": 2280.80687700001
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "fframes",
+      "round": 2,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.84,
+        1.55,
+        0.79
+      ],
+      "code": 0,
+      "signal": null,
+      "backend": "skia-cpu",
+      "samples": [
+        {
+          "frame": 3,
+          "png_ms": 1.5410419999999903,
+          "render_ms": 119.185917,
+          "total_ms": 120.726959
+        },
+        {
+          "frame": 4,
+          "png_ms": 1.5340829999999954,
+          "render_ms": 113.76233400000001,
+          "total_ms": 115.296417
+        },
+        {
+          "frame": 5,
+          "png_ms": 1.5299170000000117,
+          "render_ms": 121.345833,
+          "total_ms": 122.87575000000001
+        },
+        {
+          "frame": 6,
+          "png_ms": 1.5527919999999966,
+          "render_ms": 123.684291,
+          "total_ms": 125.237083
+        },
+        {
+          "frame": 7,
+          "png_ms": 1.5435419999999738,
+          "render_ms": 126.99587500000001,
+          "total_ms": 128.539417
+        },
+        {
+          "frame": 8,
+          "png_ms": 1.5420000000000016,
+          "render_ms": 120.360125,
+          "total_ms": 121.902125
+        },
+        {
+          "frame": 9,
+          "png_ms": 1.5337080000000043,
+          "render_ms": 116.804459,
+          "total_ms": 118.338167
+        },
+        {
+          "frame": 10,
+          "png_ms": 1.5670829999999967,
+          "render_ms": 121.546667,
+          "total_ms": 123.11375
+        },
+        {
+          "frame": 11,
+          "png_ms": 1.5360829999999908,
+          "render_ms": 123.2155,
+          "total_ms": 124.751583
+        },
+        {
+          "frame": 12,
+          "png_ms": 1.5302500000000094,
+          "render_ms": 125.12845899999999,
+          "total_ms": 126.658709
+        },
+        {
+          "frame": 13,
+          "png_ms": 1.5604580000000112,
+          "render_ms": 115.78566699999999,
+          "total_ms": 117.346125
+        },
+        {
+          "frame": 14,
+          "png_ms": 1.535291000000015,
+          "render_ms": 116.99675099999999,
+          "total_ms": 118.532042
+        },
+        {
+          "frame": 15,
+          "png_ms": 1.5737500000000182,
+          "render_ms": 116.969625,
+          "total_ms": 118.54337500000001
+        },
+        {
+          "frame": 16,
+          "png_ms": 1.5369159999999908,
+          "render_ms": 119.74816700000001,
+          "total_ms": 121.285083
+        },
+        {
+          "frame": 17,
+          "png_ms": 1.5404160000000076,
+          "render_ms": 123.969709,
+          "total_ms": 125.510125
+        },
+        {
+          "frame": 18,
+          "png_ms": 1.5378749999999997,
+          "render_ms": 121.109167,
+          "total_ms": 122.647042
+        },
+        {
+          "frame": 19,
+          "png_ms": 1.547542000000007,
+          "render_ms": 118.187,
+          "total_ms": 119.734542
+        },
+        {
+          "frame": 20,
+          "png_ms": 1.5318749999999994,
+          "render_ms": 117.061542,
+          "total_ms": 118.593417
+        },
+        {
+          "frame": 21,
+          "png_ms": 1.5194999999999936,
+          "render_ms": 118.269125,
+          "total_ms": 119.788625
+        },
+        {
+          "frame": 22,
+          "png_ms": 1.5159160000000043,
+          "render_ms": 125.00274999999999,
+          "total_ms": 126.518666
+        },
+        {
+          "frame": 23,
+          "png_ms": 1.5368330000000014,
+          "render_ms": 122.63262499999999,
+          "total_ms": 124.16945799999999
+        },
+        {
+          "frame": 24,
+          "png_ms": 1.5437500000000028,
+          "render_ms": 120.04825,
+          "total_ms": 121.592
+        },
+        {
+          "frame": 25,
+          "png_ms": 1.5333330000000132,
+          "render_ms": 118.119042,
+          "total_ms": 119.652375
+        },
+        {
+          "frame": 26,
+          "png_ms": 1.6084160000000054,
+          "render_ms": 122.13541699999999,
+          "total_ms": 123.743833
+        },
+        {
+          "frame": 27,
+          "png_ms": 1.5622919999999993,
+          "render_ms": 120.917666,
+          "total_ms": 122.479958
+        },
+        {
+          "frame": 28,
+          "png_ms": 1.5615410000000054,
+          "render_ms": 129.53504199999998,
+          "total_ms": 131.09658299999998
+        },
+        {
+          "frame": 29,
+          "png_ms": 1.5535420000000215,
+          "render_ms": 130.243958,
+          "total_ms": 131.7975
+        },
+        {
+          "frame": 30,
+          "png_ms": 1.5455410000000143,
+          "render_ms": 125.37049999999999,
+          "total_ms": 126.916041
+        },
+        {
+          "frame": 31,
+          "png_ms": 1.5571670000000069,
+          "render_ms": 124.952125,
+          "total_ms": 126.509292
+        },
+        {
+          "frame": 32,
+          "png_ms": 1.5452080000000024,
+          "render_ms": 115.569709,
+          "total_ms": 117.114917
+        }
+      ],
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    },
+    {
+      "nodes": 100000,
+      "engine": "keyed-direct",
+      "round": 2,
+      "status": "ok",
+      "verified": true,
+      "load_after": [
+        1.65,
+        1.52,
+        0.79
+      ],
+      "code": 0,
+      "signal": null,
+      "samples": [
+        {
+          "frame": 3,
+          "total_ms": 366.91729199999986
+        },
+        {
+          "frame": 4,
+          "total_ms": 368.085376
+        },
+        {
+          "frame": 5,
+          "total_ms": 365.64554199999975
+        },
+        {
+          "frame": 6,
+          "total_ms": 364.82533399999966
+        },
+        {
+          "frame": 7,
+          "total_ms": 367.65512499999977
+        },
+        {
+          "frame": 8,
+          "total_ms": 366.6882919999998
+        },
+        {
+          "frame": 9,
+          "total_ms": 386.5308749999999
+        },
+        {
+          "frame": 10,
+          "total_ms": 363.23054200000024
+        },
+        {
+          "frame": 11,
+          "total_ms": 383.83887500000037
+        },
+        {
+          "frame": 12,
+          "total_ms": 401.17204200000015
+        },
+        {
+          "frame": 13,
+          "total_ms": 365.26987499999996
+        },
+        {
+          "frame": 14,
+          "total_ms": 387.06058399999984
+        },
+        {
+          "frame": 15,
+          "total_ms": 380.8067089999995
+        },
+        {
+          "frame": 16,
+          "total_ms": 384.9417910000002
+        },
+        {
+          "frame": 17,
+          "total_ms": 382.338667
+        },
+        {
+          "frame": 18,
+          "total_ms": 400.9818749999995
+        },
+        {
+          "frame": 19,
+          "total_ms": 434.072208999999
+        },
+        {
+          "frame": 20,
+          "total_ms": 432.35054200000013
+        },
+        {
+          "frame": 21,
+          "total_ms": 433.0797500000008
+        },
+        {
+          "frame": 22,
+          "total_ms": 383.4339170000003
+        },
+        {
+          "frame": 23,
+          "total_ms": 382.7325000000001
+        },
+        {
+          "frame": 24,
+          "total_ms": 365.3373329999995
+        },
+        {
+          "frame": 25,
+          "total_ms": 384.53058299999975
+        },
+        {
+          "frame": 26,
+          "total_ms": 403.1368340000008
+        },
+        {
+          "frame": 27,
+          "total_ms": 400.03545799999847
+        },
+        {
+          "frame": 28,
+          "total_ms": 397.539084
+        },
+        {
+          "frame": 29,
+          "total_ms": 399.2922090000011
+        },
+        {
+          "frame": 30,
+          "total_ms": 439.77291700000023
+        },
+        {
+          "frame": 31,
+          "total_ms": 434.46179100000154
+        },
+        {
+          "frame": 32,
+          "total_ms": 426.5376670000005
+        }
+      ],
+      "renderer": "@remotion/renderer renderFrames",
+      "concurrency": 1,
+      "browser": "Chromium 154.0.8037.57 built on Debian GNU/Linux 13 (trixie)",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "dom": {
+        "rectangles": 99000,
+        "texts": 1000
+      },
+      "pixel_sha256": [
+        "847923c75071eb9de2b514c5e1cab1833c9a58788ade2d5ded5b08fe1909d1c8",
+        "44ca7697e868d7a9419a4331ea018cfc04dd2335c57be68c5c7e4921c57c419c",
+        "3432142647be03bf8c6974b3e340f86bf0a87ec5f77b5e78c929e3f46a43de39",
+        "b5519b1b3d3f9617f9a3e8c227a2d1d41f20bb410522a881fa008cc033d1c9fb",
+        "f89f4e233c665c66023fa7a5de94caf08ea4816b0d641fefbe36ae8d6800e635",
+        "54a21b32009c26d4a9300ec208cbac95ae5ae3b20efdf29b7822894eedf452e3",
+        "690894e1deab0db74ea42a44ce6b4591435fecaea18bf0edd043f899ca768912",
+        "6e582598aff478969c8fe4b0f7049d7fd2d77e2bc91f7ca9af6ad990d17e791c",
+        "d37961bb35fde36efeade2c3932950f76ed0c47f4fac376541d65dc781422acb",
+        "48de66c50110680bc8756a1347063eff0b887a8c14fbc2699a4ecffc2b91feaa",
+        "4851f459ea36563c108524a392d2c1c83f01e63a4dbc60589b6771a70a669f0a",
+        "0c335fc2dad754cbff453730371f5255d87a282d97fb7be905a2ae71b5d985cd",
+        "dba3c3c8a0eddf2850c1800420414775840001ca037a1c03f02a54de083b8754",
+        "eb471393ec741739051867808f0fa04d7ad248522bdcd194611022487dc0aa2b",
+        "a587540ea810c68084fda8d0eada569eda382be7249beca5e0410778bceb2a13",
+        "be150bdce2565c18cf1264daa55bbc7b8929c21880979b17796b66f67efffd25",
+        "906548e8b733b2ba2bae637def0892eaeba19449d6373fda5976f8f609a45189",
+        "81d6cd7707f32d103cb5e07c08b5a61a029d82cf3a71e0f5faf38d35e7442e02",
+        "0db8b8ad353bd4a0f0ba1f60de34a62ea991147a71eef0c5b15fe9c26748b7b4",
+        "459cbdcb58eee04e87a2cac6e50b7312696efddd3539ae728c9feaf55620decb",
+        "f3b509b0ef968b079bd35c1e0728493ba3b1f393fcafd43700bd0002e9e99f06",
+        "dd3e290434c7951284c42500c57305aa561974a1d28c4d7ee79c0fecadad5ea4",
+        "b138054fea803d71edfa14af8c79bbe084a9c48fd19bcde009ea1afecf2183aa",
+        "60d3ef6ea32c49250da84daa0209337c72d127f7ee3d5f7ee70556671a2d6058",
+        "21431f7db930a4dc1d4cd1f66ef3324d7b01d8c1db2522f15ee8ad3ca580f07a",
+        "e0ee1e9132b7149c01b501536a059cdec90bdd73c787c8c82dcb149894926ba0",
+        "de4b0da2a47d050972bb994e7a9bde94147a0ff838c5d9cfa07be83d0009ac6a",
+        "5bc841cc3aac329e5009ae1730d7b5cbebfbac3ba47727350155aedbd03d7447",
+        "e8f7e420f6a38b76c77dbf529820909154ff0940aa3a77f0c1d5099d61379839",
+        "01dadc088d98088f70cd107b58503319908e1e9c94494727a62f2ce8e03c2f77"
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "nodes": 100000,
+      "mode": "keyed-direct",
+      "status": "complete",
+      "fframes_median_ms": 3681.010959,
+      "react_median_ms": 12069.558297000001,
+      "speedup": 3.278870514495526,
+      "reaches_20x": false
+    },
+    {
+      "nodes": 100000,
+      "mode": "unkeyed-direct",
+      "status": "complete",
+      "fframes_median_ms": 3681.010959,
+      "react_median_ms": 8801.517381999996,
+      "speedup": 2.391059814826266,
+      "reaches_20x": false
+    },
+    {
+      "nodes": 100000,
+      "mode": "unkeyed-effects",
+      "status": "complete",
+      "fframes_median_ms": 3681.010959,
+      "react_median_ms": 67756.28836500003,
+      "speedup": 18.406978169770785,
+      "reaches_20x": false
+    }
+  ]
+}

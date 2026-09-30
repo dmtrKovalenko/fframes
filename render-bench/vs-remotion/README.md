@@ -35,9 +35,20 @@ source/binary/font hashes and a Markdown table. Failed runs have no speedup.
 
 ## Results
 
-The Remotion run is being measured. Earlier [React DOM results](render-only/results/2026-09-30-linux-arm64.md)
-used rectangles only and did not run Remotion; their 21.48× result does not apply
-to this workload. The intro's requested 21.8× copy is not a measured result of this run.
+Linux ARM64 Docker, Skia CPU, Chromium 154; three rounds. All 360 measured PNGs
+match exactly across both engines.
+
+| Configuration | Median time, 30 frames | Speedup |
+|---|---:|---:|
+| fframes + Skia CPU | 3.681 s | baseline |
+| Remotion `keyed-direct` | 12.070 s | 3.28× |
+| Remotion `unkeyed-direct` | 8.802 s | 2.39× |
+| Remotion `unkeyed-effects` | 67.756 s | 18.41× |
+
+[Raw samples](render-only/results/2026-09-30-remotion-linux-arm64.json) and
+[report](render-only/results/2026-09-30-remotion-linux-arm64.md).
+Earlier [React DOM results](render-only/results/2026-09-30-linux-arm64.md) used
+rectangles only and did not run Remotion. Their 21.48× does not apply here.
 
 The old H.264 experiment remains in [README-encoded.md](README-encoded.md) and
 `run_encoded.sh`. Its timings include video encoding.
