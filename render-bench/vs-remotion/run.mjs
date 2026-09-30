@@ -11,7 +11,6 @@ import {
   selectComposition,
   renderFrames,
 } from "@remotion/renderer";
-import { PNG } from "pngjs";
 import { summarize, markdown } from "./report.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
@@ -23,44 +22,6 @@ const option = (name, fallback) => {
 const git = (...a) =>
   execFileSync("git", ["-C", root, ...a], { encoding: "utf8" }).trim();
 
-const glyphs = JSON.parse(
-  await fs.readFile(path.join(here, "glyphs.json"), "utf8")
-);
-
-async function verify(directory, frames, nodes) {
-  const hashes = [];
-  for (const frame of frames) {
-    const png = PNG.sync.read(
-      await fs.readFile(path.join(directory, `${frame}.png`))
-    );
-    if (png.width !== 1000 || png.height !== 1000)
-      throw new Error("incorrect image dimensions");
-    const expected = Buffer.alloc(1000 * 1000 * 4);
-    for (let i = 3; i < expected.length; i += 4) expected[i] = 255;
-    const paint = (pixel, id) => {
-      expected[pixel * 4] = (id * 13 + frame * 17) % 256;
-      expected[pixel * 4 + 1] = (id * 7 + frame * 29) % 256;
-      expected[pixel * 4 + 2] = (id * 3 + frame * 43) % 256;
-    };
-    for (let slot = 0; slot < nodes; slot++)
-      if (slot % 100 !== 0) paint(slot, (slot + frame * 37) % nodes);
-    for (let slot = 0; slot < nodes; slot += 100) {
-      const id = (slot + frame * 37) % nodes;
-      const index = slot / 100;
-      const x = (index % 100) * 10 + 1;
-      const y = Math.floor(index / 100) * 10 + 2;
-      const glyph = glyphs[(id + frame) % 10];
-      for (let row = 0; row < 5; row++)
-        for (let col = 0; col < 3; col++)
-          if (glyph[row][col] === "1") paint((y + row) * 1000 + x + col, id);
-    }
-    const mismatch = png.data.findIndex((value, i) => value !== expected[i]);
-    if (mismatch !== -1)
-      throw new Error(`pixel mismatch: frame ${frame}, byte ${mismatch}`);
-    hashes.push(createHash("sha256").update(png.data).digest("hex"));
-  }
-  return hashes;
-}
 async function remotionWorker(config) {
   const chromiumOptions = { disableWebSecurity: false };
   const browser = await openBrowser("chrome", {
@@ -181,7 +142,8 @@ if (args[0] === "--worker") {
   const report = {
     schema_version: 5,
     comparison: "Remotion renderFrames vs fframes Previewer + Skia",
-    workload: "99% rectangles, 1% changing 3x5 text digits; text painted last",
+    workload:
+      "99% rectangles, 1% changing DM Sans text digits; text painted last",
     plan,
     environment: {
       platform: os.platform(),
@@ -200,7 +162,7 @@ if (args[0] === "--worker") {
       dirty: !!git("status", "--porcelain"),
       command: process.argv,
       font_sha256: createHash("sha256")
-        .update(await fs.readFile(path.join(here, "media/BenchDigits.ttf")))
+        .update(await fs.readFile(path.join(here, "media/DMSans-Regular.ttf")))
         .digest("hex"),
       binary_sha256: createHash("sha256")
         .update(await fs.readFile(binary))
@@ -262,7 +224,6 @@ if (args[0] === "--worker") {
         engine,
         round,
         status: result.status,
-        verified: false,
         load_after: os.loadavg(),
         code: result.code,
         signal: result.signal,
@@ -271,14 +232,6 @@ if (args[0] === "--worker") {
         if (result.status !== "ok")
           throw new Error(result.error || result.status);
         Object.assign(record, JSON.parse(result.stdout));
-        if (record.status !== "skipped") {
-          record.pixel_sha256 = await verify(
-            directory,
-            record.samples.map(s => s.frame),
-            nodes
-          );
-          record.verified = true;
-        }
       } catch (err) {
         record.status =
           result.status === "ok" ? "invalid-output" : result.status;

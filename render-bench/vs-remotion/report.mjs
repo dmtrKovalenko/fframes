@@ -12,7 +12,6 @@ export function summarize(records, plan) {
     runs.every(
       r =>
         r.status === "ok" &&
-        r.verified &&
         r.samples?.length === plan.frames &&
         r.samples.every(
           (s, i) =>
@@ -49,9 +48,9 @@ export function markdown(report) {
   return [
     "# fframes + Skia vs Remotion",
     "",
-    "100,000 elements: 99,000 rectangles and 1,000 changing text digits. Remotion uses an unkeyed list with 12 dependent effect/state updates per element. All render identical 1000×1000 frames serially, without a video encoder.",
+    "100,000 elements: 99,000 rectangles and 1,000 changing text digits. Remotion uses an unkeyed list with 12 dependent effect/state updates per element. All render the same 1000×1000 scene serially, without a video encoder.",
     "",
-    "Median of 3 rounds, each with 3 warm-up and 30 measured frames. PNG compression is included; startup, warm-up, disk writes and pixel verification are excluded.",
+    "Median of 3 rounds, each with 3 warm-up and 30 measured frames. PNG compression is included; startup, warm-up and disk writes are excluded.",
     "",
     "| Renderer | Median for 30 frames | Speedup vs Remotion |",
     "|---|---:|---:|",

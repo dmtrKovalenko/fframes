@@ -37,7 +37,7 @@ impl Video for Grid {
             if slot % 100 == 0 {
                 let index = slot / 100;
                 fframes::svgr!(<text x={(index % 100) * 10 + 1} y={(index / 100) * 10 + 7}
-                    font-family="Bench Digits" font-size="10" fill={fill}>{((id + frame.index) % 10).to_string()}</text>)
+                    font-family="DM Sans" font-size="10" fill={fill}>{((id + frame.index) % 10).to_string()}</text>)
             } else {
                 fframes::svgr!(<rect x={slot % SIDE} y={slot / SIDE} width="1" height="1" fill={fill} />)
             }

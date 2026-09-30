@@ -42,7 +42,7 @@ function cell(id, slot, frame) {
       <text
         x={(index % 100) * 10 + 1}
         y={Math.floor(index / 100) * 10 + 7}
-        fontFamily="Bench Digits"
+        fontFamily="DM Sans"
         fontSize="10"
         fill={color(id, frame)}
       >
@@ -68,8 +68,8 @@ function GridVideo() {
   );
   useEffect(() => {
     const font = new FontFace(
-      "Bench Digits",
-      `url(${staticFile("BenchDigits.ttf")})`
+      "DM Sans",
+      `url(${staticFile("DMSans-Regular.ttf")})`
     );
     font
       .load()
