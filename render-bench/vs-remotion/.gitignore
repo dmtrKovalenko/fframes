@@ -1,11 +1,7 @@
-out/
-build/
 node_modules/
-# benchmark results and generated media
-results*
-pilot.tsv
+package-lock.json
+out/
+results*/
+build/
 logs/
 *.png
-fframes/out/
-remotion/out/
-remotion/public/*.mp4

@@ -1,5 +1,0 @@
-out/
-
-# Published measurements and intro review images (override the legacy results* rule).
-!results/
-!results/**

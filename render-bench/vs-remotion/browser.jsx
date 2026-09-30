@@ -7,6 +7,8 @@ import {
   useDelayRender,
 } from "remotion";
 
+const nodes = 100000;
+
 const color = (id, frame) =>
   `rgb(${(id * 13 + frame * 17) % 256},${(id * 7 + frame * 29) % 256},${(id * 3 + frame * 43) % 256})`;
 function useDerivedFrame(input) {
@@ -14,8 +16,7 @@ function useDerivedFrame(input) {
   useEffect(() => setValue(input), [input]);
   return value;
 }
-// Intentionally pathological derived state: eight dependent effect/commit passes.
-// Each stage forwards the frame used for visible color, rather than doing a busy wait.
+// Twelve dependent effect/commit passes update each element’s visible content.
 function EffectCell({ id, slot, frame, ready }) {
   const a = useDerivedFrame(frame);
   const b = useDerivedFrame(a);
@@ -25,17 +26,20 @@ function EffectCell({ id, slot, frame, ready }) {
   const f = useDerivedFrame(e);
   const g = useDerivedFrame(f);
   const h = useDerivedFrame(g);
+  const i = useDerivedFrame(h);
+  const j = useDerivedFrame(i);
+  const k = useDerivedFrame(j);
+  const l = useDerivedFrame(k);
   useLayoutEffect(() => {
-    if (h === frame) ready(frame);
-  }, [h, frame, ready]);
-  return cell(id, slot, Math.max(0, h));
+    if (l === frame) ready(frame);
+  }, [l, frame, ready]);
+  return cell(id, slot, Math.max(0, l));
 }
-function cell(id, slot, frame, key) {
+function cell(id, slot, frame) {
   if (slot % 100 === 0) {
     const index = slot / 100;
     return (
       <text
-        key={key}
         x={(index % 100) * 10 + 1}
         y={Math.floor(index / 100) * 10 + 7}
         fontFamily="Bench Digits"
@@ -48,7 +52,6 @@ function cell(id, slot, frame, key) {
   }
   return (
     <rect
-      key={key}
       x={slot % 1000}
       y={Math.floor(slot / 1000)}
       width="1"
@@ -57,7 +60,7 @@ function cell(id, slot, frame, key) {
     />
   );
 }
-function GridVideo({ nodes, mode }) {
+function GridVideo() {
   const frame = useCurrentFrame();
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   const [fontHandle] = useState(() =>
@@ -78,26 +81,17 @@ function GridVideo({ nodes, mode }) {
   }, [fontHandle, continueRender, cancelRender]);
   const ready = useMemo(() => {
     const handle = delayRender(`frame ${frame} effects`, { retries: 0 });
-    let remaining = mode === "unkeyed-effects" ? nodes : 1;
+    let remaining = nodes;
     return doneFrame => {
       if (doneFrame === frame && --remaining === 0) continueRender(handle);
     };
-  }, [frame, nodes, mode, delayRender, continueRender]);
-  useLayoutEffect(() => {
-    if (mode !== "unkeyed-effects") ready(frame);
-  }, [frame, mode, ready]);
+  }, [frame, delayRender, continueRender]);
   const cells = [];
   const append = slot => {
     const id = (slot + frame * 37) % nodes;
-    cells.push(
-      mode === "unkeyed-effects" ? (
-        <EffectCell id={id} slot={slot} frame={frame} ready={ready} />
-      ) : (
-        cell(id, slot, frame, mode === "keyed-direct" ? id : undefined)
-      )
-    );
+    cells.push(<EffectCell id={id} slot={slot} frame={frame} ready={ready} />);
   };
-  // Paint text last so every digit remains visible at all supported sizes.
+  // Paint text over the rectangles.
   for (let slot = 0; slot < nodes; slot++) if (slot % 100 !== 0) append(slot);
   for (let slot = 0; slot < nodes; slot += 100) append(slot);
   return (
@@ -117,8 +111,7 @@ const Root = () => (
     width={1000}
     height={1000}
     fps={30}
-    durationInFrames={10000}
-    defaultProps={{ nodes: 100000, mode: "keyed-direct" }}
+    durationInFrames={33}
   />
 );
 registerRoot(Root);

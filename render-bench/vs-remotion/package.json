@@ -1,11 +1,7 @@
 {
-  "name": "fframes-render-only-bench",
+  "name": "fframes-vs-remotion-bench",
   "private": true,
   "type": "module",
-  "scripts": {
-    "bench": "node run.mjs",
-    "test": "node --test *.test.mjs"
-  },
   "dependencies": {
     "@remotion/bundler": "4.0.529",
     "@remotion/renderer": "4.0.529",

@@ -1,35 +1,35 @@
 //! Render-only twin of browser.jsx. No video encoder is instantiated.
-use std::{hint::black_box, path::PathBuf, time::Instant};
+use std::{hint::black_box, path::Path, time::Instant};
 
 use fframes::{
     AudioMap, Duration, FFramesContext, Frame, Previewer, RenderOptions, StaticMediaProvider, Svgr,
     Video,
 };
-use fframes_skia_renderer::{SkiaBackend, SkiaCpuCtx, SkiaFrameRenderer};
+use fframes_skia_renderer::{SkiaCpuCtx, SkiaFrameRenderer};
 
-fframes::include_media_dir!(struct BenchMedia, "render-bench/vs-remotion/render-only/media");
+fframes::include_media_dir!(struct BenchMedia, "render-bench/vs-remotion/media");
 
 const SIDE: usize = 1000;
+const NODES: usize = 100_000;
+const FRAMES: usize = 30;
+const WARMUP: usize = 3;
 
-struct Grid {
-    nodes: usize,
-    frames: usize,
-}
+struct Grid;
 
 impl Video for Grid {
     const FPS: usize = 30;
     const WIDTH: usize = SIDE;
     const HEIGHT: usize = SIDE;
     fn duration(&self) -> Duration<'_> {
-        Duration::Frames(self.frames)
+        Duration::Frames(FRAMES + WARMUP)
     }
     fn audio(&self) -> AudioMap<'_> {
         AudioMap::none()
     }
     fn render_frame<'a>(&'a self, frame: Frame, _ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
-        let nodes: Vec<_> = (0..self.nodes).filter(|slot| slot % 100 != 0)
-            .chain((0..self.nodes).step_by(100)).map(|slot| {
-            let id = (slot + frame.index * 37) % self.nodes;
+        let nodes: Vec<_> = (0..NODES).filter(|slot| slot % 100 != 0)
+            .chain((0..NODES).step_by(100)).map(|slot| {
+            let id = (slot + frame.index * 37) % NODES;
             let r = (id * 13 + frame.index * 17) % 256;
             let g = (id * 7 + frame.index * 29) % 256;
             let b = (id * 3 + frame.index * 43) % 256;
@@ -46,18 +46,14 @@ impl Video for Grid {
     }
 }
 
-fn run(
-    backend: &impl SkiaBackend,
-    name: &str,
-    nodes: usize,
-    frames: usize,
-    warmup: usize,
-    out: &std::path::Path,
-) {
-    let video = Grid {
-        nodes,
-        frames: frames + warmup,
-    };
+fn main() {
+    let out = std::env::args()
+        .nth(1)
+        .expect("usage: vs-remotion-bench OUTPUT_DIR");
+    let out = Path::new(&out);
+    std::fs::create_dir_all(out).expect("output directory");
+    let video = Grid;
+    let backend = SkiaCpuCtx::new(SIDE, SIDE);
     let media = BenchMedia::prepare().expect("benchmark font");
     let options = RenderOptions {
         media: Some(&media),
@@ -65,11 +61,11 @@ fn run(
         ..Default::default()
     };
     let mut preview = Previewer::new(&video, &options).expect("preview initialization");
-    let mut renderer = SkiaFrameRenderer::new(backend);
+    let mut renderer = SkiaFrameRenderer::new(&backend);
     let mut samples = Vec::new();
-    for frame in 0..frames + warmup {
+    for frame in 0..FRAMES + WARMUP {
         let start = Instant::now();
-        // Includes scene generation, SVG conversion, rasterization, GPU sync/readback.
+        // Includes scene generation, SVG conversion, and rasterization.
         let image = preview.render(frame, &mut renderer).expect("render frame");
         let render_ms = start.elapsed().as_secs_f64() * 1000.;
         // Chrome exposes screenshots as PNGs. Produce the same artifact in memory;
@@ -88,7 +84,7 @@ fn run(
         }
         let total_ms = start.elapsed().as_secs_f64() * 1000.;
         black_box(&bytes);
-        if frame >= warmup {
+        if frame >= WARMUP {
             samples.push(serde_json::json!({"frame": frame, "render_ms": render_ms, "png_ms": total_ms-render_ms, "total_ms": total_ms}));
             // Disk writes and correctness checks are excluded on both sides.
             std::fs::write(out.join(format!("{frame}.png")), &bytes)
@@ -97,50 +93,6 @@ fn run(
     }
     println!(
         "{}",
-        serde_json::json!({"backend": name, "nodes": nodes, "samples": samples})
+        serde_json::json!({"backend": "skia-cpu", "nodes": NODES, "samples": samples})
     );
-}
-
-fn main() {
-    let args: Vec<_> = std::env::args().collect();
-    assert_eq!(
-        args.len(),
-        6,
-        "usage: render-only-bench BACKEND NODES FRAMES WARMUP OUTPUT_DIR"
-    );
-    let nodes: usize = args[2].parse().expect("nodes");
-    let frames: usize = args[3].parse().expect("frames");
-    let warmup: usize = args[4].parse().expect("warmup");
-    assert!((1..=SIDE * SIDE).contains(&nodes) && frames > 0 && warmup > 0);
-    let out = PathBuf::from(&args[5]);
-    std::fs::create_dir_all(&out).expect("output directory");
-    match args[1].as_str() {
-        "skia-cpu" => run(
-            &SkiaCpuCtx::new(SIDE, SIDE),
-            "skia-cpu",
-            nodes,
-            frames,
-            warmup,
-            &out,
-        ),
-        #[cfg(feature = "metal")]
-        "metal" => run(
-            &fframes_skia_renderer::metal::SkiaMetalCtx::new(SIDE, SIDE).expect("Metal context"),
-            "metal",
-            nodes,
-            frames,
-            warmup,
-            &out,
-        ),
-        #[cfg(feature = "vulkan")]
-        "vulkan" => run(
-            &fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(SIDE, SIDE).expect("Vulkan context"),
-            "vulkan",
-            nodes,
-            frames,
-            warmup,
-            &out,
-        ),
-        _ => panic!("backend is not compiled in; use skia-cpu, or --features metal/vulkan"),
-    }
 }

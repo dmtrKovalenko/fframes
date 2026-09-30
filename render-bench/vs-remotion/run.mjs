@@ -14,17 +14,11 @@ import {
 import { PNG } from "pngjs";
 import { summarize, markdown } from "./report.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "../../..");
+const root = path.resolve(here, "../..");
 const args = process.argv.slice(2);
 const option = (name, fallback) => {
   const i = args.indexOf(`--${name}`);
   return i < 0 ? fallback : args[i + 1];
-};
-const integer = (value, name, max = 1000000) => {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 1 || n > max)
-    throw new Error(`invalid ${name}`);
-  return n;
 };
 const git = (...a) =>
   execFileSync("git", ["-C", root, ...a], { encoding: "utf8" }).trim();
@@ -75,11 +69,9 @@ async function remotionWorker(config) {
     logLevel: "error",
   });
   try {
-    const inputProps = { nodes: config.nodes, mode: config.engine };
     const composition = await selectComposition({
       serveUrl: config.bundle,
       id: "MixedGrid",
-      inputProps,
       puppeteerInstance: browser,
       timeoutInMilliseconds: config.timeout,
       logLevel: "error",
@@ -89,7 +81,6 @@ async function remotionWorker(config) {
     let dom;
     await renderFrames({
       composition,
-      inputProps,
       serveUrl: config.bundle,
       puppeteerInstance: browser,
       concurrency: 1,
@@ -155,29 +146,22 @@ if (args[0] === "--worker") {
   const config = JSON.parse(await fs.readFile(args[1], "utf8"));
   console.log(JSON.stringify(await remotionWorker(config)));
 } else {
+  for (let i = 0; i < args.length; i += 2) {
+    if (!["--chrome", "--out", "--binary"].includes(args[i]) || !args[i + 1])
+      throw new Error(`unknown or incomplete option: ${args[i]}`);
+  }
   const plan = {
-    nodes: option("nodes", "100000")
-      .split(",")
-      .map(n => integer(n, "nodes")),
-    modes: option("modes", "keyed-direct,unkeyed-direct,unkeyed-effects").split(
-      ","
-    ),
-    rounds: integer(option("rounds", "3"), "rounds", 100),
-    frames: integer(option("frames", "30"), "frames", 1000),
-    warmup: integer(option("warmup", "3"), "warmup", 100),
-    timeout: integer(option("timeout-ms", "300000"), "timeout", 3600000),
-    backend: option("backend", "skia-cpu"),
-    device: option("device", "CPU; no physical GPU"),
+    nodes: 100000,
+    effect_passes: 12,
+    rounds: 3,
+    frames: 30,
+    warmup: 3,
+    timeout: 300000,
+    backend: "skia-cpu",
     chrome: option("chrome", process.env.CHROME_PATH ?? "/usr/bin/chromium"),
   };
-  if (
-    plan.modes.some(
-      m => !["keyed-direct", "unkeyed-direct", "unkeyed-effects"].includes(m)
-    )
-  )
-    throw new Error("invalid mode");
   const binary = path.resolve(
-    option("binary", path.join(root, "target/release/render-only-bench"))
+    option("binary", path.join(root, "target/release/vs-remotion-bench"))
   );
   const out = path.resolve(
     option(
@@ -195,7 +179,7 @@ if (args[0] === "--worker") {
     if (err.code !== "ENOENT") throw err;
   }
   const report = {
-    schema_version: 3,
+    schema_version: 4,
     comparison: "Remotion renderFrames vs fframes Previewer + Skia",
     workload: "99% rectangles, 1% changing 3x5 text digits; text painted last",
     plan,
@@ -239,79 +223,69 @@ if (args[0] === "--worker") {
     );
     await fs.writeFile(path.join(out, "results.md"), markdown(report));
   };
-  for (let round = 0; round < plan.rounds; round++)
-    for (const nodes of plan.nodes) {
-      const engines = ["fframes", ...plan.modes];
-      // Rotate the complete, predetermined matrix rather than selecting the best run.
-      const order = engines.map(
-        (_, i) => engines[(i + round) % engines.length]
+  for (let round = 0; round < plan.rounds; round++) {
+    const nodes = plan.nodes;
+    const order = round % 2 ? ["remotion", "fframes"] : ["fframes", "remotion"];
+    for (const engine of order) {
+      const directory = path.join(out, `${nodes}-${engine}-${round}`);
+      await fs.mkdir(directory, { recursive: true });
+      const config = {
+        ...plan,
+        nodes,
+        engine,
+        round,
+        directory,
+        bundle: serveUrl,
+      };
+      const configPath = path.join(directory, "config.json");
+      await fs.writeFile(configPath, JSON.stringify(config));
+      console.error(
+        `round ${round + 1}/${plan.rounds}: ${nodes} nodes, ${engine}`
       );
-      for (const engine of order) {
-        const directory = path.join(out, `${nodes}-${engine}-${round}`);
-        await fs.mkdir(directory, { recursive: true });
-        const config = {
-          ...plan,
-          nodes,
-          engine,
-          round,
+      const result =
+        engine === "fframes"
+          ? await isolated(
+              binary,
+              [directory],
+              plan.timeout,
+              path.join(directory, "process.log")
+            )
+          : await isolated(
+              process.execPath,
+              [fileURLToPath(import.meta.url), "--worker", configPath],
+              plan.timeout,
+              path.join(directory, "process.log")
+            );
+      const record = {
+        nodes,
+        engine,
+        round,
+        status: result.status,
+        verified: false,
+        load_after: os.loadavg(),
+        code: result.code,
+        signal: result.signal,
+      };
+      try {
+        if (result.status !== "ok")
+          throw new Error(result.error || result.status);
+        Object.assign(record, JSON.parse(result.stdout));
+        record.pixel_sha256 = await verify(
           directory,
-          bundle: serveUrl,
-        };
-        const configPath = path.join(directory, "config.json");
-        await fs.writeFile(configPath, JSON.stringify(config));
-        console.error(
-          `round ${round + 1}/${plan.rounds}: ${nodes} nodes, ${engine}`
+          record.samples.map(s => s.frame),
+          nodes
         );
-        const result =
-          engine === "fframes"
-            ? await isolated(
-                binary,
-                [
-                  plan.backend,
-                  String(nodes),
-                  String(plan.frames),
-                  String(plan.warmup),
-                  directory,
-                ],
-                plan.timeout,
-                path.join(directory, "process.log")
-              )
-            : await isolated(
-                process.execPath,
-                [fileURLToPath(import.meta.url), "--worker", configPath],
-                plan.timeout,
-                path.join(directory, "process.log")
-              );
-        const record = {
-          nodes,
-          engine,
-          round,
-          status: result.status,
-          verified: false,
-          load_after: os.loadavg(),
-          code: result.code,
-          signal: result.signal,
-        };
-        try {
-          if (result.status !== "ok")
-            throw new Error(result.error || result.status);
-          Object.assign(record, JSON.parse(result.stdout));
-          record.pixel_sha256 = await verify(
-            directory,
-            record.samples.map(s => s.frame),
-            nodes
-          );
-          record.verified = true;
-        } catch (err) {
-          record.status =
-            result.status === "ok" ? "invalid-output" : result.status;
-          record.error = String(err);
-        }
-        report.records.push(record);
-        await persist();
-        console.error(`${engine}: ${record.status}`);
+        record.verified = true;
+      } catch (err) {
+        record.status =
+          result.status === "ok" ? "invalid-output" : result.status;
+        record.error = String(err);
       }
+      report.records.push(record);
+      await persist();
+      console.error(`${engine}: ${record.status}`);
     }
+  }
   console.log(markdown(report));
-  if (report.summary.some(r => r.status !== "complete")) process.exitCode = 2;
+  if (report.summary.status !== "complete") process.exitCode = 2;
 }

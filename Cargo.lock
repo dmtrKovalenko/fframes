@@ -3086,16 +3086,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "render-only-bench"
-version = "1.1.0"
-dependencies = [
- "fframes",
- "fframes_skia_renderer",
- "png",
- "serde_json",
-]
-
-[[package]]
 name = "rgb"
 version = "0.8.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4101,8 +4091,9 @@ name = "vs-remotion-bench"
 version = "1.1.0"
 dependencies = [
  "fframes",
- "fframes_native_player",
  "fframes_skia_renderer",
+ "png",
+ "serde_json",
 ]
 
 [[package]]

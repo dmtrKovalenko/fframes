@@ -1,5 +1,5 @@
 [package]
-name = "render-only-bench"
+name = "vs-remotion-bench"
 version = "1.1.0"
 edition = "2024"
 publish = false
@@ -13,11 +13,6 @@ png = "0.17"
 # Match the supported Linux/Windows Skia binary-cache feature set.
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
-
-[features]
-default = []
-metal = ["fframes_skia_renderer/metal"]
-vulkan = ["fframes_skia_renderer/vulkan"]
 
 [lints]
 workspace = true
