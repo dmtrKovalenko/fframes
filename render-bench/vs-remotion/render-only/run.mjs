@@ -4,10 +4,13 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { isolated } from "./process.mjs";
-import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
-import { build } from "esbuild";
-import puppeteer from "puppeteer-core";
+import { bundle } from "@remotion/bundler";
+import {
+  openBrowser,
+  selectComposition,
+  renderFrames,
+} from "@remotion/renderer";
 import { PNG } from "pngjs";
 import { summarize, markdown } from "./report.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +29,10 @@ const integer = (value, name, max = 1000000) => {
 const git = (...a) =>
   execFileSync("git", ["-C", root, ...a], { encoding: "utf8" }).trim();
 
+const glyphs = JSON.parse(
+  await fs.readFile(path.join(here, "glyphs.json"), "utf8")
+);
+
 async function verify(directory, frames, nodes) {
   const hashes = [];
   for (const frame of frames) {
@@ -34,102 +41,119 @@ async function verify(directory, frames, nodes) {
     );
     if (png.width !== 1000 || png.height !== 1000)
       throw new Error("incorrect image dimensions");
-    for (let slot = 0; slot < 1000000; slot++) {
+    const expected = Buffer.alloc(1000 * 1000 * 4);
+    for (let i = 3; i < expected.length; i += 4) expected[i] = 255;
+    const paint = (pixel, id) => {
+      expected[pixel * 4] = (id * 13 + frame * 17) % 256;
+      expected[pixel * 4 + 1] = (id * 7 + frame * 29) % 256;
+      expected[pixel * 4 + 2] = (id * 3 + frame * 43) % 256;
+    };
+    for (let slot = 0; slot < nodes; slot++)
+      if (slot % 100 !== 0) paint(slot, (slot + frame * 37) % nodes);
+    for (let slot = 0; slot < nodes; slot += 100) {
       const id = (slot + frame * 37) % nodes;
-      const rgb =
-        slot < nodes
-          ? [
-              (id * 13 + frame * 17) % 256,
-              (id * 7 + frame * 29) % 256,
-              (id * 3 + frame * 43) % 256,
-            ]
-          : [0, 0, 0];
-      for (let c = 0; c < 4; c++)
-        if (png.data[slot * 4 + c] !== (c === 3 ? 255 : rgb[c]))
-          throw new Error(
-            `pixel mismatch: frame ${frame}, pixel ${slot}, channel ${c}`
-          );
+      const index = slot / 100;
+      const x = (index % 100) * 10 + 1;
+      const y = Math.floor(index / 100) * 10 + 2;
+      const glyph = glyphs[(id + frame) % 10];
+      for (let row = 0; row < 5; row++)
+        for (let col = 0; col < 3; col++)
+          if (glyph[row][col] === "1") paint((y + row) * 1000 + x + col, id);
     }
+    const mismatch = png.data.findIndex((value, i) => value !== expected[i]);
+    if (mismatch !== -1)
+      throw new Error(`pixel mismatch: frame ${frame}, byte ${mismatch}`);
     hashes.push(createHash("sha256").update(png.data).digest("hex"));
   }
   return hashes;
 }
-async function browserWorker(config) {
-  const browser = await puppeteer.launch({
-    executablePath: config.chrome,
-    headless: true,
-    protocolTimeout: config.timeout,
-    args: [
-      "--no-sandbox",
-      "--disable-dev-shm-usage",
-      "--force-color-profile=srgb",
-      "--js-flags=--max-old-space-size=4096",
-    ],
+async function remotionWorker(config) {
+  const chromiumOptions = { disableWebSecurity: false };
+  const browser = await openBrowser("chrome", {
+    browserExecutable: config.chrome,
+    chromiumOptions,
+    logLevel: "error",
   });
   try {
-    const page = await browser.newPage();
-    let rejectCrash;
-    const crashed = new Promise((_, reject) => {
-      rejectCrash = reject;
+    const inputProps = { nodes: config.nodes, mode: config.engine };
+    const composition = await selectComposition({
+      serveUrl: config.bundle,
+      id: "MixedGrid",
+      inputProps,
+      puppeteerInstance: browser,
+      timeoutInMilliseconds: config.timeout,
+      logLevel: "error",
     });
-    crashed.catch(() => {});
-    page.on("error", rejectCrash);
-    await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 1 });
-    await page.setContent(
-      '<!doctype html><html><head><style>html,body{margin:0;background:#000}</style></head><body><div id="root"></div></body></html>'
-    );
-    await page.addScriptTag({ path: config.bundle });
     const samples = [];
-    for (let frame = 0; frame < config.frames + config.warmup; frame++) {
-      const start = performance.now();
-      await page.evaluate(
-        (n, f, m) => window.renderFrame(n, f, m),
-        config.nodes,
-        frame,
-        config.engine
-      );
-      const commit_ms = performance.now() - start;
-      // Screenshot forces rasterization/readback and returns a PNG in memory.
-      const bytes = await Promise.race([
-        page.screenshot({
-          type: "png",
-          optimizeForSpeed: true,
-        }),
-        crashed,
-      ]);
-      const total_ms = performance.now() - start;
-      if (frame >= config.warmup) {
-        samples.push({
-          frame,
-          commit_ms,
-          capture_png_ms: total_ms - commit_ms,
-          total_ms,
-        });
-        await fs.writeFile(path.join(config.directory, `${frame}.png`), bytes);
-      }
-    }
-    const dom_rectangles = await page.evaluate(
-      () => document.querySelectorAll("rect").length
-    );
-    if (dom_rectangles !== config.nodes)
-      throw new Error("incorrect DOM element count");
-    const session = await browser.target().createCDPSession();
-    const system = await session.send("SystemInfo.getInfo");
+    const images = new Map();
+    let dom;
+    await renderFrames({
+      composition,
+      inputProps,
+      serveUrl: config.bundle,
+      puppeteerInstance: browser,
+      concurrency: 1,
+      frameRange: [0, config.warmup + config.frames - 1],
+      imageFormat: "png",
+      outputDir: null,
+      timeoutInMilliseconds: config.timeout,
+      logLevel: "error",
+      onStart: ({ parallelEncoding, resolvedConcurrency }) => {
+        if (parallelEncoding || resolvedConcurrency !== 1)
+          throw new Error("unexpected Remotion rendering pipeline");
+      },
+      onFrameBuffer: async (buffer, frame) => {
+        if (frame >= config.warmup) images.set(frame, buffer);
+        // Inspect the real Remotion page during warm-up, outside measured frames.
+        if (frame === config.warmup - 1) {
+          for (const page of await browser.pages()) {
+            const counts = await page.evaluate(() => ({
+              rectangles: document.querySelectorAll("svg rect").length,
+              texts: document.querySelectorAll("svg text").length,
+            }));
+            if (counts.rectangles + counts.texts === config.nodes) dom = counts;
+          }
+          if (!dom || dom.texts !== Math.ceil(config.nodes / 100))
+            throw new Error("incorrect Remotion DOM element count");
+        }
+      },
+      onFrameUpdate: (_count, frame, total_ms) => {
+        if (frame >= config.warmup) samples.push({ frame, total_ms });
+      },
+    });
+    samples.sort((a, b) => a.frame - b.frame);
+    // Remotion's per-frame timing covers seek, effects, raster and PNG capture.
+    // Save captured buffers only after rendering has finished.
+    for (const [frame, buffer] of images)
+      await fs.writeFile(path.join(config.directory, `${frame}.png`), buffer);
     return {
       samples,
-      browser: await browser.version(),
-      browser_args: browser.process().spawnargs,
-      device_scale_factor: 1,
-      dom_rectangles,
-      browser_gpu: system.gpu,
+      renderer: "@remotion/renderer renderFrames",
+      concurrency: 1,
+      browser: execFileSync(config.chrome, ["--version"], {
+        encoding: "utf8",
+      }).trim(),
+      chromium_options: chromiumOptions,
+      dom,
     };
   } finally {
-    await browser.close();
+    await browser.close({ silent: true });
   }
+}
+async function directoryHash(directory) {
+  const hash = createHash("sha256");
+  for (const name of (
+    await fs.readdir(directory, { recursive: true })
+  ).sort()) {
+    const file = path.join(directory, name);
+    if ((await fs.stat(file)).isFile())
+      hash.update(name).update(await fs.readFile(file));
+  }
+  return hash.digest("hex");
 }
 if (args[0] === "--worker") {
   const config = JSON.parse(await fs.readFile(args[1], "utf8"));
-  console.log(JSON.stringify(await browserWorker(config)));
+  console.log(JSON.stringify(await remotionWorker(config)));
 } else {
   const plan = {
     nodes: option("nodes", "100000")
@@ -139,8 +163,8 @@ if (args[0] === "--worker") {
       ","
     ),
     rounds: integer(option("rounds", "3"), "rounds", 100),
-    frames: integer(option("frames", "3"), "frames", 1000),
-    warmup: integer(option("warmup", "1"), "warmup", 100),
+    frames: integer(option("frames", "30"), "frames", 1000),
+    warmup: integer(option("warmup", "3"), "warmup", 100),
     timeout: integer(option("timeout-ms", "300000"), "timeout", 3600000),
     backend: option("backend", "skia-cpu"),
     device: option("device", "CPU; no physical GPU"),
@@ -171,7 +195,9 @@ if (args[0] === "--worker") {
     if (err.code !== "ENOENT") throw err;
   }
   const report = {
-    schema_version: 1,
+    schema_version: 3,
+    comparison: "Remotion renderFrames vs fframes Previewer + Skia",
+    workload: "99% rectangles, 1% changing 3x5 text digits; text painted last",
     plan,
     environment: {
       platform: os.platform(),
@@ -180,29 +206,31 @@ if (args[0] === "--worker") {
       logical_cpus: os.availableParallelism(),
       memory_bytes: os.totalmem(),
       node: process.version,
+      remotion: JSON.parse(
+        await fs.readFile(path.join(here, "node_modules/remotion/package.json"))
+      ).version,
       react: JSON.parse(
         await fs.readFile(path.join(here, "node_modules/react/package.json"))
       ).version,
       git: git("rev-parse", "HEAD"),
       dirty: !!git("status", "--porcelain"),
       command: process.argv,
+      font_sha256: createHash("sha256")
+        .update(await fs.readFile(path.join(here, "media/BenchDigits.ttf")))
+        .digest("hex"),
       binary_sha256: createHash("sha256")
         .update(await fs.readFile(binary))
         .digest("hex"),
     },
     records: [],
   };
-  const bundle = path.join(out, "browser.js");
-  await build({
-    entryPoints: [path.join(here, "browser.jsx")],
-    bundle: true,
-    minify: true,
-    outfile: bundle,
-    define: { "process.env.NODE_ENV": '"production"' },
+  const serveUrl = await bundle({
+    entryPoint: path.join(here, "browser.jsx"),
+    outDir: path.join(out, "remotion-bundle"),
+    publicDir: path.join(here, "media"),
+    enableCaching: false,
   });
-  report.environment.browser_bundle_sha256 = createHash("sha256")
-    .update(await fs.readFile(bundle))
-    .digest("hex");
+  report.environment.browser_bundle_sha256 = await directoryHash(serveUrl);
   const persist = async () => {
     report.summary = summarize(report.records, plan);
     await fs.writeFile(
@@ -221,7 +249,14 @@ if (args[0] === "--worker") {
       for (const engine of order) {
         const directory = path.join(out, `${nodes}-${engine}-${round}`);
         await fs.mkdir(directory, { recursive: true });
-        const config = { ...plan, nodes, engine, round, directory, bundle };
+        const config = {
+          ...plan,
+          nodes,
+          engine,
+          round,
+          directory,
+          bundle: serveUrl,
+        };
         const configPath = path.join(directory, "config.json");
         await fs.writeFile(configPath, JSON.stringify(config));
         console.error(

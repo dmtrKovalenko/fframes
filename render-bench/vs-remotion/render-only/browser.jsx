@@ -1,16 +1,14 @@
-import React, { useEffect, useLayoutEffect, useState } from "react";
-import { createRoot } from "react-dom/client";
+import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  Composition,
+  registerRoot,
+  staticFile,
+  useCurrentFrame,
+  useDelayRender,
+} from "remotion";
 
-const root = createRoot(document.getElementById("root"));
-let pending;
 const color = (id, frame) =>
   `rgb(${(id * 13 + frame * 17) % 256},${(id * 7 + frame * 29) % 256},${(id * 3 + frame * 43) % 256})`;
-const ready = frame => {
-  if (pending?.frame === frame && --pending.remaining === 0) {
-    pending.resolve();
-    pending = undefined;
-  }
-};
 function useDerivedFrame(input) {
   const [value, setValue] = useState(-1);
   useEffect(() => setValue(input), [input]);
@@ -18,7 +16,7 @@ function useDerivedFrame(input) {
 }
 // Intentionally pathological derived state: eight dependent effect/commit passes.
 // Each stage forwards the frame used for visible color, rather than doing a busy wait.
-function EffectCell({ id, slot, frame }) {
+function EffectCell({ id, slot, frame, ready }) {
   const a = useDerivedFrame(frame);
   const b = useDerivedFrame(a);
   const c = useDerivedFrame(b);
@@ -29,43 +27,79 @@ function EffectCell({ id, slot, frame }) {
   const h = useDerivedFrame(g);
   useLayoutEffect(() => {
     if (h === frame) ready(frame);
-  }, [h, frame]);
+  }, [h, frame, ready]);
+  return cell(id, slot, Math.max(0, h));
+}
+function cell(id, slot, frame, key) {
+  if (slot % 100 === 0) {
+    const index = slot / 100;
+    return (
+      <text
+        key={key}
+        x={(index % 100) * 10 + 1}
+        y={Math.floor(index / 100) * 10 + 7}
+        fontFamily="Bench Digits"
+        fontSize="10"
+        fill={color(id, frame)}
+      >
+        {(id + frame) % 10}
+      </text>
+    );
+  }
   return (
     <rect
+      key={key}
       x={slot % 1000}
       y={Math.floor(slot / 1000)}
       width="1"
       height="1"
-      fill={color(id, Math.max(0, h))}
+      fill={color(id, frame)}
     />
   );
 }
-function DirectGrid({ nodes, frame, mode }) {
+function GridVideo({ nodes, mode }) {
+  const frame = useCurrentFrame();
+  const { delayRender, continueRender, cancelRender } = useDelayRender();
+  const [fontHandle] = useState(() =>
+    delayRender("benchmark font", { retries: 0 })
+  );
+  useEffect(() => {
+    const font = new FontFace(
+      "Bench Digits",
+      `url(${staticFile("BenchDigits.ttf")})`
+    );
+    font
+      .load()
+      .then(loaded => {
+        document.fonts.add(loaded);
+        continueRender(fontHandle);
+      })
+      .catch(cancelRender);
+  }, [fontHandle, continueRender, cancelRender]);
+  const ready = useMemo(() => {
+    const handle = delayRender(`frame ${frame} effects`, { retries: 0 });
+    let remaining = mode === "unkeyed-effects" ? nodes : 1;
+    return doneFrame => {
+      if (doneFrame === frame && --remaining === 0) continueRender(handle);
+    };
+  }, [frame, nodes, mode, delayRender, continueRender]);
   useLayoutEffect(() => {
     if (mode !== "unkeyed-effects") ready(frame);
-  }, [frame, mode]);
-  const cells = new Array(nodes);
-  for (let slot = 0; slot < nodes; slot++) {
+  }, [frame, mode, ready]);
+  const cells = [];
+  const append = slot => {
     const id = (slot + frame * 37) % nodes;
-    if (mode === "unkeyed-effects") {
-      // No keys by design. Production React avoids warning/log overhead.
-      cells[slot] = <EffectCell id={id} slot={slot} frame={frame} />;
-    } else {
-      const props = {
-        x: slot % 1000,
-        y: Math.floor(slot / 1000),
-        width: 1,
-        height: 1,
-        fill: color(id, frame),
-      };
-      cells[slot] =
-        mode === "keyed-direct" ? (
-          <rect key={id} {...props} />
-        ) : (
-          <rect {...props} />
-        );
-    }
-  }
+    cells.push(
+      mode === "unkeyed-effects" ? (
+        <EffectCell id={id} slot={slot} frame={frame} ready={ready} />
+      ) : (
+        cell(id, slot, frame, mode === "keyed-direct" ? id : undefined)
+      )
+    );
+  };
+  // Paint text last so every digit remains visible at all supported sizes.
+  for (let slot = 0; slot < nodes; slot++) if (slot % 100 !== 0) append(slot);
+  for (let slot = 0; slot < nodes; slot += 100) append(slot);
   return (
     <svg
       width="1000"
@@ -76,13 +110,15 @@ function DirectGrid({ nodes, frame, mode }) {
     </svg>
   );
 }
-window.renderFrame = (nodes, frame, mode) =>
-  new Promise(resolve => {
-    if (pending) throw new Error("overlapping frame request");
-    pending = {
-      frame,
-      remaining: mode === "unkeyed-effects" ? nodes : 1,
-      resolve,
-    };
-    root.render(<DirectGrid nodes={nodes} frame={frame} mode={mode} />);
-  });
+const Root = () => (
+  <Composition
+    id="MixedGrid"
+    component={GridVideo}
+    width={1000}
+    height={1000}
+    fps={30}
+    durationInFrames={10000}
+    defaultProps={{ nodes: 100000, mode: "keyed-direct" }}
+  />
+);
+registerRoot(Root);

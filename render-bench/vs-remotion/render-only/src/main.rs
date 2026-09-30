@@ -1,8 +1,13 @@
 //! Render-only twin of browser.jsx. No video encoder is instantiated.
 use std::{hint::black_box, path::PathBuf, time::Instant};
 
-use fframes::{AudioMap, Duration, FFramesContext, Frame, Previewer, RenderOptions, Svgr, Video};
+use fframes::{
+    AudioMap, Duration, FFramesContext, Frame, Previewer, RenderOptions, StaticMediaProvider, Svgr,
+    Video,
+};
 use fframes_skia_renderer::{SkiaBackend, SkiaCpuCtx, SkiaFrameRenderer};
+
+fframes::include_media_dir!(struct BenchMedia, "render-bench/vs-remotion/render-only/media");
 
 const SIDE: usize = 1000;
 
@@ -22,13 +27,20 @@ impl Video for Grid {
         AudioMap::none()
     }
     fn render_frame<'a>(&'a self, frame: Frame, _ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
-        let nodes: Vec<_> = (0..self.nodes).map(|slot| {
+        let nodes: Vec<_> = (0..self.nodes).filter(|slot| slot % 100 != 0)
+            .chain((0..self.nodes).step_by(100)).map(|slot| {
             let id = (slot + frame.index * 37) % self.nodes;
             let r = (id * 13 + frame.index * 17) % 256;
             let g = (id * 7 + frame.index * 29) % 256;
             let b = (id * 3 + frame.index * 43) % 256;
             let fill = format!("#{r:02x}{g:02x}{b:02x}");
-            fframes::svgr!(<rect x={slot % SIDE} y={slot / SIDE} width="1" height="1" fill={fill} />)
+            if slot % 100 == 0 {
+                let index = slot / 100;
+                fframes::svgr!(<text x={(index % 100) * 10 + 1} y={(index / 100) * 10 + 7}
+                    font-family="Bench Digits" font-size="10" fill={fill}>{((id + frame.index) % 10).to_string()}</text>)
+            } else {
+                fframes::svgr!(<rect x={slot % SIDE} y={slot / SIDE} width="1" height="1" fill={fill} />)
+            }
         }).collect();
         fframes::svgr!(<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000">{nodes}</svg>)
     }
@@ -46,7 +58,9 @@ fn run(
         nodes,
         frames: frames + warmup,
     };
+    let media = BenchMedia::prepare().expect("benchmark font");
     let options = RenderOptions {
+        media: Some(&media),
         load_system_fonts: false,
         ..Default::default()
     };

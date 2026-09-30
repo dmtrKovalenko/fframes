@@ -50,13 +50,13 @@ export function summarize(records, plan) {
 }
 export function markdown(report) {
   const lines = [
-    "# React DOM / fframes + Skia render-only stress benchmark",
+    "# Remotion / fframes + Skia render-only benchmark",
     "",
-    "Synthetic workload; ratios apply only to the named configuration. Production React, the listed number of rectangles in every frame, eight dependent effect passes in unkeyed-effects. No video encoder. Both sides produce PNGs in memory; PNG compression is included, disk writes and verification are excluded.",
+    "Same 1000×1000 SVG frames: 99% rectangles, 1% text digits. Remotion renderFrames() and fframes + Skia capture PNGs without a video encoder. The effects case uses eight dependent state/effect passes per element.",
     "",
     `Backend: ${report.plan.backend}; device: ${report.plan.device}; ${report.plan.rounds} rounds, ${report.plan.frames} measured frames and ${report.plan.warmup} warm-up frames per run.`,
     "",
-    "| Nodes per frame | React configuration | React median ms | fframes median ms | Ratio | >=20x |",
+    "| Nodes per frame | Remotion configuration | Remotion median ms | fframes median ms | Ratio | >=20x |",
     "|---:|---|---:|---:|---:|---|",
   ];
   for (const r of report.summary)
@@ -65,7 +65,7 @@ export function markdown(report) {
     );
   lines.push(
     "",
-    "All attempts, failures, per-frame samples, environment and source revision are retained in results.json. A crash or timeout is not a numeric speedup. The keyed and unkeyed direct controls are reported alongside the intentionally inefficient effects case. This is a React DOM/Chromium microbenchmark, not a measurement of the full Remotion pipeline.",
+    "Times are medians of each round's measured-frame total. Startup, warm-up, disk writes and pixel checks are excluded. PNG compression is included. Failures have no speedup; raw attempts are retained in the accompanying JSON.",
     ""
   );
   return lines.join("\n");

@@ -1,4 +1,5 @@
-//! The second drop preserves the original intro cut's render measurement.
+//! The second drop: frames of this video fly out of the grid, next to the
+//! time it took to render all of them.
 
 use fframes::{Color, Duration, FFramesContext, Frame, Scene, ShaderUniforms, Svgr};
 
@@ -59,8 +60,8 @@ impl Scene for RenderScene {
         cards.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
         let cards: Vec<Svgr> = cards.into_iter().map(|(_, c)| c).collect();
 
-        // letter-spacing -4 over 13 glyphs
-        let title_w = measure(&mut frame, ctx, DISPLAY, 120, 400, false, "ORIGINAL CUT.") - 52.0;
+        // letter-spacing -4 over 11 glyphs
+        let title_w = measure(&mut frame, ctx, DISPLAY, 120, 400, false, "THIS VIDEO.") - 44.0;
         let count = (facts::FRAMES as f32 * expo_out(prog(lb, 0.0, 3.0))).round() as u64;
         let secs = facts::RENDER_SECONDS * expo_out(prog(lb, 4.0, 6.0));
         let a = snap(lb);
@@ -86,7 +87,7 @@ impl Scene for RenderScene {
                 </defs>
                 <g transform={format!("translate({} 0)", (1.0 - snap(lb - 0.5)) * -200.0)} opacity={prog(lb, 0.5, 0.6)}>
                     <rect x="120" y="120" width={title_w + 60.0} height="150" fill={ORANGE} />
-                    <text x="150" y="232" font-family={DISPLAY} font-size="120" letter-spacing="-4" fill={INK}>"ORIGINAL CUT."</text>
+                    <text x="150" y="232" font-family={DISPLAY} font-size="120" letter-spacing="-4" fill={INK}>"THIS VIDEO."</text>
                 </g>
                 <g transform={format!("translate(0 {})", (1.0 - a) * 70.0)} opacity={prog(lb, 0.0, 0.08)}>
                     <text x="150" y="820" font-family={DISPLAY} font-size="190" letter-spacing="-8" fill={BONE}>{thousands(count)}</text>
