@@ -1,0 +1,16 @@
+{
+  "name": "fframes-render-only-bench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node run.mjs",
+    "test": "node --test report.test.mjs"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "pngjs": "7.0.0",
+    "puppeteer-core": "25.12.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}

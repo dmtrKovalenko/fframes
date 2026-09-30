@@ -13,6 +13,7 @@ members = [
     "media-dir-macro",
     "render-bench",
     "render-bench/vs-remotion/fframes",
+    "render-bench/vs-remotion/render-only",
     "cargo-fframes",
     # Examples
     "examples/podcast",

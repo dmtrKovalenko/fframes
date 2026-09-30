@@ -1,0 +1,23 @@
+[package]
+name = "render-only-bench"
+version = "1.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fframes = { workspace = true, features = ["compile-time-svgtree"] }
+fframes_skia_renderer.workspace = true
+serde_json = "1"
+png = "0.17"
+
+# Match the supported Linux/Windows Skia binary-cache feature set.
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
+
+[features]
+default = []
+metal = ["fframes_skia_renderer/metal"]
+vulkan = ["fframes_skia_renderer/vulkan"]
+
+[lints]
+workspace = true
