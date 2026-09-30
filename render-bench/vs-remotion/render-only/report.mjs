@@ -52,7 +52,7 @@ export function markdown(report) {
   const lines = [
     "# React DOM / fframes + Skia render-only stress benchmark",
     "",
-    "Synthetic workload; ratios apply only to the named configuration. Production React, one million elements per frame when nodes=1000000, eight dependent effect passes in unkeyed-effects. No video encoder. Both sides produce PNGs in memory; PNG compression is included, disk writes and verification are excluded.",
+    "Synthetic workload; ratios apply only to the named configuration. Production React, the listed number of rectangles in every frame, eight dependent effect passes in unkeyed-effects. No video encoder. Both sides produce PNGs in memory; PNG compression is included, disk writes and verification are excluded.",
     "",
     `Backend: ${report.plan.backend}; device: ${report.plan.device}; ${report.plan.rounds} rounds, ${report.plan.frames} measured frames and ${report.plan.warmup} warm-up frames per run.`,
     "",

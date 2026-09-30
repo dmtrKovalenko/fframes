@@ -1,17 +1,17 @@
-//! The riser asks HOW FAST? and then draws one frame of the benchmark with
-//! its 3,334 text nodes; 300 such frames make a million.
+//! The riser asks HOW FAST? and fills a stylized wall of 100,000 rectangles.
+//! The counter is the actual number of visible rectangles, not a video-wide sum.
 
 use fframes::{Duration, FFramesContext, Frame, Scene, Svgr};
 
 use crate::beat::*;
+use crate::facts::BENCH_NODES;
 use crate::ui::*;
 
 beat_scene!(ScaleScene, Some(80.0), Some(96.0));
 
-pub const NODES_PER_FRAME: usize = 3_334;
-const COLS: usize = 62;
-const ROWS: usize = 54;
-const WORDS: &[&str] = &["ff", "fx", "0x", "60", "rs", "gp", "sk", "vk", "mt", "tx"];
+pub const NODES_PER_FRAME: usize = BENCH_NODES;
+const COLS: usize = 500;
+const ROWS: usize = 200;
 
 impl Scene for ScaleScene {
     fn duration(&self) -> Duration<'_> {
@@ -46,7 +46,7 @@ fn question(lb: f32) -> Svgr<'static> {
     )
 }
 
-/// 3,334 tiny text nodes filling in with a diagonal wave.
+/// 100,000 tiny rectangles filling in with a diagonal wave.
 fn wall(lb: f32) -> Svgr<'static> {
     let l = lb - 4.0;
     if l < 0.0 {
@@ -68,7 +68,6 @@ fn wall(lb: f32) -> Svgr<'static> {
         }
         shown += 1;
         let h = hash(i as f32 * 1.37 + (lb * 4.0).floor());
-        let word = WORDS[(hash(i as f32) * WORDS.len() as f32) as usize % WORDS.len()];
         let fresh = fill * 1.02 - key < 0.03;
         let color = if fresh || h > 0.97 {
             ORANGE
@@ -79,17 +78,19 @@ fn wall(lb: f32) -> Svgr<'static> {
         };
         let x = x0 + c as f32 * dx;
         let y = y0 + r as f32 * dy;
-        nodes.push(fframes::svgr!(<text x={x} y={y} font-family={MONO} font-size="13" font-weight="500" fill={color}>{word}</text>));
+        nodes.push(
+            fframes::svgr!(<rect x={x} y={y} width={dx * 0.8} height={dy * 0.8} fill={color} />),
+        );
     }
-    let count = (shown as f32 / NODES_PER_FRAME as f32 * 1_000_000.0).round() as u64;
+    let count = shown as u64;
     let exit = expo_in(prog(l, 9.6, 10.0));
     fframes::svgr!(
         <g opacity={1.0 - exit}>
             {nodes}
             <rect x="1010" y="130" width="760" height="140" fill={BG} />
             <text x="1770" y="232" text-anchor="end" font-family={DISPLAY} font-size="110" letter-spacing="-3" fill={BONE}>{thousands(count)}</text>
-            {label(1770.0, 290.0, "TEXT NODES TO RENDER".to_owned(), ORANGE, 20.0, "end")}
-            {label(150.0, 940.0, format!("ONE FRAME = {} TEXT NODES  ×  300 FRAMES", thousands(NODES_PER_FRAME as u64)), GREY, 20.0, "start")}
+            {label(1770.0, 290.0, "RECTANGLES PER FRAME".to_owned(), ORANGE, 20.0, "end")}
+            {label(150.0, 940.0, format!("{} RECTANGLES / FRAME · 3 MEASURED FRAMES · NO VIDEO ENCODER", thousands(NODES_PER_FRAME as u64)), GREY, 20.0, "start")}
         </g>
     )
 }
@@ -102,7 +103,7 @@ fn countdown(l: f32) -> Svgr<'static> {
     let out = prog(l, 1.55, 1.6);
     fframes::svgr!(
         <g opacity={1.0 - out}>
-            <text x="960" y={470.0 + (1.0 - a) * 40.0} text-anchor="middle" font-family={DISPLAY} font-size="120" letter-spacing="-3" fill={GREY}>"REMOTION"</text>
+            <text x="960" y={470.0 + (1.0 - a) * 40.0} text-anchor="middle" font-family={DISPLAY} font-size="100" letter-spacing="-3" fill={GREY}>"REACT EFFECTS STRESS"</text>
             <text x="960" y="560" text-anchor="middle" font-family={SERIF} font-style="italic" font-size="70" fill={BONE} opacity={v}>"vs"</text>
             <text x="960" y={690.0 + (1.0 - b) * 40.0} text-anchor="middle" font-family={DISPLAY} font-size="120" letter-spacing="-3" fill={ORANGE} opacity={v}>"FFRAMES"</text>
         </g>

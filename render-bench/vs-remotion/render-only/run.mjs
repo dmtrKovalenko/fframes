@@ -132,7 +132,7 @@ if (args[0] === "--worker") {
   console.log(JSON.stringify(await browserWorker(config)));
 } else {
   const plan = {
-    nodes: option("nodes", "1000000")
+    nodes: option("nodes", "100000")
       .split(",")
       .map(n => integer(n, "nodes")),
     modes: option("modes", "keyed-direct,unkeyed-direct,unkeyed-effects").split(

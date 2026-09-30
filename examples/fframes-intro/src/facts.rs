@@ -1,6 +1,6 @@
 //! Every measured number that appears on screen, in one place. They come
-//! from real runs (see render-bench/vs-remotion and this project's CLI) and
-//! are refreshed before the final render.
+//! from recorded runs; each measurement below describes its workload and
+//! provenance. The original cut's render time is retained as historical data.
 
 /// Release shown on the opening and closing screens.
 pub const RELEASE_LABEL: &str = concat!("v", env!("CARGO_PKG_VERSION"));
@@ -10,20 +10,21 @@ pub const RELEASE_LABEL: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 pub const LINES_OF_RUST: u64 = 89_372;
 /// Frames in this video.
 pub const FRAMES: u64 = 7_650;
-/// Wall-clock seconds of the final render of this video (Skia on Metal,
-/// libx264, with audio).
+/// Historical wall-clock seconds for the original intro cut (Skia on Metal,
+/// libx264, with audio), before the 100k benchmark revision.
 pub const RENDER_SECONDS: f32 = 40.5;
 
-/// Benchmark: 1,000,000 text nodes (300 frames × 3,334 nodes, 1920x1080,
-/// H.264, libx264 ultrafast crf 18 on both), median wall-clock seconds of
-/// the whole command. Remotion: 4.0.529, pre-bundled, concurrency 12 (its
-/// best). fframes: Skia on Metal, 2 GPU contexts.
-pub const BENCH_REMOTION_S: f32 = 50.4;
-pub const BENCH_FFRAMES_S: f32 = 2.60;
-pub const BENCH_REMOTION_LABEL: &str = "REMOTION 4.0";
-pub const BENCH_FFRAMES_LABEL: &str = "FFRAMES · SKIA ON METAL";
-/// The same run with x264 preset medium on both sides, where encoding takes
-/// a larger share of the time.
-pub const BENCH_MEDIUM_REMOTION_S: f32 = 9.41;
-pub const BENCH_MEDIUM_FFRAMES_S: f32 = 6.29;
-pub const BENCH_NOTE: &str = "M4 MAX · REMOTION 4.0.529, BEST CONCURRENCY, PRE-BUNDLED · X264 ULTRAFAST CRF 18 ON BOTH · MEDIANS";
+/// Render-only stress benchmark: 100,000 rectangles per frame, 1000x1000.
+/// Median totals for three measured frames after one warm-up, across three rounds.
+/// React 19.2 production, unkeyed list with eight dependent effect/state passes;
+/// fframes + Skia CPU. Linux ARM64 Docker. PNG capture/compression included,
+/// video encoding excluded. Source and all controls:
+/// render-bench/vs-remotion/render-only/results/2026-09-30-linux-arm64.json
+pub const BENCH_NODES: usize = 100_000;
+pub const BENCH_FRAMES: usize = 3;
+pub const BENCH_REACT_S: f32 = 6.496_458;
+pub const BENCH_FFRAMES_S: f32 = 0.302_422_9;
+pub const BENCH_REACT_LABEL: &str = "REACT · EFFECTS STRESS";
+pub const BENCH_FFRAMES_LABEL: &str = "FFRAMES · SKIA CPU";
+pub const BENCH_NOTE: &str =
+    "LINUX ARM64 · 3 ROUNDS · MEDIAN TOTALS · PNG CAPTURE INCLUDED · NO VIDEO ENCODER";

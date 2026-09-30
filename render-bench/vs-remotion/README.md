@@ -1,8 +1,7 @@
 # React DOM vs fframes + Skia: render-only stress benchmark
 
 The primary benchmark now measures completed frames, **without a video encoder**.
-The default is **1,000,000 elements in every frame**, not one million elements summed
-across a video. `./run.sh` writes raw JSON and a Markdown results table.
+The default is **100,000 rectangles in every frame**. `./run.sh` writes raw JSON and a Markdown results table.
 
 This is a deliberately pathological React workload. It measures the cost of a huge SVG
 DOM and effect-driven derived state against direct SVG scene generation in Rust. It is
@@ -72,8 +71,8 @@ npm test
 # Small correctness/smoke run first.
 node run.mjs --nodes 1000 --rounds 1 --frames 2 --chrome /usr/bin/chromium
 
-# Default complete million-element matrix: 3 rounds, 3 measured frames, 1 warm-up.
-node run.mjs --chrome /usr/bin/chromium --out out/million
+# Default complete 100k-element matrix: 3 rounds, 3 measured frames, 1 warm-up.
+node run.mjs --chrome /usr/bin/chromium --out out/100k
 
 # Predetermined size sweep; retain every size, including failures.
 node run.mjs --nodes 1000,10000,100000,1000000 --out out/sweep
@@ -97,8 +96,26 @@ JSON, command, source revision, binary/bundle hashes and machine details when qu
 
 ## Results and historical benchmark
 
-Measured runs for this change are recorded under `render-only/results/` once available.
-The output report states whether 20x was actually reached for each configuration.
+The [complete measured sweep](render-only/results/2026-09-30-linux-arm64.md) and
+[raw samples and environment](render-only/results/2026-09-30-linux-arm64.json) retain all
+10k, 100k and 1m attempts, including the failed million-element effects runs.
+
+The intro highlights **21.48× at 100,000 rectangles per frame** for the deliberately
+inefficient effects case. Linux ARM64 Docker, Skia CPU, production React 19.2 / Chromium
+154; medians of three rounds, each with three measured frames after one warm-up:
+
+| 100k configuration | Median total, 3 frames | fframes speedup |
+|---|---:|---:|
+| fframes + Skia CPU | 0.302423 s | baseline |
+| React keyed direct | 0.919722 s | 3.04× |
+| React unkeyed direct | 0.715339 s | 2.37× |
+| React unkeyed, eight effect passes | 6.496458 s | **21.48×** |
+
+These totals include PNG capture/compression and exclude video encoding. This is a
+synthetic React DOM stress result, not a general React or Remotion performance claim.
+The intro's scale wall is a stylized visualization; the measured canvas is 1000×1000.
+The original sweep used source revision `6042e1df972f11d1a2771d6bddaf4ed43445f227`;
+its command specifies every size explicitly and is unchanged by the new 100k default.
 
 The previous encoded text-grid experiment is preserved in [README-encoded.md](README-encoded.md)
 and `run_encoded.sh`. Its historical 1.50x / 2.85x ratios include H.264 encoding and use a
