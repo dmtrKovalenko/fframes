@@ -183,6 +183,9 @@ impl SwsScaler {
 pub struct FFmpegDecoder {
     pub current_loop: i64,
     hw_frame: *mut AVFrame,
+    /// Frames are received here and moved into the target frame, so the newest decoded frame
+    /// survives `avcodec_receive_frame` returning EOF (which unrefs the frame it is given).
+    recv_frame: *mut AVFrame,
     frame_buf: Arc<FFmpegFrameBuf>,
     fmt_ctx: *mut AVFormatContext,
     video_stream_info: VideoStreamInfo,
@@ -193,6 +196,8 @@ pub struct FFmpegDecoder {
     last_offset: Option<i64>,
     /// A null packet has been sent; receive delayed frames until decoder EOF.
     draining: bool,
+    /// The target frame holds a frame decoded since the last seek.
+    has_decoded_frame: bool,
 }
 
 unsafe impl Send for FFmpegDecoder {}
@@ -521,6 +526,12 @@ impl FFmpegDecoder {
                 ptr::null_mut()
             };
 
+            let recv_frame = av_frame_alloc();
+            if recv_frame.is_null() {
+                avformat_close_input(&raw mut fmt_ctx);
+                return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
+            }
+
             let custom_time_base = AVRational {
                 num: 1,
                 den: target_fps as i32,
@@ -536,6 +547,7 @@ impl FFmpegDecoder {
                 pkt,
                 fmt_ctx,
                 hw_frame,
+                recv_frame,
                 frame_buf: Arc::new(FFmpegFrameBuf::new(
                     filename.to_string_lossy().to_string(),
                     video_stream_info,
@@ -547,6 +559,7 @@ impl FFmpegDecoder {
                 current_loop: 0,
                 last_offset: None,
                 draining: false,
+                has_decoded_frame: false,
             })
         }
     }
@@ -649,6 +662,7 @@ impl FFmpegDecoder {
             (*self.frame_buf.latest_av_frame).pts = -1;
             avcodec_flush_buffers(self.video_stream_info.codec_ctx);
             self.draining = false;
+            self.has_decoded_frame = false;
             av_packet_unref(self.pkt);
 
             Ok(())
@@ -747,16 +761,29 @@ impl FFmpegDecoder {
             loop {
                 // A previous call may have returned with more decoded frames queued.
                 // Consume them before sending another packet (which could return EAGAIN).
-                let ret = avcodec_receive_frame(self.video_stream_info.codec_ctx, target_frame);
+                let ret = avcodec_receive_frame(self.video_stream_info.codec_ctx, self.recv_frame);
                 match ret {
                     0 => {
+                        av_frame_unref(target_frame);
+                        av_frame_move_ref(target_frame, self.recv_frame);
+                        self.has_decoded_frame = true;
                         if (*target_frame).pts >= target_pts {
                             self.transfer_hardware_surface_data(target_frame)?;
                             return Ok(true);
                         }
                         continue;
                     }
-                    AVERROR_EOF => return Ok(false),
+                    AVERROR_EOF => {
+                        // The target lies after the last frame's timestamp but before the end of
+                        // the stream (e.g. a 24 fps clip sampled at 30 fps): the last frame is
+                        // still the one on screen, so return it instead of reporting the end.
+                        let shows_last_frame =
+                            self.has_decoded_frame && offset < self.duration_in_frames;
+                        if shows_last_frame {
+                            self.transfer_hardware_surface_data(target_frame)?;
+                        }
+                        return Ok(shows_last_frame);
+                    }
                     val if val == AVERROR(EAGAIN) && !self.draining => {}
                     _ => {
                         return Err(FFramesMediaError::LibAVAudioDecodingError((
@@ -805,6 +832,7 @@ impl FFmpegDecoder {
 impl Drop for FFmpegDecoder {
     fn drop(&mut self) {
         unsafe {
+            av_frame_free(&raw mut self.recv_frame);
             avcodec_free_context(&raw mut self.video_stream_info.codec_ctx);
             avformat_close_input(&raw mut self.fmt_ctx);
             av_packet_free(&raw mut self.pkt);
