@@ -150,14 +150,12 @@ fn table(l: f32) -> Svgr<'static> {
             let at = 0.3 + i as f32 * 0.5;
             let s = snap(l - at);
             let y = 520.0 + i as f32 * 130.0;
-            let fps = 30.0 / secs.max(0.001);
             fframes::svgr!(
                 <g opacity={prog(l, at, at + 0.08)} transform={format!("translate({} 0)", (1.0 - s) * 80.0)}>
                     <rect x="150" y={y - 70.0} width="1620" height="110" fill="#0f0e0d" fill-opacity="0.85" stroke="#2f2c29" stroke-width="1.5" />
                     <rect x="150" y={y - 70.0} width="6" height="110" fill={*color} />
                     <text x="190" y={y} font-family={DISPLAY} font-size="48" letter-spacing="-1" fill={BONE}>{*name}</text>
                     <text x="1250" y={y} text-anchor="end" font-family={MONO} font-weight="600" font-size="48" fill={*color}>{format!("{secs:.3} s")}</text>
-                    <text x="1740" y={y} text-anchor="end" font-family={MONO} font-weight="600" font-size="48" fill={*color}>{format!("{fps:.3} fps")}</text>
                 </g>
             )
         })
@@ -167,7 +165,6 @@ fn table(l: f32) -> Svgr<'static> {
         <g opacity={1.0 - exit}>
             {Slam::new(150.0, 300.0, "THE NUMBERS", DISPLAY, 110.0, BONE).draw(l, 0.0, 120.0)}
             {label(1250.0, 400.0, "WALL CLOCK".to_owned(), GREY, 18.0, "end")}
-            {label(1740.0, 400.0, "THROUGHPUT".to_owned(), GREY, 18.0, "end")}
             {items}
             {label(154.0, 820.0, "VIDEO ENCODING NOT MEASURED".to_owned(), BONE, 18.0, "start")}
             {label(154.0, 860.0, BENCH_NOTE.to_owned(), GREY, 18.0, "start")}
