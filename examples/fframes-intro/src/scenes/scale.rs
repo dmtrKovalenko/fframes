@@ -89,7 +89,7 @@ fn wall(lb: f32) -> Svgr<'static> {
             <rect x="1010" y="130" width="760" height="140" fill={BG} />
             <text x="1770" y="232" text-anchor="end" font-family={DISPLAY} font-size="110" letter-spacing="-3" fill={BONE}>{thousands(count)}</text>
             {label(1770.0, 290.0, "TEXT NODES TO RENDER".to_owned(), ORANGE, 20.0, "end")}
-            {label(150.0, 940.0, format!("ONE FRAME = {} TEXT NODES  ×  300 FRAMES", thousands(100_000)), GREY, 20.0, "start")}
+            {label(150.0, 940.0, format!("ONE FRAME = {} TEXT NODES  ×  30 FRAMES", thousands(100_000)), GREY, 20.0, "start")}
         </g>
     )
 }

@@ -86,7 +86,7 @@ fn race(lb: f32) -> Svgr<'static> {
             let done_at = RACE_START + RACE_BEATS * secs / slowest();
             let stamp = snap(lb - done_at);
             let flash = if done { (-(lb - done_at) * 6.0).exp() } else { 0.0 };
-            let frames_done = (300.0 * p).floor() as u32;
+            let frames_done = (30.0 * p).floor() as u32;
             fframes::svgr!(
                 <g opacity={prog(lb, 0.6 + i as f32 * 0.3, 0.7 + i as f32 * 0.3)} transform={format!("translate({} 0)", (1.0 - appear) * -120.0)}>
                     <text x="150" y={*y} font-family={DISPLAY} font-size="58" letter-spacing="-2" fill={if i == 1 { ORANGE } else { BONE }}>{*name}</text>
@@ -94,8 +94,8 @@ fn race(lb: f32) -> Svgr<'static> {
                     <rect x="150" y={*y + 56.0} width="1620" height="64" fill="#141312" stroke="#2f2c29" stroke-width="1.5" />
                     <rect x="150" y={*y + 56.0} width={bar_w} height="64" fill={*color} />
                     <rect x="150" y={*y + 56.0} width="1620" height="64" fill={BONE} opacity={flash * 0.6} />
-                    <text x="1770" y={*y} text-anchor="end" font-family={MONO} font-weight="600" font-size="52" fill={if done { *color } else { BONE }}>{format!("{shown:.1}s")}</text>
-                    <text x="170" y={*y + 100.0} font-family={MONO} font-weight="600" font-size="22" letter-spacing="2" fill={INK} opacity={if bar_w > 260.0 { 1.0 } else { 0.0 }}>{format!("{frames_done} / 300 FRAMES")}</text>
+                    <text x="1770" y={*y} text-anchor="end" font-family={MONO} font-weight="600" font-size="52" fill={if done { *color } else { BONE }}>{format!("{shown:.3}s")}</text>
+                    <text x="170" y={*y + 100.0} font-family={MONO} font-weight="600" font-size="22" letter-spacing="2" fill={INK} opacity={if bar_w > 260.0 { 1.0 } else { 0.0 }}>{format!("{frames_done} / 30 FRAMES")}</text>
                     <g opacity={if done { 1.0 } else { 0.0 }} transform={format!("translate(0 {})", (1.0 - stamp) * 20.0)}>
                         <text x="1750" y={*y + 100.0} text-anchor="end" font-family={MONO} font-weight="700" font-size="24" letter-spacing="4" fill={INK}>"DONE"</text>
                     </g>
@@ -106,7 +106,7 @@ fn race(lb: f32) -> Svgr<'static> {
     fframes::svgr!(
         <g opacity={1.0 - exit}>
             {Slam::new(150.0, 250.0, "100,000 TEXT NODES", DISPLAY, 120.0, BONE).draw(lb, 0.0, 140.0)}
-            {label(154.0, 310.0, "300 FRAMES · 1920×1080 · H.264 · SAME LAYOUT, SAME FONT".to_owned(), GREY, 20.0, "start")}
+            {label(154.0, 310.0, "30 FRAMES · 1000×1000 · PNG · SAME LAYOUT, SAME FONT".to_owned(), GREY, 20.0, "start")}
             {rows}
             <g opacity={prog(lb, RACE_START, RACE_START + 0.2)}>
                 {label(1770.0, 310.0, format!("TIME-LAPSE ×{speedup:.1} · MEASURED WALL CLOCK"), ORANGE, 20.0, "end")}
@@ -117,7 +117,7 @@ fn race(lb: f32) -> Svgr<'static> {
 
 /// N× FASTER on an orange field.
 fn result(l: f32) -> Svgr<'static> {
-    let ratio = 31.16;
+    let ratio = BENCH_REMOTION_S / BENCH_FFRAMES_S.max(0.001);
     let n = 1.0 + (ratio - 1.0) * expo_out(prog(l, 0.0, 1.2));
     let s = 1.0 + (1.0 - expo_out(l / 0.35)) * 0.15;
     let word = snap(l - 1.0);
@@ -131,7 +131,7 @@ fn result(l: f32) -> Svgr<'static> {
             <text x="150" y={900.0 + (1.0 - word) * 60.0} font-family={DISPLAY} font-size="120" letter-spacing="-4" fill={INK} opacity={prog(l, 1.0, 1.08)}>"FASTER THAN REMOTION"</text>
             <g font-family={MONO} font-weight="600" font-size="22" letter-spacing="4" fill={INK}>
                 <text x="150" y="170">"SAME 100,000 TEXT NODES"</text>
-                <text x="1770" y="170" text-anchor="end">"SAME ENCODER · MEDIAN WALL CLOCK"</text>
+                <text x="1770" y="170" text-anchor="end">"NO VIDEO ENCODING · MEDIAN WALL CLOCK"</text>
             </g>
             <rect x="150" y="196" width="1620" height="3" fill={INK} />
         </g>
@@ -150,14 +150,14 @@ fn table(l: f32) -> Svgr<'static> {
             let at = 0.3 + i as f32 * 0.5;
             let s = snap(l - at);
             let y = 520.0 + i as f32 * 130.0;
-            let fps = 300.0 / secs.max(0.001);
+            let fps = 30.0 / secs.max(0.001);
             fframes::svgr!(
                 <g opacity={prog(l, at, at + 0.08)} transform={format!("translate({} 0)", (1.0 - s) * 80.0)}>
                     <rect x="150" y={y - 70.0} width="1620" height="110" fill="#0f0e0d" fill-opacity="0.85" stroke="#2f2c29" stroke-width="1.5" />
                     <rect x="150" y={y - 70.0} width="6" height="110" fill={*color} />
                     <text x="190" y={y} font-family={DISPLAY} font-size="48" letter-spacing="-1" fill={BONE}>{*name}</text>
-                    <text x="1250" y={y} text-anchor="end" font-family={MONO} font-weight="600" font-size="48" fill={*color}>{format!("{secs:.1} s")}</text>
-                    <text x="1740" y={y} text-anchor="end" font-family={MONO} font-weight="600" font-size="48" fill={*color}>{format!("{fps:.0} fps")}</text>
+                    <text x="1250" y={y} text-anchor="end" font-family={MONO} font-weight="600" font-size="48" fill={*color}>{format!("{secs:.3} s")}</text>
+                    <text x="1740" y={y} text-anchor="end" font-family={MONO} font-weight="600" font-size="48" fill={*color}>{format!("{fps:.3} fps")}</text>
                 </g>
             )
         })
@@ -169,7 +169,7 @@ fn table(l: f32) -> Svgr<'static> {
             {label(1250.0, 400.0, "WALL CLOCK".to_owned(), GREY, 18.0, "end")}
             {label(1740.0, 400.0, "THROUGHPUT".to_owned(), GREY, 18.0, "end")}
             {items}
-            {label(154.0, 820.0, format!("WITH X264 PRESET MEDIUM ON BOTH, ENCODING DOMINATES: {BENCH_MEDIUM_REMOTION_S:.1} S VS {BENCH_MEDIUM_FFRAMES_S:.1} S ({:.1}×)", BENCH_MEDIUM_REMOTION_S / BENCH_MEDIUM_FFRAMES_S), BONE, 18.0, "start")}
+            {label(154.0, 820.0, "VIDEO ENCODING NOT MEASURED".to_owned(), BONE, 18.0, "start")}
             {label(154.0, 860.0, BENCH_NOTE.to_owned(), GREY, 18.0, "start")}
             {label(154.0, 900.0, "REPRODUCE: RENDER-BENCH/VS-REMOTION IN THE FFRAMES REPO".to_owned(), ORANGE, 18.0, "start")}
         </g>
