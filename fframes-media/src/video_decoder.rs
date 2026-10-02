@@ -12,6 +12,17 @@ use std::ptr;
 use std::sync::Arc;
 use usvgr::PreloadedImageData;
 
+/// The video stream's duration in its own time base. Matroska and `WebM` leave the stream
+/// duration unset (`AV_NOPTS_VALUE`) and only carry the container's, so fall back to that.
+unsafe fn stream_duration(fmt_ctx: *mut AVFormatContext, stream: *mut AVStream) -> i64 {
+    unsafe {
+        if (*stream).duration != AV_NOPTS_VALUE || (*fmt_ctx).duration == AV_NOPTS_VALUE {
+            return (*stream).duration;
+        }
+        av_rescale_q((*fmt_ctx).duration, AV_TIME_BASE_Q, (*stream).time_base)
+    }
+}
+
 const FFRAMES_VIDEO_PATH_TAG: &str = "___fframes_internal_video_frame_pts___";
 // just a little bit faster than the format! macro
 pub fn encode_video_resource(resource: &str, pts: i64) -> String {
@@ -628,7 +639,7 @@ impl FFmpegDecoder {
                 height: (*video_dec_ctx).height,
                 pixel_format: (*video_dec_ctx).pix_fmt,
                 time_base: (*stream).time_base,
-                duration: (*stream).duration,
+                duration: stream_duration(fmt_ctx, stream),
                 frame_rate: (*stream).r_frame_rate,
             })
         }
