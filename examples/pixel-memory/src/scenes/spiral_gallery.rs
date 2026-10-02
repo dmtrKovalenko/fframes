@@ -7,7 +7,7 @@ use rand::Rng;
 use std::f32::consts::PI;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 
-const GOLDEN_RATIO: f32 = 1.618_034; // Golden ratio (φ)
+const GOLDEN_RATIO: f32 = std::f32::consts::GOLDEN_RATIO; // Golden ratio (φ)
 const BASE_PHOTO_SIZE: f32 = 1000.0; // Base size for photos in pixels
 const SPIRAL_BASE_RADIUS: f32 = 60.0; // Starting radius for spiral
 const SPIRAL_ANGLE_INCREMENT: f32 = 0.5; // Angle increment in PI units
