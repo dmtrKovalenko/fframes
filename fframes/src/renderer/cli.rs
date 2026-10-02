@@ -372,10 +372,15 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
                 render(json, cli.scale, video, options, args, backend)
             }
             command => {
-                let mut frame_renderer = backend
-                    .frame_renderer()
-                    .unwrap_or_else(|| Box::new(CpuFrameRenderer::default()));
-                let frame_renderer = frame_renderer.as_mut();
+                let mut frame_renderer = backend.frame_renderer();
+                let mut fallback;
+                let frame_renderer: &mut dyn FrameRenderer =
+                    if let Some(renderer) = frame_renderer.as_mut() {
+                        renderer
+                    } else {
+                        fallback = CpuFrameRenderer::default();
+                        &mut fallback
+                    };
                 Previewer::new(video, &options)
                     .map_err(err)
                     .and_then(|mut previewer| match command {

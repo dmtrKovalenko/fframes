@@ -12,8 +12,8 @@ pub trait FFramesRenderBackend {
     /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip`, `onion` and
     /// `snapshot`) the way this backend renders the video, so previews match the output.
     /// `None` uses the built-in CPU renderer.
-    fn frame_renderer(&self) -> Option<Box<dyn super::FrameRenderer + '_>> {
-        None
+    fn frame_renderer(&self) -> Option<impl super::FrameRenderer + '_> {
+        None::<std::convert::Infallible>
     }
 
     /// Picks what the video encoders of a render are opened with, before any of them
@@ -39,7 +39,7 @@ pub trait FFramesRenderBackend {
         input: &EncoderInput,
         width: u32,
         height: u32,
-    ) -> FFramesRendererResult<Box<dyn EncoderFrameRenderer + '_>> {
+    ) -> FFramesRendererResult<impl EncoderFrameRenderer + '_> {
         let renderer = self.frame_renderer().ok_or_else(|| {
             FFramesRendererError::Custom(
                 "the rendering backend has no frame renderer to produce encoder frames with"
@@ -47,10 +47,8 @@ pub trait FFramesRenderBackend {
             )
         })?;
 
-        Ok(Box::new(
-            RgbaEncoderFrameRenderer::new(renderer, input, width, height)
-                .map_err(|err| FFramesRendererError::from_chunk(0, err))?,
-        ))
+        RgbaEncoderFrameRenderer::new(renderer, input, width, height)
+            .map_err(|err| FFramesRendererError::from_chunk(0, err))
     }
 
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized + Send>(

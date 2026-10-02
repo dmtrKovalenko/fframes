@@ -118,8 +118,8 @@ impl EncoderFrameRenderer for CpuEncoderFrameRenderer {
 }
 
 impl FFramesRenderBackend for CpuRenderingBackend {
-    fn frame_renderer(&self) -> Option<Box<dyn FrameRenderer + '_>> {
-        Some(Box::new(super::CpuFrameRenderer::new(self.cache_capacity)))
+    fn frame_renderer(&self) -> Option<impl FrameRenderer + '_> {
+        Some(super::CpuFrameRenderer::new(self.cache_capacity))
     }
 
     fn encoder_frame_renderer(
@@ -127,11 +127,9 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         input: &EncoderInput,
         width: u32,
         height: u32,
-    ) -> FFramesRendererResult<Box<dyn EncoderFrameRenderer + '_>> {
-        Ok(Box::new(
-            CpuEncoderFrameRenderer::new(self.cache_capacity, input, width, height)
-                .map_err(|err| FFramesRendererError::from_chunk(0, err))?,
-        ))
+    ) -> FFramesRendererResult<impl EncoderFrameRenderer + '_> {
+        CpuEncoderFrameRenderer::new(self.cache_capacity, input, width, height)
+            .map_err(|err| FFramesRendererError::from_chunk(0, err))
     }
 
     fn render<'a, 'media: 'a, TVideo: Video + Sync + Sized>(

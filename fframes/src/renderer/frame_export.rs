@@ -681,16 +681,16 @@ pub trait EncoderFrameRenderer {
 
 /// An [`EncoderFrameRenderer`] for any [`FrameRenderer`]: renders RGBA and converts it on
 /// the CPU.
-pub struct RgbaEncoderFrameRenderer<'r> {
-    renderer: Box<dyn FrameRenderer + 'r>,
+pub struct RgbaEncoderFrameRenderer<R: FrameRenderer> {
+    renderer: R,
     converter: RgbaFrameConverter,
     width: u32,
     height: u32,
 }
 
-impl<'r> RgbaEncoderFrameRenderer<'r> {
+impl<R: FrameRenderer> RgbaEncoderFrameRenderer<R> {
     pub fn new(
-        renderer: Box<dyn FrameRenderer + 'r>,
+        renderer: R,
         input: &EncoderInput,
         width: u32,
         height: u32,
@@ -704,7 +704,7 @@ impl<'r> RgbaEncoderFrameRenderer<'r> {
     }
 }
 
-impl EncoderFrameRenderer for RgbaEncoderFrameRenderer<'_> {
+impl<R: FrameRenderer> EncoderFrameRenderer for RgbaEncoderFrameRenderer<R> {
     fn render_tree(
         &mut self,
         tree: &usvgr::Tree,

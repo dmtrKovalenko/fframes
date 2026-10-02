@@ -77,6 +77,19 @@ pub trait FrameRenderer {
     ) -> FFramesRendererResult<RgbaFrame>;
 }
 
+// The default backend factory returns `None` even without the CPU renderer feature.
+impl FrameRenderer for std::convert::Infallible {
+    fn render_tree(
+        &mut self,
+        _tree: &usvgr::Tree,
+        _background: Color,
+        _width: u32,
+        _height: u32,
+    ) -> FFramesRendererResult<RgbaFrame> {
+        match *self {}
+    }
+}
+
 /// The transform that fits a tree into the output size. Videos that hardcode their `WIDTH`
 /// as the `<svg width>` are scaled this way when rendering with `scale_resolution`.
 pub fn fit_transform(tree: &usvgr::Tree, width: u32, height: u32) -> usvgr::Transform {
