@@ -14,8 +14,9 @@ use fframes::{
 use fframes_skia_renderer::metal::SkiaMetalCtx;
 use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaFrameExport, SkiaPipelineConfig, negotiate};
 
-const FPS: usize = 30;
-const FRAMES: usize = 60;
+const FPS: usize = 60;
+// Three 40-frame segments end at fractional seconds and expose truncated MP4 edit lists.
+const FRAMES: usize = 120;
 const SWITCH_AT: usize = FRAMES / 2;
 
 #[derive(Debug)]
@@ -97,6 +98,7 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
             video_encoder_options: EncoderOptions {
                 preferred_encoder: Some(encoder),
                 bitrate: Some(4_000_000),
+                codec_params: Some(&[("allow_sw", "0")]),
                 ..Default::default()
             },
             ..Default::default()
@@ -126,18 +128,28 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
         fframes::render(
             &output,
             &TwoColors,
-            SkiaFFramesRenderer::new_metal(&metal, SkiaPipelineConfig::default()).unwrap(),
+            SkiaFFramesRenderer::new_metal(
+                &metal,
+                SkiaPipelineConfig {
+                    encoder_threads: 6,
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
             &options,
         )
         .unwrap_or_else(|err| panic!("{encoder}: {err:?}"));
 
         let mut decoder = unsafe { FFmpegDecoder::new(&output, FPS, 1) }.unwrap();
-        assert_color_close(center_pixel(&mut decoder, 0), [255, 0, 0], 0);
-        assert_color_close(
-            center_pixel(&mut decoder, SWITCH_AT + 2),
-            [0, 0, 255],
-            SWITCH_AT + 2,
-        );
+        for frame in 0..FRAMES {
+            let expected = if frame < SWITCH_AT {
+                [255, 0, 0]
+            } else {
+                [0, 0, 255]
+            };
+            assert_color_close(center_pixel(&mut decoder, frame), expected, frame);
+        }
+        assert!(!unsafe { decoder.decode_up_to(FRAMES as i64) }.unwrap());
         drop(decoder);
 
         let _ = std::fs::remove_dir_all(&dir);

@@ -51,6 +51,15 @@ unsafe extern "C" {
     static kCVPixelBufferIOSurfacePropertiesKey: CFStringRef;
     static kCVPixelBufferMetalCompatibilityKey: CFStringRef;
     static kCVMetalTextureUsage: CFStringRef;
+    static kCVImageBufferYCbCrMatrixKey: CFStringRef;
+    static kCVImageBufferYCbCrMatrix_ITU_R_601_4: CFStringRef;
+
+    fn CVBufferSetAttachment(
+        buffer: CVPixelBufferRef,
+        key: CFStringRef,
+        value: core_foundation::base::CFTypeRef,
+        attachment_mode: u32,
+    );
 
     fn CVPixelBufferPoolCreate(
         allocator: CFAllocatorRef,
@@ -275,6 +284,17 @@ impl VideoToolboxFrameTarget {
                     "can not allocate a pixel buffer (CVReturn {status})"
                 )));
             }
+
+            // FFmpeg passes hardware pixel buffers through unchanged. The session's
+            // YCbCrMatrix property tags the stream, but does not choose the RGB input
+            // conversion matrix without this attachment. Match the BT.601 stream tag
+            // and the software/GPU YUV converters instead of VideoToolbox's HD default.
+            CVBufferSetAttachment(
+                pixel_buffer,
+                kCVImageBufferYCbCrMatrixKey,
+                kCVImageBufferYCbCrMatrix_ITU_R_601_4.cast(),
+                1, // kCVAttachmentMode_ShouldPropagate
+            );
 
             // What libav's own VideoToolbox frames look like: the pixel buffer in
             // `data[3]`, kept alive by `buf[0]`.

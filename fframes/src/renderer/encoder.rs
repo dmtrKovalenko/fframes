@@ -474,6 +474,12 @@ impl Encoder {
             (*frame.as_ptr()).pts = pts;
 
             Self::send_raw_frame(stream, frame.as_ptr(), packet, |packet| {
+                // VideoToolbox can return packets without a duration. Our video time
+                // base is one frame, including the final packet: otherwise MP4 can
+                // end its edit list at that frame's PTS and discard the last picture.
+                if (*packet).duration == 0 {
+                    (*packet).duration = 1;
+                }
                 av_packet_rescale_ts(packet, (*stream.enc).time_base, (*stream.st).time_base);
 
                 (*packet).stream_index = (*stream.st).index;
@@ -511,6 +517,10 @@ impl Encoder {
                     });
                 }
 
+                if matches!(stream.variant, stream::StreamVariant::Video) && (*packet).duration == 0
+                {
+                    (*packet).duration = 1;
+                }
                 av_packet_rescale_ts(packet, (*stream.enc).time_base, (*stream.st).time_base);
                 (*packet).stream_index = (*stream.st).index;
                 let status = av_interleaved_write_frame(self.oc, packet);
