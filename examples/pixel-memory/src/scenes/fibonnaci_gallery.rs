@@ -6,7 +6,7 @@ use rand::Rng;
 use std::f32::consts::PI;
 
 /// The golden ratio (φ = (1 + √5) / 2)
-const PHI: f32 = std::f32::consts::GOLDEN_RATIO;
+const PHI: f32 = 1.618_034;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::sync::atomic::AtomicBool;
 

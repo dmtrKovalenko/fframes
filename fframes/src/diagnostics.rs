@@ -331,7 +331,7 @@ mod tests {
         assert_eq!(collected, vec![Diagnostic::EmptyFrame]);
 
         let ((), nothing) = collect(|| ());
-        assert_eq!(nothing, Vec::<Diagnostic>::new());
+        assert!(nothing.is_empty());
     }
 
     #[test]

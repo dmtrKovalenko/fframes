@@ -629,8 +629,7 @@ Global flags: `--json` (one JSON document on stdout, JSON progress events on std
   3. RGBA readback and conversion on the CPU for every other pixel format
      (`SkiaFrameExport::CpuConversion` forces it). The CPU backend always converts this way.
 
-  `cargo run --release -p fframes_skia_renderer --features vulkan --example frame_export -- --encoder libx264`
-  measures the three on your machine. A backend of your own implements
+  A backend of your own implements
   `FFramesRenderBackend::negotiate_encoder_input` (a software format or
   `EncoderInput::hardware_frames`) and `encoder_frame_renderer`, which returns libav frames
   (`fframes::VideoFrame`) for `SegmentWriter::submit_frame`.

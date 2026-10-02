@@ -67,15 +67,17 @@ pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
 
             std::fs::write(diff_path, prefixed_snapshot).unwrap();
 
-            let kind = if cfg!(feature = "compile-time-svgtree") {
-                "Compile-time"
+            if cfg!(feature = "compile-time-svgtree") {
+                panic!(
+                    "Compile-time svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.",
+                    diff_path.display()
+                )
             } else {
-                "Runtime"
-            };
-            panic!(
-                "{kind} svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.",
-                diff_path.display()
-            )
+                panic!(
+                    "Runtime svgtree is not equal to base snapshot for test {name}. See diff at {} for more details.",
+                    diff_path.display()
+                )
+            }
         }
     } else {
         std::fs::create_dir_all(snapshot_path.parent().unwrap()).unwrap();
