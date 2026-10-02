@@ -1,11 +1,3 @@
-//! Reading surfaces back from a Vulkan context without holding its queue.
-//!
-//! Skia reads pixels with one call that submits to the queue and waits for the GPU. A queue
-//! may only be used by one thread at a time, so with several GPU contexts on one queue
-//! (integrated GPUs expose a single one) that call would have to hold the queue for the
-//! whole wait and the contexts would take turns. Here the copy into memory is a command
-//! buffer of our own: the queue is held for the two submissions only, and every context
-//! waits for its own fence while the others keep submitting.
 use super::{QueueLock, SurfaceReader, lock_queue};
 use ash::vk::{self, Handle};
 use fframes::{FFramesRendererError, FFramesRendererResult};

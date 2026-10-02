@@ -1,5 +1,3 @@
-//! Frames exported for the video encoder: the planes converted on the GPU have to match
-//! what the CPU converters produce from the same RGBA pixels.
 #![cfg(feature = "vulkan")]
 
 use fframes::ffmpeg_sys_fframes::AVPixelFormat::{self, *};
@@ -484,13 +482,10 @@ fn an_encoder_that_does_not_open_fails_the_render() {
     );
 }
 
-/// Hardware frames on a Vulkan device shared with `FFmpeg`. The encoders that take such
-/// frames need Vulkan Video encode support from the driver; what is checked here needs a
-/// Vulkan 1.3 device only: the frames are downloaded instead of encoded.
 #[cfg(feature = "vulkan-video")]
 mod vulkan_video {
     use super::*;
-    use fframes::EncoderInput;
+    use fframes::{EncoderInput, FFramesRenderBackend};
 
     fn shared_vulkan() -> Option<SkiaVulkanCtx> {
         match SkiaVulkanCtx::new_shared_with_encoder(WIDTH as usize, HEIGHT as usize) {
@@ -628,21 +623,19 @@ mod vulkan_video {
             &options.video_encoder_options,
         )
         .unwrap();
+        let backend =
+            SkiaFFramesRenderer::new_vulkan(&vulkan, SkiaPipelineConfig::default()).unwrap();
         let hardware = info.name() == encoder
-            && fframes_skia_renderer::negotiate(&vulkan, SkiaFrameExport::Auto, &info)
+            && backend
+                .negotiate_encoder_input(&info)
                 .is_ok_and(|input| input.is_hardware());
         if !hardware {
             eprintln!("skipping {encoder}: the driver has no such encoder");
             return;
         }
 
-        fframes::render(
-            &output,
-            &TwoColors720,
-            SkiaFFramesRenderer::new_vulkan(&vulkan, SkiaPipelineConfig::default()).unwrap(),
-            &options,
-        )
-        .unwrap_or_else(|err| panic!("{encoder}: {err:?}"));
+        fframes::render(&output, &TwoColors720, backend, &options)
+            .unwrap_or_else(|err| panic!("{encoder}: {err:?}"));
 
         let mut decoder = unsafe { FFmpegDecoder::new(&output, TwoColors720::FPS, 1) }.unwrap();
         assert_color_close(center_pixel(&mut decoder, 0), [255, 0, 0], 0);

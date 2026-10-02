@@ -1,17 +1,3 @@
-//! The encoder side of a rendering backend.
-//!
-//! A backend rasterizes frames in whatever representation suits it (RGBA bytes for the CPU
-//! renderer, GPU textures for Skia) while the video encoder takes libav frames in its own
-//! pixel format. The two agree in two steps:
-//!
-//! 1. Before any encoder is opened the backend sees the codec ([`VideoEncoderInfo`]) and picks
-//!    what it will deliver ([`EncoderInput`]): a software pixel format, or hardware frames that
-//!    never leave the GPU (`FFramesRenderBackend::negotiate_encoder_input`).
-//! 2. Every rendering thread gets an [`EncoderFrameRenderer`] that rasterizes a frame straight
-//!    into a [`VideoFrame`], the `AVFrame` the encoder is fed with.
-//!
-//! [`RgbaFrameConverter`] is the portable way to produce such frames: RGBA8 in memory, converted
-//! on the CPU (SIMD for yuv420p, swscale for everything else).
 use super::encoder::EncoderOptions;
 use super::renderer_error::{
     FFramesRendererError, FFramesRendererResult, RenderEncodingError, RenderEncodingResult,

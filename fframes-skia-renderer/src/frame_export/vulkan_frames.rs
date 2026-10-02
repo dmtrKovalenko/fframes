@@ -1,15 +1,3 @@
-//! Hardware frames for Vulkan Video encoders (`h264_vulkan`, `hevc_vulkan`).
-//!
-//! Skia and `FFmpeg` share one Vulkan device (`SkiaVulkanCtx::new_shared_with_encoder`). A
-//! frame is drawn as RGBA, converted to the Y and `CbCr` planes of NV12 by a shader and
-//! those planes are copied into an image of the encoder's frame pool, all on the GPU:
-//!
-//! ```text
-//! frame (RGBA8) ──shader──► Y (R8), CbCr (RG8) ──vkCmdCopyImage──► AVVkFrame (NV12) ──► encoder
-//! ```
-//!
-//! Nothing is read back and nothing waits for the GPU on the rendering thread. The encoder
-//! waits on the timeline semaphore of the frame, which the copy signals.
 use super::planes::Channel;
 use crate::HardwareFrameTarget;
 use crate::vulkan::SkiaVulkanCtx;

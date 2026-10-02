@@ -52,7 +52,7 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
         &self,
         encoder: &VideoEncoderInfo<'_>,
     ) -> RenderEncodingResult<EncoderInput> {
-        crate::negotiate(self.backend, self.frame_export, encoder)
+        crate::frame_export::negotiate(self.backend, self.frame_export, encoder)
     }
 
     fn encoder_frame_renderer(

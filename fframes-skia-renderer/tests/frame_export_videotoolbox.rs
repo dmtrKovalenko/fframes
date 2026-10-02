@@ -1,18 +1,13 @@
-//! `VideoToolbox` encoders reading the pixel buffers Skia rendered into with Metal.
-//!
-//! ```sh
-//! cargo test -p fframes_skia_renderer --features metal,fframes/videotoolbox --test frame_export_videotoolbox
-//! ```
 #![cfg(all(target_os = "macos", feature = "metal"))]
 
 use fframes::ffmpeg_sys_fframes::AVPixelFormat::AV_PIX_FMT_VIDEOTOOLBOX;
 use fframes::media::FFmpegDecoder;
 use fframes::{
-    AudioMap, Color, Duration, EncoderOptions, FFramesContext, Frame, RenderOptions, Svgr, Video,
-    VideoEncoderInfo,
+    AudioMap, Color, Duration, EncoderOptions, FFramesContext, FFramesRenderBackend, Frame,
+    RenderOptions, Svgr, Video, VideoEncoderInfo,
 };
 use fframes_skia_renderer::metal::SkiaMetalCtx;
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaFrameExport, SkiaPipelineConfig, negotiate};
+use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
 
 const FPS: usize = 60;
 // Three 40-frame segments end at fractional seconds and expose truncated MP4 edit lists.
@@ -119,26 +114,22 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
             continue;
         }
 
-        let input = negotiate(&metal, SkiaFrameExport::Auto, &info).unwrap();
+        let backend = SkiaFFramesRenderer::new_metal(
+            &metal,
+            SkiaPipelineConfig {
+                encoder_threads: 6,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let input = backend.negotiate_encoder_input(&info).unwrap();
         assert_eq!(
             input.pixel_format, AV_PIX_FMT_VIDEOTOOLBOX,
             "{encoder} did not get hardware frames"
         );
 
-        fframes::render(
-            &output,
-            &TwoColors,
-            SkiaFFramesRenderer::new_metal(
-                &metal,
-                SkiaPipelineConfig {
-                    encoder_threads: 6,
-                    ..Default::default()
-                },
-            )
-            .unwrap(),
-            &options,
-        )
-        .unwrap_or_else(|err| panic!("{encoder}: {err:?}"));
+        fframes::render(&output, &TwoColors, backend, &options)
+            .unwrap_or_else(|err| panic!("{encoder}: {err:?}"));
 
         let mut decoder = unsafe { FFmpegDecoder::new(&output, FPS, 1) }.unwrap();
         for frame in 0..FRAMES {

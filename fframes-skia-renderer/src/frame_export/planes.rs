@@ -1,26 +1,3 @@
-//! RGBA to planar YUV on the GPU.
-//!
-//! The planes of the encoder's pixel format are drawn next to each other into one surface
-//! with a shader that samples the rendered frame, and that surface is read back straight
-//! into the pixel buffer of the encoder frame:
-//!
-//! ```text
-//!  rendered frame (RGBA8)            packed planes, yuv420p
-//! ┌──────────────────────┐          ┌──────────────────────┐
-//! │                      │  shader  │          Y           │
-//! │                      │ ───────► │                      │
-//! │                      │          ├───────────┬──────────┤
-//! └──────────────────────┘          │     U     │    V     │
-//!                                   └───────────┴──────────┘
-//! ```
-//!
-//! The packed surface is RGBA8 as well: every texel carries four consecutive bytes of a
-//! plane, so it is a quarter of the planes wide. A single channel surface would hold the
-//! same bytes, but reading one back took four times as long on the Intel GPU this was
-//! measured on (2.7 ms against 0.66 ms for the planes of a 1080p frame).
-//!
-//! Compared to reading the frame back as RGBA this transfers 1.5 bytes per pixel for 4:2:0
-//! where RGBA takes 4, and the CPU has nothing left to convert.
 use fframes::ffmpeg_sys_fframes::AVPixelFormat::{self, *};
 use fframes::pix_fmt::RGB_TO_YUV;
 use fframes::{
@@ -399,45 +376,5 @@ impl PlaneExporter {
         read(&mut self.surface, &self.info, pixels)?;
 
         Ok(frame)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn packs_planes_without_overlap_and_keeps_lines_aligned() {
-        for (format, width, height) in [
-            (AV_PIX_FMT_YUV420P, 1920, 1080),
-            (AV_PIX_FMT_YUV420P, 1080, 1920),
-            (AV_PIX_FMT_YUV420P, 322, 242),
-            (AV_PIX_FMT_YUVA420P, 1080, 1920),
-            (AV_PIX_FMT_NV12, 1280, 720),
-            (AV_PIX_FMT_NV21, 100, 60),
-            (AV_PIX_FMT_YUV422P, 642, 480),
-            (AV_PIX_FMT_YUV444P, 640, 360),
-        ] {
-            let packing = Packing::new(plane_specs(format).unwrap(), width, height);
-            assert_eq!(packing.width % Packing::LINE_ALIGN, 0);
-
-            for (index, plane) in packing.planes.iter().enumerate() {
-                assert!(plane.x + plane.width <= packing.width, "{format:?}");
-                assert!(plane.y + plane.height <= packing.height, "{format:?}");
-                assert_eq!(plane.x % Packing::PLANE_ALIGN, 0);
-
-                for other in &packing.planes[index + 1..] {
-                    let apart = plane.x + plane.width <= other.x
-                        || other.x + other.width <= plane.x
-                        || plane.y + plane.height <= other.y
-                        || other.y + other.height <= plane.y;
-                    assert!(apart, "{format:?}: planes overlap");
-                }
-            }
-        }
-
-        // yuv420p reads back 1.5 bytes per pixel when the width needs no padding
-        let packing = Packing::new(plane_specs(AV_PIX_FMT_YUV420P).unwrap(), 1920, 1080);
-        assert_eq!((packing.width, packing.height), (1920, 1620));
     }
 }

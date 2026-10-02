@@ -17,7 +17,7 @@ pub use frame_renderer::*;
 
 mod frame_export;
 pub use frame_export::{
-    FrameExportPath, HardwareFrameTarget, SkiaEncoderFrameRenderer, SkiaFrameExport, negotiate,
+    FrameExportPath, HardwareFrameTarget, SkiaEncoderFrameRenderer, SkiaFrameExport,
 };
 
 pub mod render;

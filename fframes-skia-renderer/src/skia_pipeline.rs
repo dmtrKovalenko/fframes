@@ -106,7 +106,7 @@ impl BufferPool {
 ///       segment files ◄── SegmentWriter ◄── encoders ◄───┘
 /// ```
 ///
-/// What leaves a GPU context depends on the negotiated encoder input (`crate::negotiate`):
+/// What leaves a GPU context depends on the negotiated encoder input:
 /// hardware frames the encoder reads on the GPU, YUV planes converted on the GPU, or RGBA
 /// the encoder threads convert.
 ///
@@ -171,7 +171,7 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
     );
     let encoder_input = writer
         .encoder_info()
-        .and_then(|encoder| crate::negotiate(skia, frame_export, &encoder))
+        .and_then(|encoder| crate::frame_export::negotiate(skia, frame_export, &encoder))
         .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
     let writer = writer.with_encoder_input(encoder_input);
 

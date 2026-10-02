@@ -1,20 +1,3 @@
-//! Hardware frames for `VideoToolbox` encoders (`h264_videotoolbox`, `hevc_videotoolbox`).
-//!
-//! The encoder takes `CVPixelBuffer`s. A pixel buffer that is backed by an `IOSurface` is
-//! also a Metal texture, so Skia draws every frame straight into the BGRA pixel buffer the
-//! encoder is handed afterwards:
-//!
-//! ```text
-//! CVPixelBuffer (BGRA, IOSurface) ◄── MTLTexture ◄── Skia surface ◄── frame
-//!        └──────────────────────────► VideoToolbox encoder
-//! ```
-//!
-//! Nothing is read back or converted by us. `VideoToolbox` converts to the YUV format of
-//! the codec on its side, with the color matrix the stream is tagged with.
-//!
-//! The pixel buffers come from a `CVPixelBufferPool` of our own rather than from libav's
-//! frame pool: the encoder keeps reading a buffer after it took the frame, and only a
-//! `CVPixelBufferPool` knows that such a buffer must not be handed out again yet.
 use crate::HardwareFrameTarget;
 use crate::metal::SkiaMetalCtx;
 use core_foundation::base::{CFAllocatorRef, CFRelease, CFType, TCFType};

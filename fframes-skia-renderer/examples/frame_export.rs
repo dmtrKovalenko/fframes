@@ -1,23 +1,3 @@
-//! What it costs to get a frame from Skia to the video encoder, for every `SkiaFrameExport`
-//! mode: hardware frames, conversion on the GPU, conversion on the CPU.
-//!
-//! Renders 1080p frames of the low-poly-art owl example and reports two numbers per mode.
-//! `stage` is one GPU context drawing pre-generated frame trees and turning them into
-//! encoder frames (`SkiaEncoderFrameRenderer`), without encoding. `e2e` is the whole
-//! `fframes::render` pipeline including the encoder.
-//!
-//! ```sh
-//! cargo run --release -p fframes_skia_renderer --features vulkan --example frame_export
-//! cargo run --release -p fframes_skia_renderer --features metal,fframes/videotoolbox \
-//!     --example frame_export -- --encoder hevc_videotoolbox
-//! cargo run --release -p fframes_skia_renderer --features vulkan-video \
-//!     --example frame_export -- --encoder h264_vulkan
-//! ```
-//!
-//! `--frames N` sets the number of frames (240), `--pixel-format nv12` the requested format,
-//! `--param key=value` an option of the encoder (repeatable) and `--out DIR` the directory
-//! of the rendered files.
-
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -234,7 +214,9 @@ fn main() {
 
     println!("stage: draw + export on one GPU context, no encoding");
     for mode in MODES {
-        let input = match fframes_skia_renderer::negotiate(&skia, mode, &encoder) {
+        let backend =
+            SkiaFFramesRenderer::new(SkiaPipelineConfig::default(), &skia).frame_export(mode);
+        let input = match backend.negotiate_encoder_input(&encoder) {
             Ok(input) => input,
             Err(err) => {
                 println!("  {:<14} skipped: {err}", format!("{mode:?}"));

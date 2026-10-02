@@ -1,17 +1,3 @@
-//! How frames get from Skia to the video encoder.
-//!
-//! Reading RGBA back from the GPU and converting it to the encoder's pixel format on the CPU
-//! costs more than drawing most frames. A frame takes one of three ways, fastest first:
-//!
-//! 1. Hardware frames. Skia draws into a texture the encoder reads directly (`VideoToolbox`
-//!    pixel buffers on Metal, Vulkan Video images on Vulkan) and nothing is read back.
-//! 2. GPU conversion. A shader converts the frame to the planar YUV format of the encoder
-//!    and only those planes are read back, see [`planes`].
-//! 3. CPU conversion. RGBA is read back and the encoder threads convert it with
-//!    `fframes::RgbaFrameConverter`.
-//!
-//! [`negotiate`] picks one for the encoder of a render and a [`SkiaEncoderFrameRenderer`]
-//! per GPU context produces the frames.
 use crate::{QueueLock, SkiaBackend, SkiaContext, SurfaceReader, lock_queue};
 use fframes::{
     Color, EncoderFrameRenderer, EncoderInput, FFramesRendererError, FFramesRendererResult,
@@ -106,11 +92,7 @@ pub(crate) fn trial_frame(
     frame.map(drop)
 }
 
-/// Picks the input of the video encoder for frames rendered by `backend`.
-///
-/// Hardware frames are only chosen when the encoder opens with them on this machine.
-/// Otherwise the frames are converted to the requested pixel format.
-pub fn negotiate<TBackend: SkiaBackend + ?Sized>(
+pub(crate) fn negotiate<TBackend: SkiaBackend + ?Sized>(
     backend: &TBackend,
     mode: SkiaFrameExport,
     encoder: &VideoEncoderInfo<'_>,
@@ -209,8 +191,8 @@ pub(crate) enum Rendered {
 }
 
 /// Skia as a `fframes::EncoderFrameRenderer`: draws frames on one GPU context and returns
-/// them the way the encoder input was negotiated ([`negotiate`]). Keeps the surfaces, the
-/// GPU context and the render cache between frames.
+/// them the way [`fframes::FFramesRenderBackend::negotiate_encoder_input`] negotiated.
+/// Keeps the surfaces, GPU context and render cache between frames.
 pub struct SkiaEncoderFrameRenderer<'b> {
     /// Only taken when the renderer is dropped.
     target: Option<Target>,
