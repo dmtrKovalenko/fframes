@@ -99,9 +99,11 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         media.populate_image_source(&mut image_source);
     }
 
+    // The player draws with the Skia renderer, which draws `FastShape`s natively.
     let usvg_options = usvgr::Options {
         image_data: Some(&image_source),
         font_family: options.default_font.to_string(),
+        fast_shapes: true,
         ..Default::default()
     };
 

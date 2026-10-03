@@ -198,6 +198,7 @@ pub fn render<
     let usvg_options = usvgr::Options {
         image_data: Some(&image_source),
         font_family: options.default_font.to_string(),
+        fast_shapes: render_backend.fast_shapes(),
         ..Default::default()
     };
 
@@ -314,6 +315,7 @@ pub fn render_frame<
     };
 
     let decoders = VideoDecodersWorker::new(1);
+    let fast_shapes = render_backend.fast_shapes();
     render_backend.render_frame(
         crate::Frame::__internal_make_for_renderer(
             frame_index,
@@ -326,6 +328,7 @@ pub fn render_frame<
         &crate::usvgr::Options {
             image_data: Some(&image_source),
             font_family: options.default_font.to_string(),
+            fast_shapes,
             ..Default::default()
         },
         font_source.as_db_ref(),

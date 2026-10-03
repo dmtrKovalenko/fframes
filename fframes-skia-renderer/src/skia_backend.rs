@@ -43,6 +43,11 @@ impl<'a, TSkiaBackend: SkiaBackend> SkiaFFramesRenderer<'a, TSkiaBackend> {
 }
 
 impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBackend> {
+    /// Ovals and rounded rects are drawn analytically, see [`crate::render::render_tree`].
+    fn fast_shapes(&self) -> bool {
+        true
+    }
+
     /// Skia previews on the same GPU context: shaders and filters look like in the video.
     fn frame_renderer(&self) -> Option<impl FrameRenderer + '_> {
         Some(

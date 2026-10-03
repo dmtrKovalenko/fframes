@@ -43,11 +43,15 @@ pub(super) fn visible_nodes(
         if group.children().len() - i > 128 && hidden == 0 && !covered.overlaps {
             return None;
         }
-        let usvgr::Node::Path(path) = node else {
-            // A group can blend with its backdrop, so coverage cannot cross it.
-            covered.rows.fill(0);
-            covered.overlaps = false;
-            continue;
+        let (path, fast_shape) = match node {
+            usvgr::Node::Path(path) => (&**path, None),
+            usvgr::Node::FastShape(fast_shape) => (fast_shape.path(), Some(fast_shape.kind())),
+            _ => {
+                // A group can blend with its backdrop, so coverage cannot cross it.
+                covered.rows.fill(0);
+                covered.overlaps = false;
+                continue;
+            }
         };
         if path.visibility() != usvgr::Visibility::Visible {
             continue;
@@ -80,7 +84,13 @@ pub(super) fn visible_nodes(
         if fill.opacity().get() != 1. || !matches!(fill.paint(), usvgr::Paint::Color(_)) {
             continue;
         }
-        let mut shape = cache.convert_path(path).make_transform(&matrix);
+        if let Some(kind) = fast_shape
+            && matrix.is_scale_translate()
+        {
+            covered.add(inscribed_rect(kind, &matrix).with_inset((1., 1.)));
+            continue;
+        }
+        let mut shape = super::geometry_path(path, fast_shape, cache).make_transform(&matrix);
         shape.set_fill_type(match fill.rule() {
             usvgr::FillRule::NonZero => PathFillType::Winding,
             usvgr::FillRule::EvenOdd => PathFillType::EvenOdd,
@@ -96,6 +106,19 @@ pub(super) fn visible_nodes(
         }
     }
     Some(visible)
+}
+
+/// A rectangle inside a fast shape, in device space: inset by where the corner arcs (the whole
+/// outline of an ellipse) pass 45 degrees. Only valid for a scale-translate `matrix`.
+fn inscribed_rect(kind: usvgr::FastShapeKind, matrix: &skia_safe::Matrix) -> Rect {
+    let (rect, rx, ry) = match kind {
+        usvgr::FastShapeKind::Ellipse(rect) => (rect, rect.width() / 2., rect.height() / 2.),
+        usvgr::FastShapeKind::RoundRect { rect, rx, ry } => (rect, rx, ry),
+    };
+    let inset = 1. - std::f32::consts::FRAC_1_SQRT_2;
+    let inner = Rect::from_ltrb(rect.left(), rect.top(), rect.right(), rect.bottom())
+        .with_inset((rx * inset, ry * inset));
+    matrix.map_rect(inner).0
 }
 
 struct Coverage {

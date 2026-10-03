@@ -177,8 +177,19 @@ fn hash_exact_group(
                 h.write_u8(3);
                 hash_exact_group(h, text.flattened(), points_budget, true)?;
             }
-            usvgr::Node::Path(path) => {
-                h.write_u8(1);
+            usvgr::Node::Path(_) | usvgr::Node::FastShape(_) => {
+                let path = match child {
+                    usvgr::Node::FastShape(fast_shape) => {
+                        h.write_u8(4);
+                        hash_fast_shape_kind(h, fast_shape.kind());
+                        fast_shape.path()
+                    }
+                    usvgr::Node::Path(path) => {
+                        h.write_u8(1);
+                        &**path
+                    }
+                    _ => unreachable!(),
+                };
                 let has_pattern = [
                     path.fill().map(fframes::usvgr::Fill::paint),
                     path.stroke().map(fframes::usvgr::Stroke::paint),
@@ -302,6 +313,11 @@ fn hash_node(h: &mut FxHasher, node: &usvgr::Node) {
             h.write_u8(1);
             hash_path(h, path);
         }
+        usvgr::Node::FastShape(fast_shape) => {
+            h.write_u8(4);
+            hash_fast_shape_kind(h, fast_shape.kind());
+            hash_path(h, fast_shape.path());
+        }
         usvgr::Node::Image(image) => {
             h.write_u8(2);
             hash_image(h, image);
@@ -309,6 +325,22 @@ fn hash_node(h: &mut FxHasher, node: &usvgr::Node) {
         usvgr::Node::Text(text) => {
             h.write_u8(3);
             hash_group(h, text.flattened());
+        }
+    }
+}
+
+/// A fast shape's path data is only its bounding rectangle; the kind is its geometry.
+fn hash_fast_shape_kind(h: &mut FxHasher, kind: usvgr::FastShapeKind) {
+    match kind {
+        usvgr::FastShapeKind::Ellipse(rect) => {
+            h.write_u8(0);
+            h.rect(rect);
+        }
+        usvgr::FastShapeKind::RoundRect { rect, rx, ry } => {
+            h.write_u8(1);
+            h.rect(rect);
+            h.f32(rx);
+            h.f32(ry);
         }
     }
 }

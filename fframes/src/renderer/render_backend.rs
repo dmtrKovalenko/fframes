@@ -9,6 +9,15 @@ use usvgr::fontdb;
 
 #[allow(clippy::too_many_arguments)]
 pub trait FFramesRenderBackend {
+    /// Whether this backend draws [`usvgr::Node::FastShape`] natively. When `true`, frames are
+    /// converted with [`usvgr::Options::fast_shapes`]: `circle`, `ellipse` and rounded `rect`
+    /// stay shapes instead of becoming generic paths.
+    ///
+    /// The default (`false`) keeps the exact path geometry the CPU backend is tested against.
+    fn fast_shapes(&self) -> bool {
+        false
+    }
+
     /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip`, `onion` and
     /// `snapshot`) the way this backend renders the video, so previews match the output.
     /// `None` uses the built-in CPU renderer.

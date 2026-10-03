@@ -115,6 +115,10 @@ impl<'a, TBackend: SkiaBackend> SkiaFrameRenderer<'a, TBackend> {
 }
 
 impl<TBackend: SkiaBackend> FrameRenderer for SkiaFrameRenderer<'_, TBackend> {
+    fn fast_shapes(&self) -> bool {
+        true
+    }
+
     fn svg_text_cache_capacity(&self) -> Option<usize> {
         Some(self.cache_config.text_capacity)
     }

@@ -67,6 +67,12 @@ impl RgbaFrame {
 /// Rasterizes converted frames. Implementations keep their surfaces and caches between
 /// calls, so rendering many frames through one renderer is cheap.
 pub trait FrameRenderer {
+    /// Whether this renderer draws [`usvgr::Node::FastShape`] natively, see
+    /// [`super::FFramesRenderBackend::fast_shapes`].
+    fn fast_shapes(&self) -> bool {
+        false
+    }
+
     /// SVG text cache capacity requested by this renderer. `None` keeps the
     /// previewer's current setting; zero disables SVG text layout caching.
     fn svg_text_cache_capacity(&self) -> Option<usize> {
@@ -406,6 +412,15 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
 
     /// Calls `Video::render_frame` and converts the result.
     pub fn svg_tree(&mut self, frame: usize) -> FFramesRendererResult<usvgr::Tree> {
+        self.convert_frame(frame, false)
+    }
+
+    /// [`Self::svg_tree`] for a renderer, which may draw [`usvgr::Node::FastShape`] natively.
+    fn convert_frame(
+        &mut self,
+        frame: usize,
+        fast_shapes: bool,
+    ) -> FFramesRendererResult<usvgr::Tree> {
         self.check_frame(frame)?;
 
         let ctx = FFramesContext {
@@ -434,6 +449,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
         let usvg_options = usvgr::Options {
             image_data: Some(&self.image_source),
             font_family: self.options.default_font.to_string(),
+            fast_shapes,
             ..Default::default()
         };
 
@@ -459,7 +475,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
         renderer: &mut dyn FrameRenderer,
     ) -> FFramesRendererResult<RgbaFrame> {
         self.configure_renderer_cache(renderer);
-        let tree = self.svg_tree(frame)?;
+        let tree = self.convert_frame(frame, renderer.fast_shapes())?;
         let (width, height) = self.size();
         renderer.render_tree(&tree, TVideo::BACKGROUND_COLOR, width, height)
     }
@@ -482,7 +498,8 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
         self.check_frame(frame)?;
         self.configure_renderer_cache(renderer);
         let (width, height) = self.size();
-        let (tree, mut found) = diagnostics::collect(|| self.svg_tree(frame));
+        let fast_shapes = renderer.fast_shapes();
+        let (tree, mut found) = diagnostics::collect(|| self.convert_frame(frame, fast_shapes));
         let tree = tree?;
         found.extend(diagnostics::inspect_tree(
             &tree,

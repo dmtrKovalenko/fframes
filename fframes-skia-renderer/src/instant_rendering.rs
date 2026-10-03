@@ -89,6 +89,7 @@ impl InstantRenderingVideoCtx<'_> {
 
         let usvg_options = usvgr::Options {
             font_family: "Arial".to_string(),
+            fast_shapes: true,
             ..Default::default()
         };
 

@@ -160,6 +160,9 @@ fn collect(group: &usvgr::Group, out: &mut HashMap<String, Option<u64>>) {
             usvgr::Node::Path(p) if !p.id().is_empty() => {
                 out.insert(p.id().to_owned(), p.static_hash());
             }
+            usvgr::Node::FastShape(e) if !e.path().id().is_empty() => {
+                out.insert(e.path().id().to_owned(), e.path().static_hash());
+            }
             _ => {}
         }
     }

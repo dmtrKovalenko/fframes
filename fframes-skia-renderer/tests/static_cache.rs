@@ -63,6 +63,7 @@ fn first_child_static_hash(tree: &usvgr::Tree) -> Option<u64> {
     match tree.root().children().first().expect("root has a child") {
         usvgr::Node::Group(g) => g.static_hash(),
         usvgr::Node::Path(p) => p.static_hash(),
+        usvgr::Node::FastShape(e) => e.path().static_hash(),
         _ => None,
     }
 }
