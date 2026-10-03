@@ -147,6 +147,42 @@ pub(crate) unsafe fn find_encoder(
     }
 }
 
+/// libx264 picks its intra mode search by CPU: on x86 with SSSE3 and later it evaluates all nine
+/// modes in one call (`intra_*_x9_*`), on ARM and in plain C it takes a shortcut search. The same
+/// frames then encode to different bits on different machines, although every backend's RGBA is
+/// identical. x264's `cpu-independent` selects the same algorithms on every CPU, so a render (or
+/// one segment of it) reproduces bit for bit anywhere. An explicit `cpu-independent` in the
+/// caller's `x264-params` is kept as given, `cpu-independent=0` opts out.
+fn x264_params_with_cpu_independent(params: Option<&str>) -> Option<String> {
+    let sets_it = |p: &str| {
+        p.split(':')
+            .filter_map(|kv| kv.split('=').next())
+            .any(|k| k.trim().replace('_', "-") == "cpu-independent")
+    };
+    match params.map(str::trim) {
+        Some(p) if sets_it(p) => None,
+        Some(p) if !p.is_empty() => Some(format!("{p}:cpu-independent=1")),
+        _ => Some("cpu-independent=1".to_owned()),
+    }
+}
+
+unsafe fn require_x264_cpu_independent(opts: *mut *mut AVDictionary) -> RenderEncodingResult<()> {
+    unsafe {
+        let key = c"x264-params";
+        let entry = av_dict_get(*opts, key.as_ptr(), std::ptr::null(), 0);
+        let current = (!entry.is_null()).then(|| {
+            CStr::from_ptr((*entry).value)
+                .to_string_lossy()
+                .into_owned()
+        });
+        if let Some(value) = x264_params_with_cpu_independent(current.as_deref()) {
+            let c_value = CString::new(value).map_err(RenderEncodingError::CStringError)?;
+            av_dict_set(opts, key.as_ptr(), c_value.as_ptr(), 0);
+        }
+        Ok(())
+    }
+}
+
 /// Configures the context of a video encoder for `input` and opens it.
 pub(crate) unsafe fn open_video_encoder(
     c: *mut AVCodecContext,
@@ -245,6 +281,10 @@ pub(crate) unsafe fn open_video_encoder(
 
                 av_dict_set(opts, c_param.as_ptr(), c_value.as_ptr(), 0);
             }
+        }
+
+        if !(*codec).name.is_null() && CStr::from_ptr((*codec).name).to_bytes() == b"libx264" {
+            require_x264_cpu_independent(opts)?;
         }
 
         let status = avcodec_open2(c, codec, opts);
@@ -454,5 +494,26 @@ impl Stream {
                 av_opt_set_sample_fmt(swr_ctx.cast::<std::ffi::c_void>(), name.as_ptr(), val, 0);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod x264_cpu_independent_tests {
+    use super::x264_params_with_cpu_independent as with;
+
+    #[test]
+    fn adds_the_flag_to_missing_or_existing_params() {
+        assert_eq!(with(None).as_deref(), Some("cpu-independent=1"));
+        assert_eq!(with(Some("")).as_deref(), Some("cpu-independent=1"));
+        assert_eq!(
+            with(Some("aq-mode=3:deblock=-1,-1")).as_deref(),
+            Some("aq-mode=3:deblock=-1,-1:cpu-independent=1")
+        );
+    }
+
+    #[test]
+    fn keeps_an_explicit_choice() {
+        assert_eq!(with(Some("cpu-independent=0")), None);
+        assert_eq!(with(Some("aq-mode=3:cpu_independent=1")), None);
     }
 }
