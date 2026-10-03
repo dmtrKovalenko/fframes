@@ -32,19 +32,24 @@ Both fframes backends use 100,000-entry text caches. Skia also uses 100,000
 geometry entries with a 51.2 MB budget per generation. GPU runs are skipped
 when hardware is unavailable.
 
-Measured on an M5 Max, one run each:
+Measured on an M5 Max, one run each, except fframes + Skia GPU, which is one run on an
+M4 Max with fast shapes (usvgr 0.46.1):
 
 | Pipeline                   | Complete MP4 export | fframes GPU speedup |
 | -------------------------- | ------------------: | ------------------: |
-| fframes + Skia GPU         |             7.225 s |                   — |
-| fframes CPU (tiny-skia)    |            69.740 s |               9.65× |
-| Remotion + FFmpeg, 18 tabs |           109.227 s |              15.12× |
-| Remotion + MediaBunny      |           121.132 s |              16.77× |
+| fframes + Skia GPU         |             4.074 s |                   — |
+| fframes CPU (tiny-skia)    |            69.740 s |              17.12× |
+| Remotion + FFmpeg, 18 tabs |           109.227 s |              26.81× |
+| Remotion + MediaBunny      |           121.132 s |              29.73× |
 
 CPU uses software x264 encoding. The FFmpeg browser used default software
 rasterization with hardware encoding; MediaBunny's Chrome reported Metal.
-An eight-tab FFmpeg check was faster at 98.759 s (13.67× versus fframes GPU).
+An eight-tab FFmpeg check was faster at 98.759 s (24.24× versus fframes GPU).
 The fixed comparison above uses the requested 18 tabs.
+
+The M4 Max run measured every pipeline on the slower chip: fframes CPU 81.141 s,
+Remotion + FFmpeg 118.680 s and Remotion + MediaBunny 131.637 s, so the same-machine
+speedups are higher than the ones above ([raw results](measurements/m4-max-skia-fast-shapes.json)).
 
 [Raw measurements and source hashes](measurements/m5-max-4k-circles.json)
 include the separate `usvgr` optimization used by the host build. To reproduce

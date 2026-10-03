@@ -1,0 +1,320 @@
+{
+  "schema_version": 15,
+  "comparison": "fframes CPU and Skia GPU vs Remotion + FFmpeg and Remotion + MediaBunny: complete H.264 MP4 export",
+  "encoding": {
+    "codec": "h264",
+    "target_bitrate": 8000000,
+    "cpu_encoder": "libx264 medium",
+    "macos_gpu_encoder": "h264_videotoolbox",
+    "remotion_ffmpeg_encoder": "h264_videotoolbox",
+    "remotion_mediabunny_encoder": "WebCodecs H.264, prefer-hardware",
+    "gop": 30,
+    "pixel_format": "yuv420p",
+    "native_codec_threads": 1,
+    "fps": 30,
+    "audio": false
+  },
+  "workload_revision": "100k-4k-circles-300-frames-v1",
+  "workload": "4K (3840×2160), 99,000 overlapping circles and 1,000 changing DM Sans text digits in 20 panels. Every circle moves and changes color; 10,000 radii animate between 16 and 28 SVG units. A 1000×1000 viewBox stretches to the output. No filters. Remotion uses 100,000 keyed components with useCurrentFrame and a memoized parent tree.",
+  "plan": {
+    "nodes": 100000,
+    "width": 3840,
+    "height": 2160,
+    "rounds": 1,
+    "frames": 300,
+    "warmup": 3,
+    "timeout": 600000,
+    "backends": [
+      "cpu",
+      "skia-gpu-if-available"
+    ],
+    "engines": [
+      "fframes",
+      "fframes-gpu",
+      "remotion-ffmpeg",
+      "remotion-mediabunny"
+    ],
+    "ffmpeg_chrome": null,
+    "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": "Apple M4 Max",
+    "logical_cpus": 16,
+    "memory_bytes": 68719476736,
+    "node": "v26.8.2",
+    "remotion": "4.0.529",
+    "mediabunny": "1.56.1",
+    "react": "19.2.0",
+    "git": "c5a36872c632c639d4c4e04768d21548292490cb",
+    "dirty": true,
+    "command": [
+      "/opt/homebrew/Cellar/node/26.8.2/bin/node",
+      "render-bench/vs-remotion/run.mjs",
+      "--binary",
+      "target/release/vs-remotion-bench",
+      "--out",
+      "out/m4-max-skia-fast-shapes"
+    ],
+    "font_sha256": "9ae2da663d64342031e59b5fa680dd355171d021b7ebf83774efc7c0330ae7b5",
+    "binary_sha256": "aed33a10ce679f5d7806f7a3b673a42898f399afcf2ec07682f71db2d76dce7a",
+    "mediabunny_bundle_sha256": "cf3a9f21c38b0b3ca4bcdabce26cfaf78c9e66ed9a20e5414f8fc0dc967f085e",
+    "ffmpeg_bundle_sha256": "922f264faf552ce70abc82ffb3298024a1b786a907b3aece3c8a7b57d33a1907"
+  },
+  "records": [
+    {
+      "nodes": 100000,
+      "engine": "fframes",
+      "round": 0,
+      "status": "ok",
+      "load_before": [
+        6.1015625,
+        8.361328125,
+        7.0478515625
+      ],
+      "load_after": [
+        40.54296875,
+        19.18115234375,
+        11.3134765625
+      ],
+      "code": 0,
+      "signal": null,
+      "audio": false,
+      "backend": "cpu",
+      "cache": {
+        "layer_capacity": 20,
+        "text_capacity": 100000
+      },
+      "concurrency": {
+        "render_threads": 16
+      },
+      "encoder": "libx264",
+      "export_ms": 81140.6855,
+      "ffmpeg": "ebafaee",
+      "fps": 30,
+      "frames": 300,
+      "hardware_encoding": false,
+      "height": 2160,
+      "width": 3840,
+      "video": {
+        "frames": 300,
+        "fps": 30,
+        "duration_s": 10,
+        "width": 3840,
+        "height": 2160,
+        "codec": "h264",
+        "pixel_format": "yuv420p",
+        "color_range": "tv",
+        "bytes": 31442170
+      }
+    },
+    {
+      "nodes": 100000,
+      "engine": "fframes-gpu",
+      "round": 0,
+      "status": "ok",
+      "load_before": [
+        37.5361328125,
+        18.912109375,
+        11.2646484375
+      ],
+      "load_after": [
+        34.6904296875,
+        18.630859375,
+        11.2099609375
+      ],
+      "code": 0,
+      "signal": null,
+      "audio": false,
+      "backend": "skia-metal",
+      "cache": {
+        "geometry_bytes": 51200000,
+        "geometry_capacity": 100000,
+        "text_capacity": 100000
+      },
+      "concurrency": {
+        "encoder_threads": 16,
+        "policy": "MaxPerformance"
+      },
+      "encoder": "h264_videotoolbox",
+      "export_ms": 4074.223,
+      "ffmpeg": "ebafaee",
+      "fps": 30,
+      "frames": 300,
+      "hardware_encoding": true,
+      "height": 2160,
+      "width": 3840,
+      "video": {
+        "frames": 300,
+        "fps": 30,
+        "duration_s": 10,
+        "width": 3840,
+        "height": 2160,
+        "codec": "h264",
+        "pixel_format": "yuv420p",
+        "color_range": "tv",
+        "bytes": 75597541
+      }
+    },
+    {
+      "nodes": 100000,
+      "engine": "remotion-ffmpeg",
+      "round": 0,
+      "status": "ok",
+      "load_before": [
+        32.552734375,
+        18.4541015625,
+        11.19091796875
+      ],
+      "load_after": [
+        103.07666015625,
+        52.126953125,
+        25.705078125
+      ],
+      "code": 0,
+      "signal": null,
+      "export_ms": 118680.108208,
+      "encoder": "h264_videotoolbox",
+      "hardware_encoding": true,
+      "encoding_commands": [
+        [
+          "-r",
+          30,
+          "-f",
+          "image2pipe",
+          "-s",
+          "3840x2160",
+          "-vcodec",
+          "mjpeg",
+          "-i",
+          "-",
+          "-c:v",
+          "h264_videotoolbox",
+          "-pix_fmt",
+          "yuv420p",
+          "-g",
+          "30",
+          "-video_track_timescale",
+          "90000",
+          "-b:v",
+          "8M",
+          "-y",
+          "-threads",
+          "1",
+          "-allow_sw",
+          "0",
+          "/var/folders/2g/7x1n64cj2pxcqrg1rk68nws80000gn/T/react-motion-renderw3jZ9g/pre-encode.mp4"
+        ],
+        [
+          "-i",
+          "/var/folders/2g/7x1n64cj2pxcqrg1rk68nws80000gn/T/react-motion-renderw3jZ9g/pre-encode.mp4",
+          "-an",
+          "-c:v",
+          "copy",
+          "-map_metadata",
+          "-1",
+          "-metadata",
+          "comment=Made with Remotion 4.0.529",
+          "-y",
+          "-f",
+          "mp4",
+          "-threads",
+          "1",
+          "/var/folders/2g/7x1n64cj2pxcqrg1rk68nws80000gn/T/remotion-v4.0.529-assetsst1iv07y0s/remotion-stitch-temp-dir/fast-start-intermediate.remotion-in-progress"
+        ]
+      ],
+      "renderer": "@remotion/renderer renderMedia",
+      "concurrency": 16,
+      "browser": "Google Chrome for Testing 149.0.7790.0",
+      "chromium_options": {
+        "disableWebSecurity": false
+      },
+      "video": {
+        "frames": 300,
+        "fps": 30,
+        "duration_s": 10,
+        "width": 3840,
+        "height": 2160,
+        "codec": "h264",
+        "pixel_format": "yuvj420p",
+        "color_range": "pc",
+        "bytes": 73293202
+      }
+    },
+    {
+      "nodes": 100000,
+      "engine": "remotion-mediabunny",
+      "round": 0,
+      "status": "ok",
+      "load_before": [
+        95.302734375,
+        51.36083984375,
+        25.58935546875
+      ],
+      "load_after": [
+        13.0107421875,
+        33.9052734375,
+        22.3232421875
+      ],
+      "code": 0,
+      "signal": null,
+      "export_ms": 131636.79999995232,
+      "bytes": 66626599,
+      "encoder": "webcodecs-h264",
+      "audio": false,
+      "hardware_acceleration_preference": "prefer-hardware",
+      "codec_configuration": {
+        "alpha": "discard",
+        "bitrate": 8000000,
+        "bitrateMode": "variable",
+        "codec": "avc1.640033",
+        "contentHint": "",
+        "framerate": 30,
+        "hardwareAcceleration": "prefer-hardware",
+        "height": 2160,
+        "latencyMode": "quality",
+        "width": 3840
+      },
+      "renderer": "@remotion/web-renderer renderMediaOnWeb",
+      "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Max, Unspecified Version)",
+      "output": "OPFS MP4; validation copy excluded",
+      "explicit_frame_duration": true,
+      "warmup_ms": 1655.7999999523163,
+      "concurrency": 1,
+      "video": {
+        "frames": 300,
+        "fps": 30,
+        "duration_s": 10,
+        "width": 3840,
+        "height": 2160,
+        "codec": "h264",
+        "pixel_format": "yuv420p",
+        "color_range": "tv",
+        "bytes": 66626599
+      }
+    }
+  ],
+  "summary": {
+    "status": "complete",
+    "pipelines": {
+      "fframes": {
+        "status": "complete",
+        "export_ms": 81140.6855
+      },
+      "fframes-gpu": {
+        "status": "complete",
+        "export_ms": 4074.223
+      },
+      "remotion-ffmpeg": {
+        "status": "complete",
+        "export_ms": 118680.108208
+      },
+      "remotion-mediabunny": {
+        "status": "complete",
+        "export_ms": 131636.79999995232
+      }
+    }
+  }
+}
