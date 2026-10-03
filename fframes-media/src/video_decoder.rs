@@ -12,6 +12,18 @@ use std::ptr;
 use std::sync::Arc;
 use usvgr::PreloadedImageData;
 
+/// The video stream's duration in its own time base. Matroska and `WebM` leave the stream
+/// duration unset (`AV_NOPTS_VALUE`) and only carry the container's, so fall back to that.
+/// Either can be missing or 0; the caller treats a non-positive duration as unknown.
+unsafe fn stream_duration(fmt_ctx: *mut AVFormatContext, stream: *mut AVStream) -> i64 {
+    unsafe {
+        if (*stream).duration > 0 || (*fmt_ctx).duration <= 0 {
+            return (*stream).duration;
+        }
+        av_rescale_q((*fmt_ctx).duration, AV_TIME_BASE_Q, (*stream).time_base)
+    }
+}
+
 const FFRAMES_VIDEO_PATH_TAG: &str = "___fframes_internal_video_frame_pts___";
 // just a little bit faster than the format! macro
 pub fn encode_video_resource(resource: &str, pts: i64) -> String {
@@ -628,7 +640,7 @@ impl FFmpegDecoder {
                 height: (*video_dec_ctx).height,
                 pixel_format: (*video_dec_ctx).pix_fmt,
                 time_base: (*stream).time_base,
-                duration: (*stream).duration,
+                duration: stream_duration(fmt_ctx, stream),
                 frame_rate: (*stream).r_frame_rate,
             })
         }
@@ -673,7 +685,8 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn adjust_offset_for_looping(&mut self, offset: i64) -> Result<i64> {
-        if offset < self.duration_in_frames {
+        // An unknown or empty duration can't be looped over (and would divide by zero below).
+        if self.duration_in_frames <= 0 || offset < self.duration_in_frames {
             return Ok(offset);
         }
 
