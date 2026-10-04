@@ -387,3 +387,31 @@ pub fn text_literal_children_next_to_blocks() {
         ),
     );
 }
+
+/// Ids and references are strings even when they spell a color, a number or a
+/// hex value (`id="gold"`, `href="#abc"`, `id="10"`): the gradients and the `<use>` must
+/// resolve exactly like in the runtime parser.
+#[test]
+pub fn string_attributes_that_look_like_colors() {
+    assert_compile_time_svgr_eq_runtime(
+        "string_attributes_that_look_like_colors",
+        svgr!(
+            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
+                <defs>
+                    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stop-color="#fff7c2" />
+                        <stop offset="1" stop-color="#e09a00" />
+                    </linearGradient>
+                    <linearGradient id="10">
+                        <stop offset="0" stop-color="#00e676" />
+                        <stop offset="1" stop-color="#2979ff" />
+                    </linearGradient>
+                    <rect id="abc" width="80" height="80" />
+                </defs>
+                <rect x="0" y="0" width="100" height="100" fill="url(#gold)" />
+                <rect x="100" y="0" width="100" height="100" fill="url(#10)" />
+                <use href="#abc" x="210" y="10" fill="blue" />
+            </svg>
+        ),
+    );
+}

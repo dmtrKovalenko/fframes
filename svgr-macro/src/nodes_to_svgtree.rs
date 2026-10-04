@@ -164,6 +164,36 @@ fn points_to_segments(value: &str, element: EId) -> Option<Vec<PathSegment>> {
     Some(segments)
 }
 
+/// Attributes holding names, references or keyword lists. Their values stay strings even
+/// when they spell a color, number, length or transform: as a `Color`, `id="gold"` would
+/// lose the element its id and `href="#abc"` would lose the reference, both silently.
+fn is_string_attribute(aid: AId) -> bool {
+    matches!(
+        aid,
+        AId::Id
+            | AId::Href
+            | AId::Class
+            | AId::Style
+            | AId::FontFamily
+            | AId::ClipPath
+            | AId::Mask
+            | AId::Filter
+            | AId::MarkerStart
+            | AId::MarkerMid
+            | AId::MarkerEnd
+            | AId::In
+            | AId::In2
+            | AId::Result
+            | AId::SystemLanguage
+            | AId::RequiredFeatures
+            | AId::RequiredExtensions
+            | AId::TextDecoration
+            | AId::FontVariant
+            | AId::FontKerning
+            | AId::Space
+    )
+}
+
 fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
     // Special handling for path data - parse at compile time
     if aid == AId::D {
@@ -184,6 +214,14 @@ fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
         if let Some(segments) = points_to_segments(value, element) {
             return static_path_tokens(&segments);
         }
+    }
+
+    if is_string_attribute(aid) {
+        return quote! {
+            SvgAttributeValue::StringStorage(
+                StringStorage::Borrowed(#value)
+            )
+        };
     }
 
     if let Ok(float) = f32::from_str(value) {
