@@ -101,9 +101,10 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
     cb_pixels_destination: *mut u8,
     cr_pixels_destination: *mut u8,
 ) {
-    // the asm implementation rely on the fact that the resolution is dividable by v8
-    // which is true for the most common resolution
-    if width % 8 != 0 {
+    if width <= 0 || height <= 0 {
+        return;
+    }
+    if width < 8 {
         return fill_yuv420_from_rgba_pixmap_base(
             width,
             height,
@@ -117,28 +118,29 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
         );
     }
 
+    // Keep full eight-pixel blocks on NEON even when a row has a scalar tail.
+    let vector_width = width & !7;
     unsafe {
         std::arch::asm!(
             // setup conversion coefficients
-            "movi v20.8h, #66",         // r coef for y
-            "movi v21.8h, #129",        // g coef for y
-            "movi v22.8h, #25",         // b coef for y
+            "movi v20.8b, #66",         // r coef for y
+            "movi v21.8b, #129",        // g coef for y
+            "movi v22.8b, #25",         // b coef for y
 
-            "movi v23.8h, #38",         // setup cb coeffs
-            "neg v23.8h, v23.8h",       // -38 r (this is correct as negative)
-            "movi v24.8h, #74",         // 74 g (positive)
-            "movi v25.8h, #112",        // 112 b (positive)
+            "movi v23.8b, #38",         // r coef for cb
+            "movi v24.8b, #74",         // 74 g (positive)
+            "movi v25.8b, #112",        // 112 b (positive)
 
-            "movi v26.8h, #112",        // setup cr coeffs (r is positive)
-            "movi v27.8h, #94",         // 94 g (positive)
-            "movi v28.8h, #18",         // 18 b (positive)
+            "movi v26.8b, #112",        // setup cr coeffs (r is positive)
+            "movi v27.8b, #94",         // 94 g (positive)
+            "movi v28.8b, #18",         // 18 b (positive)
 
             // constants
             // y offset: (16 << 8) + 128, so the high-half narrow below yields
             // 16 + round(sum / 256) (black = 16, white = 235)
             "movi v29.8h, #16, lsl #8",
             "orr v29.8h, #128",
-            "movi v30.8h, #128",        // cb/cr offset
+            "movi v30.8h, #128, lsl #8",        // cb/cr offset before narrowing
 
             "mov w9, wzr",              // y = 0
 
@@ -151,42 +153,33 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                     // load 8 rgba pixels
                     "ld4 {{v0.8b, v1.8b, v2.8b, v3.8b}}, [{src}], #32",
 
-                    // convert rgb to 16-bit
-                    "uxtl v4.8h, v0.8b", // r
-                    "uxtl v6.8h, v1.8b", // g
-                    "uxtl v8.8h, v2.8b", // b
-
-                    // calc y
-                    "mul.8h v10, v4, v20",   // r * 66
-                    "mla.8h v10, v6, v21",   // + g * 129
-                    "mla.8h v10, v8, v22",   // + b * 25
-                    "addhn.8b v12, v10, v29",  // (sum + offset) >> 8 and pack
+                    // Widen while multiplying instead of widening each channel first.
+                    "umull v10.8h, v0.8b, v20.8b",
+                    "umlal v10.8h, v1.8b, v21.8b",
+                    "umlal v10.8h, v2.8b, v22.8b",
+                    "addhn v12.8b, v10.8h, v29.8h",
                     // store y
                     "st1 {{v12.8b}}, [{dst_y}], #8",
 
                     // only process cb/cr on even rows
                     "tbnz w9, #0, 5f",
 
-                    // Extract even-indexed pixels (0, 2, 4, 6)
-                    "uzp1 v13.8h, v4.8h, v4.8h",
-                    "uzp1 v14.8h, v6.8h, v6.8h",
-                    "uzp1 v15.8h, v8.8h, v8.8h",
+                    // Only the four even pixels contribute chroma.
+                    "uzp1 v13.8b, v0.8b, v0.8b",
+                    "uzp1 v14.8b, v1.8b, v1.8b",
+                    "uzp1 v15.8b, v2.8b, v2.8b",
 
-                    // calc cb for even pixels: 128 + ((-38*R - 74*G + 112*B) >> 8)
-                    "mul.8h v16, v13, v23",  // r * -38
-                    "mls.8h v16, v14, v24",  // - g * 74
-                    "mla.8h v16, v15, v25",  // + b * 112
-                    "sshr.8h v16, v16, #8",     // >> 8
-                    "add.8h v16, v16, v30",  // add 128 offset
-                    "sqxtun.8b v17, v16",       // convert to unsigned
+                    // Chroma sums fit signed 16 bits. Adding 128 << 8 before
+                    // narrowing gives the same floor division as the scalar converter.
+                    "umull v16.8h, v15.8b, v25.8b",
+                    "umlsl v16.8h, v13.8b, v23.8b",
+                    "umlsl v16.8h, v14.8b, v24.8b",
+                    "addhn v17.8b, v16.8h, v30.8h",
 
-                    // calc cr for even pixels: 128 + ((112*R - 94*G - 18*B) >> 8)
-                    "mul.8h v18, v13, v26",  // r * 112
-                    "mls.8h v18, v14, v27",  // - g * 94 (subtract using mls)
-                    "mls.8h v18, v15, v28",  // - b * 18 (subtract using mls)
-                    "sshr.8h v18, v18, #8",     // >> 8
-                    "add.8h v18, v18, v30",  // add 128 offset
-                    "sqxtun.8b v19, v18",       // convert to unsigned
+                    "umull v18.8h, v13.8b, v26.8b",
+                    "umlsl v18.8h, v14.8b, v27.8b",
+                    "umlsl v18.8h, v15.8b, v28.8b",
+                    "addhn v19.8b, v18.8h, v30.8h",
 
                     // Store 4 bytes
                     "str s17, [{dst_cb}], #4",
@@ -198,6 +191,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
                     "b.lt 3b",
 
                 // end of row
+                "add {src}, {src}, {src_pad:x}",
                 "add {dst_y}, {dst_y}, {y_pad:x}",
 
                 // only update padding on even rows
@@ -217,16 +211,16 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
             dst_y = inout(reg) y_pixels_destination => _,
             dst_cb = inout(reg) cb_pixels_destination => _,
             dst_cr = inout(reg) cr_pixels_destination => _,
-            width = in(reg) i64::from(width),
+            width = in(reg) i64::from(vector_width),
+            src_pad = in(reg) i64::from((width - vector_width) * 4),
             height = in(reg) i64::from(height),
-            y_pad = in(reg) i64::from(y_linesize - width),
-            cb_pad = in(reg) i64::from(cb_linesize - (width / 2)),
-            cr_pad = in(reg) i64::from(cr_linesize - (width / 2)),
+            y_pad = in(reg) i64::from(y_linesize - vector_width),
+            cb_pad = in(reg) i64::from(cb_linesize - (vector_width / 2)),
+            cr_pad = in(reg) i64::from(cr_linesize - (vector_width / 2)),
 
-            out("x1") _, out("w4") _, out("x5") _, out("w6") _, out("w7") _, out("x8") _,
-            out("w9") _, out("w10") _, out("w11") _, out("w12") _,
-            out("v0") _, out("v1") _, out("v2") _, out("v3") _, out("v4") _,
-            out("v6") _, out("v8") _, out("v10") _, out("v12") _, out("v13") _,
+            out("x1") _, out("w9") _, out("w10") _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v10") _, out("v12") _, out("v13") _,
             out("v14") _, out("v15") _, out("v16") _, out("v17") _, out("v18") _,
             out("v19") _, out("v20") _, out("v21") _, out("v22") _, out("v23") _,
             out("v24") _, out("v25") _, out("v26") _, out("v27") _, out("v28") _,
@@ -234,6 +228,21 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
 
             options(nostack)
         );
+        if vector_width != width {
+            for row in 0..height as usize {
+                for x in vector_width as usize..width as usize {
+                    let (r, g, b) = get_rgb(rgba_pixels, row * width as usize + x);
+                    *y_pixels_destination.add(row * y_linesize as usize + x) =
+                        (16 + ((66 * r + 129 * g + 25 * b + 128) >> 8)) as u8;
+                    if row % 2 == 0 && x % 2 == 0 {
+                        *cb_pixels_destination.add((row / 2) * cb_linesize as usize + x / 2) =
+                            (128 + ((-38 * r - 74 * g + 112 * b) >> 8)) as u8;
+                        *cr_pixels_destination.add((row / 2) * cr_linesize as usize + x / 2) =
+                            (128 + ((112 * r - 94 * g - 18 * b) >> 8)) as u8;
+                    }
+                }
+            }
+        }
     }
 }
 
