@@ -55,7 +55,14 @@ impl Scene for Intro<'_> {
 ```
 
 - Scenes must be zero sized or fields of the video (`&self.intro`). Scene names in the CLI
-  are the struct names (`Intro`, `IntroScene` both match `IntroScene`).
+  are the struct names (`Intro`, `IntroScene` both match `IntroScene`). Override
+  `fn name(&self) -> &'static str` to name scenes yourself, e.g. one `Shot { kind }` struct
+  used for every scene and still addressed as `Smooch@2s` in the CLI.
+- `Overlap` is added on top of `duration()`: with `Overlap::Previous(0.5)` the scene starts
+  0.5 s before the previous one ends and runs `duration() + 0.5` s. To land scene `i` on a cue
+  (a lyric, a beat) after a 0.5 s transition, use `duration = cue[i + 1] - cue[i]` and
+  `Overlap::Previous(0.5)`; the scene then covers `cue[i] - 0.5 .. cue[i + 1]`. Check with
+  `timeline`.
 - `ctx.render_scenes(&frame)` in the video's `render_frame` renders the active scene(s).
 - `frame.index` / `frame.seconds()` are scene relative inside a scene; `frame.global_index`
   is the video frame. `ctx.get_scene_info(&self.intro)` gives a scene's resolved range.
@@ -142,6 +149,25 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
 - Built-in uniforms when declared: `iResolution` (the `<image>` size), `iTime`, `iTimeDelta`,
   `iFrame`. Pass images with `.image("iChannel0", photo)` where `photo` comes from
   `ctx.get_image("photo.jpg")` (an `Option`: return `Svgr::empty()` when it is missing).
+- A synced video frame is an image too, so shaders can process footage on the GPU, e.g. a
+  green-screen key (bind the `SyncVideoFrameInput` to a variable first, the frame borrows it):
+
+```rust
+let input = SyncVideoFrameInput { start_from: 0., looping: false, editor_fallback_image: None };
+let Some(clip) = frame.get_synced_video_frame(ctx, "clip.mp4", &input) else { return Svgr::empty() };
+let layer = self.chroma.draw(&frame, ShaderUniforms::new()
+    .image("uSrc", &clip.into_image())
+    .float2("uSrcSize", clip.width() as f32, clip.height() as f32));
+```
+
+```glsl
+uniform float3 iResolution; uniform shader uSrc; uniform float2 uSrcSize;
+half4 main(float2 coord) {
+    half4 c = uSrc.eval(coord / iResolution.xy * uSrcSize);   // source pixels
+    float a = 1.0 - smoothstep(0.06, 0.2, c.g - max(c.r, c.b)); // green dominance
+    return half4(c.rgb * a, a);                                 // premultiplied
+}
+```
 - SkSL follows GLSL ES 2: constant loop bounds, no `while`, no dynamic array indexing, no
   preprocessor. `Shader::shadertoy` expands simple `#define`s; rewrite macros with arguments
   and `texture()` calls.

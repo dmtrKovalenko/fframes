@@ -196,7 +196,8 @@ impl Video for MyVideo<'_> {
 - Measure text rather than guess: `frame.text_width`, `frame.text_fit(.., TextOverflow::Ellipsis)`,
   `frame.text_break_lines` for paragraphs. `inspect` catches text leaving the canvas, not text
   leaving its own box, so check boxes in a `frame` PNG.
-- GPU shaders (SkSL or Shadertoy GLSL) run on the Skia backend through `fframes::Shader`; see
+- GPU shaders (SkSL or Shadertoy GLSL) run on the Skia backend through `fframes::Shader`; they
+  take images and synced video frames as input (green-screen keying, color grading). See
   `references/api.md`.
 
 ## 5. Making it look good
@@ -208,8 +209,9 @@ The short version of `references/design.md`:
 - Elements enter with a spring or ease-out over 300-600 ms and leave faster, with ease-in over
   200-300 ms. Related items stagger by 60-120 ms. Give the viewer 1-2 s to read after the
   motion settles, and never move everything at once.
-- Cross-fade scenes (`fn overlap(&self) -> Overlap { Overlap::Previous(0.4) }`) or carry an
-  element across the cut. Keep a little motion during holds so they do not look frozen.
+- Cross-fade scenes (`fn overlap(&self) -> Overlap { Overlap::Previous(0.4) }`; the overlap
+  is added to the scene's `duration()`, see `references/api.md`) or carry an element across
+  the cut. Keep a little motion during holds so they do not look frozen.
 - At 1920x1080: titles 96-140 px, body 44-60 px, at most about 8 words per line and 3 lines per
   card. Portrait 1080x1920 is watched on a phone: same pixel sizes or larger, content inside
   the middle 80% because platform UI covers the top and bottom.
