@@ -76,17 +76,23 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     // Cargo rebuilds a crate when a file it pulled in with `include_bytes!` changes. Fonts are
-    // embedded that way; images, audio and subtitles are decoded here instead, so each gets an
-    // unused include that only registers the file as a dependency (nothing lands in the binary).
-    let rebuild_triggers = media_files
+    // embedded that way; images, audio and subtitles are decoded here instead, so they are
+    // registered in a dead function. A `const` would keep the bytes in the crate metadata
+    // (about 4x the file size in the .rlib); a function body only costs reading the file.
+    let dependency_paths = media_files
         .iter()
         .filter(|file| !matches!(file.variant, MediaVariant::Font))
-        .filter_map(|file| {
-            let abs = file.path.canonicalize().ok()?;
-            let abs = abs.to_str()?.to_owned();
-            Some(quote! { const _: &[u8] = include_bytes!(#abs); })
-        })
+        .filter_map(|file| Some(file.path.canonicalize().ok()?.to_str()?.to_owned()))
         .collect::<Vec<_>>();
+    let dependency_count = dependency_paths.len();
+    let rebuild_triggers = quote! {
+        const _: () = {
+            #[allow(dead_code)]
+            fn media_dependencies() -> [usize; #dependency_count] {
+                [#(include_bytes!(#dependency_paths).len()),*]
+            }
+        };
+    };
 
     // These are used mainly for editor and provides direct access to all the static media as
     // 'static borrow which significantly simplifies wasm code
@@ -125,7 +131,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         // the alignment of the plain &'static [u8] to match alignment of f32 which we need for audio
         //
         // More info here https://jack.wrenn.fyi/blog/include-transmute/
-        #(#rebuild_triggers)*
+        #rebuild_triggers
 
         #[repr(C)]
         struct FFramesForceAlignTo<Align, Bytes: ?Sized> {
