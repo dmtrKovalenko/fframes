@@ -7,7 +7,9 @@ use fframes::{
     RenderOptions, Svgr, Video, VideoEncoderInfo,
 };
 use fframes_skia_renderer::metal::SkiaMetalCtx;
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use fframes_skia_renderer::{
+    SkiaFFramesRenderer, SkiaFrameExport, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig,
+};
 
 const FPS: usize = 60;
 // Three 40-frame segments end at fractional seconds and expose truncated MP4 edit lists.
@@ -80,9 +82,18 @@ fn assert_color_close(actual: [u8; 4], expected: [u8; 3], frame: usize) {
 fn videotoolbox_encoders_read_the_frames_skia_rendered() {
     let metal = SkiaMetalCtx::new(TwoColors::WIDTH, TwoColors::HEIGHT).expect("a Metal device");
 
-    for encoder in ["h264_videotoolbox", "hevc_videotoolbox"] {
+    let configurations = [
+        (SkiaFrameExport::Auto, 1),
+        (SkiaFrameExport::Auto, 3),
+        (SkiaFrameExport::GpuConversion, 1),
+        (SkiaFrameExport::CpuConversion, 1),
+    ];
+    for (encoder, (mode, contexts)) in ["h264_videotoolbox", "hevc_videotoolbox"]
+        .into_iter()
+        .flat_map(|encoder| configurations.map(|config| (encoder, config)))
+    {
         let dir = std::env::temp_dir().join(format!(
-            "fframes-skia-export-{}-{encoder}",
+            "fframes-skia-export-{}-{encoder}-{mode:?}-{contexts}",
             std::process::id()
         ));
         std::fs::create_dir_all(&dir).unwrap();
@@ -118,15 +129,21 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
             &metal,
             SkiaPipelineConfig {
                 encoder_threads: 6,
+                concurrency_policy: SkiaPipelineConcurrencyPolicy::Concurrency(contexts),
                 ..Default::default()
             },
         )
-        .unwrap();
+        .unwrap()
+        .frame_export(mode);
         let input = backend.negotiate_encoder_input(&info).unwrap();
-        assert_eq!(
-            input.pixel_format, AV_PIX_FMT_VIDEOTOOLBOX,
-            "{encoder} did not get hardware frames"
-        );
+        if mode == SkiaFrameExport::Auto {
+            assert_eq!(
+                input.pixel_format, AV_PIX_FMT_VIDEOTOOLBOX,
+                "{encoder} did not get hardware frames"
+            );
+        } else {
+            assert!(!input.is_hardware());
+        }
 
         fframes::render(&output, &TwoColors, backend, &options)
             .unwrap_or_else(|err| panic!("{encoder}: {err:?}"));

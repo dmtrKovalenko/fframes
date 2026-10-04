@@ -79,6 +79,7 @@ pub(crate) struct Pipeline<'p, 'a, 'media, TVideo: Video + Sync + Send, TBackend
 struct RenderedFrame {
     claim: FrameClaim,
     rendered: Rendered,
+    tree: usvgr::Tree,
 }
 
 /// Recycled RGBA buffers for frames that are converted on the CPU, a 1080p frame is 8MB and
@@ -432,9 +433,6 @@ fn render_frames<TBackend: SkiaBackend>(
 
         let rendered = renderer.render(&tree, background_color, |size| buffers.take(size))?;
 
-        // Video-frame images view the tree's pixel buffers without
-        // copying, so the tree has to outlive the flush inside `render`.
-        drop(tree);
         logger.log_frame(claim.frame, 0);
 
         #[cfg(feature = "debug")]
@@ -446,7 +444,11 @@ fn render_frames<TBackend: SkiaBackend>(
         }
 
         frame_sender
-            .send(RenderedFrame { claim, rendered })
+            .send(RenderedFrame {
+                claim,
+                rendered,
+                tree,
+            })
             .map_err(|_| FFramesRendererError::Custom("Renderer channel closed".to_string()))?;
     }
 
@@ -460,7 +462,11 @@ fn encode_frames(
     failed: &AtomicBool,
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
-    while let Some(RenderedFrame { claim, rendered }) = {
+    while let Some(RenderedFrame {
+        claim,
+        rendered,
+        tree,
+    }) = {
         #[cfg(feature = "debug")]
         let wait_start = Instant::now();
         let request = receive(frame_receiver);
@@ -476,6 +482,11 @@ fn encode_frames(
 
         #[cfg(feature = "debug")]
         let start = Instant::now();
+
+        // Video-frame pixels must outlive the GPU flush in `render`. Reclaim the
+        // tree here afterwards: large trees contain many allocations, and dropping
+        // them on the GPU worker delays recording its next frame.
+        drop(tree);
 
         match rendered {
             Rendered::Frame(frame) => writer.submit_frame(claim, frame),

@@ -101,6 +101,36 @@ unsafe fn open_file_stream(
     }
 }
 
+/// Subsequent H.264/HEVC MP4 segments can be copied using their sample tables.
+/// The first segment is still probed to obtain the complete output codec parameters.
+unsafe fn can_copy_segment_from_header(
+    input: *const AVFormatContext,
+    output_video: *const AVStream,
+) -> bool {
+    unsafe {
+        if (*input).iformat != av_find_input_format(c"mov".as_ptr()) || (*input).nb_streams != 1 {
+            return false;
+        }
+
+        let stream = &**(*input).streams;
+        let codec = &*stream.codecpar;
+        let output_codec = &*(*output_video).codecpar;
+        codec.codec_type == AVMediaType::AVMEDIA_TYPE_VIDEO
+            && matches!(
+                codec.codec_id,
+                AVCodecID::AV_CODEC_ID_H264 | AVCodecID::AV_CODEC_ID_HEVC
+            )
+            && codec.codec_id == output_codec.codec_id
+            && codec.width == output_codec.width
+            && codec.height == output_codec.height
+            && codec.extradata_size > 0
+            && stream.time_base.num > 0
+            && stream.time_base.den > 0
+            && stream.start_time != AV_NOPTS_VALUE
+            && stream.nb_frames > 0
+    }
+}
+
 unsafe fn create_encoder_copy_from_file(
     file: &Path,
     output: &Path,
@@ -317,10 +347,14 @@ impl Encoder {
                     RenderEncodingError::CantOpenFile(file.to_owned())
                 );
 
-                ffmpeg_action!(
-                    avformat_find_stream_info(input_format_ctx, std::ptr::null_mut()),
-                    RenderEncodingError::CantOpenFile(file.to_owned())
-                );
+                // Probing decodes frames even though these segments are only remuxed.
+                // MP4 already provides packet timing; other inputs retain full probing.
+                if !can_copy_segment_from_header(input_format_ctx, self.video_stream.st) {
+                    ffmpeg_action!(
+                        avformat_find_stream_info(input_format_ctx, std::ptr::null_mut()),
+                        RenderEncodingError::CantOpenFile(file.to_owned())
+                    );
+                }
 
                 let streams = std::slice::from_raw_parts_mut(
                     (*input_format_ctx).streams,
@@ -477,5 +511,135 @@ pub unsafe fn concat_video_files_with_audio(
         }
 
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "h264"))]
+mod tests {
+    use super::*;
+    use crate::renderer::encoder::EncoderOutput;
+    use crate::renderer::fframes_logger::make_logger;
+    use crate::{EncoderOptions, FFramesLoggerVariant};
+
+    const FPS: i32 = 60;
+    const SEGMENT_FRAMES: i64 = 7;
+
+    fn read_packets(path: &Path) -> Vec<(i64, i64, i64, Vec<u8>)> {
+        unsafe {
+            let mut input = std::ptr::null_mut();
+            let stream =
+                open_file_stream(path, &mut input, AVMediaType::AVMEDIA_TYPE_VIDEO).unwrap();
+            let mut packet = AvPacketAutoFree::new();
+            let mut packets = Vec::new();
+            while av_read_frame(input, packet.get()) >= 0 {
+                if (*packet.get()).stream_index == (*stream).index {
+                    av_packet_rescale_ts(
+                        packet.get(),
+                        (*stream).time_base,
+                        AVRational { num: 1, den: FPS },
+                    );
+                    let raw = packet.get_mut();
+                    packets.push((
+                        raw.pts,
+                        raw.dts,
+                        raw.duration,
+                        std::slice::from_raw_parts(raw.data, raw.size as usize).to_vec(),
+                    ));
+                }
+                av_packet_unref(packet.get());
+            }
+            avformat_close_input(&raw mut input);
+            packets
+        }
+    }
+
+    #[test]
+    fn remux_preserves_packets_and_timing_with_b_frames() {
+        let directory =
+            std::env::temp_dir().join(format!("fframes-remux-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&directory).unwrap();
+        let logger = make_logger(FFramesLoggerVariant::Silent);
+        // H.264 uses the header fast path; MPEG-4 retains stream probing.
+        for (codec_name, header_copy) in [("libx264", true), ("mpeg4", false)] {
+            let codec_params: &[(&str, &str)] = if header_copy {
+                &[("preset", "veryfast"), ("threads", "1"), ("bf", "2")]
+            } else {
+                &[("threads", "1"), ("bf", "0")]
+            };
+            let options = RenderOptions {
+                video_encoder_options: EncoderOptions {
+                    preferred_encoder: Some(codec_name),
+                    codec_params: Some(codec_params),
+                    gop_size: SEGMENT_FRAMES as i32,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let mut files = Vec::new();
+            let mut expected_data = Vec::new();
+            for segment in 0..3 {
+                let path = directory.join(format!("{segment}-{codec_name}.mp4"));
+                unsafe {
+                    let encoder = Encoder::new(
+                        EncoderOutput::IntermediateChunk,
+                        64,
+                        48,
+                        FPS,
+                        &path,
+                        &options,
+                        &logger,
+                    )
+                    .unwrap();
+                    let mut frame = EncoderFrame::new(&encoder.video_stream).unwrap();
+                    for index in 0..SEGMENT_FRAMES {
+                        frame.fill_from_rgba_pixmap(&[64 + segment as u8 * 40; 64 * 48 * 4]);
+                        // Nonzero starts and fractional-second segment boundaries.
+                        frame.set_pts(13 + segment * SEGMENT_FRAMES + index);
+                        encoder.send_frame(&encoder.video_stream, &frame).unwrap();
+                    }
+                    encoder.flush_stream(&encoder.video_stream).unwrap();
+                }
+                expected_data.extend(read_packets(&path).into_iter().map(|packet| packet.3));
+                files.push(path);
+            }
+
+            let output = directory.join(format!("out-{codec_name}.mp4"));
+            unsafe {
+                let encoder = create_encoder_copy_from_file(&files[0], &output, &options).unwrap();
+                let filename = CString::new(files[0].to_str().unwrap()).unwrap();
+                let mut input = std::ptr::null_mut();
+                assert_eq!(
+                    avformat_open_input(
+                        &raw mut input,
+                        filename.as_ptr(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                    ),
+                    0
+                );
+                assert_eq!(
+                    can_copy_segment_from_header(input, encoder.video_stream.st),
+                    header_copy
+                );
+                avformat_close_input(&raw mut input);
+                encoder.fill_streams_from_files(&files).unwrap();
+            }
+
+            let packets = read_packets(&output);
+            assert_eq!(packets.len(), (3 * SEGMENT_FRAMES) as usize);
+            assert!(packets.windows(2).all(|pair| pair[0].1 < pair[1].1));
+            assert!(packets.iter().all(|packet| packet.2 == 1));
+            let mut pts: Vec<_> = packets.iter().map(|packet| packet.0).collect();
+            pts.sort_unstable();
+            assert_eq!(pts, (0..3 * SEGMENT_FRAMES).collect::<Vec<_>>());
+            assert_eq!(
+                packets
+                    .into_iter()
+                    .map(|packet| packet.3)
+                    .collect::<Vec<_>>(),
+                expected_data
+            );
+        }
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }
