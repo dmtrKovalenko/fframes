@@ -114,3 +114,7 @@ fframes = { path = "fframes", version = "1.2.0" }
 webvtt-parser = { path = "webvtt-parser", version = "1.2.0" }
 fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.2.0" }
 fframes_native_player = { path = "fframes-native-player", version = "1.2.0" }
+
+# `data-fframes-*` attributes (dmtrKovalenko/svgr#17). Replace with the usvgr release that ships it.
+[patch.crates-io]
+usvgr = { git = "https://github.com/dmtrKovalenko/svgr", branch = "feat/data-fframes-passthrough" }

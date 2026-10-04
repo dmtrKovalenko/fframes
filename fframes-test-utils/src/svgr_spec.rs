@@ -387,3 +387,21 @@ pub fn text_literal_children_next_to_blocks() {
         ),
     );
 }
+
+/// `data-fframes-*` attributes are kept on the converted nodes, static or dynamic, the same
+/// way as when the runtime parser reads them from markup.
+#[test]
+pub fn data_fframes_attributes() {
+    let hint = "allow-offcanvas";
+    assert_compile_time_svgr_eq_runtime(
+        "data_fframes_attributes",
+        svgr!(
+            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
+                <g data-fframes-inspect="allow-offcanvas" data-fframes-note="static">
+                    <rect x="0" y="0" width="100" height="100" fill="red" data-fframes-inspect={hint} />
+                </g>
+                <rect x="100" y="0" width="100" height="100" fill="blue" />
+            </svg>
+        ),
+    );
+}

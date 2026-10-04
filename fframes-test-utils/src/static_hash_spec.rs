@@ -148,6 +148,23 @@ fn identical_nodes_referencing_different_definitions_hash_differently() {
     assert_ne!(first["r"], second["r"]);
 }
 
+#[test]
+fn data_fframes_attributes_are_part_of_the_static_identity() {
+    let hint = "allow-offcanvas";
+    let hashes = hashes_by_id(fframes::svgr!(
+        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+            <g id="plain"><rect x="10" y="10" width="50" height="50" fill="red" /></g>
+            <g id="hinted" data-fframes-inspect="allow-offcanvas"><rect x="10" y="10" width="50" height="50" fill="red" /></g>
+            <g id="dynamic_hint" data-fframes-inspect={hint}><rect x="10" y="10" width="50" height="50" fill="red" /></g>
+        </svg>
+    ));
+
+    assert!(hashes["plain"].is_some());
+    assert!(hashes["hinted"].is_some());
+    assert_ne!(hashes["plain"], hashes["hinted"]);
+    assert!(hashes["dynamic_hint"].is_none());
+}
+
 fn collect(group: &usvgr::Group, out: &mut HashMap<String, Option<u64>>) {
     for node in group.children() {
         match node {

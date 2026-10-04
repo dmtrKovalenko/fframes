@@ -16,6 +16,23 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::sync::Mutex;
 
+/// `data-fframes-inspect` value for text that leaves the canvas on purpose (falling or
+/// scrolling items, entrances from off screen), set on the `<text>` or on any `<g>` around
+/// it: the tree walk reports no clipped or off-canvas text there. Every other check still
+/// runs. The attribute takes a space-separated list of such values.
+pub const ALLOW_OFF_CANVAS: &str = "allow-offcanvas";
+
+/// Appended to clipped and off-canvas text findings.
+const ALLOW_OFF_CANVAS_HINT: &str = "if it leaves the canvas on purpose, add data-fframes-inspect=\"allow-offcanvas\" to it or to a <g> around it";
+
+fn allows_off_canvas(data: &usvgr::FframesData) -> bool {
+    data.get("inspect").is_some_and(|values| {
+        values
+            .split_whitespace()
+            .any(|value| value == ALLOW_OFF_CANVAS)
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Severity {
@@ -97,11 +114,11 @@ impl std::fmt::Display for Diagnostic {
             | Diagnostic::RendererWarning { message } => write!(f, "{message}"),
             Diagnostic::TextClipped { text, .. } => write!(
                 f,
-                "text \"{text}\" is cut off by the canvas edge (x={x:.0} y={y:.0} w={w:.0} h={h:.0})"
+                "text \"{text}\" is cut off by the canvas edge (x={x:.0} y={y:.0} w={w:.0} h={h:.0}); {ALLOW_OFF_CANVAS_HINT}"
             ),
             Diagnostic::TextOffCanvas { text, .. } => write!(
                 f,
-                "text \"{text}\" is outside the canvas (x={x:.0} y={y:.0} w={w:.0} h={h:.0})"
+                "text \"{text}\" is outside the canvas (x={x:.0} y={y:.0} w={w:.0} h={h:.0}); {ALLOW_OFF_CANVAS_HINT}"
             ),
             Diagnostic::InvalidTransform { id } => {
                 write!(f, "node \"{id}\" has a NaN or infinite transform")
@@ -220,11 +237,17 @@ pub fn inspect_tree(tree: &usvgr::Tree, width: f32, height: f32) -> Vec<Diagnost
         diagnostics.push(Diagnostic::EmptyFrame);
     }
 
-    inspect_group(root, width, height, &mut diagnostics);
+    inspect_group(root, width, height, false, &mut diagnostics);
     diagnostics
 }
 
-fn inspect_group(group: &usvgr::Group, width: f32, height: f32, out: &mut Vec<Diagnostic>) {
+fn inspect_group(
+    group: &usvgr::Group,
+    width: f32,
+    height: f32,
+    allow_off_canvas: bool,
+    out: &mut Vec<Diagnostic>,
+) {
     if !group.abs_transform().is_finite() {
         out.push(Diagnostic::InvalidTransform {
             id: group.id().to_owned(),
@@ -243,7 +266,9 @@ fn inspect_group(group: &usvgr::Group, width: f32, height: f32, out: &mut Vec<Di
                 {
                     check_transforms(group, out);
                 } else {
-                    inspect_group(group, width, height, out);
+                    let allow_off_canvas =
+                        allow_off_canvas || allows_off_canvas(group.fframes_data());
+                    inspect_group(group, width, height, allow_off_canvas, out);
                 }
             }
             usvgr::Node::Text(text) => {
@@ -251,6 +276,9 @@ fn inspect_group(group: &usvgr::Group, width: f32, height: f32, out: &mut Vec<Di
                     out.push(Diagnostic::InvalidTransform {
                         id: text.id().to_owned(),
                     });
+                    continue;
+                }
+                if allow_off_canvas || allows_off_canvas(text.fframes_data()) {
                     continue;
                 }
 
@@ -368,6 +396,10 @@ mod tests {
             <text x="10" y="50" font-size="10">ok</text>
             <clipPath id="c"><rect width="200" height="100"/></clipPath>
             <g clip-path="url(#c)"><text x="150" y="50" font-size="40">scrolling</text></g>
+            <g data-fframes-inspect="allow-offcanvas"><g transform="translate(0 10)">
+                <text x="150" y="50" font-size="40">falling</text>
+            </g></g>
+            <text x="150" y="50" font-size="40" data-fframes-inspect="allow-offcanvas">entering</text>
         </svg>"#;
         let tree = usvgr::Tree::from_str(svg, &options, &fontdb).unwrap();
         let diagnostics = inspect_tree(&tree, 200., 100.);
@@ -385,7 +417,7 @@ mod tests {
         assert!(
             !diagnostics
                 .iter()
-                .any(|d| matches!(d, Diagnostic::TextClipped { text, .. } | Diagnostic::TextOffCanvas { text, .. } if text == "ok" || text == "scrolling"))
+                .any(|d| matches!(d, Diagnostic::TextClipped { text, .. } | Diagnostic::TextOffCanvas { text, .. } if text == "ok" || text == "scrolling" || text == "falling" || text == "entering"))
         );
     }
 }

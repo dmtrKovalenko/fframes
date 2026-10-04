@@ -3572,7 +3572,7 @@ dependencies = [
  "pico-args",
  "png",
  "rgb",
- "svgrtypes",
+ "svgrtypes 0.46.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-skia",
  "usvgr",
 ]
@@ -3596,6 +3596,17 @@ name = "svgrtypes"
 version = "0.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5bbca5efc5d159da4ce7ef452d7a65dfd58ed6c71b5454304fd2d9ae9786c6c4"
+dependencies = [
+ "kurbo 0.8.3",
+ "proc-macro2",
+ "quote",
+ "siphasher 0.3.11",
+]
+
+[[package]]
+name = "svgrtypes"
+version = "0.46.1"
+source = "git+https://github.com/dmtrKovalenko/svgr?branch=feat%2Fdata-fframes-passthrough#fc132a789279a20a31a14eee6e0698a1d8346565"
 dependencies = [
  "kurbo 0.8.3",
  "proc-macro2",
@@ -4015,8 +4026,7 @@ checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 [[package]]
 name = "usvgr"
 version = "0.46.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd6aeccea458c5a0ca94be0f1a5eabf44d4b754316101569f3cae399c53debb5"
+source = "git+https://github.com/dmtrKovalenko/svgr?branch=feat%2Fdata-fframes-passthrough#fc132a789279a20a31a14eee6e0698a1d8346565"
 dependencies = [
  "ahash",
  "base64 0.21.7",
@@ -4035,7 +4045,7 @@ dependencies = [
  "siphasher 1.0.1",
  "smallvec",
  "strict-num",
- "svgrtypes",
+ "svgrtypes 0.46.1 (git+https://github.com/dmtrKovalenko/svgr?branch=feat%2Fdata-fframes-passthrough)",
  "tiny-skia-path",
  "unicode-bidi",
  "unicode-script",

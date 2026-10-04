@@ -74,6 +74,7 @@ impl From<String> for Svgr<'_> {
                     attrs: Box::new([]),
                     children: vec![],
                     static_hash: None,
+                    data: Box::new([]),
                 });
                 1
             ]),
@@ -134,6 +135,7 @@ impl<'a> From<&'a str> for Svgr<'a> {
                     attrs: Box::new([]),
                     children: vec![],
                     static_hash: None,
+                    data: Box::new([]),
                 });
                 1
             ]),

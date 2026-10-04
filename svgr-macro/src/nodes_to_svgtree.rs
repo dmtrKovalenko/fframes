@@ -109,6 +109,30 @@ fn maybe_value<T: ToTokens>(
     }
 }
 
+/// A `data-fframes-*` attribute: not an SVG attribute, usvgr keeps it on the converted node
+/// for fframes to read (`node.fframes_data().get(key)`).
+#[derive(Debug)]
+struct MaybeDataAttribute {
+    /// The name without the `data-fframes-` prefix.
+    key: String,
+    value: MaybeParsedValue<String>,
+}
+
+impl ToTokens for MaybeDataAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let key = &self.key;
+        match &self.value {
+            MaybeParsedValue::Value(value) => quote! {
+                (#key, SvgAttributeValue::StringStorage(StringStorage::Borrowed(#value)))
+            },
+            MaybeParsedValue::Expression(block) => quote! {
+                (#key, SvgAttributeValue::from(#block))
+            },
+        }
+        .to_tokens(tokens);
+    }
+}
+
 #[derive(Debug)]
 struct MaybeAttribute {
     name: AId,
@@ -268,6 +292,7 @@ impl<T: ToTokens> ToTokens for TokenizeableVec<T> {
 struct MaybeNodeData {
     pub kind: NestedNodeKind<'static>,
     pub attrs: Vec<MaybeAttribute>,
+    pub data: Vec<MaybeDataAttribute>,
     pub children: Vec<MaybeParsedValue<MaybeNodeData>>,
     /// Content-identity hash for nodes whose rendering is fully known at
     /// compile time.  Assigned by [`assign_static_hashes`] once the whole
@@ -284,6 +309,7 @@ impl MaybeNodeData {
         Self {
             kind,
             attrs,
+            data: Vec::new(),
             children,
             static_hash: None,
         }
@@ -329,6 +355,15 @@ impl MaybeNodeData {
             attr.hash_static_content(hasher);
         }
 
+        // Hints change what fframes does with a subtree, so they are part of its identity.
+        self.data.len().hash(hasher);
+        for data in &self.data {
+            data.key.hash(hasher);
+            if let MaybeParsedValue::Value(value) = &data.value {
+                value.hash(hasher);
+            }
+        }
+
         self.children.len().hash(hasher);
         for child in &self.children {
             if let MaybeParsedValue::Value(node) = child {
@@ -343,6 +378,7 @@ impl ToTokens for MaybeNodeData {
         let Self {
             kind,
             attrs,
+            data,
             children,
             static_hash,
         } = self;
@@ -360,6 +396,7 @@ impl ToTokens for MaybeNodeData {
                 attrs: vec![#(#attrs),*].into_boxed_slice(),
                 children: #children_tokens,
                 static_hash: #static_hash_token,
+                data: vec![#(#data),*].into_boxed_slice(),
             })
         }
         .to_tokens(tokens);
@@ -535,6 +572,14 @@ fn collect_static_candidates(
                 }
             }
         }
+    }
+
+    if node
+        .data
+        .iter()
+        .any(|data| matches!(data.value, MaybeParsedValue::Expression(_)))
+    {
+        is_static = false;
     }
 
     for child in &node.children {
@@ -818,11 +863,13 @@ fn map_text_node_children(
             continue;
         }
 
-        parsed_nodes.push(MaybeParsedValue::Value(MaybeNodeData::new(
+        let mut element = MaybeNodeData::new(
             NestedNodeKind::Element { tag_name },
             parse_element_attributes(node, tag_name)?,
             map_text_node_children(node.children.as_slice(), tag_name, fframes_crate_ident)?,
-        )));
+        );
+        element.data = parse_data_attributes(node)?;
+        parsed_nodes.push(MaybeParsedValue::Value(element));
     }
 
     Ok(parsed_nodes)
@@ -839,10 +886,41 @@ fn parse_svgr_subtree(
     })
 }
 
+const DATA_FFRAMES_PREFIX: &str = "data-fframes-";
+
+fn is_data_attribute(attribute: &Node) -> bool {
+    attribute
+        .name_as_string()
+        .is_some_and(|name| name.starts_with(DATA_FFRAMES_PREFIX))
+}
+
+/// `data-fframes-*` attributes, static or `{dynamic}`.
+fn parse_data_attributes(node: &Node) -> syn::Result<Vec<MaybeDataAttribute>> {
+    node.attributes
+        .iter()
+        .filter(|attribute| is_data_attribute(attribute))
+        .map(|attribute| {
+            let name = attribute.name_as_string().unwrap_or_default();
+            let key = name[DATA_FFRAMES_PREFIX.len()..].to_owned();
+            if key.is_empty() {
+                return Err(syn::Error::new(
+                    attribute.name_span().unwrap_or_else(Span::call_site),
+                    "`data-fframes-` needs a name after the prefix, e.g. `data-fframes-inspect`.",
+                ));
+            }
+            let value = maybe_value(attribute, quote::ToTokens::into_token_stream, |value| {
+                Ok(String::from(value))
+            })?;
+            Ok(MaybeDataAttribute { key, value })
+        })
+        .collect()
+}
+
 fn parse_element_attributes(node: &Node, eid: EId) -> Result<Vec<MaybeAttribute>, syn::Error> {
     let attributes = node
         .attributes
         .iter()
+        .filter(|attribute| !is_data_attribute(attribute))
         .filter_map(|attribute| -> Option<syn::Result<_>> {
             Some(
                 maybe_parse_svg_attribute(attribute, eid)
@@ -957,11 +1035,10 @@ fn map_inline_or_runtime_nodes(
             _ => map_inline_or_runtime_nodes(&node.children, fframes_crate_ident),
         }?;
 
-        parsed_nodes.push(MaybeParsedValue::Value(MaybeNodeData::new(
-            svgtree::NestedNodeKind::Element { tag_name },
-            attrs,
-            children,
-        )));
+        let mut element =
+            MaybeNodeData::new(svgtree::NestedNodeKind::Element { tag_name }, attrs, children);
+        element.data = parse_data_attributes(node)?;
+        parsed_nodes.push(MaybeParsedValue::Value(element));
     }
 
     Ok(parsed_nodes)

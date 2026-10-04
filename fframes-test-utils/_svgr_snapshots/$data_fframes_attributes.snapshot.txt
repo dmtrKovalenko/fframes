@@ -1,0 +1,8 @@
+(Runtime)
+<svg width="300" height="100" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
+    <defs/>
+    <g data-fframes-inspect="allow-offcanvas" data-fframes-note="static">
+        <path data-fframes-inspect="allow-offcanvas" fill="#ff0000" stroke="none" d="M 0 0 L 100 0 L 100 100 L 0 100 Z"/>
+    </g>
+    <path fill="#0000ff" stroke="none" d="M 100 0 L 200 0 L 200 100 L 100 100 Z"/>
+</svg>
