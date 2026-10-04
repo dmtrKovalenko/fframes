@@ -164,33 +164,18 @@ fn points_to_segments(value: &str, element: EId) -> Option<Vec<PathSegment>> {
     Some(segments)
 }
 
-/// Attributes holding names, references or keyword lists. Their values stay strings even
-/// when they spell a color, number, length or transform: as a `Color`, `id="gold"` would
-/// lose the element its id and `href="#abc"` would lose the reference, both silently.
-fn is_string_attribute(aid: AId) -> bool {
+/// Attributes usvgr reads a color from. Only these get a static `Color`: any other attribute
+/// keeps its text, so `id="gold"` or `href="#abc"` stay strings instead of silently losing
+/// the element its id or reference.
+fn accepts_color(aid: AId) -> bool {
     matches!(
         aid,
-        AId::Id
-            | AId::Href
-            | AId::Class
-            | AId::Style
-            | AId::FontFamily
-            | AId::ClipPath
-            | AId::Mask
-            | AId::Filter
-            | AId::MarkerStart
-            | AId::MarkerMid
-            | AId::MarkerEnd
-            | AId::In
-            | AId::In2
-            | AId::Result
-            | AId::SystemLanguage
-            | AId::RequiredFeatures
-            | AId::RequiredExtensions
-            | AId::TextDecoration
-            | AId::FontVariant
-            | AId::FontKerning
-            | AId::Space
+        AId::Fill
+            | AId::Stroke
+            | AId::StopColor
+            | AId::FloodColor
+            | AId::LightingColor
+            | AId::Color
     )
 }
 
@@ -216,14 +201,6 @@ fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
         }
     }
 
-    if is_string_attribute(aid) {
-        return quote! {
-            SvgAttributeValue::StringStorage(
-                StringStorage::Borrowed(#value)
-            )
-        };
-    }
-
     if let Ok(float) = f32::from_str(value) {
         // This is required to suppress rust analyzer errors which is not expecting the -
         // token before the float lieterals coming from the proc macro generated code.
@@ -237,7 +214,10 @@ fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
                 SvgAttributeValue::Float(#float, StringStorage::Borrowed(#value))
             }
         }
-    } else if let Ok(color) = svgtree::svgrtypes::Color::from_str(value) {
+    } else if let Some(color) = accepts_color(aid)
+        .then(|| svgtree::svgrtypes::Color::from_str(value).ok())
+        .flatten()
+    {
         quote! {
             SvgAttributeValue::Color(#color)
         }
