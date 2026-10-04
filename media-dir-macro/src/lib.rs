@@ -75,6 +75,19 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
+    // Cargo rebuilds a crate when a file it pulled in with `include_bytes!` changes. Fonts are
+    // embedded that way; images, audio and subtitles are decoded here instead, so each gets an
+    // unused include that only registers the file as a dependency (nothing lands in the binary).
+    let rebuild_triggers = media_files
+        .iter()
+        .filter(|file| !matches!(file.variant, MediaVariant::Font))
+        .filter_map(|file| {
+            let abs = file.path.canonicalize().ok()?;
+            let abs = abs.to_str()?.to_owned();
+            Some(quote! { const _: &[u8] = include_bytes!(#abs); })
+        })
+        .collect::<Vec<_>>();
+
     // These are used mainly for editor and provides direct access to all the static media as
     // 'static borrow which significantly simplifies wasm code
     let mut audio_identifiers = Vec::new();
@@ -112,6 +125,8 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         // the alignment of the plain &'static [u8] to match alignment of f32 which we need for audio
         //
         // More info here https://jack.wrenn.fyi/blog/include-transmute/
+        #(#rebuild_triggers)*
+
         #[repr(C)]
         struct FFramesForceAlignTo<Align, Bytes: ?Sized> {
             pub _align: [Align; 0],
