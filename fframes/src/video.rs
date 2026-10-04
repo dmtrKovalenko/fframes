@@ -86,6 +86,17 @@ pub struct ResolvedScenesTimeline<'a> {
 }
 
 impl<'a> ResolvedScenesTimeline<'a> {
+    /// The frame after the last frame of every scene, in timeline order. With overlapping
+    /// scenes this is where the previous scene has left the screen. Renderers start
+    /// their encoded segments there when they can, so a scene's video clip is decoded
+    /// from its first frames instead of from a seek into it.
+    pub fn scene_ends(&self) -> Vec<usize> {
+        self.timeline
+            .iter()
+            .map(|(range, _, _)| range.end)
+            .collect()
+    }
+
     pub(crate) fn iter(
         &'a self,
     ) -> impl Iterator<Item = &'a (std::ops::Range<usize>, SceneInfo, &'a (dyn Scene + 'a))> {

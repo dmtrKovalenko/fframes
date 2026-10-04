@@ -1,6 +1,6 @@
 use super::{
-    EncoderFrameRenderer, EncoderInput, FrameRenderer, FrameScheduler, RgbaFrameConverter,
-    SegmentWriter, VideoFrame, get_thread_count, render_backend::FFramesRenderBackend,
+    EncoderFrameRenderer, EncoderInput, FrameRenderer, RgbaFrameConverter, SegmentWriter,
+    VideoFrame, get_thread_count, render_backend::FFramesRenderBackend,
     renderer_error::RenderEncodingError,
 };
 use crate::{
@@ -161,13 +161,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         let frame_offset = frame_range.start;
 
         let video_size = &ctx.current_video_size;
-        let scheduler = FrameScheduler::new(
-            frame_range.len(),
-            self.concurrency,
-            render_options
-                .video_encoder_options
-                .min_segment_frames(ctx.time_base.fps),
-        );
+        let scheduler = super::frame_scheduler(ctx, render_options, &frame_range, self.concurrency);
         let writer = SegmentWriter::new(
             directory,
             extension.to_string_lossy().as_ref(),

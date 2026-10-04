@@ -918,6 +918,17 @@ impl FFmpegDecoder {
                 let packet = if read_result == AVERROR_EOF {
                     ptr::null()
                 } else {
+                    // Frames before the target are decoded only to get to it (a seek
+                    // lands on the previous keyframe, and far jumps roll forward). The
+                    // ones nothing references can be skipped: they are neither shown nor
+                    // needed to decode what follows.
+                    let pts = (*self.pkt).pts;
+                    (*self.video_stream_info.codec_ctx).skip_frame =
+                        if pts != AV_NOPTS_VALUE && pts < target_pts {
+                            AVDiscard::AVDISCARD_NONREF
+                        } else {
+                            AVDiscard::AVDISCARD_DEFAULT
+                        };
                     self.pkt.cast_const()
                 };
                 let ret = avcodec_send_packet(self.video_stream_info.codec_ctx, packet);

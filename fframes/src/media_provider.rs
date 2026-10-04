@@ -195,6 +195,13 @@ impl<'a, const N: usize> From<[&'a (dyn MediaProvider<'a> + 'a); N]>
 }
 
 impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
+    fn get_all_video_data(&self) -> Vec<(&media::VideoMedia, &str)> {
+        self.0
+            .iter()
+            .flat_map(|provider| provider.get_all_video_data())
+            .collect()
+    }
+
     fn resolve_audio(&self, name: &str) -> Option<&'a AudioData<'_>> {
         self.0
             .iter()

@@ -154,13 +154,7 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
     // video frames when only a range is rendered.
     let frame_range = render_options.output_frame_range(ctx.duration_in_frames);
     let frame_offset = frame_range.start;
-    let scheduler = FrameScheduler::new(
-        frame_range.len(),
-        generators,
-        render_options
-            .video_encoder_options
-            .min_segment_frames(ctx.time_base.fps),
-    );
+    let scheduler = fframes::frame_scheduler(ctx, render_options, &frame_range, generators);
     let writer = SegmentWriter::new(
         directory,
         &extension,
