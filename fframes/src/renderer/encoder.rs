@@ -238,7 +238,7 @@ impl Drop for Encoder {
                 }
 
                 match self.audio_stream {
-                    Some(ref audio_stream) if audio_stream.enc.is_null() => {
+                    Some(ref audio_stream) if !audio_stream.enc.is_null() => {
                         avcodec_flush_buffers(audio_stream.enc);
                     }
                     _ => {}
@@ -358,6 +358,57 @@ impl Encoder {
             Ok(Encoder {
                 video_stream,
                 audio_stream,
+                oc,
+            })
+        }
+    }
+
+    /// An encoder that writes only an audio stream into `filename`, in the container the
+    /// extension selects. The video of a render is encoded elsewhere at the same time; the
+    /// concatenator muxes both into the final file.
+    pub unsafe fn new_audio_only(
+        filename: &Path,
+        render_options: &RenderOptions,
+        logger: &Arc<dyn FFramesLogger>,
+    ) -> RenderEncodingResult<Self> {
+        unsafe {
+            av_log_set_level(logger.get_libav_log_level());
+
+            let c_filename = CString::new(filename.to_string_lossy().as_ref())
+                .map_err(RenderEncodingError::CStringError)?;
+            let mut oc: *mut AVFormatContext = std::ptr::null_mut();
+            ffmpeg_action!(
+                avformat_alloc_output_context2(
+                    &raw mut oc,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    c_filename.as_ptr(),
+                ),
+                RenderEncodingError::UnknownExtension(filename.to_owned())
+            );
+
+            let audio_stream = match Stream::make_audio(oc, &render_options.audio_encoder_options) {
+                Ok(stream) => stream,
+                Err(err) => {
+                    avformat_free_context(oc);
+                    return Err(err);
+                }
+            };
+
+            ffmpeg_action!(
+                avio_open(&raw mut (*oc).pb, c_filename.as_ptr(), 2),
+                RenderEncodingError::CantOpenFile(filename.to_owned())
+            );
+            // the intermediate file is read once by the concatenator, no faststart pass
+            write_header(oc, false)?;
+
+            Ok(Encoder {
+                video_stream: stream::Stream {
+                    st: std::ptr::null_mut(),
+                    enc: std::ptr::null_mut(),
+                    variant: stream::StreamVariant::Video,
+                },
+                audio_stream: Some(audio_stream),
                 oc,
             })
         }

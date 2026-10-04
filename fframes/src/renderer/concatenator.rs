@@ -101,10 +101,18 @@ unsafe fn open_file_stream(
     }
 }
 
+/// The audio stream of the final file: encoded while muxing, or copied from a file that
+/// was encoded earlier.
+enum AudioSource<'a> {
+    Encode,
+    CopyFrom(&'a Path),
+}
+
 unsafe fn create_encoder_copy_from_file(
     file: &Path,
     output: &Path,
     render_options: &RenderOptions,
+    audio: AudioSource<'_>,
 ) -> Result<Encoder, RenderEncodingError> {
     unsafe {
         let mut input_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
@@ -123,15 +131,38 @@ unsafe fn create_encoder_copy_from_file(
         );
 
         let output_video_stream = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
-        let mut audio_stream =
-            match Stream::make_audio(output_format_ctx, &render_options.audio_encoder_options) {
-                Ok(audio_stream) => audio_stream,
-                Err(err) => {
-                    avformat_close_input(&raw mut input_format_ctx);
-                    avformat_free_context(output_format_ctx);
-                    return Err(err);
-                }
-            };
+        let audio_stream = match audio {
+            AudioSource::Encode => {
+                Stream::make_audio(output_format_ctx, &render_options.audio_encoder_options)
+            }
+            AudioSource::CopyFrom(audio_file) => {
+                let mut audio_format_ctx: *mut AVFormatContext = std::ptr::null_mut();
+                open_file_stream(
+                    audio_file,
+                    &mut audio_format_ctx,
+                    AVMediaType::AVMEDIA_TYPE_AUDIO,
+                )
+                .map(|input_audio_stream| {
+                    let st = avformat_new_stream(output_format_ctx, std::ptr::null_mut());
+                    avcodec_parameters_copy((*st).codecpar, (*input_audio_stream).codecpar);
+                    (*st).time_base = (*input_audio_stream).time_base;
+                    avformat_close_input(&raw mut audio_format_ctx);
+                    Stream {
+                        st,
+                        enc: std::ptr::null_mut(),
+                        variant: StreamVariant::Audio(std::ptr::null_mut()),
+                    }
+                })
+            }
+        };
+        let mut audio_stream = match audio_stream {
+            Ok(audio_stream) => audio_stream,
+            Err(err) => {
+                avformat_close_input(&raw mut input_format_ctx);
+                avformat_free_context(output_format_ctx);
+                return Err(err);
+            }
+        };
 
         avcodec_parameters_copy(
             (*output_video_stream).codecpar,
@@ -204,6 +235,30 @@ impl Encoder {
         logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
     ) -> Result<(), RenderEncodingError> {
         unsafe {
+            self.fill_audio_stream_with_progress(
+                audio_map,
+                ctx,
+                frame_range,
+                mix_options,
+                logger,
+                true,
+            )
+        }
+    }
+
+    /// Like [`Self::fill_audio_stream`]; `report_progress` false keeps the logger's audio
+    /// progress quiet (warnings are still reported), for audio encoded while the frames
+    /// render and their progress is on screen.
+    pub unsafe fn fill_audio_stream_with_progress(
+        &self,
+        audio_map: Option<&ResolvedAudioMap<AudioTimelineSamples>>,
+        ctx: &FFramesContext,
+        frame_range: std::ops::Range<usize>,
+        mix_options: crate::AudioMixOptions,
+        logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
+        report_progress: bool,
+    ) -> Result<(), RenderEncodingError> {
+        unsafe {
             if let (Some(audio_map), Some(audio_stream)) = (audio_map, self.audio_stream.as_ref()) {
                 // The encoder may run at another rate than requested (Opus is 48 kHz only);
                 // mix at the rate it actually encodes.
@@ -250,7 +305,9 @@ impl Encoder {
                 };
 
                 // Progress reporting must never abort the encoding itself.
-                let _ = logger.init_audio_encoding(stream_samples.div_ceil(frame_size));
+                if report_progress {
+                    let _ = logger.init_audio_encoding(stream_samples.div_ceil(frame_size));
+                }
 
                 let mut left = vec![0.; frame_size];
                 let mut right = vec![0.; frame_size];
@@ -279,16 +336,63 @@ impl Encoder {
                     )?;
                     self.send_frame(audio_stream, &audio_frame)?;
 
-                    logger.log_audio_frame();
+                    if report_progress {
+                        logger.log_audio_frame();
+                    }
                     audio_frame_pts += samples;
                 }
                 self.flush_stream(audio_stream)?;
 
                 // The encoder holds back its last frames (AAC has a 1024 sample delay).
                 self.flush_stream(audio_stream)?;
-                logger.finish_audio_encoding();
+                if report_progress {
+                    logger.finish_audio_encoding();
+                }
             }
 
+            Ok(())
+        }
+    }
+
+    /// Writes the packets of the only audio stream of `file` into this encoder's audio
+    /// stream unchanged.
+    unsafe fn copy_audio_from_file(&self, file: &Path) -> Result<(), RenderEncodingError> {
+        unsafe {
+            let Some(audio_stream) = self.audio_stream.as_ref() else {
+                return Ok(());
+            };
+            let mut input_format_ctx = std::ptr::null_mut();
+            let input_audio_stream =
+                open_file_stream(file, &mut input_format_ctx, AVMediaType::AVMEDIA_TYPE_AUDIO)?;
+            let input_index = (*input_audio_stream).index;
+
+            let mut packet = AvPacketAutoFree::new();
+            let mut last_mux_dts: Option<i64> = None;
+            while av_read_frame(input_format_ctx, packet.get()) >= 0 {
+                if (*packet.get()).stream_index != input_index {
+                    av_packet_unref(packet.get());
+                    continue;
+                }
+                packet.get_mut().stream_index = (*audio_stream.st).index;
+                av_packet_rescale_ts(
+                    packet.get(),
+                    (*input_audio_stream).time_base,
+                    (*audio_stream.st).time_base,
+                );
+                if let Some(last_mux_dts) = last_mux_dts.as_mut() {
+                    validate_non_monotous_dts(packet.get(), last_mux_dts, self.oc);
+                }
+                last_mux_dts = Some((*packet.get()).dts);
+
+                let ret = av_interleaved_write_frame(self.oc, packet.get());
+                if ret < 0 {
+                    avformat_close_input(&raw mut input_format_ctx);
+                    return Err(RenderEncodingError::CantWriteFrame(
+                        crate::renderer::encoder::av_error_to_string(ret),
+                    ));
+                }
+            }
+            avformat_close_input(&raw mut input_format_ctx);
             Ok(())
         }
     }
@@ -453,6 +557,52 @@ impl Encoder {
     }
 }
 
+/// Mixes and encodes the audio of a render into `path` (an audio-only file in the
+/// container of the output). Independent of the video frames, so a renderer runs it on
+/// its own thread while the frames render and muxes the result with
+/// [`concat_video_files_with_audio_file`].
+pub unsafe fn encode_audio_file(
+    path: &Path,
+    audio_map: &ResolvedAudioMap<AudioTimelineSamples>,
+    render_options: &RenderOptions,
+    ctx: &FFramesContext,
+    logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
+) -> Result<(), RenderEncodingError> {
+    unsafe {
+        let encoder = Encoder::new_audio_only(path, render_options, logger)?;
+        encoder.fill_audio_stream_with_progress(
+            Some(audio_map),
+            ctx,
+            render_options.output_frame_range(ctx.duration_in_frames),
+            render_options.audio_mix,
+            logger,
+            false,
+        )
+        // dropping the encoder writes the trailer
+    }
+}
+
+/// Concatenates the video segments and muxes the audio stream of `audio` (see
+/// [`encode_audio_file`]) into `output` without re-encoding anything.
+pub unsafe fn concat_video_files_with_audio_file(
+    files: &[PathBuf],
+    audio: &Path,
+    output: &Path,
+    render_options: &RenderOptions,
+) -> Result<(), RenderEncodingError> {
+    unsafe {
+        let encoder = create_encoder_copy_from_file(
+            &files[0],
+            output,
+            render_options,
+            AudioSource::CopyFrom(audio),
+        )?;
+        encoder.fill_streams_from_files(files)?;
+        encoder.copy_audio_from_file(audio)?;
+        Ok(())
+    }
+}
+
 pub unsafe fn concat_video_files_with_audio(
     files: &[PathBuf],
     output: &Path,
@@ -462,7 +612,8 @@ pub unsafe fn concat_video_files_with_audio(
     logger: &Arc<dyn super::fframes_logger::FFramesLogger>,
 ) -> Result<(), RenderEncodingError> {
     unsafe {
-        let encoder = create_encoder_copy_from_file(&files[0], output, render_options)?;
+        let encoder =
+            create_encoder_copy_from_file(&files[0], output, render_options, AudioSource::Encode)?;
 
         encoder.fill_streams_from_files(files)?;
 

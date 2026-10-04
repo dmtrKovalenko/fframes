@@ -64,6 +64,10 @@ struct Args {
     /// Frames rendered per example in the end-to-end benchmark.
     #[clap(long, default_value_t = 480)]
     e2e_frames: usize,
+    /// Keep the audio map of the examples in the end-to-end benchmark (mixed and encoded
+    /// like a real render) instead of rendering silent video.
+    #[clap(long)]
+    e2e_audio: bool,
     /// Write the results as JSON.
     #[clap(long)]
     json: Option<PathBuf>,
@@ -112,10 +116,11 @@ impl Spec {
     }
 }
 
-/// Wraps a video to render only its first `frames` frames without audio.
+/// Wraps a video to render only its first `frames` frames, with or without its audio.
 struct Truncated<'v, V> {
     inner: &'v V,
     frames: usize,
+    audio: bool,
 }
 
 impl<V: Video> Video for Truncated<'_, V> {
@@ -129,7 +134,11 @@ impl<V: Video> Video for Truncated<'_, V> {
     }
 
     fn audio(&self) -> AudioMap<'_> {
-        AudioMap::none()
+        if self.audio {
+            self.inner.audio()
+        } else {
+            AudioMap::none()
+        }
     }
 
     fn define_scenes(&self) -> Scenes<'_> {
@@ -272,6 +281,7 @@ impl Bench<'_> {
             let truncated = Truncated {
                 inner: video,
                 frames,
+                audio: self.args.e2e_audio,
             };
             std::fs::create_dir_all(&self.args.out_dir).unwrap();
             let output = self

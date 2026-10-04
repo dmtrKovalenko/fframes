@@ -181,6 +181,13 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
     #[cfg(feature = "debug")]
     let metrics = crate::metrics::PipelineMetrics::new(generators, gpu_contexts, workers);
 
+    // The audio mix does not depend on the frames: it is encoded into its own file while
+    // they render and muxed in at the end.
+    let audio_file = timeline
+        .audio_map
+        .as_ref()
+        .map(|_| directory.join(format!("audio.{extension}")));
+
     let failed = AtomicBool::new(false);
     let buffers = BufferPool::default();
     let (tree_sender, tree_receiver) = mpsc::sync_channel::<(FrameClaim, usvgr::Tree)>(queue_size);
@@ -200,6 +207,23 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
         };
 
         let mut handles = Vec::new();
+        if let (Some(audio_file), Some(audio_map)) = (&audio_file, timeline.audio_map.as_ref()) {
+            let logger = &logger;
+            handles.push(scope.spawn(move || {
+                mark_failed(
+                    unsafe {
+                        concatenator::encode_audio_file(
+                            audio_file,
+                            audio_map,
+                            render_options,
+                            ctx,
+                            logger,
+                        )
+                    }
+                    .map_err(FFramesRendererError::ConcatChunkError),
+                )
+            }));
+        }
         for worker in 0..scheduler.workers() {
             let tree_sender = tree_sender.clone();
             let (scheduler, failed) = (&scheduler, &failed);
@@ -296,14 +320,22 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
         .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
 
     unsafe {
-        concatenator::concat_video_files_with_audio(
-            files.as_slice(),
-            output,
-            timeline.audio_map.as_ref(),
-            render_options,
-            ctx,
-            &logger,
-        )
+        match &audio_file {
+            Some(audio_file) => concatenator::concat_video_files_with_audio_file(
+                files.as_slice(),
+                audio_file,
+                output,
+                render_options,
+            ),
+            None => concatenator::concat_video_files_with_audio(
+                files.as_slice(),
+                output,
+                None,
+                render_options,
+                ctx,
+                &logger,
+            ),
+        }
         .map_err(FFramesRendererError::ConcatChunkError)?;
     }
 

@@ -185,6 +185,12 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
         let writer = writer.with_encoder_input(encoder_input);
         let failed = AtomicBool::new(false);
+        // The audio mix does not depend on the frames: it is encoded into its own file
+        // while they render and muxed in at the end.
+        let audio_file = timeline
+            .audio_map
+            .as_ref()
+            .map(|_| directory.join(format!("audio.{}", extension.to_string_lossy())));
 
         let render_worker = |worker: usize| -> FFramesRendererResult<()> {
             let worker_local_decoders = VideoDecodersWorker::new(1);
@@ -233,6 +239,27 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         };
 
         std::thread::scope(|scope| {
+            let audio = audio_file.as_ref().zip(timeline.audio_map.as_ref()).map(
+                |(audio_file, audio_map)| {
+                    let (failed, logger) = (&failed, &logger);
+                    scope.spawn(move || {
+                        let result = unsafe {
+                            concatenator::encode_audio_file(
+                                audio_file,
+                                audio_map,
+                                render_options,
+                                ctx,
+                                logger,
+                            )
+                        }
+                        .map_err(FFramesRendererError::ConcatChunkError);
+                        if result.is_err() {
+                            failed.store(true, Ordering::Relaxed);
+                        }
+                        result
+                    })
+                },
+            );
             let workers: Vec<_> = (0..scheduler.workers())
                 .map(|worker| {
                     let render_worker = &render_worker;
@@ -249,6 +276,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
 
             workers
                 .into_iter()
+                .chain(audio)
                 .map(|worker| {
                     worker.join().map_err(|_| {
                         FFramesRendererError::Internal("Rendering thread panicked".to_owned())
@@ -262,14 +290,22 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
 
         unsafe {
-            concatenator::concat_video_files_with_audio(
-                files.as_slice(),
-                output,
-                timeline.audio_map.as_ref(),
-                render_options,
-                ctx,
-                &logger,
-            )
+            match &audio_file {
+                Some(audio_file) => concatenator::concat_video_files_with_audio_file(
+                    files.as_slice(),
+                    audio_file,
+                    output,
+                    render_options,
+                ),
+                None => concatenator::concat_video_files_with_audio(
+                    files.as_slice(),
+                    output,
+                    None,
+                    render_options,
+                    ctx,
+                    &logger,
+                ),
+            }
             .map_err(FFramesRendererError::ConcatChunkError)?;
         }
 
