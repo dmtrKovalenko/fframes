@@ -1,5 +1,5 @@
-//! `cargo fframes new <name>`: creates a video project that renders, previews and tests
-//! out of the box.
+//! `cargo fframes new <name>`: creates a video project that renders and previews out of
+//! the box.
 //!
 //! Interactive in a terminal (asks for everything that was not passed as a flag); with
 //! `--yes` or without a terminal it never asks and uses defaults, so scripts and AI agents
@@ -15,7 +15,6 @@ const LIB_SINGLE_SCENE: &str = include_str!("../templates/lib_single_scene.rs.tm
 const LIB_MULTI_SCENE: &str = include_str!("../templates/lib_multi_scene.rs.tmpl");
 const MAIN_CPU: &str = include_str!("../templates/main_cpu.rs.tmpl");
 const MAIN_SKIA: &str = include_str!("../templates/main_skia.rs.tmpl");
-const FRAMES_TEST: &str = include_str!("../templates/frames_test.rs.tmpl");
 const CARGO_TOML: &str = include_str!("../templates/Cargo.toml.tmpl");
 const README: &str = include_str!("../templates/README.md.tmpl");
 const GITIGNORE: &str = include_str!("../templates/gitignore.tmpl");
@@ -68,14 +67,6 @@ impl Template {
         match self {
             Template::SingleScene => LIB_SINGLE_SCENE,
             Template::MultiScene => LIB_MULTI_SCENE,
-        }
-    }
-
-    /// Settled frames for the snapshot test.
-    fn snapshot_specs(self) -> &'static str {
-        match self {
-            Template::SingleScene => r#""2s", "4s""#,
-            Template::MultiScene => r#""ProductScene@3s", "DataScene@3s""#,
         }
     }
 
@@ -515,10 +506,6 @@ fn new(args: NewArgs) -> Result<(), String> {
         ("skia_hint", skia_hint.to_owned()),
         ("backend_label", backend_label.to_owned()),
         ("run", run.clone()),
-        (
-            "snapshot_specs",
-            project.template.snapshot_specs().to_owned(),
-        ),
         ("strip_range", project.template.strip_range().to_owned()),
         (
             "entrance_range",
@@ -542,11 +529,10 @@ fn new(args: NewArgs) -> Result<(), String> {
     } else {
         MAIN_SKIA
     };
-    let files: [(&str, String); 6] = [
+    let files: [(&str, String); 5] = [
         ("Cargo.toml", render(CARGO_TOML, &vars)),
         ("src/lib.rs", render(project.template.lib(), &vars)),
         ("src/main.rs", render(main, &vars)),
-        ("tests/frames.rs", render(FRAMES_TEST, &vars)),
         ("README.md", render(README, &vars)),
         (".gitignore", render(GITIGNORE, &vars)),
     ];
@@ -582,7 +568,7 @@ fn new(args: NewArgs) -> Result<(), String> {
         println!("Added it to the fframes workspace members.");
     }
     println!(
-        "\nNext:\n  {cd}\n  {run} timeline\n  {run} frame 1s,50%,end   # writes frames/*.png\n  {run} strip -n 12        # writes strip.png{preview}\n  {run} render             # writes out.mp4\n  cargo test               # frame snapshots",
+        "\nNext:\n  {cd}\n  {run} timeline\n  {run} frame 1s,50%,end   # writes frames/*.png\n  {run} strip -n 12        # writes strip.png{preview}\n  {run} render             # writes out.mp4",
         preview = if project.backend == Backend::Cpu {
             String::new()
         } else {
@@ -628,7 +614,6 @@ mod tests {
             "backend_label",
             "run",
             "preview_line",
-            "snapshot_specs",
             "strip_range",
             "entrance_range",
         ]
@@ -640,7 +625,6 @@ mod tests {
             LIB_MULTI_SCENE,
             MAIN_CPU,
             MAIN_SKIA,
-            FRAMES_TEST,
             CARGO_TOML,
             README,
             GITIGNORE,

@@ -274,7 +274,6 @@ my-video/
   media/              # embedded by include_media_dir! (a DM Sans font to start with)
   src/lib.rs          # the Video from the template
   src/main.rs         # fframes::cli (render, frame, strip, onion, svg, timeline, inspect, snapshot, audio)
-  tests/frames.rs     # frame snapshots + "no warnings in any frame"
 ```
 
 For the web editor copy `examples/hello-world/editor` next to it and adapt step 9; gate the
@@ -681,7 +680,6 @@ $R strip -n 12                      # overall flow; `strip Intro -n 8` for one s
 $R frame Intro@end,Outro@50%        # full size details, check text stays inside its boxes
 $R audio analyze --waveform w.png   # levels, silence, cue positions
 $R render                           # final file
-cargo test -p my-video              # frame snapshots
 just clippy && cargo fmt --all && just check-wasm my-video   # if it has an editor bridge
 ```
 

@@ -84,7 +84,6 @@ my-video/
   src/lib.rs        # the video (from the template)
   src/main.rs       # the command line
   media/            # fonts, images and audio compiled into the binary (one starter font)
-  tests/frames.rs   # frame snapshots and a check of every frame for problems
   README.md         # the commands below
 ```
 
@@ -125,11 +124,6 @@ Rules:
 - Prefer `strip` to many `frame` calls; add `--scale 0.5` when composition is all you need.
 - Add `--json` when parsing output: the result goes to stdout, progress to stderr.
 - Keep `--release`: debug builds render many times slower.
-- `cargo test` compares settled frames with approved snapshots in `_frame_snapshots/` and
-  fails if any frame has warnings. The first run only creates the snapshots: look at the PNGs
-  before committing them, a created baseline is not a reviewed one.
-  `FFRAMES_UPDATE_SNAPSHOTS=1 cargo test` accepts intended changes. Snapshot the middle of a
-  scene (`Intro@3s`), not its end where it fades out.
 
 ### Addressing time
 
@@ -240,7 +234,6 @@ the user listen in `$R preview`.
 3. `$R audio analyze` shows sensible levels.
 4. `$R render -o out.mp4`, then confirm size, frame count and audio with
    `ffprobe -v error -show_entries stream=codec_type,width,height,nb_frames,duration out.mp4`.
-5. Run `cargo test` if the project keeps snapshots, and commit `_frame_snapshots/*.png`.
 
 Tell the user the output path, the duration, the path of a strip image and the `preview`
 command to watch it.
