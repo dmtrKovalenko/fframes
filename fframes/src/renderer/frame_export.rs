@@ -258,6 +258,11 @@ impl<'a> VideoEncoderInfo<'a> {
         }
     }
 
+    /// The encoder runs on dedicated hardware (`AV_CODEC_CAP_HARDWARE`), e.g. `h264_videotoolbox`.
+    pub fn is_hardware(&self) -> bool {
+        unsafe { (*self.codec).capabilities & AV_CODEC_CAP_HARDWARE as i32 != 0 }
+    }
+
     /// `EncoderOptions::pixel_format`: what the user asked the video to be stored in.
     pub fn requested_pixel_format(&self) -> AVPixelFormat {
         self.options.pixel_format

@@ -61,6 +61,11 @@ impl SkiaPipelineConfig {
     }
 }
 
+/// Memory a software encoder holds per pixel of the video (x264 medium at 1080p: ~290 MB).
+const SOFTWARE_ENCODER_BYTES_PER_PIXEL: usize = 150;
+/// Memory budget for the software encoders running at once.
+const SOFTWARE_ENCODERS_MEMORY: usize = 8 << 30;
+
 pub(crate) struct Pipeline<'p, 'a, 'media, TVideo: Video + Sync + Send, TBackend: SkiaBackend> {
     pub(crate) ctx: &'a FFramesContext<'a, 'media>,
     pub(crate) render_options: &'a RenderOptions<'a, 'media>,
@@ -146,21 +151,6 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
         std::fs::create_dir(directory)?;
     }
 
-    // Generators own the segments, so their number also bounds how many segments are
-    // encoded at once. Half of the threads is plenty to feed the GPU and leaves the rest
-    // to the encoders.
-    let generators = (workers / 2).max(1);
-    // The scheduler and segments work in output frames; `frame_offset` maps them back to
-    // video frames when only a range is rendered.
-    let frame_range = render_options.output_frame_range(ctx.duration_in_frames);
-    let frame_offset = frame_range.start;
-    let scheduler = FrameScheduler::new(
-        frame_range.len(),
-        generators,
-        render_options
-            .video_encoder_options
-            .min_segment_frames(ctx.time_base.fps),
-    );
     let writer = SegmentWriter::new(
         directory,
         &extension,
@@ -172,10 +162,43 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
         render_options,
         &logger,
     );
-    let encoder_input = writer
+    let (encoder_input, hardware_encoder) = writer
         .encoder_info()
-        .and_then(|encoder| crate::frame_export::negotiate(skia, frame_export, &encoder))
+        .and_then(|encoder| {
+            crate::frame_export::negotiate(skia, frame_export, &encoder)
+                .map(|input| (input, encoder.is_hardware()))
+        })
         .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
+
+    // Generators own the segments, so their count also caps how many segments encode at
+    // once. Half of the threads keeps the GPU fed and is enough for hardware encoders. A
+    // software encoder runs each segment on one thread and uses almost all the CPU of a
+    // render, so we start more segments than threads: while some encoders wait for a frame,
+    // the rest keep the cores busy. With 1.5x the threads, the 1080p60 x264 fframes-intro
+    // renders twice as fast as with half. Each encoder buffers its lookahead frames, so
+    // `SOFTWARE_ENCODERS_MEMORY` caps the count (4K stays at half of the threads).
+    let generators = (workers / 2).max(1);
+    let generators = if hardware_encoder {
+        generators
+    } else {
+        let frame_bytes = ctx.current_video_size.width
+            * ctx.current_video_size.height
+            * SOFTWARE_ENCODER_BYTES_PER_PIXEL;
+        (workers + workers / 2)
+            .min(SOFTWARE_ENCODERS_MEMORY / frame_bytes.max(1))
+            .max(generators)
+    };
+    // The scheduler and segments work in output frames; `frame_offset` maps them back to
+    // video frames when only a range is rendered.
+    let frame_range = render_options.output_frame_range(ctx.duration_in_frames);
+    let frame_offset = frame_range.start;
+    let scheduler = FrameScheduler::new(
+        frame_range.len(),
+        generators,
+        render_options
+            .video_encoder_options
+            .min_segment_frames(ctx.time_base.fps),
+    );
     let writer = writer.with_encoder_input(encoder_input);
 
     #[cfg(feature = "debug")]
