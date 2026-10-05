@@ -35,6 +35,11 @@ impl Slot {
     }
 }
 
+/// `frame` rounded down to a multiple of `step`.
+fn align(frame: usize, step: usize) -> usize {
+    frame - frame % step
+}
+
 /// Distributes the frames of a video between rendering workers.
 ///
 /// Every worker starts with an equal, contiguous share of the timeline and renders it in
@@ -47,6 +52,9 @@ impl Slot {
 /// 2. otherwise helps with the frames right after the ones another worker is rendering,
 ///    in that worker's segment, so nobody idles while the last frames render. The
 ///    segment writer puts such frames back in order.
+///
+/// Segments start on multiples of `min_segment_frames` (the GOP). Every segment opens with
+/// a keyframe, and there the encoder would have placed one anyway.
 #[doc(hidden)]
 pub struct FrameScheduler {
     slots: Vec<Mutex<Slot>>,
@@ -63,8 +71,12 @@ impl FrameScheduler {
 
         let mut slots: Vec<_> = (0..segments)
             .map(|segment| {
-                let start = total_frames * segment / segments;
-                let end = total_frames * (segment + 1) / segments;
+                let start = align(total_frames * segment / segments, min_segment_frames);
+                let end = if segment + 1 == segments {
+                    total_frames
+                } else {
+                    align(total_frames * (segment + 1) / segments, min_segment_frames)
+                };
                 Mutex::new(Slot {
                     segment: start,
                     next: start,
@@ -118,7 +130,10 @@ impl FrameScheduler {
             }
 
             if victim_slot.remaining() >= self.min_segment_frames * 2 {
-                let middle = victim_slot.next + victim_slot.remaining() / 2;
+                let middle = align(
+                    victim_slot.next + victim_slot.remaining() / 2,
+                    self.min_segment_frames,
+                );
                 let mut own = Slot {
                     segment: middle,
                     next: middle,
@@ -147,7 +162,7 @@ mod tests {
         let scheduler = FrameScheduler::new(100, 16, 24);
         assert_eq!(scheduler.workers(), 16);
         assert_eq!(scheduler.claim(0).unwrap().frame, 0);
-        assert_eq!(scheduler.claim(3).unwrap().frame, 75);
+        assert_eq!(scheduler.claim(3).unwrap().frame, 72);
 
         let tiny = FrameScheduler::new(3, 8, 24);
         let frames: Vec<_> = std::iter::from_fn(|| tiny.claim(5)).collect();
