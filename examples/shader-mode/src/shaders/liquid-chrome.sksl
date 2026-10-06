@@ -1,0 +1,54 @@
+// A molten silver sculpture. True geometry and studio reflections replace
+// the blurred text mask; all lettering is rendered separately as SVG.
+float3 moltenSpace(float3 p) {
+    p.xz = rotate(p.xz, .35+iTime*.24);
+    p.yz = rotate(p.yz, -.32+iTime*.11);
+    return p;
+}
+float moltenDistance(float3 world) {
+    float3 p = moltenSpace(world);
+    // Broad folds, rather than noise on a perfect sphere, alter the silhouette.
+    float fold = sin(p.x*3.6+p.y*.8)*sin(p.y*3.2-p.z*.9)*sin(p.z*3.4+p.x*.7);
+    float folds = .10*sin(p.x*6.0+p.z*2.0)*sin(p.y*4.1-p.z*3.3);
+    return (length(p)-.97+.16*fold+folds*.45)*.55;
+}
+float3 moltenSample(float2 p) {
+    float3 background = mix(float3(.90,.91,.94),float3(.975,.972,.96),smoothstep(-.5,.45,p.y));
+    float shadow = exp(-pow((p.x-.39)/.27,2.0)-pow((p.y-.345)/.04,2.0));
+    background *= 1.0-.22*shadow;
+    float3 ro = float3((p-float2(.39,-.015))*3.35,-3.5);
+    float3 rd = float3(0,0,1);
+    float travel = 1.9;
+    bool hit = false;
+    for (int i=0;i<84;++i) {
+        float d = moltenDistance(ro+rd*travel);
+        if (d<.0006) {hit=true;break;}
+        travel += max(d,.0003);
+        if (travel>5.0) break;
+    }
+    if (!hit) return background;
+    float3 p3 = ro+rd*travel;
+    float2 e = float2(.001,0);
+    float3 n = normalize(float3(moltenDistance(p3+e.xyy)-moltenDistance(p3-e.xyy),
+                               moltenDistance(p3+e.yxy)-moltenDistance(p3-e.yxy),
+                               moltenDistance(p3+e.yyx)-moltenDistance(p3-e.yyx)));
+    float3 r = reflect(rd,n);
+    float3 radiance = sculptureStudio(r);
+    // A narrow purple bounce links the silver to the reel's violet end card.
+    radiance += float3(.18,.075,.36)*pow(max(dot(r,normalize(float3(.4,0,1))),0.0),12.0);
+    float facing = max(-dot(n,rd),0.0);
+    radiance *= .84+.16*pow(1.0-facing,5.0);
+    return displayMetal(radiance);
+}
+half4 main(float2 coord) {
+    // 2x2 spatial sampling keeps moving silhouettes clean at 1080p.
+    float3 color=float3(0);
+    for (int y=0;y<2;++y) {
+        for (int x=0;x<2;++x) {
+            float2 p=(coord+float2(float(x),float(y))*.5-.25-iResolution.xy*.5)/iResolution.y;
+            color += moltenSample(p);
+        }
+    }
+    color*=.25;
+    return finish(color,coord);
+}

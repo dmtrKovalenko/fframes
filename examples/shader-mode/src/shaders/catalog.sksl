@@ -1,0 +1,59 @@
+// Each invocation draws one independently moving, perspective-correct card.
+// The CPU supplies its camera-space basis and culls to its projected bounds.
+uniform shader uMask;
+uniform float4 uAtlas;
+uniform float2 uOrigin;
+uniform float2 uPortal;
+uniform float3 uCenter;
+uniform float3 uRight;
+uniform float3 uDown;
+uniform float3 uCenterMotion;
+uniform float3 uRightMotion;
+uniform float3 uDownMotion;
+uniform float uShutter;
+uniform float uHero;
+
+float cardDistance(float2 p) {
+    float2 q=abs(p)-uAtlas.zw*.5+12.0;
+    return length(max(q,0.0))+min(max(q.x,q.y),0.0)-12.0;
+}
+
+half4 cardSample(float2 coord,float shutter) {
+    float2 screen=coord+uOrigin;
+    float3 ray=float3((screen-float2(960,540))/1080.0,1.6);
+    float3 center=uCenter+uCenterMotion*shutter;
+    float3 right=normalize(uRight+uRightMotion*shutter);
+    float3 down=normalize(uDown+uDownMotion*shutter);
+    float3 normal=normalize(cross(right,down));
+    float denominator=dot(ray,normal);
+    if(denominator<=.001) return half4(0);
+    float distance=dot(center,normal)/denominator;
+    if(distance<=0.0) return half4(0);
+    float3 hit=ray*distance-center;
+    float2 local=float2(dot(hit,right),dot(hit,down))*768.0;
+    // One screen pixel in the card's plane. No blur kernel touches the labels.
+    float aa=max(.15,distance*768.0/1080.0/denominator*1.6);
+    float alpha=1.0-smoothstep(-aa*.5,aa*.5,cardDistance(local));
+    float2 uv=uAtlas.xy+uAtlas.zw*.5+local;
+    float3 color=uMask.eval(uv).rgb;
+    float facing=clamp(dot(normal,normalize(float3(-.25,-.40,1.0))),0.0,1.0);
+    color*=.90+.13*facing;
+    float frame=iTime*29.97003;
+    if(uHero>.5 && frame>48.0) {
+        float icon=1.0-smoothstep(23.5-aa*.5,23.5+aa*.5,length(uv-uPortal));
+        color=mix(color,gradientAtResolution(screen,0.0,float2(1920,1080)),icon*smoothstep(48.0,49.0,frame));
+    }
+    // A shallow dark edge gives a tilted card visible thickness in the gaps.
+    float backDistance=(dot(center,normal)+3.0/768.0)/denominator;
+    float3 backHit=ray*backDistance-center-normal*(3.0/768.0);
+    float2 backLocal=float2(dot(backHit,right),dot(backHit,down))*768.0;
+    float edge=(1.0-smoothstep(-aa*.5,aa*.5,cardDistance(backLocal)))*(1.0-alpha);
+    return half4(color*alpha+float3(.043,.044,.049)*edge,alpha+edge);
+}
+
+half4 main(float2 coord) {
+    if(uShutter<.5) return cardSample(coord,.5);
+    half4 color=half4(0);
+    for(int i=0;i<16;++i) color+=cardSample(coord,(float(i)+.5)/16.0);
+    return color/16.0;
+}

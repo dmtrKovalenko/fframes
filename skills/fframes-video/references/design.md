@@ -4,6 +4,25 @@ Generated videos usually go wrong the same ways: too much text, everything movin
 linear motion, no hierarchy, cramped margins and random colors. A simple design without those
 problems already looks finished.
 
+## Matching an existing video
+
+- Probe the reference's dimensions, rational frame rate and frame count. Map cuts and short
+  transitions in source frames before writing replacement scenes; duration alone does not
+  establish a matching edit. Apply the pacing defaults below when designing original work.
+- Extract consecutive frames around fast effects and cut boundaries. Sparse contact sheets
+  can miss a sub-second reveal or conceal independent object motion. Compare reference and
+  output at the same source frames, including full-size text and logo details.
+- Identify which motion belongs to the camera and which belongs to individual objects.
+  A single transformed wall cannot reproduce cards separating at different depths. Use
+  separate object poses and perspective projection for that effect; SVG skew is a 2D transform.
+- Inspect supplied shader sources and existing project assets before approximating them.
+  Matching an effect also requires its scene parameters, masks, lighting, colors and timing.
+  Reuse existing vector wordmarks and logo animations when requested; enlarging a small
+  raster logo or glyph atlas will not preserve their sharpness.
+- When inserting a UI recording, review the selected range itself: stable window bounds,
+  visible controls, and the requested interaction throughout. A recording made during window
+  resizing may need a later crop. Keep playback speed consistent with the intended gesture.
+
 ## Pacing
 
 - Reading time: about 3 words per second plus 1 s to notice the text. A 9 word line needs
@@ -46,7 +65,13 @@ problems already looks finished.
 
 ## Motion
 
-Easing presets that look good (`use fframes::animation::Easing`):
+Use **`frame.animate(fframes::timeline!(...))` directly in `svgr!` attributes** as the default
+for motion with fixed values. `svgr!` lifts these inline timelines into cached statics, so
+their easing runtimes are initialized once, not rebuilt every frame. Write easings such as
+`Easing::Spring { ... }` or `Easing::CubicBezier(...)` directly inside the `timeline!` block.
+Named easing constants are optional when reusing a preset.
+
+Easing presets that look good (`use fframes::animation::Easing`); the values can be inlined:
 
 ```rust
 const SPRING_SNAPPY: Easing = Easing::Spring { mass: 1.0, stiffness: 300.0, damping: 26.0 }; // UI-like, tiny overshoot
@@ -56,7 +81,7 @@ const EASE_OUT_EXPO: Easing = Easing::CubicBezier(0.16, 1.0, 0.3, 1.0);  // fast
 const EASE_IN_OUT: Easing = Easing::CubicBezier(0.65, 0.0, 0.35, 1.0);  // camera moves, morphs
 ```
 
-Principles:
+Not set in stone rules, but a good start for a dynamic animation:
 - Enter with ease-out or a spring from a short distance (40-120 px) plus opacity 0 -> 1.
   Exit with ease-in, faster, to a shorter distance or just opacity.
 - Stagger related items by 60-120 ms (lists, words, letters by 20-40 ms).
@@ -67,18 +92,48 @@ Principles:
 
 ### Recipes
 
-Staggered entrance with a runtime start time:
+Staggered entrance with timelines and easings inline in `svgr!`. The subtitle follows the
+title by 90 ms; `svgr!` caches all four animations:
 
 ```rust
-fn enter(frame: &Frame, start: f32) -> (f32, f32) {
-    let spring = fframes::animation::AnimationRuntime::new(3.0, &SPRING_SOFT);
-    let fade = fframes::animation::AnimationRuntime::new(0.3, &Easing::EaseOut);
-    let y = frame.animate_runtime(fframes::AnimateRuntimeInput { on_second: start, from: 60.0_f32, to: 0.0, animation_runtime: &spring });
-    let opacity = frame.animate_runtime(fframes::AnimateRuntimeInput { on_second: start, from: 0.0_f32, to: 1.0, animation_runtime: &fade });
-    (y, opacity)
-}
-// items.iter().enumerate().map(|(i, item)| { let (y, o) = enter(&frame, 0.4 + i as f32 * 0.09); svgr!(<g opacity={o} transform={Transform::translate(0, y)}>...</g>) })
+use fframes::{Transform, animation::Easing};
+
+fframes::svgr!(
+    <g>
+        <g transform={frame.animate(fframes::timeline!(
+            at 0.4, animate Transform::translate(0, 60) => Transform::translate(0, 0),
+                Easing::Spring { mass: 1.0, stiffness: 150.0, damping: 18.0 },
+        ))}
+        opacity={frame.animate(fframes::timeline!(
+            at 0.4 => 0.7, animate 0.0 => 1.0, Easing::EaseOut,
+        ))}>
+            <text x="160" y="420" font-family="DM Sans" font-size="120" fill="#fff">
+                "Shader mode"
+            </text>
+        </g>
+        <g transform={frame.animate(fframes::timeline!(
+            at 0.49, animate Transform::translate(0, 40) => Transform::translate(0, 0),
+                Easing::Spring { mass: 1.0, stiffness: 150.0, damping: 18.0 },
+        ))}
+        opacity={frame.animate(fframes::timeline!(
+            at 0.49 => 0.79, animate 0.0 => 1.0, Easing::EaseOut,
+        ))}>
+            <text x="160" y="510" font-family="DM Sans" font-size="48" fill="#fff">
+                "Made with fframes"
+            </text>
+        </g>
+    </g>
+)
 ```
+
+Leave the spring's end time unspecified so it can settle naturally. Keep the attribute
+expression as a direct `frame.animate(timeline!(...))` call so the optimizer recognizes it.
+For starts or values that depend on item data, or animations outside this pattern (including
+`animate_loop`), construct timelines once on `self`. Use cached `AnimationRuntime` values
+for starts that change after construction or custom/subframe clocks. See `api.md` for the
+optimizer's supported forms and timing boundaries.
+
+Some examples for inspiration:
 
 Word-by-word title reveal: split into words, lay them out with `frame.text_width` per word
 (or `text-anchor="start"` with measured offsets), stagger each word 40-60 ms with a small

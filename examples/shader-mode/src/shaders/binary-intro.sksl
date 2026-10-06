@@ -1,0 +1,102 @@
+// Binary grid / luminance lookup from kit/stylizePaints.ts; horizontal band
+// displacement follows kit/motionBlur.ts. See THIRD_PARTY_NOTICES.
+// Reveal and handoff timing are measured from the reference's first 33 frames.
+uniform shader uMask;
+
+float binaryHash(float seed) {
+    return hash21(float2(seed,seed*.173+7.1));
+}
+
+float binaryBand(float row,float tick,float seedScale,float frameScale,
+                 float gate,float offset,float amplitude,float strength) {
+    float seed=row*seedScale+tick*frameScale;
+    float active=step(1.0-strength*gate,binaryHash(seed));
+    return (binaryHash(seed+offset)-.5)*amplitude*active;
+}
+
+float3 binaryField(float2 uv,float frame) {
+    float move=smoothstep(9.0,19.0,frame);
+    float2 cyanCenter=mix(float2(.18,.58),float2(.60,.80),move);
+    float2 violetCenter=mix(float2(.27,-.02),float2(.72,.10),move);
+    float2 cyanP=(uv-cyanCenter)/mix(float2(.37,.58),float2(.25,.47),move);
+    float2 violetP=(uv-violetCenter)/float2(.48,.33);
+    // Broad light patches with rectangular interruptions form the binary blocks.
+    float cyan=exp(-dot(cyanP,cyanP)*1.3)*1.45;
+    float violet=exp(-dot(violetP,violetP)*1.1)*1.20;
+    float cyanLeft=mix(-.18,.48,move);
+    float cyanRight=mix(.44,.735,move);
+    float cyanTop=mix(.13,.44,move);
+    float cyanMask=step(cyanLeft,uv.x)*(1.0-step(cyanRight,uv.x))*step(cyanTop,uv.y);
+    float violetLeft=mix(-.20,.50,move);
+    float violetMask=max(1.0-step(.10,uv.y),step(violetLeft,uv.x));
+    violetMask*=1.0-step(mix(.24,.44,move),uv.y);
+    float3 color=cyan*float3(.84,.97,1.0)*cyanMask;
+    color+=violet*float3(.72,.52,.94)*violetMask;
+    // Dim ones trace the light beyond the rectangular highlights.
+    color+=cyan*float3(.11,.16,.17)+violet*float3(.075,.045,.13);
+    return clamp(color,0.0,1.0);
+}
+
+float3 binaryGrid(float2 coord,float frame) {
+    float2 grid=coord/30.0;
+    float2 cell=floor(grid);
+    float3 tint=binaryField((cell+.5)*30.0/float2(1920,1080),frame);
+    float luma=dot(tint,float3(.299,.587,.114));
+    float character=1.0-step(.5,pow(luma,.60)); // bright = 0, dark = 1
+    float2 atlas=(float2(character,0)+fract(grid))*128.0;
+    float glyph=uMask.eval(atlas).r;
+    return tint*glyph;
+}
+
+float3 binaryImage(float2 coord,float frame) {
+    float2 uv=coord/float2(1920,1080);
+    float strength=1.0-smoothstep(4.0,11.0,frame);
+    float tick=floor((frame+6.0)*.5);
+    float band=floor(uv.y*12.0);
+    float shift=binaryBand(band,tick,.37,7.13,.5,42.0,.25,strength);
+    shift+=binaryBand(floor(uv.y*24.0),tick,.53,3.37,.7,99.0,.12,strength);
+    shift+=binaryBand(floor(uv.y*72.0),tick,.71,11.71,.9,173.0,.05,strength);
+    float2 sampleCoord=coord+float2(shift*1920.0,0);
+    float visible=1.0;
+    if(frame<2.0) {
+        sampleCoord.x-=750.0;
+        float line=step(.44,binaryHash(floor(uv.y*48.0)+tick*13.0));
+        visible=step(.43,uv.x)*(1.0-step(.985,uv.x))*(1.0-step(.23,uv.y))*line;
+    } else if(frame<10.0) {
+        float coverage=mix(.47,.94,smoothstep(2.0,10.0,frame));
+        visible=step(1.0-coverage,binaryHash(floor(uv.y*36.0)+tick*17.0));
+        float block=binaryHash(float(floor(uv.x*7.0)+floor(uv.y*9.0)*11.0)+tick*7.0);
+        visible*=step(strength*.12,block);
+    }
+    // RGB displacement is local to the corrupted bands, never a blurred grid.
+    float split=.32+strength*1.5;
+    float3 color=float3(binaryGrid(sampleCoord+float2(split,0),frame).r,
+                        binaryGrid(sampleCoord,frame).g,
+                        binaryGrid(sampleCoord-float2(split,0),frame).b);
+    float scratch=step(.992,binaryHash(floor(coord.y/3.0)+tick*19.0))*strength;
+    color=mix(color,float3(.035,.033,.048),scratch*.65);
+    return color*visible;
+}
+
+half4 main(float2 coord) {
+    float frame=floor(iTime*29.97003+.5);
+    float2 sourceCoord=coord*1080.0/iResolution.y;
+    float3 color=binaryImage(sourceCoord,frame);
+    // Hold the grid square during the reveal. Radial shutter sampling only
+    // begins at the handoff (global frame 26 / 0.8675s).
+    if(frame>=20.0) {
+        color=float3(0);
+        float shutter=min(2.0,(frame-19.0)*.45);
+        for(int i=0;i<32;++i) {
+            float sampleFrame=frame+(float(i)/31.0-.5)*shutter;
+            float zoom=1.0+.08*pow(max(sampleFrame-19.0,0.0),1.7);
+            float2 q=(sourceCoord-float2(960,540))/zoom+float2(960,540);
+            color+=binaryImage(q,19.0);
+        }
+        color/=32.0;
+    }
+    float alpha=uVariant>.5 ? 1.0-smoothstep(20.5,25.5,frame) : 1.0;
+    float bloom=frame>=20.0 ? 1.0+1.8*exp(-pow((frame-22.0)/2.3,2.0)) : 1.0;
+    half4 shaded=finish(color*bloom,coord);
+    return half4(shaded.rgb*half(alpha),half(alpha));
+}

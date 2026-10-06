@@ -49,6 +49,7 @@ members = [
     "examples/signal-lab",
     "examples/fframes-intro",
     "examples/made-of-motion",
+    "examples/shader-mode",
 ]
 
 [workspace.lints.rust]

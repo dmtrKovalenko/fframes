@@ -1,0 +1,33 @@
+// Stateless reconstruction of ParticleFlow's flow-aligned, jittered slivers.
+// The source's compute simulation cannot run as a Skia runtime fragment effect.
+float fieldAngle(float2 p) {
+    return noise3(float3(p*2.7,iTime*.24))*6.2
+           +atan(p.y+.15,p.x-.2)*.9;
+}
+float energy(float2 p) {
+    float bend=p.y+.12*sin(p.x*3.8+iTime*.75)+p.x*.24;
+    return exp(-bend*bend*21.0);
+}
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    float3 color=float3(.013,.002,.023);
+    float2 g=p*175.0, cell=floor(g);
+    float brightness=0.0;
+    for(int y=-1;y<=1;++y) for(int x=-1;x<=1;++x) {
+        float2 c=cell+float2(x,y);
+        float2 jitter=float2(hash21(c),hash21(c+31.4))-.5;
+        float2 home=(c+.5+jitter*.72)/175.0;
+        float angle=fieldAngle(home);
+        float2 local=rotate((p-home)*175.0,-angle);
+        float len=.22+.53*hash21(c+7.8);
+        float d=length(float2(max(abs(local.x)-len,0.0),local.y));
+        float body=1.0-smoothstep(.055,.15,d);
+        brightness+=body*energy(home)*(.4+.6*hash21(c+91.3));
+    }
+    float e=energy(p);
+    color+=float3(.55,.01,.26)*pow(e,1.2)*.46;
+    float3 filament=mix(float3(.87,.015,.35),float3(1,.91,.92),pow(e,3.0));
+    color+=filament*brightness*1.5;
+    color+=float3(1,.48,.7)*pow(e,8.0)*.30;
+    return finish(color,coord);
+}

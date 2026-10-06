@@ -1,0 +1,50 @@
+// Deterministic SkSL reconstruction of the reference's particle relief.
+// A twisted 3D shell is sampled on its surface; no baked animation or input frames.
+float3 particleSpace(float3 p) {
+    p.x+=.22;
+    p.yz=rotate(p.yz,.32+.17*sin(iTime*.8));
+    p.xz=rotate(p.xz,-.38+iTime*.2);
+    return p;
+}
+float particleDistance(float3 p) {
+    p=particleSpace(p);
+    float a=atan(p.y,p.x);
+    float radius=.56+.035*sin(a*3.0+iTime*.9);
+    float tube=.22+.037*sin(a*2.0+iTime*.8);
+    return length(float2(length(p.xy)-radius,p.z)) - tube;
+}
+float3 particleLayer(float3 hit,float depth) {
+    float3 q=particleSpace(hit);
+    float a=atan(q.y,q.x);
+    float r=.56+.035*sin(a*3.0+iTime*.9);
+    float b=atan(q.z,length(q.xy)-r);
+    float2 uv=float2(a/TAU,b/TAU)*float2(240,84);
+    uv.y+=2.7*sin(a*3.0+iTime*.4);
+    float2 f=fract(uv)-.5;
+    float dotShape=exp(-dot(f,f)*38.0);
+    float intensity=(.65+.35*hash21(floor(uv)))*exp(-max(depth-1.15,0.0)*.8);
+    float3 color=mix(float3(.28,.045,.94),float3(1,.30,.61),smoothstep(-.7,.45,-q.y-q.z*.4));
+    return color*dotShape*intensity;
+}
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    float3 ro=float3(0,0,-1.9), rd=normalize(float3(p*.96,1.40));
+    float travel=.6;
+    float3 color=float3(.012,.003,.025);
+    // Several surfaces can contribute through the gaps between particles.
+    for(int i=0;i<88;++i) {
+        float3 hit=ro+rd*travel;
+        float d=particleDistance(hit);
+        if(abs(d)<.0012) {
+            color+=particleLayer(hit,travel)*2.8;
+            travel+=.05;
+        } else {
+            travel+=max(abs(d)*.82,.0008);
+        }
+        if(travel>3.6) break;
+    }
+    // Out-of-focus spill from the rear cloud.
+    float veil=exp(-abs(particleDistance(ro+rd*2.0))*14.0);
+    color+=float3(.075,.007,.16)*veil;
+    return finish(color,coord);
+}

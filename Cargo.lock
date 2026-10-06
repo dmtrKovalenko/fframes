@@ -3318,6 +3318,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "shader-mode"
+version = "1.2.0"
+dependencies = [
+ "fframes",
+ "fframes_native_player",
+ "fframes_skia_renderer",
+]
+
+[[package]]
 name = "shaders-bridge-example"
 version = "1.2.0"
 dependencies = [

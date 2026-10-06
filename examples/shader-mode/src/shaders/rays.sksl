@@ -1,0 +1,8 @@
+// Godrays' two noise products and seam-free radial frame; see THIRD_PARTY_NOTICES.
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    float ray=godrays(p-float2(-.34,-.38),iTime*1.4,.44,.77,.8);
+    float3 tint=mix(float3(.68,.74,.91),float3(.58,.32,.90),smoothstep(1.0,2.0,iTime));
+    float3 color=float3(.006,.006,.012)+ray*tint*.72;
+    return finish(color,coord);
+}

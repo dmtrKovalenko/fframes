@@ -1,0 +1,34 @@
+// Fine luminous filaments sweep through a folded ribbon of light.
+// Pixel-width integration attenuates line frequencies at smaller preview sizes.
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    p=rotate(p,-.30+uVariant*.24);
+    float t=iTime*.55;
+    float3 color=float3(.008,.013,.025);
+    for(int i=0;i<5;++i) {
+        float layer=float(i);
+        float center=.16*sin(p.x*3.3+t+layer*.23)+.065*sin(p.x*6.2-t*.7+layer*.4);
+        center+=(layer-2.0)*.032;
+        float width=.078+.037*sin(p.x*2.7+t*.6+layer*.7);
+        float y=(p.y-center)/width;
+        float envelope=1.0-smoothstep(.78,1.02,abs(y));
+        float fold=pow(max(0.0,1.0-y*y),.65);
+        float stripes=cos(y*125.0+sin(p.x*5.0+t)*9.0+layer*3.0);
+        float visible=1.0-smoothstep(.5,2.0,125.0/(width*iResolution.y));
+        float filaments=mix(.22,pow(.5+.5*stripes,7.0),visible);
+        float edge=exp(-abs(abs(y)-.86)*40.0);
+        float glint=pow(.5+.5*sin(p.x*3.0+t+layer*.6),7.0);
+        float phase=smoothstep(-.7,.6,p.x+.10*sin(t));
+        float3 tint=mix(float3(.06,.27,1.0),float3(.85,.10,.31),phase);
+        tint=mix(tint,float3(1.0,.49,.17),smoothstep(.45,.85,phase));
+        if (uVariant > .5 && uVariant < 1.5) tint=mix(float3(.04,.40,.25),float3(.6,1.0,.43),phase);
+        if (uVariant > 1.5 && uVariant < 2.5) tint=mix(float3(.30,.04,.72),float3(.90,.41,.95),phase);
+        if (uVariant > 2.5 && uVariant < 3.5) tint=mix(float3(.04,.65,.80),float3(.9,.95,.55),phase);
+        if (uVariant > 3.5) tint=mix(float3(.95,.05,.21),float3(1.0,.69,.22),phase);
+        float energy=envelope*(.07+filaments*.34+fold*.1)+edge*.6;
+        color+=tint*energy*(.35+glint*.75);
+        color+=float3(.68,.79,1.0)*edge*glint*.45;
+        color+=tint*exp(-abs(p.y-center)*18.0)*.035;
+    }
+    return finish(1.0-exp(-color*1.5),coord);
+}

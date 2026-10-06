@@ -1,0 +1,36 @@
+// A sculptural fan of interference-colored satin. A clear dark center leaves
+// SVG typography readable; no raster text, binary grid or glitch overlay.
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    float t=iTime+uVariant*2.5;
+    float2 q=p-float2(.12,.60);
+    q=rotate(q,-.20+.04*sin(t*.5));
+    float angle=atan(q.y,q.x);
+    float radius=length(q);
+    float bend=angle+.17*sin(radius*4.2-t*.6)+.085*sin(angle*4.0+t*.35);
+    float phase=bend*13.0+radius*2.2-t*.35;
+    float wave=sin(phase);
+    float crease=pow(.5+.5*wave,30.0);
+    float face=.5+.5*sin(phase-.50);
+    float boundary=.22+.075*sin(angle*3.0+t*.4);
+    float shape=smoothstep(boundary-.005,boundary+.005,radius);
+    float3 deep=float3(.018,.020,.036);
+    float3 violet=float3(.27,.10,.65);
+    float3 blue=float3(.12,.36,.81);
+    float3 coral=float3(.91,.29,.19);
+    float palette=.5+.5*sin(bend*2.0+radius*2.7+t*.15);
+    float3 tint=mix(violet,blue,smoothstep(.0,.65,palette));
+    tint=mix(tint,coral,smoothstep(.65,1.0,palette));
+    float thread=.5+.5*cos(phase*22.0+radius*8.0);
+    float detail=1.0-smoothstep(.6,1.8,286.0/(max(radius,.25)*iResolution.y));
+    float light=.025+face*.19+crease*1.85;
+    light+=pow(thread,10.0)*detail*face*.12;
+    float3 satin=tint*light;
+    satin+=float3(.57,.69,.88)*pow(.5+.5*sin(phase+.17),90.0)*.75;
+    satin*=.65+.35*smoothstep(.4,1.5,radius);
+    float3 color=mix(deep,satin,shape);
+    if (uVariant > 1.5) color = dot(color,float3(.299,.587,.114))*float3(.79,.95,1.0)*1.7;
+    // Darken behind the title without a card or visible rectangular mask.
+    color*=1.0-.7*exp(-pow(p.x/.65,4.0)-pow((p.y+.10)/.22,4.0));
+    return finish(1.0-exp(-color*1.35),coord);
+}

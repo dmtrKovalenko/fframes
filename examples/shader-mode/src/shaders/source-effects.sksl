@@ -1,0 +1,113 @@
+// SkSL adaptations of Shader Effects Inc. components, MIT, copyright 2026.
+// See THIRD_PARTY_NOTICES and README.md for pinned upstream files.
+// Integer noise hashing is replaced with an ES2-compatible floating-point hash.
+
+float3 gradientHash(float3 p) {
+    p = fract(p * float3(.1031, .1030, .0973));
+    p += dot(p, p.yxz + 33.33);
+    return normalize(fract((p.xxy + p.yxx) * p.zyx) * 2.0 - 1.0 + .0001);
+}
+float noise3(float3 p) {
+    float3 cell = floor(p), f = fract(p);
+    float3 w = f*f*f*(f*(f*6.0-15.0)+10.0);
+    float a = dot(gradientHash(cell), f);
+    float b = dot(gradientHash(cell+float3(1,0,0)), f-float3(1,0,0));
+    float c = dot(gradientHash(cell+float3(0,1,0)), f-float3(0,1,0));
+    float d = dot(gradientHash(cell+float3(1,1,0)), f-float3(1,1,0));
+    float e = dot(gradientHash(cell+float3(0,0,1)), f-float3(0,0,1));
+    float g = dot(gradientHash(cell+float3(1,0,1)), f-float3(1,0,1));
+    float h = dot(gradientHash(cell+float3(0,1,1)), f-float3(0,1,1));
+    float j = dot(gradientHash(cell+float3(1,1,1)), f-float3(1,1,1));
+    return 1.65*mix(mix(mix(a,b,w.x),mix(c,d,w.x),w.y),
+                    mix(mix(e,g,w.x),mix(h,j,w.x),w.y),w.z);
+}
+float3 neutralTone(float3 color) {
+    float x = min(color.r, min(color.g,color.b));
+    color -= x < .08 ? x-6.25*x*x : .04;
+    float peak = max(color.r,max(color.g,color.b));
+    if (peak < .76) return color;
+    float newPeak = 1.0-.24*.24/(peak+.24-.76);
+    color *= newPeak/peak;
+    return mix(color,float3(newPeak),1.0-1.0/(.15*(peak-newPeak)+1.0));
+}
+float bevelSin(float t, float shape) {
+    float machined = mix(1.0,.72*(1.0-smoothstep(.68,.92,t)),smoothstep(0.0,.14,t));
+    return mix(1.0-t,machined,shape);
+}
+float3 bevelNormal(float sdf, float2 grad, float width, float shape) {
+    float s = min(bevelSin(clamp(-sdf/width,0.0,1.0),shape),.9995);
+    return float3(grad/max(length(grad),.0001)*s,-sqrt(1.0-s*s));
+}
+// Chrome: rectangular studio key, black flags, warm fringe, and low bounce card.
+float3 chromeStudio(float3 r, float soft, float spectral, float shadows) {
+    float3 warm = float3(1,.39,.08), cool = float3(.22,.39,.78);
+    float horizontal = r.x/(length(r.xy)+.0001);
+    float ws = .35+.65*smoothstep(-.7,.7,horizontal);
+    float cs = .45+.55*smoothstep(-.7,.7,-horizontal);
+    float up = smoothstep(-.65,1.0,r.y);
+    float3 env = mix(mix(float3(.17,.175,.19),cool*.03+float3(.003,.003,.004),shadows),
+                     float3(.56,.57,.6),up*up);
+    env += float3(.55,.55,.56)*smoothstep(.3,.9,r.y);
+    env += cool*exp(-pow((r.y+.45)/.2,2.0))*spectral*.2*cs;
+    float facing = 1.0-smoothstep(-.1,.18,r.z);
+    float2 p = r.xy/max(.32-r.z,.06);
+    float2 box = abs(p-float2(0,.3))-float2(.62,.28);
+    float sd = length(max(box,0.0))+min(max(box.x,box.y),0.0);
+    float bs = .05+soft*.4;
+    env += float3(2.9,2.87,2.82)*(1.0-smoothstep(-bs*.6,bs,sd))*facing;
+    env *= mix(1.0,mix(.55,.07,shadows),smoothstep(.5,.92,abs(r.x)));
+    env += warm*exp(-pow(max(sd,0.0)/(.065+soft*.05),2.0))
+         * smoothstep(-.06,.1,sd)*spectral*1.3*ws*facing;
+    env += warm*exp(-pow((r.y+.12)/.05,2.0))*spectral*.5*ws*(1.0-facing);
+    box = abs(p-float2(0,-.78))-float2(.7,.05);
+    sd = length(max(box,0.0))+min(max(box.x,box.y),0.0);
+    return env+float3(.5,.5,.52)*(1.0-smoothstep(-bs*.6,bs,sd))*facing;
+}
+float studio5(float2 p, float radius, float strength, float skyGain) {
+    float sky = smoothstep(-.7,.85,p.y);
+    float lum = sky*sky*skyGain;
+    lum += (1.0-smoothstep(radius*.2,radius,length(p-float2(0,.55))))*1.7*strength;
+    lum += (1.0-smoothstep(radius*.23,radius*1.15,length(p-float2(-.55,.18))))*1.05*strength;
+    lum += (1.0-smoothstep(radius*.2,radius,length(p-float2(.55,.1))))*strength;
+    lum += (1.0-smoothstep(radius*.26,radius*1.3,length(p-float2(.2,-.5))))*.7*strength;
+    lum += (1.0-smoothstep(radius*.22,radius*1.1,length(p-float2(-.35,-.25))))*.85*strength;
+    return lum;
+}
+// FlowingGradient: noise rotation, sequential shear, two warps, fold lighting.
+float4 flowWarpStep(float2 p, float scale, float z, float2 a, float2 b, float reach) {
+    float2 n = float2(noise3(float3(p*scale+a,z)),noise3(float3(p*scale+b,z)));
+    return float4(p+n*reach,n);
+}
+float3 flowingGradient(float2 uv, float time, float strength,
+                       float3 a, float3 b, float3 c, float3 d) {
+    float aspect = iResolution.x/iResolution.y;
+    float t = time*.075;
+    float2 q = uv-.5;
+    float angle = noise3(float3(q*.8+float2(t*.4,-t*.25),1.7))*4.0*PI*strength;
+    q = rotate(q/float2(1,aspect),angle)*float2(1,aspect);
+    q.x += sin(q.y*5.0+t*2.0)/50.0*strength;
+    q.y += sin(q.x*7.5+t*2.0)/25.0*strength;
+    float4 w1 = flowWarpStep(q,2.0,t*.5+1.7,float2(5.2,1.3),float2(1.7,9.2),.25*strength);
+    float4 w2 = flowWarpStep(w1.xy,1.5,t*.3+1.7,float2(8.3,2.8),float2(3.1,7.4),.2*strength);
+    float zone = noise3(float3(w2.xy*1.8,t*.3+1.7));
+    float hardness = pow(clamp(w1.z*.5+.5,0.0,1.0),1.5);
+    float edge = mix(.5,.008,hardness);
+    float t1 = smoothstep(-edge,edge,zone), t2 = smoothstep(-edge,edge,w1.w);
+    float3 base = mix(mix(a,b,t1),mix(c,d,t1),t2);
+    float fold = max(1.0-abs(t1*2.0-1.0),1.0-abs(t2*2.0-1.0))*hardness;
+    return base*((w2.z*.5+.5)*.12+.94)*(1.0+fold*.35);
+}
+float rayShape(float angle, float wrapped, float blend, float radius, float freq, float intensity) {
+    return mix(pow(noise(float2(wrapped*freq,radius)),intensity),
+               pow(noise(float2(angle*freq,radius)),intensity),blend);
+}
+float godrays(float2 p, float time, float density, float intensity, float spotty) {
+    float angle = atan(p.y,p.x), wrapped = mod(angle,TAU);
+    float blend = smoothstep(-.15,.15,p.x);
+    float r = length(p), t = time*.2, f = density*6.0, power = 4.0-3.0*intensity;
+    float a = rayShape(angle,wrapped,blend,r-t*3.0,f*5.0,power)
+            *rayShape(angle,wrapped,blend,r*.5*(1.0+6.5*spotty)-t*2.0,f*20.0,power);
+    float b = rayShape(angle,wrapped,blend,r*1.4-t*2.5,f*4.5,power)
+            *rayShape(angle,wrapped,blend,r*.7*(1.0+6.5*spotty)-t*1.8,f*15.75,power);
+    return clamp(a+b*.7,0.0,1.0);
+}

@@ -1,0 +1,12 @@
+// Photographic chrome environment adapted from Shader Effects Inc.'s Chrome.
+// Long strip lights remain continuous across the folds of both sculptures.
+float3 sculptureStudio(float3 ray) {
+    float3 r=float3(ray.x,-ray.y,ray.z);
+    float3 light=chromeStudio(r,.035,.24,1.0);
+    float strip=exp(-pow((dot(r,normalize(float3(.65,.7,-.15)))-.42)/.045,2.0));
+    light+=float3(1.35,1.45,1.60)*strip;
+    return light;
+}
+float3 displayMetal(float3 linear) {
+    return pow(neutralTone(max(linear,0.0)),float3(.454545));
+}

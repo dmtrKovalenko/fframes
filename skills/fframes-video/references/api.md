@@ -71,27 +71,76 @@ impl Scene for Intro<'_> {
 
 ## Animation
 
+For motion with fixed values, put `frame.animate(fframes::timeline!(...))` directly in the
+`svgr!` attribute. The SVG macro lifts the timeline into a `lazy_static` animation, resolving
+its easing runtimes once. It is fine to define the easing directly in the `timeline!` block;
+named constants are optional.
+
 ```rust
-use fframes::{Transform, animation::Easing};
+use fframes::{Color, Transform, animation::Easing};
 
 // keyframes: at START [=> END | , duration D], animate FROM => TO, EASING
-let x = frame.animate(&fframes::timeline!(
-    at 0.0, animate -80.0_f32 => 0.0, Easing::Spring { mass: 1.0, stiffness: 180.0, damping: 20.0 },
-    at 2.5 => 2.8, animate 0.0_f32 => 60.0, Easing::EaseIn,
-));
-let color = frame.animate(&fframes::timeline!(at 0.0 => 1.0, animate Color::hex("#fff") => Color::hex("#0ea5e9"), Easing::EaseInOut));
-let t = frame.animate(&fframes::timeline!(at 0.0 => 0.5, animate Transform::scale(0.9) => Transform::scale(1.0), Easing::EaseOut));
-let drift = frame.animate_loop(&fframes::timeline!(at 0.0 => 8.0, animate 0.0_f32 => 1.0, Easing::Linear));
+fframes::svgr!(
+    <g opacity={frame.animate(fframes::timeline!(
+        at 0.0 => 0.3, animate 0.0 => 1.0, Easing::EaseOut,
+    ))}
+    transform={frame.animate(fframes::timeline!(
+        at 0.0, animate Transform::translate(0, 60) => Transform::translate(0, 0),
+            Easing::Spring { mass: 1.0, stiffness: 180.0, damping: 20.0 },
+        at 2.5 => 2.8, animate Transform::translate(0, 0) => Transform::translate(0, -40),
+            Easing::EaseIn,
+    ))}>
+        <rect x="160" y="240" width="600" height="120" rx="24"
+            fill={frame.animate(fframes::timeline!(
+                at 0.0 => 1.0, animate Color::hex("#fff") => Color::hex("#0ea5e9"),
+                    Easing::CubicBezier(0.65, 0.0, 0.35, 1.0),
+            ))}
+        />
+    </g>
+)
 ```
 
+- The optimizer recognizes an attribute block whose sole expression is
+  `frame.animate(timeline!(...))` (also with `&timeline!(...)`). Use `f32` literals or
+  imported `Color` / `Transform` constructors for the animated values; the cached timeline
+  cannot capture locals such as `self`, a loop index, or a runtime start time.
+- This caching belongs to `svgr!`, not `timeline!` alone. Calls outside the macro, nested
+  inside other expressions, and `animate_loop` do not use this optimization. For those,
+  initialize `KeyFramesAnimation` fields once in the constructor and sample with
+  `frame.animate(&self.animation)` / `frame.animate_loop(&self.animation)`. Data-dependent
+  staggering can also build one timeline per item in the constructor. Camera parameters,
+  shader uniforms and custom projection can consume these cached animations.
 - Before the first keyframe the value is `from`, after the last it stays at `to`.
-- Values: `f32`, `f64`, `Color`, `Transform`.
-- Runtime start times (staggering, data driven): `frame.animate_runtime(AnimateRuntimeInput {
-  on_second, from, to, animation_runtime: &AnimationRuntime::new(duration, &easing) })`.
-  For springs pass a generous duration (3.0): the spring stops at its own settle time.
+- Stored timelines also support `f64` and other types implementing `Animatable` with the
+  required bounds; the inline optimizer supports the built-in forms listed above.
+- When a start time changes after construction, use `frame.animate_runtime(AnimateRuntimeInput {
+  on_second, from, to, animation_runtime: &self.runtime })`, with `self.runtime` initialized
+  once using `AnimationRuntime::new(duration, &easing)`. Known item offsets belong in cached
+  `timeline!` values, not per-frame runtime construction. For springs, an explicit duration
+  caps the natural settle time; omit the end in `timeline!` to let the spring settle.
+- For precomputed geometry, motion-blur subframes or a custom clock,
+  `runtime.solve(&elapsed_seconds)` evaluates the same easing
+  directly. Handle times before the start and after `get_duration()` explicitly: `solve`
+  does not clamp them. Use a custom curve only when the required motion is not represented
+  by the available easings.
 - Easing: `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(x1, y1, x2, y2)`, `Spring {..}`.
 - `Transform { translate_x, translate_y, scale: Scale { x, y }, rotate, .. }`,
   `Transform::translate(x, y)`. Scale around a point by translating by `p * (1 - s)`.
+
+### Matching a fractional-rate reference
+
+`Video::FPS` is currently an integer. A 30000/1001 fps source played at 30 fps has different
+timing even when every frame is retained. Keep edit boundaries as integer source frames;
+for source-time effects, compute `source_frame * fps_den / fps_num` and sample an easing
+runtime or bind a custom shader clock. Ordinary `frame.animate` follows the frame's integer
+fps; placing keyframes at `source_frame / Video::FPS` preserves their frame positions.
+
+When exact source timing is required, retime the final export and verify every frame is
+retained. For the specific 30000/1001 case, FFmpeg video options
+`-vf 'settb=1/30000,setpts=N*1001' -r 30000/1001 -fps_mode cfr -video_track_timescale 30000`
+give a 1001-tick frame interval. Do not combine output `-r` with `-fps_mode passthrough`.
+This export step does not change the native preview's clock. See `audio.md` for preserving
+the original soundtrack during muxing.
 
 ## Text
 
@@ -149,6 +198,13 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
 - Built-in uniforms when declared: `iResolution` (the `<image>` size), `iTime`, `iTimeDelta`,
   `iFrame`. Pass images with `.image("iChannel0", photo)` where `photo` comes from
   `ctx.get_image("photo.jpg")` (an `Option`: return `Svgr::empty()` when it is missing).
+- Built-in names take precedence over user uniforms: `.float("iTime", t)` does not override
+  the renderer's time. Declare a different name such as `uClock` for a continuous clock
+  across cuts, source time, or time remapping. `iTime` uses the `Frame` passed to `draw`.
+- `coord` starts at the shader image's top-left in its own units. `iResolution` is that
+  image's width and height, not the full video or a bound texture's size. For a cropped
+  card/window layer, pass its origin and the full viewport size separately when projecting
+  in screen space. Child shaders sample source-image pixels with `.eval(...)`.
 - A synced video frame is an image too, so shaders can process footage on the GPU, e.g. a
   green-screen key (bind the `SyncVideoFrameInput` to a variable first, the frame borrows it):
 
@@ -171,9 +227,14 @@ half4 main(float2 coord) {
 - SkSL follows GLSL ES 2: constant loop bounds, no `while`, no dynamic array indexing, no
   preprocessor. `Shader::shadertoy` expands simple `#define`s; rewrite macros with arguments
   and `texture()` calls.
-- A compile error is logged once and the layer is skipped. Test compilation with
-  `fframes_skia_renderer::render::compile_shader(&shader)`.
-- Only the Skia backend runs shaders; the CPU backend draws nothing in their place.
+- A compile error is logged once and the layer is skipped. Validate compilation with
+  `fframes_skia_renderer::render::compile_shader(&shader)` when needed; do not add a test
+  suite or test module for it.
+- `inspect` checks the SVG tree without executing shaders. Also compile the effects, look
+  at rendered frames, and check runtime logs for unset uniforms; a clean inspection alone
+  does not establish that a shader ran correctly.
+- Both Skia GPU and `SkiaCpuCtx` execute runtime shaders. The separate tiny-skia CPU backend
+  draws nothing in their place. Use the GPU backend for the native preview and GPU validation.
 
 ## Rendering from code
 
@@ -195,7 +256,6 @@ let (png, report) = previewer.render_inspected(frame, &mut fframes::CpuFrameRend
 png.save_png("intro.png")?;
 let svg = previewer.svg(frame)?;
 let problems = previewer.inspect(frame)?.diagnostics;
-fframes::snapshot::assert_frames(&mut previewer, &mut renderer, &["Intro@end"], &Default::default());
 ```
 
 Skia: `SkiaFFramesRenderer::new_metal(&SkiaMetalCtx::new(W, H)?, SkiaPipelineConfig::default())`

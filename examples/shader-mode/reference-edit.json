@@ -1,0 +1,571 @@
+{
+  "reference": "36GNIWU1DR_s1BHT.mp4",
+  "fps": "30000/1001",
+  "frames": 932,
+  "segments": [
+    {
+      "name": "BlackLead",
+      "start_frame": 0,
+      "end_frame": 6,
+      "start_seconds": 0.0,
+      "end_seconds": 0.2002,
+      "effect": null,
+      "variant": 0
+    },
+    {
+      "name": "Boot",
+      "start_frame": 6,
+      "end_frame": 26,
+      "start_seconds": 0.2002,
+      "end_seconds": 0.8675333333333334,
+      "effect": "Binary",
+      "variant": 0
+    },
+    {
+      "name": "Glass",
+      "start_frame": 26,
+      "end_frame": 57,
+      "start_seconds": 0.8675333333333334,
+      "end_seconds": 1.9019,
+      "effect": "Glass",
+      "variant": 0
+    },
+    {
+      "name": "GlassAmber",
+      "start_frame": 57,
+      "end_frame": 82,
+      "start_seconds": 1.9019,
+      "end_seconds": 2.736066666666667,
+      "effect": "Glass",
+      "variant": 1
+    },
+    {
+      "name": "Chrome",
+      "start_frame": 82,
+      "end_frame": 91,
+      "start_seconds": 2.736066666666667,
+      "end_seconds": 3.036366666666667,
+      "effect": "Material",
+      "variant": 0
+    },
+    {
+      "name": "Crystal",
+      "start_frame": 91,
+      "end_frame": 97,
+      "start_seconds": 3.036366666666667,
+      "end_seconds": 3.2365666666666666,
+      "effect": "Material",
+      "variant": 4
+    },
+    {
+      "name": "Gold",
+      "start_frame": 97,
+      "end_frame": 104,
+      "start_seconds": 3.2365666666666666,
+      "end_seconds": 3.4701333333333335,
+      "effect": "Material",
+      "variant": 1
+    },
+    {
+      "name": "Ceramic",
+      "start_frame": 104,
+      "end_frame": 111,
+      "start_seconds": 3.4701333333333335,
+      "end_seconds": 3.7037,
+      "effect": "Material",
+      "variant": 5
+    },
+    {
+      "name": "Carbon",
+      "start_frame": 111,
+      "end_frame": 119,
+      "start_seconds": 3.7037,
+      "end_seconds": 3.9706333333333332,
+      "effect": "Material",
+      "variant": 2
+    },
+    {
+      "name": "ChromeSoft",
+      "start_frame": 119,
+      "end_frame": 126,
+      "start_seconds": 3.9706333333333332,
+      "end_seconds": 4.2042,
+      "effect": "Material",
+      "variant": 0
+    },
+    {
+      "name": "Pixels",
+      "start_frame": 126,
+      "end_frame": 132,
+      "start_seconds": 4.2042,
+      "end_seconds": 4.4044,
+      "effect": "Material",
+      "variant": 3
+    },
+    {
+      "name": "PrismGlass",
+      "start_frame": 132,
+      "end_frame": 141,
+      "start_seconds": 4.4044,
+      "end_seconds": 4.7047,
+      "effect": "Material",
+      "variant": 6
+    },
+    {
+      "name": "OpenSource",
+      "start_frame": 141,
+      "end_frame": 209,
+      "start_seconds": 4.7047,
+      "end_seconds": 6.973633333333333,
+      "effect": "LiquidChrome",
+      "variant": 0
+    },
+    {
+      "name": "OpenSourceHold",
+      "start_frame": 209,
+      "end_frame": 222,
+      "start_seconds": 6.973633333333333,
+      "end_seconds": 7.4074,
+      "effect": "LiquidChrome",
+      "variant": 0
+    },
+    {
+      "name": "Rose",
+      "start_frame": 222,
+      "end_frame": 229,
+      "start_seconds": 7.4074,
+      "end_seconds": 7.6409666666666665,
+      "effect": "Obsidian",
+      "variant": 1
+    },
+    {
+      "name": "Tunnel",
+      "start_frame": 229,
+      "end_frame": 238,
+      "start_seconds": 7.6409666666666665,
+      "end_seconds": 7.9412666666666665,
+      "effect": "Tunnel",
+      "variant": 0
+    },
+    {
+      "name": "Halftone",
+      "start_frame": 238,
+      "end_frame": 256,
+      "start_seconds": 7.9412666666666665,
+      "end_seconds": 8.541866666666667,
+      "effect": "Halftone",
+      "variant": 0
+    },
+    {
+      "name": "ShaderLibrary",
+      "start_frame": 256,
+      "end_frame": 307,
+      "start_seconds": 8.541866666666667,
+      "end_seconds": 10.243566666666666,
+      "effect": "Catalog",
+      "variant": 0
+    },
+    {
+      "name": "Gradient",
+      "start_frame": 307,
+      "end_frame": 344,
+      "start_seconds": 10.243566666666666,
+      "end_seconds": 11.478133333333334,
+      "effect": "Gradient",
+      "variant": 0
+    },
+    {
+      "name": "Ascii",
+      "start_frame": 344,
+      "end_frame": 357,
+      "start_seconds": 11.478133333333334,
+      "end_seconds": 11.9119,
+      "effect": "Ascii",
+      "variant": 1
+    },
+    {
+      "name": "Particles",
+      "start_frame": 357,
+      "end_frame": 377,
+      "start_seconds": 11.9119,
+      "end_seconds": 12.579233333333333,
+      "effect": "Particles",
+      "variant": 0
+    },
+    {
+      "name": "Obsidian",
+      "start_frame": 377,
+      "end_frame": 391,
+      "start_seconds": 12.579233333333333,
+      "end_seconds": 13.046366666666666,
+      "effect": "Obsidian",
+      "variant": 0
+    },
+    {
+      "name": "Silver",
+      "start_frame": 391,
+      "end_frame": 397,
+      "start_seconds": 13.046366666666666,
+      "end_seconds": 13.246566666666666,
+      "effect": "Spectral",
+      "variant": 2
+    },
+    {
+      "name": "AuroraGreen",
+      "start_frame": 397,
+      "end_frame": 400,
+      "start_seconds": 13.246566666666666,
+      "end_seconds": 13.346666666666666,
+      "effect": "Aurora",
+      "variant": 1
+    },
+    {
+      "name": "AuroraPurple",
+      "start_frame": 400,
+      "end_frame": 403,
+      "start_seconds": 13.346666666666666,
+      "end_seconds": 13.446766666666667,
+      "effect": "Aurora",
+      "variant": 2
+    },
+    {
+      "name": "AuroraAqua",
+      "start_frame": 403,
+      "end_frame": 407,
+      "start_seconds": 13.446766666666667,
+      "end_seconds": 13.580233333333334,
+      "effect": "Aurora",
+      "variant": 3
+    },
+    {
+      "name": "AuroraOrange",
+      "start_frame": 407,
+      "end_frame": 410,
+      "start_seconds": 13.580233333333334,
+      "end_seconds": 13.680333333333333,
+      "effect": "Aurora",
+      "variant": 4
+    },
+    {
+      "name": "BlackBreak",
+      "start_frame": 410,
+      "end_frame": 417,
+      "start_seconds": 13.680333333333333,
+      "end_seconds": 13.9139,
+      "effect": null,
+      "variant": 0
+    },
+    {
+      "name": "Flow",
+      "start_frame": 417,
+      "end_frame": 447,
+      "start_seconds": 13.9139,
+      "end_seconds": 14.9149,
+      "effect": "Flow",
+      "variant": 0
+    },
+    {
+      "name": "EmbossBlue",
+      "start_frame": 447,
+      "end_frame": 459,
+      "start_seconds": 14.9149,
+      "end_seconds": 15.3153,
+      "effect": "Emboss",
+      "variant": 0
+    },
+    {
+      "name": "EmbossGreen",
+      "start_frame": 459,
+      "end_frame": 471,
+      "start_seconds": 15.3153,
+      "end_seconds": 15.7157,
+      "effect": "Emboss",
+      "variant": 1
+    },
+    {
+      "name": "EmbossOrange",
+      "start_frame": 471,
+      "end_frame": 483,
+      "start_seconds": 15.7157,
+      "end_seconds": 16.1161,
+      "effect": "Emboss",
+      "variant": 2
+    },
+    {
+      "name": "EmbossPearl",
+      "start_frame": 483,
+      "end_frame": 496,
+      "start_seconds": 16.1161,
+      "end_seconds": 16.549866666666667,
+      "effect": "Emboss",
+      "variant": 3
+    },
+    {
+      "name": "NativePreview",
+      "start_frame": 496,
+      "end_frame": 567,
+      "start_seconds": 16.549866666666667,
+      "end_seconds": 18.9189,
+      "effect": "Preview",
+      "variant": 0
+    },
+    {
+      "name": "ShaderModeEditor",
+      "start_frame": 567,
+      "end_frame": 586,
+      "start_seconds": 18.9189,
+      "end_seconds": 19.552866666666667,
+      "effect": "Spectral",
+      "variant": 0
+    },
+    {
+      "name": "ShaderModeZoom",
+      "start_frame": 586,
+      "end_frame": 610,
+      "start_seconds": 19.552866666666667,
+      "end_seconds": 20.353666666666665,
+      "effect": "Spectral",
+      "variant": 0
+    },
+    {
+      "name": "ShaderMode",
+      "start_frame": 610,
+      "end_frame": 626,
+      "start_seconds": 20.353666666666665,
+      "end_seconds": 20.887533333333334,
+      "effect": "Spectral",
+      "variant": 0
+    },
+    {
+      "name": "ShaderModeWide",
+      "start_frame": 626,
+      "end_frame": 640,
+      "start_seconds": 20.887533333333334,
+      "end_seconds": 21.354666666666667,
+      "effect": "Spectral",
+      "variant": 0
+    },
+    {
+      "name": "BlackPause",
+      "start_frame": 640,
+      "end_frame": 654,
+      "start_seconds": 21.354666666666667,
+      "end_seconds": 21.8218,
+      "effect": null,
+      "variant": 0
+    },
+    {
+      "name": "Eclipse",
+      "start_frame": 654,
+      "end_frame": 849,
+      "start_seconds": 21.8218,
+      "end_seconds": 28.3283,
+      "effect": "Eclipse",
+      "variant": 0
+    },
+    {
+      "name": "BlackTail",
+      "start_frame": 849,
+      "end_frame": 932,
+      "start_seconds": 28.3283,
+      "end_seconds": 31.097733333333334,
+      "effect": null,
+      "variant": 0
+    }
+  ],
+  "transitions": [
+    {
+      "frames": [
+        6,
+        16
+      ],
+      "kind": "binary horizontal glitch reveal on a fixed 30px grid"
+    },
+    {
+      "frames": [
+        26,
+        35
+      ],
+      "kind": "binary radial handoff into glass; title enters after the overlap"
+    },
+    {
+      "frames": [
+        137,
+        147
+      ],
+      "kind": "white bloom"
+    },
+    {
+      "frames": [
+        256,
+        274
+      ],
+      "kind": "panel-wall pullback"
+    },
+    {
+      "frames": [
+        280,
+        296
+      ],
+      "kind": "independent cards separate in depth, tilt and drift; gaps and overlaps grow"
+    },
+    {
+      "frames": [
+        299,
+        307
+      ],
+      "kind": "panel portal push-in"
+    },
+    {
+      "frames": [
+        443,
+        448
+      ],
+      "kind": "flow radial zoom"
+    },
+    {
+      "frames": [
+        496,
+        567
+      ],
+      "kind": "continuous native recording, slow perspective rotation in three axes"
+    },
+    {
+      "frames": [
+        586,
+        590
+      ],
+      "kind": "editor punch-in"
+    },
+    {
+      "frames": [
+        608,
+        611
+      ],
+      "kind": "horizontal glitch"
+    },
+    {
+      "frames": [
+        626,
+        629
+      ],
+      "kind": "title pullback"
+    },
+    {
+      "frames": [
+        636,
+        640
+      ],
+      "kind": "glitch to black"
+    },
+    {
+      "frames": [
+        654,
+        680
+      ],
+      "kind": "outro fade-in"
+    },
+    {
+      "frames": [
+        836,
+        849
+      ],
+      "kind": "outro shrink and fade"
+    }
+  ],
+  "recording": {
+    "source": "output/native-preview-manual-30s.mov",
+    "in_seconds": 24.1,
+    "out_seconds": 26.5,
+    "window_crop": [
+      68,
+      54,
+      2824,
+      1652
+    ],
+    "verified_bounds": "24 samples at 10 Hz have identical titlebar interior edges x=78..2882, top=54; crop retains the same full window bounds",
+    "playback_speed": 1.0,
+    "visible_playhead_seconds": [
+      6,
+      12,
+      9
+    ]
+  },
+  "requested_changes": [
+    {
+      "frames": [
+        70,
+        82
+      ],
+      "change": "Remove amber perspective skew and vertical compression."
+    },
+    {
+      "frames": [
+        209,
+        222
+      ],
+      "change": "Preserve the open-source metallic colors instead of the monochrome cut."
+    },
+    {
+      "frames": [
+        496,
+        567
+      ],
+      "change": "Combine both native shots into one uninterrupted forward/backward scrub with a slow 3D turn and no whip."
+    },
+    {
+      "frames": [
+        256,
+        307
+      ],
+      "change": "Replace the flat card-wall texture with individual perspective-projected cards that separate, tilt and drift in 3D before the icon dive."
+    }
+  ],
+  "opening_analysis": {
+    "reference_frames": [
+      0,
+      33
+    ],
+    "glyphs": "01",
+    "cell_pitch_pixels": [
+      30,
+      30
+    ],
+    "grid": [
+      64,
+      36
+    ],
+    "phases": [
+      {
+        "frames": [
+          0,
+          6
+        ],
+        "kind": "black"
+      },
+      {
+        "frames": [
+          6,
+          16
+        ],
+        "kind": "horizontal glitch reveal"
+      },
+      {
+        "frames": [
+          16,
+          26
+        ],
+        "kind": "moving cyan/violet blocks on a stable grid"
+      },
+      {
+        "frames": [
+          26,
+          33
+        ],
+        "kind": "radial zoom with overlap into glass"
+      }
+    ],
+    "replaced_implementation": "13px mixed-character ring with a whole-frame skew and abrupt glass cut",
+    "reconstruction": "procedural light patches and measured timing; not a recovered upstream scene preset"
+  }
+}

@@ -1,0 +1,21 @@
+// Spectral surface using the upstream cosine diffraction palette, composed as a broad lens.
+float3 gradientAtResolution(float2 coord, float clock, float2 resolution) {
+    float2 p=(coord-resolution*.5)/resolution.y;
+    p.y+=.27;
+    float angle=atan(p.y,p.x);
+    float r=length(p*float2(.78,1.0));
+    float angular=smoothstep(0.0,.3,r);
+    float bent=r+.07*sin(angle*3.0+clock*.55)*angular+.06*noise3(float3(p*2.0,clock*.2));
+    float3 band=spectrum((sin(angle)*.18+cos(angle)*.16)*angular+clock*.18+bent*.26+.13);
+    band=mix(band,float3(1),.35);
+    float shadow=exp(-pow((bent-.61)/.065,2.0));
+    float3 deep=spectrum(sin(angle)*.25+cos(angle)*.24+clock*.15+.1)*.55;
+    float3 base=mix(float3(.965,.961,.95),band,1.0-smoothstep(.63,.92,bent));
+    base=mix(base,deep,shadow*.72);
+    float white=exp(-dot(p-float2(.02,.03),p-float2(.02,.03))*4.5);
+    base=mix(base,float3(.965,.955,1),white*.82);
+    return base;
+}
+float3 gradientColor(float2 coord, float clock) {
+    return gradientAtResolution(coord,clock,iResolution.xy);
+}

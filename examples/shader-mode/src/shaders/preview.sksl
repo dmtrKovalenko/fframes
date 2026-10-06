@@ -1,0 +1,36 @@
+// The image is an actual native-player window recording, including controls.
+uniform shader uRecording;
+uniform float2 uRecordingSize;
+
+float3 rotateWindow(float3 p, float3 angles) {
+    p.yz=rotate(p.yz,angles.x);
+    p.xz=rotate(p.xz,angles.y);
+    p.xy=rotate(p.xy,angles.z);
+    return p;
+}
+
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    float frame=iTime*29.97003;
+    float turn=smoothstep(0.0,70.0,frame);
+    // A slow turn of a rigid plane in perspective. Leave room for the nearest
+    // corners so the title bar and scrub controls remain inside the frame.
+    float height=mix(.86,.89,turn);
+    float3 angles=mix(float3(.12,-.31,-.022),float3(-.09,.25,.022),turn);
+    float3 right=rotateWindow(float3(1,0,0),angles);
+    float3 down=rotateWindow(float3(0,1,0),angles);
+    float3 normal=cross(right,down);
+    float3 camera=float3(0,0,-2.8);
+    float3 ray=float3(p,2.8);
+    float distance=dot(-camera,normal)/dot(ray,normal);
+    float3 hit=camera+ray*distance;
+    float2 q=float2(dot(hit,right),dot(hit,down))/height;
+    float aspect=uRecordingSize.x/uRecordingSize.y;
+    float2 uv=q/float2(aspect,1.0)+.5;
+    float2 delta=max(abs(q)-float2(aspect*.5,.5),0.0);
+    float3 background=float3(.022,.023,.028)*(1.0-exp(-length(delta)*30.0)*.65);
+    float edge=min(min(uv.x,1.0-uv.x)*aspect,min(uv.y,1.0-uv.y));
+    float mask=smoothstep(-.5/iResolution.y,.5/iResolution.y,edge);
+    float3 window=uRecording.eval(clamp(uv,0.0,1.0)*uRecordingSize).rgb;
+    return finish(mix(background,window,mask),coord);
+}

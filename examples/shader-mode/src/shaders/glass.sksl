@@ -1,0 +1,35 @@
+// Adapted from kit/effects/glass.ts and FlowingGradient; see THIRD_PARTY_NOTICES.
+float3 glassBackdrop(float2 p) {
+    float warm = uVariant;
+    float3 dark = mix(float3(.001,.004,.012),float3(.012,.001,.0003),warm);
+    float3 lit = mix(float3(.016,.19,.4),float3(1.0,.48,.18),warm);
+    float2 uv = p/float2(iResolution.x/iResolution.y,1)+.5;
+    uv.y += .07*sin(uv.x*5.0+iTime*.45);
+    float3 c = flowingGradient(uv,8.0+iTime*1.3,1.8,dark,lit,dark*.2,lit*.055);
+    float fold = noise3(float3(uv*float2(2,3),1.2+iTime*.14));
+    return c+lit*.38*exp(-abs(fold+.1)*80.0);
+}
+half4 main(float2 coord) {
+    float2 p = (coord-iResolution.xy*.5)/iResolution.y;
+    float2 q = p-float2(.018*sin(iTime),-.07+.04*sin(iTime*.8));
+    float radius = .70-.025*uProgress;
+    float d = length(q)-radius;
+    float z = sqrt(max(radius*radius-dot(q,q),.000001));
+    // Gradient of the volumetric chord field, with the upstream slope cap.
+    float2 slope = q/max(z,.001);
+    slope *= min(1.0,12.0/max(length(slope),.0001));
+    float strength = smoothstep(0.0,1.0,z/.11);
+    float2 offset = -slope*.15*.92*strength;
+    float2 lens = p+offset;
+    float3 refracted = float3(glassBackdrop(lens+offset*.035).r,
+                              glassBackdrop(lens).g,glassBackdrop(lens-offset*.035).b);
+    float3 n = normalize(float3(slope,2));
+    float3 h = normalize(float3(-.5,-.866,2));
+    float spec = pow(clamp(dot(n,h),0.0,1.0),32.0)*.09*strength;
+    float fresnel = pow(1.0-1.0/sqrt(dot(slope,slope)+1.0),4.0)*.24;
+    float edge = exp(-abs(d)*520.0);
+    float3 rim = mix(float3(.48,.59,.76),spectrum(d*130.0+.2),.35);
+    refracted += spec+fresnel*float3(.3,.36,.46)+edge*rim*.85;
+    float3 color = mix(glassBackdrop(p),refracted,1.0-smoothstep(-.0015,.0015,d));
+    return finish(color,coord);
+}

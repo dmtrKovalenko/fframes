@@ -1,0 +1,59 @@
+// Chrome / CarbonFiber / bevel profiles adapted from Shader Effects Inc. (MIT).
+float ringDistance(float2 p) { return abs(capsule(p,.237,.185))-.049; }
+float3 carbon(float2 p, float3 n, float3 view) {
+    float2 w = rotate(p,.24)*115.0;
+    float2 f = fract(w)-.5, cell = floor(w);
+    float parity = step(2.0,mod(cell.x-cell.y+256.0,4.0));
+    float across = mix(f.y,f.x,parity);
+    float2 axis = rotate(mix(float2(0,1),float2(1,0),parity),-.24);
+    float tilt = sin(across*PI)*.16+sin(across*TAU*7.0)*.07;
+    n = normalize(n+float3(axis*tilt,0));
+    float3 l = normalize(float3(-.7,-.6,-.7)), h = normalize(l-view);
+    float3 tangent = normalize(float3(axis.y,-axis.x,0));
+    float3 bitangent = normalize(cross(n,tangent));
+    float nh = max(dot(n,h),.001);
+    float anis = exp(-(pow(dot(h,tangent)/1.4,2.0)+pow(dot(h,bitangent)/.2,2.0))/(nh*nh));
+    float ao = mix(.5,1.0,smoothstep(0.0,.05,min(.5-abs(f.x),.5-abs(f.y))));
+    float lum = .035+clamp(dot(n,l)*.5+.5,0.0,1.0)*.1+anis*.6;
+    float3 body = mix(float3(.012,.014,.017),float3(.60,.63,.68),lum)*ao;
+    float3 r = reflect(view,n);
+    float grazing = 1.0-clamp(-dot(n,view),0.0,1.0);
+    return body+studio5(float2(r.x,-r.y),.16,2.0,.3)*(.05+.95*pow(grazing,5.0))*1.2;
+}
+half4 main(float2 coord) {
+    float2 p = (coord-iResolution.xy*.5)/iResolution.y;
+    p /= .99+.025*sin(iTime*3.2);
+    p = rotate(p,.035*sin(iTime*1.8));
+    float d = ringDistance(p), eps = .0006;
+    float2 grad = float2(ringDistance(p+float2(eps,0))-ringDistance(p-float2(eps,0)),
+                         ringDistance(p+float2(0,eps))-ringDistance(p-float2(0,eps)))/(2.0*eps);
+    float3 n = bevelNormal(d,grad,.017,.65);
+    n = normalize(n+float3(p*.32,0));
+    float3 view = normalize(float3(p*.55,1)), r = reflect(view,n);
+    r.xy = rotate(float2(r.x,-r.y),-.38+.18*sin(iTime*1.8));
+    r.xz = rotate(r.xz,.22*sin(iTime*1.6));
+    float3 env = chromeStudio(r,.19+smoothstep(.75,1.0,-n.z)*.2,.45,.62);
+    float3 tint = uVariant > .5 && uVariant < 1.5 ? float3(1,.59,.16) : float3(1);
+    float3 material = neutralTone(env*tint);
+    if (uVariant > 1.5 && uVariant < 2.5) material = carbon(p,n,view);
+    if (uVariant > 2.5 && uVariant < 3.5) {
+        float bits = hash21(floor(p*83.0)+floor(iTime*6.0));
+        material = mix(float3(.022,.008,.062),float3(.52,.29,.89),bits)*(.4+env*.6);
+        material += pow(max(0.0,-n.z),12.0)*.06;
+    }
+    if (uVariant > 3.5 && uVariant < 4.5) {
+        material = mix(float3(.90), neutralTone(env), .16 + pow(1.0+min(n.z,0.0),3.0)*.75);
+    }
+    if (uVariant > 4.5 && uVariant < 5.5) {
+        material = float3(.22,.70,.72)*(.70+.28*max(0.0,-n.z)) + env*.045;
+    }
+    float shadow = exp(-abs(ringDistance(p-float2(.0,.036)))*31.0)*.09;
+    float3 background = float3(.895)-shadow;
+    if (uVariant > 5.5) {
+        background = flowingGradient(p*.7+.5, 6.0+iTime*.6, 1.8,
+            float3(.004,.012,.04),float3(.16,.65,.08),float3(.0,.12,.45),float3(.006));
+        material = background*.62 + neutralTone(env)*.38;
+    }
+    float aa = 1.0/iResolution.y;
+    return finish(mix(background,material,1.0-smoothstep(-aa,aa,d)),coord);
+}

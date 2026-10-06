@@ -1,0 +1,23 @@
+// asciiGrid / asciiAtlasUV / asciiCompose port from kit/stylizePaints.ts (MIT).
+uniform shader uMask;
+float3 asciiInput(float2 uv) {
+    float2 p=(uv-.5)*float2(iResolution.x/iResolution.y,1);
+    float warp=noise3(float3(p*2.3,iTime*.4));
+    float ring=length(p+float2(.08,.02))-.34-warp*.10;
+    float field=exp(-abs(ring)*10.0)*(.55+.45*noise3(float3(p*4.0,iTime*.7)));
+    field=max(field,.14+.34*smoothstep(-.1,.4,p.y+warp*.4));
+    float3 tint=mix(float3(.72,.82,1.0),spectrum(p.x*.3+p.y*.18+iTime*.07)*.8+.2,uVariant);
+    return clamp(tint*field*2.2,0.0,1.0);
+}
+half4 main(float2 coord) {
+    float cellSize=13.0*iResolution.y/1080.0;
+    float2 grid=coord/cellSize;
+    float2 center=(floor(grid)+.5)*cellSize/iResolution.xy;
+    float3 color=asciiInput(center);
+    float brightness=pow(dot(color,float3(.299,.587,.114)),.75);
+    float index=clamp(floor((1.0-brightness)*16.0),0.0,15.0);
+    float2 atlasCell=float2(mod(index,4.0),floor(index/4.0));
+    float2 cellUV=fract(grid);
+    float glyph=uMask.eval((atlasCell+cellUV)*128.0).r;
+    return finish(pow(color,float3(.7))*glyph,float2(coord));
+}

@@ -818,10 +818,17 @@ impl FFmpegDecoder {
                 av_frame_copy_props(self.frame_buf.latest_av_frame, self.hw_frame);
             }
             // The decoder fell back to software decoding: the frame it returned already
-            // holds the pixels.
+            // holds the pixels. Keep a reference in the target too, since EOF may need
+            // to present it again when the output frame rate exceeds the clip's rate.
             _ if target_frame != self.frame_buf.latest_av_frame => {
                 av_frame_unref(self.frame_buf.latest_av_frame);
-                av_frame_move_ref(self.frame_buf.latest_av_frame, target_frame);
+                let ret = av_frame_ref(self.frame_buf.latest_av_frame, target_frame);
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error retaining software decoded frame".to_string(),
+                    )));
+                }
             }
             _ => (),
         }
@@ -938,6 +945,7 @@ impl Drop for FFmpegDecoder {
     fn drop(&mut self) {
         unsafe {
             av_frame_free(&raw mut self.recv_frame);
+            av_frame_free(&raw mut self.hw_frame);
             avcodec_free_context(&raw mut self.video_stream_info.codec_ctx);
             avformat_close_input(&raw mut self.fmt_ctx);
             av_packet_free(&raw mut self.pkt);

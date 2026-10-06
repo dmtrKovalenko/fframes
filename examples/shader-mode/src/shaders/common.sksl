@@ -1,0 +1,64 @@
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uProgress;
+uniform float uVariant;
+uniform float uBeat;
+
+const float PI = 3.14159265;
+const float TAU = 6.2831853;
+
+// Signed distance in source pixels, stored in RG as an unsigned 16-bit value.
+float maskDistance(half4 sampleColor) {
+    return ((float(sampleColor.r)*65280.0+float(sampleColor.g)*255.0)/65535.0-.5)*512.0;
+}
+
+float hash21(float2 p) {
+    p = fract(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(float2 p) {
+    float2 i = floor(p);
+    float2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash21(i), hash21(i + float2(1, 0)), f.x),
+               mix(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)), f.x), f.y);
+}
+
+float fbm(float2 p) {
+    float sum = 0.0;
+    float amplitude = 0.5;
+    for (int i = 0; i < 5; ++i) {
+        sum += amplitude * noise(p);
+        p = float2(p.x * 1.6 - p.y * 1.2, p.x * 1.2 + p.y * 1.6) + 7.3;
+        amplitude *= 0.5;
+    }
+    return sum;
+}
+
+float2 rotate(float2 p, float angle) {
+    float c = cos(angle), s = sin(angle);
+    return float2(c * p.x - s * p.y, s * p.x + c * p.y);
+}
+
+float3 spectrum(float t) {
+    return 0.5 + 0.5 * cos(TAU * (t + float3(0.0, 0.33, 0.67)));
+}
+
+float capsule(float2 p, float width, float radius) {
+    p.x -= clamp(p.x, -width, width);
+    return length(p) - radius;
+}
+
+float line(float2 p, float2 a, float2 b, float width) {
+    float2 pa = p - a, ba = b - a;
+    float d = length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0));
+    return 1.0 - smoothstep(width, width + 0.07, d);
+}
+
+half4 finish(float3 color, float2 coord) {
+    // Stable spatial grain dithers the dark gradients before 8-bit encoding.
+    color += (hash21(coord) - 0.5) / 255.0;
+    return half4(clamp(color, 0.0, 1.0), 1.0);
+}

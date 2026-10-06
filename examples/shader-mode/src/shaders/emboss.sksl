@@ -1,0 +1,38 @@
+// Height, lighting and two shadow taps from kit/effects/emboss.ts (MIT).
+uniform shader uMask;
+float shapeDistance(float2 p) { return maskDistance(uMask.eval(p*iResolution.y+iResolution.xy*.5))/iResolution.y; }
+float embossHeight(float d, float depth, float width) { return depth*(1.0-smoothstep(-width,width,d)); }
+float3 embossShade(float2 p, float3 base, float depth) {
+    float eps=.003, d=shapeDistance(p);
+    float hR=embossHeight(shapeDistance(p+float2(eps,0)),depth,.003);
+    float hL=embossHeight(shapeDistance(p-float2(eps,0)),depth,.003);
+    float hU=embossHeight(shapeDistance(p+float2(0,eps)),depth,.003);
+    float hD=embossHeight(shapeDistance(p-float2(0,eps)),depth,.003);
+    float3 n=normalize(float3(-(hR-hL)/(2.0*eps),-(hU-hD)/(2.0*eps),1));
+    float2 light=normalize(float2(-.6,-.8));
+    float ndl=dot(n,float3(light*.819231,.573462));
+    float edge=(ndl-.573462)*.8;
+    float spread=abs(depth)*.06;
+    float hc=embossHeight(d,depth,.003);
+    float h1=embossHeight(shapeDistance(p+light*spread*.45),depth,spread);
+    float h2=embossHeight(shapeDistance(p+light*spread),depth,spread);
+    float shadow=smoothstep(0.0,.5,(h1-hc)/abs(depth))*.55+smoothstep(0.0,.5,(h2-hc)/abs(depth))*.45;
+    float total=clamp(max(-edge,0.0)+shadow,0.0,1.0)*.44;
+    return base*(1.0-total)+max(edge,0.0)*.68;
+}
+half4 main(float2 coord) {
+    float2 p=(coord-iResolution.xy*.5)/iResolution.y;
+    float phase=uVariant;
+    float2 shape=rotate(p,.12*sin(iTime*1.2))*(.61+.05*uProgress)+float2(-.07+.11*uProgress,.03);
+    float3 bright=float3(.53,.81,.99), dark=float3(.014,.18,.44);
+    if(phase>.5){bright=float3(.82,.97,.35);dark=float3(.21,.46,.055);}
+    if(phase>1.5){bright=float3(1,.70,.32);dark=float3(.70,.24,.036);}
+    if(phase>2.5){bright=float3(.88,.89,1.0);dark=float3(.12,.25,.86);}
+    float lum=clamp(.55-p.x*.52-p.y*.16,0.0,1.0);
+    float3 base=mix(dark,bright,lum);
+    float d=shapeDistance(shape);
+    base*=.94+.06*smoothstep(-.03,.01,d);
+    float3 color=embossShade(shape,base,.30);
+    color+=.016*noise3(float3(p*110.0,0));
+    return finish(color,coord);
+}

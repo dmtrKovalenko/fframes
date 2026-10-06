@@ -1,0 +1,20 @@
+uniform shader uMask;
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution.xy;
+    float2 p = rotate((coord - iResolution.xy * 0.5) / iResolution.y, iTime * 0.13);
+    float2 grid = p * 105.0;
+    float2 center = (floor(grid) + 0.5) / 105.0;
+    float2 lookup = center * iResolution.y + iResolution.xy * .5;
+    float d = maskDistance(uMask.eval(lookup));
+    float mask = 1.0 - smoothstep(-2.0, 4.0, d);
+    float radius = mix(0.06, 0.43, mask);
+    float2 circle = fract(grid) - 0.5;
+    float dotShape = 1.0 - smoothstep(radius - 0.04, radius + 0.03, length(circle));
+    float shine = clamp(0.7 - circle.x - circle.y, 0.0, 1.0);
+    float3 bg = float3(0.88, 0.69, 0.27);
+    float3 bead = mix(float3(0.51, 0.33, 0.075), float3(1.0, 0.93, 0.60), shine);
+    float3 color = mix(bg, bead, dotShape);
+    color += 0.04 * sin((uv.x + uv.y) * 2800.0);
+    return finish(color, coord);
+}

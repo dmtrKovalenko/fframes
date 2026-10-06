@@ -1,0 +1,78 @@
+// One continuous twisted ribbon, photographed in an HDR strip-light studio.
+// Obsidian's grazing-angle iridescence is applied to the actual 3D normal.
+float3 ribbonSpace(float3 p) {
+    p.xy=rotate(p.xy,-.42+iTime*.13+uVariant*.9);
+    p.yz=rotate(p.yz,.46+.14*sin(iTime*.5));
+    p.xz=rotate(p.xz,-.28+iTime*.17);
+    return p;
+}
+float ribbonDistance(float3 world) {
+    float3 p=ribbonSpace(world);
+    float angle=atan(p.y,p.x);
+    float2 q=float2(length(p.xy)-.72,p.z);
+    q=rotate(q,angle*1.5+iTime*.24);
+    float2 box=abs(q)-float2(.235,.070);
+    return (length(max(box,0.0))+min(max(box.x,box.y),0.0)-.055)*.62;
+}
+float3 filmColor(float3 p, float3 n, float3 v) {
+    float facing=clamp(dot(n,v),0.0,1.0);
+    float angle=atan(p.y,p.x);
+    float thickness=.58+.13*sin(angle*2.0+iTime*.23)+.08*p.z;
+    float optical=thickness*sqrt(1.0-.45*(1.0-facing*facing));
+    float phase=.5+.5*sin(optical*7.0+sin(angle)*.8+p.z*.8);
+    float3 cobalt=float3(.035,.09,.32);
+    float3 lavender=float3(.30,.12,.46);
+    float3 petrol=float3(.06,.34,.36);
+    float3 silver=float3(.48,.57,.65);
+    float3 film=mix(cobalt,lavender,smoothstep(.0,.48,phase));
+    film=mix(film,petrol,smoothstep(.48,.84,phase));
+    film=mix(film,silver,smoothstep(.84,1.0,phase)*.65);
+    if (uVariant > .5) film = mix(float3(.10,.002,.05),float3(.70,.05,.28),phase);
+    return film;
+}
+float3 ribbonSample(float2 p) {
+    float3 bg=float3(.019,.024,.037);
+    bg+=float3(.022,.032,.050)*exp(-dot(p-float2(.12,-.04),p-float2(.12,-.04))*3.0);
+    float3 ro=float3(0,0,-4.2), rd=normalize(float3(p*2.0,2.8));
+    float travel=2.7;
+    bool hit=false;
+    for(int i=0;i<100;++i) {
+        float d=ribbonDistance(ro+rd*travel);
+        if(d<.00055) {hit=true;break;}
+        travel+=max(d,.0003);
+        if(travel>5.8) break;
+    }
+    if(!hit) return bg;
+    float3 at=ro+rd*travel;
+    float2 e=float2(.001,0);
+    float3 n=normalize(float3(ribbonDistance(at+e.xyy)-ribbonDistance(at-e.xyy),
+                              ribbonDistance(at+e.yxy)-ribbonDistance(at-e.yxy),
+                              ribbonDistance(at+e.yyx)-ribbonDistance(at-e.yyx)));
+    float3 film=filmColor(ribbonSpace(at),n,-rd);
+    float fresnel=pow(1.0-max(dot(n,-rd),0.0),3.0);
+    float3 reflected=sculptureStudio(reflect(rd,n));
+    // Reflective colored substrate plus a clear outer coating. Bright white
+    // glints describe the twist; the center faces retain visible color.
+    float occlusion=0.0;
+    float weight=1.0;
+    for(int i=1;i<5;++i) {
+        float h=float(i)*.075;
+        occlusion+=max(h-ribbonDistance(at+n*h)/.62,0.0)*weight;
+        weight*=.6;
+    }
+    float ao=clamp(1.0-occlusion*2.5,.25,1.0);
+    float3 radiance=reflected*(film*.90+float3(.11))*(.48+fresnel*.8)*ao;
+    radiance+=film*(.03+.05*max(dot(n,normalize(float3(-.3,-.6,-1))),0.0));
+    radiance+=reflected*pow(max(dot(n,normalize(float3(-.5,-.6,-1))),0.0),35.0)*.3;
+    return displayMetal(radiance);
+}
+half4 main(float2 coord) {
+    float3 color=float3(0);
+    for(int y=0;y<2;++y) {
+        for(int x=0;x<2;++x) {
+            float2 p=(coord+float2(float(x),float(y))*.5-.25-iResolution.xy*.5)/iResolution.y;
+            color+=ribbonSample(p);
+        }
+    }
+    return finish(color*.25,coord);
+}
