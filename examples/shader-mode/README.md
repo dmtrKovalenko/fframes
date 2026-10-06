@@ -6,6 +6,8 @@ product sequence, black breaks and closing tail. The reference soundtrack is
 used unchanged. The typography and shader compositions retain fframes branding;
 this is a reconstruction, not a pixel-identical copy of the original artwork.
 
+![Frames from the final export: binary intro, 3D panel wall, native preview and outro](preview.jpg)
+
 `src/edit.rs` is the edit list. `reference-edit.json` documents the source intervals
 and requested changes: the amber shot stays level, the open-source shot keeps its
 colors, and the two native-window shots are combined. The resulting edit has 41
