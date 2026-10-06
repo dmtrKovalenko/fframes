@@ -1,4 +1,4 @@
-// Godrays' two noise products and seam-free radial frame; see THIRD_PARTY_NOTICES.
+// Godrays' two noise products and seam-free radial frame; see README.md for the license.
 half4 main(float2 coord) {
     float2 p=(coord-iResolution.xy*.5)/iResolution.y;
     float ray=godrays(p-float2(-.34,-.38),iTime*1.4,.44,.77,.8);

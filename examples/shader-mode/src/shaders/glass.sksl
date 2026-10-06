@@ -1,4 +1,4 @@
-// Adapted from kit/effects/glass.ts and FlowingGradient; see THIRD_PARTY_NOTICES.
+// Adapted from kit/effects/glass.ts and FlowingGradient; see README.md for the license.
 float3 glassBackdrop(float2 p) {
     float warm = uVariant;
     float3 dark = mix(float3(.001,.004,.012),float3(.012,.001,.0003),warm);

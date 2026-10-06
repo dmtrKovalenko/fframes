@@ -1,3 +1,2 @@
 dynamic_media/*
 !dynamic_media/.gitkeep
-__pycache__/

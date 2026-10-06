@@ -190,8 +190,7 @@ impl Scene for Shot {
                     recording.height() as f32,
                 );
             } else if let Some(poster) = ctx.get_image("native-preview-poster.jpg") {
-                // A poster keeps shader inspection and source-only builds useful.
-                // The reference export tool requires the actual recording.
+                // Use the bundled poster when the recording is unavailable.
                 uniforms =
                     uniforms
                         .image("uRecording", poster)
@@ -247,7 +246,6 @@ impl Scene for Shot {
 }
 
 /// Native Skia showcase: 932 source frames, 1920×1080.
-/// Export with `tools/render_reference.py` for 30000/1001 fps and untouched AAC.
 #[derive(Debug)]
 pub struct ShaderMode {
     shots: Vec<Shot>,

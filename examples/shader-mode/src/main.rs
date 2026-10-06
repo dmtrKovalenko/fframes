@@ -37,7 +37,6 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
                 ..Default::default()
             },
             // Play the source soundtrack in stereo, without gain or limiting.
-            // Final exports copy the AAC stream directly rather than remixing it.
             audio_mix: AudioMixOptions {
                 limiter: None,
                 ..Default::default()

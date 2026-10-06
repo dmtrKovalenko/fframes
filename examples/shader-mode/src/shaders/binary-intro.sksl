@@ -1,5 +1,5 @@
 // Binary grid / luminance lookup from kit/stylizePaints.ts; horizontal band
-// displacement follows kit/motionBlur.ts. See THIRD_PARTY_NOTICES.
+// displacement follows kit/motionBlur.ts. See README.md for the license.
 // Reveal and handoff timing are measured from the reference's first 33 frames.
 uniform shader uMask;
 

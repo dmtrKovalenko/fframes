@@ -1,5 +1,5 @@
 // SkSL adaptations of Shader Effects Inc. components, MIT, copyright 2026.
-// See THIRD_PARTY_NOTICES and README.md for pinned upstream files.
+// See README.md for the upstream source and license.
 // Integer noise hashing is replaced with an ES2-compatible floating-point hash.
 
 float3 gradientHash(float3 p) {
