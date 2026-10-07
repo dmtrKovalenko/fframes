@@ -1,78 +1,33 @@
 //! A port of <https://github.com/gre/bezier-easing>
-//! by Gaëtan Renaudeau 2014 - 2015 – MIT License
+//! by Gaëtan Renaudeau 2014 - 2026 – MIT License
 
-// These values are established by empiricism with tests (tradeoff: performance VS precision)
-const NEWTON_ITERATIONS: usize = 4;
-const NEWTON_MIN_SLOPE: f32 = 0.001;
-const SUBDIVISION_PRECISION: f32 = 0.000_000_1;
-const SUBDIVISION_MAX_ITERATIONS: usize = 10;
-
-const K_SPLINE_TABLE_SIZE: usize = 11;
-const K_SAMPLE_STEP_SIZE: f32 = 1.0 / (K_SPLINE_TABLE_SIZE as f32 - 1.0);
-
-#[inline]
-fn a(a1: f32, a2: f32) -> f32 {
-    1.0 - 3.0 * a2 + 3.0 * a1
-}
-
-#[inline]
-fn b(a1: f32, a2: f32) -> f32 {
-    3.0 * a2 - 6.0 * a1
-}
-
-#[inline]
-fn c(a1: f32) -> f32 {
-    3.0 * a1
-}
-
-#[inline]
-fn get_slope(t: f32, a1: f32, a2: f32) -> f32 {
-    3.0 * a(a1, a2) * t * t + 2.0 * b(a1, a2) * t + c(a1)
-}
-
-#[inline]
-fn calc_bezier(t: f32, a1: f32, a2: f32) -> f32 {
-    ((a(a1, a2) * t + b(a1, a2)) * t + c(a1)) * t
-}
-
-fn binary_subdivide(x: f32, a: f32, b: f32, x1: f32, x2: f32) -> f32 {
-    let mut current_x: f32;
-    let mut current_t: f32;
-    let mut i = 0;
-    let mut a_a = a;
-    let mut a_b = b;
-
-    loop {
-        current_t = a_a + (a_b - a_a) / 2.0;
-        current_x = calc_bezier(current_t, x1, x2) - x;
-        if current_x > 0.0 {
-            a_b = current_t;
+/// Solves x(t) = ((2a * t + 3b) * t + 3c) * t = x for t, with x in (0, 1):
+/// u = 1/t is the largest real root of x·u³ − 3c·u² − 3b·u − 2a = 0
+fn solve_t_for_x(x: f64, a: f64, b: f64, c: f64) -> f64 {
+    let j = 1.0 / c.max(x.sqrt());
+    let k = x * j;
+    let l = k * j;
+    let s = c * j;
+    let q = b * l;
+    let m = s * s + q;
+    let h = -s * (s * s + 1.5 * q) - a * k * l;
+    let d = h * h - m * m * m;
+    let v = if m == 0.0 || d > 1e-12 * h * h {
+        // one real root (Cardano)
+        let u = -(if h < 0.0 { h - d.sqrt() } else { h + d.sqrt() }).cbrt();
+        let v = u + m / u;
+        // triple root (m = h = 0) gives NaN
+        if v.is_nan() {
+            0.0
         } else {
-            a_a = current_t;
+            v
         }
-
-        if !(current_x.abs() > SUBDIVISION_PRECISION && i < SUBDIVISION_MAX_ITERATIONS) {
-            break;
-        }
-        i += 1;
-    }
-
-    current_t
-}
-
-fn newton_raphson_iterate(x: f32, guess_t: f32, x1: f32, x2: f32) -> f32 {
-    let mut guess = guess_t;
-
-    for _ in 0..NEWTON_ITERATIONS {
-        let current_slope = get_slope(guess, x1, x2);
-        if current_slope == 0.0 {
-            return guess;
-        }
-        let current_x = calc_bezier(guess, x1, x2) - x;
-        guess -= current_x / current_slope;
-    }
-
-    guess
+    } else {
+        // three real roots, take the largest
+        let r = m.sqrt();
+        2.0 * r * ((-h / (m * r)).clamp(-1.0, 1.0).acos() / 3.0).cos()
+    };
+    (k / (v + s)).min(1.0)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -81,7 +36,6 @@ pub struct CubicBezierRuntime {
     y1: f32,
     x2: f32,
     y2: f32,
-    sample_values: [f32; K_SPLINE_TABLE_SIZE],
 }
 
 impl CubicBezierRuntime {
@@ -98,67 +52,38 @@ impl CubicBezierRuntime {
     }
 
     pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
-        let x1_clamped = x1.clamp(0.0, 1.0);
-        let x2_clamped = x2.clamp(0.0, 1.0);
-
-        let mut sample_values = [0.0; K_SPLINE_TABLE_SIZE];
-        for (i, value) in sample_values.iter_mut().enumerate() {
-            *value = calc_bezier(i as f32 * K_SAMPLE_STEP_SIZE, x1_clamped, x2_clamped);
-        }
-
         CubicBezierRuntime {
-            x1: x1_clamped,
+            x1: x1.clamp(0.0, 1.0),
             y1,
-            x2: x2_clamped,
+            x2: x2.clamp(0.0, 1.0),
             y2,
-            sample_values,
         }
     }
 
     pub fn solve(&self, x: f32) -> f32 {
-        let x_clamped = x.clamp(0.0, 1.0);
-
         if self.x1 == self.y1 && self.x2 == self.y2 {
             return x;
         }
 
-        if x == 0.0 || x == 1.0 {
-            return x;
+        // x outside (0, 1) saturates to 0 / 1 (NaN stays NaN)
+        if !(x > 0.0 && x < 1.0) {
+            return x.clamp(0.0, 1.0);
         }
 
-        calc_bezier(self.get_t_for_x(x_clamped), self.y1, self.y2)
-    }
-
-    fn get_t_for_x(&self, x: f32) -> f32 {
-        let mut interval_start = 0.0;
-        let mut current_sample = 1;
-        let last_sample = K_SPLINE_TABLE_SIZE - 1;
-
-        while current_sample != last_sample && self.sample_values[current_sample] <= x {
-            interval_start += K_SAMPLE_STEP_SIZE;
-            current_sample += 1;
-        }
-        current_sample -= 1;
-
-        // Interpolate to provide an initial guess for t
-        let dist = (x - self.sample_values[current_sample])
-            / (self.sample_values[current_sample + 1] - self.sample_values[current_sample]);
-        let guess_for_t = interval_start + dist * K_SAMPLE_STEP_SIZE;
-
-        let initial_slope = get_slope(guess_for_t, self.x1, self.x2);
-        if initial_slope >= NEWTON_MIN_SLOPE {
-            newton_raphson_iterate(x, guess_for_t, self.x1, self.x2)
-        } else if initial_slope == 0.0 {
-            guess_for_t
-        } else {
-            binary_subdivide(
-                x,
-                interval_start,
-                interval_start + K_SAMPLE_STEP_SIZE,
-                self.x1,
-                self.x2,
-            )
-        }
+        // x(t) = ((2a * t + 3b) * t + 3c) * t with a = (3x1 - 3x2 + 1) / 2, b = x2 - 2x1, c = x1
+        let (x1, y1, x2, y2) = (
+            self.x1 as f64,
+            self.y1 as f64,
+            self.x2 as f64,
+            self.y2 as f64,
+        );
+        let t = solve_t_for_x(
+            x as f64,
+            (3.0 * x1 - 3.0 * x2 + 1.0) / 2.0,
+            x2 - 2.0 * x1,
+            x1,
+        );
+        ((((3.0 * y1 - 3.0 * y2 + 1.0) * t + 3.0 * (y2 - 2.0 * y1)) * t + 3.0 * y1) * t) as f32
     }
 }
 
@@ -287,6 +212,19 @@ mod tests {
             easing_with_invalid_x2_high.x2, 1.0,
             "x2 should be clamped to 1.0"
         );
+    }
+
+    #[test]
+    fn test_steep_curve_is_monotonic() {
+        // (1, 0, 0, 1) used to jump backwards around x = 0.5
+        let easing = CubicBezierRuntime::new(1.0, 0.0, 0.0, 1.0);
+        let mut previous = 0.0;
+        for i in 0..=10000 {
+            let y = easing.solve(0.49 + 0.02 * i as f32 / 10000.0);
+            assert!(y >= previous, "not monotonic at step {}", i);
+            previous = y;
+        }
+        assert_relative_eq!(easing.solve(0.4996), 0.4306, epsilon = 1e-4);
     }
 
     #[test]
