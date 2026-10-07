@@ -48,6 +48,7 @@ members = [
     # "fframes-lyon-renderer",
     "examples/signal-lab",
     "examples/fframes-intro",
+    "examples/made-of-motion",
 ]
 
 [workspace.lints.rust]

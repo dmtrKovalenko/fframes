@@ -1,0 +1,29 @@
+uniform float uAge;
+uniform float uSeed;
+uniform float2 uDirection;
+float hash(float p) { return fract(sin(p*127.1+uSeed*71.7)*43758.5453); }
+half4 main(float2 p) {
+    float2 q=p-float2(170.);
+    float t=uAge;
+    float fade=exp(-t*.42);
+    float r=length(q);
+    float grain=fract(sin(dot(floor(p),float2(127.1,311.7)))*43758.5453);
+    float cloud=exp(-r*r/(2300.+t*380.))*.76;
+    cloud*=smoothstep(.16,.92,grain);
+    float rays=0.;
+    for(int i=0;i<7;i++) {
+        float fi=float(i);
+        float angle=hash(fi)*6.283185;
+        float2 v=float2(cos(angle),sin(angle));
+        float along=dot(q,v);
+        float side=abs(q.x*v.y-q.y*v.x);
+        float start=32.+t*7.;
+        float len=28.+hash(fi+11.)*54.;
+        float tip=clamp((along-start)/len,0.,1.);
+        float width=(1.-tip)*(2.+hash(fi+41.)*3.);
+        float ray=(1.-smoothstep(width,width+1.,side))*step(start,along)*step(along,start+len);
+        rays=max(rays,ray);
+    }
+    float alpha=clamp(max(cloud,rays)*fade,0.,1.);
+    return half4(half3(float3(.96,.59,.025)*alpha),half(alpha));
+}

@@ -1,0 +1,41 @@
+uniform shader uField;
+uniform float2 uAtlas;
+uniform float4 uRect;
+uniform float iTime;
+uniform int iFrame;
+
+float hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+float noise(float2 p) {
+    float2 a=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+    return mix(mix(hash(a),hash(a+float2(1,0)),f.x),
+               mix(hash(a+float2(0,1)),hash(a+1.),f.x),f.y);
+}
+half4 field(float2 p) {
+    float2 q=p-uRect.xy;
+    if(min(q.x,q.y)<0. || q.x>=uRect.z || q.y>=uRect.w) return half4(0);
+    return uField.eval(uAtlas+q);
+}
+float3 thermal(float h) {
+    float3 c=mix(float3(.15,.025,.28),float3(.65,.016,.14),smoothstep(.03,.24,h));
+    c=mix(c,float3(.96,.075,.016),smoothstep(.24,.45,h));
+    c=mix(c,float3(1.,.51,.018),smoothstep(.44,.72,h));
+    c=mix(c,float3(1.,.83,.31),smoothstep(.69,.88,h));
+    return mix(c,float3(1.,.96,.80),smoothstep(.87,1.,h));
+}
+half4 main(float2 p) {
+    float grain=hash(floor(p*.84)+float(iFrame)*19.7)-.5;
+    float cloud=(noise(p/290.)-.5)*.017+(noise(p/59.)-.5)*.005;
+    float flare=smoothstep(1.65,2.0833,iTime);
+    float light=exp(-length((p-float2(790,620))/float2(850,770)));
+    float3 bg=float3(.046,.049,.050)+cloud+grain*.012;
+    bg+=flare*(float3(.17,.14,.15)*light+float3(.024,.005,.002));
+    half4 f=field(p);
+    float alpha=float(f.a);
+    float heat=alpha>.001 ? float(f.r)/alpha : .3;
+    float halo=(field(p+float2(14,0)).a+field(p-float2(14,0)).a
+               +field(p+float2(0,14)).a+field(p-float2(0,14)).a)*.25;
+    bg+=float3(.16,.025,.004)*halo*(1.-alpha)*.18;
+    float3 body=thermal(heat+grain*.018);
+    body+=grain*.021+(noise(p/3.1)-.5)*.007;
+    return half4(mix(bg,body,alpha),1);
+}

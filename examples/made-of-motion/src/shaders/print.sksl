@@ -1,0 +1,8 @@
+uniform float iTime;
+uniform float uStrength;
+float hash(float2 p) { return fract(sin(dot(p,float2(17.13,93.17)))*47111.81); }
+half4 main(float2 p) {
+    float h=hash(floor(p*.78)+floor(iTime*24.)*float2(13,37));
+    float a=abs(h-.5)*uStrength;
+    return half4(half3(step(.5,h)*a),a);
+}

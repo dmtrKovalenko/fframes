@@ -1,0 +1,37 @@
+uniform shader uAtlas;
+uniform float2 uOrigin;
+uniform float3 uCenter;
+uniform float3 uRight;
+uniform float3 uDown;
+uniform float uSize;
+uniform float2 uStretch;
+uniform float2 uCell;
+uniform float uHeat;
+uniform float uSoot;
+uniform float uPixels;
+
+half4 sampleObject(float2 p) {
+    float3 ray=float3((p+uOrigin-float2(720,540))/1250.,1.);
+    float3 normal=cross(uRight,uDown);
+    float den=dot(ray,normal);
+    if(abs(den)<.00001) return half4(0);
+    float3 hit=ray*(dot(uCenter,normal)/den)-uCenter;
+    float2 uv=float2(dot(hit,uRight),dot(hit,uDown))/(uSize*uStretch)+.5;
+    if(min(uv.x,uv.y)<0. || max(uv.x,uv.y)>=1.) return half4(0);
+    half4 c=uAtlas.eval(uCell+floor((floor(uv*uPixels)+.5)*(64./uPixels))+.5);
+    float shade=.82+.18*abs(normal.z);
+    c.rgb*=shade;
+    if(uHeat>0.) {
+        float h=sin(uv.x*5.+uv.y*8.)*.5+.5;
+        float3 heat=mix(float3(.9,.09,.015),float3(1.,.9,.39),h);
+        c.rgb=mix(c.rgb,half3(heat)*c.a,uHeat);
+    }
+    float stain=1.-smoothstep(.28,.60,length((uv-float2(.43,.5))*float2(1.,.82)));
+    c.rgb=mix(c.rgb,half3(.022,.019,.016)*c.a,uSoot*stain);
+    return c;
+}
+half4 main(float2 p) {
+    // Coverage AA at the projected pixel edges; never blur across atlas texels.
+    return (sampleObject(p+float2(-.28,-.28))+sampleObject(p+float2(.28,-.28))
+           +sampleObject(p+float2(-.28,.28))+sampleObject(p+float2(.28,.28)))*.25;
+}

@@ -1,0 +1,18 @@
+uniform int iFrame;
+float hash(float2 p) {return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453);}
+half4 main(float2 p) {
+    float f=float(iFrame);
+    float grain=hash(floor(p*.8)+f*21.3)-.5;
+    float reveal=smoothstep(.9,3.8,f);
+    float vignette=smoothstep(220.,1050.,length((p-float2(735,590))*float2(1.,.8)));
+    float3 paper=float3(.878,.875,.853)-vignette*.10;
+    float3 c=mix(float3(.044,.043,.044),paper,reveal);
+    float y=970.-f*134.;
+    float glow=exp(-pow((p.y-y)/190.,2.)-pow((p.x-690.)/580.,2.));
+    float strength=max(0.,1.-f*.36);
+    c=mix(c,float3(.93,.018,.003),glow*strength);
+    c=mix(c,float3(1.,.64,.025),pow(glow,2.6)*strength);
+    c=mix(c,float3(1.,.94,.70),pow(glow,7.)*strength);
+    c+=grain*mix(.014,.052,reveal);
+    return half4(c,1);
+}

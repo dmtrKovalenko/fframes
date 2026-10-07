@@ -1,0 +1,39 @@
+uniform shader uSource;
+uniform int iFrame;
+float box(float2 p,float4 r) {
+    float2 d=max(r.xy-p,p-r.zw);
+    return 1.-smoothstep(-3.,5.,max(d.x,d.y));
+}
+half4 boundary(float2 p) {
+    return (uSource.eval(p+float2(5,0))+uSource.eval(p-float2(5,0))
+        +uSource.eval(p+float2(0,5))+uSource.eval(p-float2(0,5)))*.25;
+}
+half4 main(float2 p) {
+    half4 c=uSource.eval(p);
+    // The portrait is the only remaining live-action plate. The hand now has
+    // an isolated thermal field and the four-frame icon flash is procedural.
+    if(iFrame<9) {
+        // The first caption is heavily defocused. Its wide halo needs a wider
+        // matte; preserve chromatic performance pixels crossing that region.
+        float2 d=max(float2(150,466)-p,p-float2(782,610));
+        float a=1.-smoothstep(-12.,18.,max(d.x,d.y));
+        float chroma=max(c.r,max(c.g,c.b))-min(c.r,min(c.g,c.b));
+        a*=1.-smoothstep(.08,.18,chroma);
+        return mix(c,uSource.eval(float2(105.+p.x*.04,p.y)),a);
+    }
+    float4 r=float4(166,482,595,598);
+    float2 uv=clamp((p-r.xy)/(r.zw-r.xy),0.,1.);
+    // Boundary-constrained interpolation follows the light sweep. Copying an
+    // upper strip made a dark rectangle when the portrait turned white.
+    half4 vertical=mix(boundary(float2(p.x,r.y)),boundary(float2(p.x,r.w)),uv.y);
+    half4 horizontal=mix(boundary(float2(r.x,p.y)),boundary(float2(r.z,p.y)),uv.x);
+    half4 corners=mix(mix(boundary(r.xy),boundary(r.zy),uv.x),
+                      mix(boundary(r.xw),boundary(r.zw),uv.x),uv.y);
+    half4 grain=uSource.eval(p-float2(0,137))-boundary(p-float2(0,137));
+    float a=box(p,float4(181,499,579,578));
+    c=mix(c,clamp(vertical+horizontal-corners+grain*.7,0.,1.),a);
+    // The source caret is a separate element farther right than its caption.
+    float caret=box(p,float4(630,505,662,570));
+    c=mix(c,uSource.eval(p-float2(27,0)),caret);
+    return c;
+}

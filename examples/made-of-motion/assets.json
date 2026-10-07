@@ -1,0 +1,95 @@
+{
+  "reference": "https://x.com/jordanarchivess/status/2107536262894915762",
+  "source_sha256": "7f170273c308c7fb2ce17126fba4d0048e4a9a476438c76144a58c9c840309df",
+  "source_dimensions": [
+    1440,
+    1080
+  ],
+  "source_fps": "24000/1001",
+  "source_frames": 489,
+  "preview_fps": 24,
+  "audio_adts_sha256": "091c219bd421472f5fa74f7c1987a86db61ca8148962e6ee1302adc0f394c30a",
+  "vector_ink": {
+    "method": "Supervised per-exposure matting followed by subpixel opacity contour vectorization",
+    "opacity_levels": 64,
+    "contour_tolerance_pixels": 0.4,
+    "coordinate_precision_pixels": 0.1,
+    "pigment_frames": 384,
+    "path_count": 34272,
+    "limitations": [
+      "Visible source pigment is measured; overlapping source text and icons are excluded or reconstructed from annotated curves.",
+      "Opacity and pigment color are estimates from the compressed reference, not original alpha layers.",
+      "The branded ending maps four measured red nib tracks onto seven approved letter tracks, preserving the final gestures through assembly and camera pullback. --ink-only retains original source positions."
+    ]
+  },
+  "files": {
+    "dynamic_media/portrait-clean.mp4": {
+      "bytes": 4570487,
+      "sha256": "215ebf6ccec5496524e7d6f63d892d1ddb54ab08de3157c87104deb5edc8ea1c"
+    },
+    "dynamic_media/soundtrack.m4a": {
+      "bytes": 332207,
+      "sha256": "487fb902ee7ed1cbc733ea37214ebcf84c7d7f42681fc18721f1fa7249c67e17"
+    },
+    "dynamic_media/soundtrack.wav": {
+      "bytes": 7856220,
+      "sha256": "200f0958e057292b5e4f2689e4b8c14fcf9cfea4e0110fa66e5fe781a56049fd"
+    },
+    "media/InstrumentSerif-Italic.ttf": {
+      "bytes": 71592,
+      "sha256": "08939b8bdf534afec24ae0ef5e03f948940cd9a8fe08e7fecbad040e62327385"
+    },
+    "media/Inter_24pt-Bold.ttf": {
+      "bytes": 344028,
+      "sha256": "6e56a080abad19a16d985801909378d26d0da425265289d5d1ebf38baa50cba9"
+    },
+    "media/JetBrainsMono-Regular.ttf": {
+      "bytes": 114320,
+      "sha256": "4391a6a20152f6c1cd05524e81c594b1a556117e027332a1c7042e799b7777e8"
+    },
+    "media/hand-field.png": {
+      "bytes": 3492320,
+      "sha256": "cb1813c57d9356df9e92a27ed3d5f4bcfb4964a88999984c8c9359dfd024a58e"
+    },
+    "media/objects.png": {
+      "bytes": 11583,
+      "sha256": "370bade0a5b2347bc50dd6daa286a2d271702900f5fabdae327f2d118d97aec3"
+    },
+    "src/ink_capture.rs": {
+      "bytes": 5890,
+      "sha256": "c7df1a69fc121a7836982daece6a96db0ac76fd0be7f764421d03c05264a9c76"
+    },
+    "src/opening_capture.rs": {
+      "bytes": 2297,
+      "sha256": "a9e99623b2a04aa66a57d7680f7d84da2528ebcf2fbed33dbf653ab3661cde90"
+    },
+    "src/restoration_capture.rs": {
+      "bytes": 3043,
+      "sha256": "c7d3edc6cc0a995cffdec368d6ba07d292a2d306697ae32d32305559ca14b193"
+    },
+    "src/vector_ink/000.paths.gz": {
+      "bytes": 3161634,
+      "sha256": "e603c3b3b64a7bfa69a39d0255ea3eb58a81334cffa64722aa74058ca4ca25f5"
+    },
+    "src/vector_ink/100.paths.gz": {
+      "bytes": 1583603,
+      "sha256": "e266b7a4e11a532c847113a255433668936fc6c576654be6a6a94e9d54c25eb9"
+    },
+    "src/vector_ink/200.paths.gz": {
+      "bytes": 7813293,
+      "sha256": "5c27feb87a58f3b89a9c26562c66f0ca2189130767ec4c8683cdd105c6cce180"
+    },
+    "src/vector_ink/300.paths.gz": {
+      "bytes": 2189282,
+      "sha256": "0f45f14c0f941a338bac41c9b0c462989399a40727ff7b8001670a36eaf155c4"
+    },
+    "src/vector_ink/400.paths.gz": {
+      "bytes": 4653529,
+      "sha256": "2c7ab1d08dfd61c7bca24e1df178fe257fe23c3472f9a02955c78d74a9929af7"
+    },
+    "src/opening-type.path": {
+      "bytes": 3182,
+      "sha256": "e3c3d27400c94e980b49728f075f21eef041da4d0fd0895a69da0a12bbae14d8"
+    }
+  }
+}

@@ -1,0 +1,87 @@
+// Bent electric cusp photographed through paper grain and a warm optical halo.
+uniform float3 iResolution;
+uniform float iTime;
+uniform int iFrame;
+uniform float4 uPose;
+uniform float uAngle;
+uniform float uPower;
+
+float hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+float noise(float2 p) {
+    float2 q=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+    return mix(mix(hash(q),hash(q+float2(1,0)),f.x),mix(hash(q+float2(0,1)),hash(q+1.),f.x),f.y);
+}
+float cusp(float2 p) {
+    float2 q=p-uPose.xy;
+    float2 radius=uPose.zw;
+    q=float2(cos(uAngle)*q.x+sin(uAngle)*q.y,-sin(uAngle)*q.x+cos(uAngle)*q.y)/radius;
+    float2 a=max(abs(q),float2(.00001));
+    float f=pow(a.x,uPower)+pow(a.y,uPower)-1.;
+    float2 gradient=uPower*pow(max(a,float2(.035)),float2(uPower-1.))/radius;
+    return f/max(length(gradient),.0002);
+}
+half4 main(float2 p) {
+    float f=float(iFrame);
+    // Tiny filament displacement is attached to the edge, not moving grain.
+    float2 warped=p+float2(noise(p/8.+float2(iTime*.4,0.))-.5,noise(p/13.)-.5)*2.;
+    float fold=clamp(f-43.,0.,1.);
+    float2 cuspPoint=float2(warped.x*mix(1.,.72,fold),535.+(warped.y-535.)*mix(1.,1.45,fold));
+    float d=cusp(cuspPoint);
+    float3 paper=float3(.896,.89,.885);
+    float2 light=(p-float2(1190.,545.))/float2(800.,1160.);
+    float illumination=exp(-dot(light,light)*1.16);
+    float3 shadow=float3(.075,.071,.074);
+    float3 c=mix(shadow,paper,smoothstep(.12,.94,illumination));
+    c-=pow(max(0.,(500.-p.y)/500.),1.3)*.14*smoothstep(300.,850.,p.x);
+    // Brown photographic shoulder surrounding the blue. The far-right field
+    // stays luminous while the upper/lower left corners fall almost to black.
+    c+=exp(-pow((p.x-350.)/170.,2.))*float3(.105,.070,.067);
+    float shoulder=exp(-abs(d)/125.)*.19;
+    c+=float3(.36,.145,.072)*shoulder;
+    float edge=exp(-abs(d)/8.5);
+    float bloom=exp(-abs(d)/26.);
+    float blue=smoothstep(4.,16.,f);
+    float3 core=mix(float3(.06,.84,.76),float3(.12,.25,.81),blue);
+    core+=float3(.02,.09,.03)*noise(p/100.);
+    float softness=mix(17.,3.2,smoothstep(2.,8.,f));
+    float inside=1.-smoothstep(-softness,softness,d);
+    float3 electric=mix(core,float3(.12,.63,.54),exp(-abs(d)/14.)*.77);
+    c=mix(c,electric,inside);
+    c+=float3(.018,.14,.105)*bloom*(1.-inside)+float3(.01,.025,.018)*edge;
+    // Measured flash/recoil exposures: the star crosses from right to left,
+    // almost vanishes in the white exposure, then gains contrast while turning.
+    float wash=f==3. ? .63 : f==4. ? .35 : f==5. ? .13 : 0.;
+    c=mix(c,float3(.885,.885,.875),wash);
+    if(f==0.) c=mix(float3(.90,.035,.028),float3(.95,.78,.17),inside);
+    if(f==1.) c=mix(float3(.86,.67,.02),float3(.80,.93,.08),inside*.83);
+    if(f==2.) c=float3(.89,.89,.88);
+    // A warm paper bloom contracts rapidly into an orange ball, then exits
+    // into the portrait. Each radius/centre is tied to a source exposure.
+    if(f>=41.) {
+        float a=clamp(f-41.,0.,1.);
+        float b=clamp(f-42.,0.,1.);
+        float e=clamp(f-43.,0.,1.);
+        float2 centre=mix(float2(810,540),float2(730,530),a);
+        centre=mix(centre,float2(610,550),b);
+        centre=mix(centre,float2(430,540),e);
+        float2 radius=mix(float2(590,650),float2(470,540),a);
+        radius=mix(radius,float2(365,445),b);
+        radius=mix(radius,float2(200,275),e);
+        float2 q=(p-centre)/radius;
+        float r=length(q);
+        float glow=exp(-pow(r,2.55)*1.55);
+        float halo=exp(-pow((r-.81)*3.8,2.));
+        float3 hot=mix(float3(.84,.61,.47),float3(.94,.40,.19),a);
+        hot=mix(hot,float3(.99,.35,.065),b);
+        hot=mix(hot,float3(.96,.22,.015),e);
+        float3 dark=float3(.045,.043,.044);
+        c=dark+(hot-dark)*glow+float3(.15,-.026,-.012)*halo;
+        float3 filament=mix(float3(.14,.075,.47),float3(.52,.012,.045),clamp((f-41.)*.5,0.,1.));
+        c=mix(c,filament*(.60+.40*exp(-abs(d)/90.)),inside*.92);
+        c+=float3(.10,.06,.042)*exp(-abs(d)/4.5);
+
+    }
+    float grain=(hash(floor(p*.73)+f*19.7)-.5)*.072;
+    c+=(noise(p/77.)-.5)*.022+grain;
+    return half4(clamp(c,0.,1.),1.);
+}

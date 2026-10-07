@@ -1,0 +1,22 @@
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uMode;
+uniform float uVignette;
+
+float hash(float2 p) { return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
+float noise(float2 p) {
+    float2 q=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+    return mix(mix(hash(q),hash(q+float2(1,0)),f.x),mix(hash(q+float2(0,1)),hash(q+1.),f.x),f.y);
+}
+half4 main(float2 p) {
+    float2 uv=p/iResolution.xy;
+    float2 d=(uv-float2(.52,.48))*float2(1.15,1.);
+    float cloud=noise(p/280.)*.5+noise(p/81.)*.22+noise(p/14.)*.09;
+    float grain=(hash(floor(p*.72)+floor(iTime*24.)*19.7)-.5)*.058;
+    float edge=smoothstep(.20,.79,length(d));
+    float3 c=float3(.883,.880,.857)+(cloud-.4)*.085+grain;
+    c-=edge*(.10+uVignette*.72);
+    if(uMode>.5 && uMode<1.5) c=float3(.048,.049,.048)+(cloud-.4)*.021+grain*.20;
+    if(uMode>1.5) c=float3(.91,.105,.065)+(cloud-.4)*.09+grain*.7-edge*.10;
+    return half4(c,1);
+}

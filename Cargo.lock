@@ -1917,6 +1917,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
 
 [[package]]
+name = "made-of-motion"
+version = "1.2.0"
+dependencies = [
+ "fframes",
+ "fframes_native_player",
+ "fframes_skia_renderer",
+ "flate2",
+]
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

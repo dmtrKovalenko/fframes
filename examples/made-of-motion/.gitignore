@@ -1,0 +1,4 @@
+dynamic_media/*
+!dynamic_media/portrait-clean.mp4
+!dynamic_media/soundtrack.wav
+!dynamic_media/soundtrack.m4a
