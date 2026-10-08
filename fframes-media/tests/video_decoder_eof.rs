@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use fframes_media::FFmpegDecoder;
+use fframes_media::{FFmpegDecoder, FrameConvertOptions, ResizeVideoFrame};
 
 const FPS: usize = 30;
 const FRAME_COUNT: i64 = 300;
@@ -117,6 +117,51 @@ fn b_frames_are_drained_and_decoding_can_restart_after_eof() {
     assert_eq!(offset, 0);
     assert_frame(&mut decoder, offset);
     assert_frame(&mut decoder, FRAME_COUNT - 1);
+}
+
+#[test]
+fn an_older_frame_is_not_returned_after_a_failed_conversion() {
+    let video = VideoFixture::new(0);
+    // The scaler can't be created for an empty output
+    let empty = FrameConvertOptions {
+        resize: ResizeVideoFrame {
+            width: 0,
+            height: 0,
+        },
+    };
+    // The CPU renderer decodes into a single reused buffer, the Skia pipeline into a ring.
+    for buffer_size in [1, 3] {
+        let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, buffer_size) }.unwrap();
+        // Fill every buffer, so the next frame is written into the buffer of an older one
+        for index in 0..buffer_size as i64 {
+            assert_frame(&mut decoder, index * 50);
+        }
+        let index = buffer_size as i64 * 50;
+        unsafe {
+            let mut reference = FFmpegDecoder::new(&video.path(), FPS, 1).unwrap();
+            assert!(reference.decode_up_to(index).unwrap());
+            let expected = reference
+                .get_raw_frame()
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+
+            assert!(decoder.decode_up_to(index).unwrap());
+            let frame = decoder.get_raw_frame();
+            assert!(
+                frame
+                    .convert_last_decoded_frame_into_svg_image(Some(&empty))
+                    .is_err()
+            );
+            let image = frame
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            assert!(
+                image.data == expected.data,
+                "frame {index} differs from a decoder that converted it without a failure \
+                 (buffer size {buffer_size})"
+            );
+        }
+    }
 }
 
 #[test]

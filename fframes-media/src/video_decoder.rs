@@ -493,7 +493,16 @@ impl FFmpegFrameBuf {
             }
 
             let image = self.write_new_frame().unwrap();
-            scaler.convert(options.copied(), self.latest_av_frame, &mut image.data)?;
+            if let Err(err) =
+                scaler.convert(options.copied(), self.latest_av_frame, &mut image.data)
+            {
+                // the buffer already has this frame's pts but not its pixels (a reused buffer
+                // still holds an older frame), so drop it instead of returning it for this pts
+                if let Some(queue) = self.data_buf.get().as_mut() {
+                    queue.pop_back();
+                }
+                return Err(err);
+            }
 
             Ok(create_preloaded_image(
                 scaler.video_stream_info.pixel_format,
