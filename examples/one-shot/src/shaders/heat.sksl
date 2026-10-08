@@ -29,7 +29,7 @@ float3 palette(float v) {
     if (uPalette < .5) // thermal camera
         return ramp5(v, float3(.36, .03, .14), float3(.80, .07, .10), float3(.98, .36, .09), float3(1., .78, .20), float3(1., .98, .86));
     if (uPalette < 1.5) // yellow
-        return ramp5(v, float3(.86, .48, .04), float3(.95, .66, .06), float3(.99, .82, .16), float3(1., .93, .42), float3(1., .99, .88));
+        return ramp5(v, float3(.78, .22, .03), float3(.96, .50, .04), float3(1., .78, .10), float3(1., .93, .40), float3(1., .99, .90));
     if (uPalette < 2.5) // flat orange
         return mix(float3(.86, .30, .06), float3(1., .56, .24), smoothstep(.45, 1., v));
     // cold echo

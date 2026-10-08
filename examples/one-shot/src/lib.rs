@@ -69,11 +69,11 @@ pub(crate) const GIRL: Atlas = Atlas {
     cell: [707., 576.],
     cols: 4,
 };
-pub(crate) const MAN: Atlas = Atlas {
-    file: "stand-heat.png",
-    frames: 56,
-    cell: [546., 738.],
-    cols: 6,
+pub(crate) const REACH: Atlas = Atlas {
+    file: "reach-heat.png",
+    frames: 60,
+    cell: [1126., 594.],
+    cols: 4,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -175,6 +175,17 @@ pub(crate) fn dust(frame: &Frame, dark: bool) -> Svgr<'static> {
         })
         .collect::<Vec<_>>();
     fframes::svgr!(<g>{specks}</g>)
+}
+
+/// Printer's crop marks and a registration target, faint, on the paper scenes.
+pub(crate) fn crop_marks() -> Svgr<'static> {
+    fframes::svgr!(<g stroke="#3d2419" stroke-width="1.5" fill="none" opacity="0.32">
+        <path d="M28 52 H52 V28 M1412 52 H1388 V28 M28 1028 H52 V1052 M1412 1028 H1388 V1052" />
+        <circle cx="720" cy="34" r="8" />
+        <path d="M708 34 H732 M720 22 V46" />
+        <circle cx="720" cy="1046" r="8" />
+        <path d="M708 1046 H732 M720 1034 V1058" />
+    </g>)
 }
 
 /// Bold display copy, the voice of the film.
@@ -284,6 +295,7 @@ impl Scene for Shot {
         let s = &self.studio;
         let dark = matches!(self.kind, Kind::Gun | Kind::Patterns | Kind::Author);
         let specks = dust(&frame, dark);
+        let marks = if dark { Svgr::empty() } else { crop_marks() };
         let content = match self.kind {
             Kind::Question => self.question.render(frame, ctx, s),
             Kind::Gun => self.gun.render(frame, ctx, s),
@@ -293,7 +305,7 @@ impl Scene for Shot {
             Kind::Author => self.author.render(frame, ctx, s),
             Kind::Create => self.create.render(frame, ctx, s),
         };
-        fframes::svgr!(<g>{content}{specks}</g>)
+        fframes::svgr!(<g>{content}{specks}{marks}</g>)
     }
 }
 

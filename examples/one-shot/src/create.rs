@@ -336,6 +336,25 @@ impl Create {
             Vec::new()
         };
 
+        let guide_on = ink::smoothstep(CREATE + 2., CREATE + 12., nf)
+            * (1. - ink::smoothstep(ASSEMBLE, ASSEMBLE + 6., nf));
+        let guides = if guide_on > 0. {
+            let dash = nf * 2.;
+            fframes::svgr!(<g fill="none" stroke={BROWN} stroke-width="1.5" stroke-dasharray="10 12" opacity={0.3 * guide_on}>
+                <ellipse cx={CENTER[0]} cy={CENTER[1]} rx="440" ry="245" stroke-dashoffset={-dash} />
+                <ellipse cx={CENTER[0]} cy={CENTER[1]} rx="665" ry="350" stroke-dashoffset={dash} />
+            </g>)
+        } else {
+            Svgr::empty()
+        };
+        let suck = (nf - ASSEMBLE) / 14.;
+        let suction = if (0. ..1.).contains(&suck) {
+            let r = 760. * (1. - ease(suck));
+            fframes::svgr!(<ellipse cx={CENTER[0]} cy={CENTER[1]} rx={r.max(1.)} ry={(r * 0.55).max(1.)} fill="none" stroke={ORANGE}
+                stroke-width={2. + 6. * suck} opacity={0.6 * (1. - suck)} />)
+        } else {
+            Svgr::empty()
+        };
         let push = 1.
             + 0.04
                 * ink::smoothstep(CREATE, ASSEMBLE, nf)
@@ -348,6 +367,8 @@ impl Create {
             {s.paper(&frame, 0., 0.12)}
             <g transform={format!("translate(720 540) scale({push:.4}) translate(-720 -540)")}>
                 {halo}
+                {guides}
+                {suction}
                 {if shadows.is_empty() { Svgr::empty() } else { fframes::svgr!(<g filter="url(#create-soft)">{shadows}</g>) }}
                 {back}
                 {doodles}

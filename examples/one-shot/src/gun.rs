@@ -285,6 +285,20 @@ impl Gun {
                 st.draw_window(off, on, e)
             })
             .collect::<Vec<_>>();
+        let shock = if (0. ..0.3).contains(&age) {
+            let r = 30. + age * 900.;
+            let ring = Stroke::new(
+                &ink::arc(MUZZLE[0] + 40., MUZZLE[1], r, r * 0.8, -1.4, 1.4, 340.),
+                4. * (1. - age / 0.3) + 1.,
+                CREAM,
+                340.,
+            )
+            .taper(0.3, 0.3)
+            .draw(1., e);
+            fframes::svgr!(<g opacity={1. - age / 0.3}>{ring}</g>)
+        } else {
+            Svgr::empty()
+        };
         let bursts = self
             .bursts
             .iter()
@@ -392,6 +406,7 @@ impl Gun {
                 {bullet}
                 {sparks}
                 {embers}
+                {shock}
                 {bursts}
                 {exit_splat}
             </g>

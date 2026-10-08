@@ -375,7 +375,17 @@ impl Question {
                 (lay.line2[typed - 7], Y2, &LINE2[..])
             };
             let _ = ws;
-            fframes::svgr!(<rect x={X0 + lx.0 + lx.1 + 8.} y={line_y - 52.} width="5" height="64" fill={ORANGE} />)
+            let cx = X0 + lx.0 + lx.1 + 8.;
+            let readout = if typed < 11 {
+                format!("x {:04}  y {:04}", cx as i32, line_y as i32)
+            } else {
+                String::new()
+            };
+            fframes::svgr!(<g>
+                <rect x={cx} y={line_y - 52.} width="5" height="64" fill={ORANGE} />
+                <path d={format!("M{:.1} {:.1} v-18 h12", cx + 2.5, line_y - 56.)} stroke={ORANGE} stroke-width="1.5" fill="none" opacity="0.7" />
+                {crate::mono(&readout, cx + 18., line_y - 70., 13., BROWN, 0.8)}
+            </g>)
         } else {
             Svgr::empty()
         };

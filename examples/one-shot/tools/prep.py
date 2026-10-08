@@ -146,37 +146,24 @@ def girl():
     return pack(out, "girl-heat.png", 0.8)
 
 
-def repair(stack):
-    """Replace frames where segmentation dropped a limb with their neighbours' mean."""
-    area = stack.reshape(len(stack), -1).sum(1)
-    out = stack.copy()
-    for i in range(1, len(stack) - 1):
-        if area[i] < 0.8 * min(area[i - 1], area[i + 1]):
-            out[i] = (stack[i - 1] + stack[i + 1]) / 2
-    return out
-
-
-def stand():
-    # Backlit man rising from a chair (Pexels 8860234), 2x speed.
-    start, count = 6, 56
-    vis = repair(masks(f"{WORK}/footage/stand-mask", start, count * 2))[::2]
+def reach():
+    # A man in profile lifts his hand and reaches out (Pexels 10204155, 5.5-9.6 s).
+    total = 103
+    picks = [round(i * (total - 1) / 59) for i in range(60)]
+    src = frames(f"{WORK}/footage/reach.mp4", 0, total)
+    vis = masks(f"{WORK}/footage/reach-mask", 0, total)
     out = []
-    for i, m in enumerate(vis):
-        src_index = start + i * 2
-        m = smoothstep(0.35, 0.65, m)
-        h, w = m.shape
-        yy, xx = np.mgrid[0:h, 0:w]
-        if src_index >= 46:
-            # The chair seat separates from his legs once he rises.
-            m = m * (1 - ((xx > 492) & (yy > 868) & (yy < 1024)))
-        if src_index >= 56:
-            m = m * (1 - ((xx > 458) & (yy > 860) & (yy < 1040)))
-        m = m * smoothstep(1270, 1220, yy)
-        core = blur(m, 34)
-        head = smoothstep(0.42, 0.0, (yy - yy[m > 0.5].min()) / max(h, 1)) if (m > 0.5).any() else 0
-        heat = m * np.clip(0.2 + 0.7 * core + 0.18 * head, 0, 1)
-        out.append(heat[100:1290, 40:920])
-    return pack(out, "stand-heat.png", 0.62)
+    for i in picks:
+        rgb, m = src[i], smoothstep(0.3, 0.7, vis[i])
+        luma = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+        lo, hi = np.percentile(luma[m > 0.5], [5, 95]) if (m > 0.5).any() else (0.0, 1.0)
+        warm = np.clip((luma - lo) / max(hi - lo, 1e-3), 0, 1)
+        core = blur(m, 30)
+        h = m.shape[0]
+        lift = np.linspace(0, 1, h, dtype=np.float32)[:, None]
+        heat = m * np.clip(0.06 + 0.3 * core + 0.58 * warm ** 1.3 + 0.12 * lift, 0, 1)
+        out.append(heat)
+    return pack(out, "reach-heat.png", 0.55)
 
 
 def slop():
@@ -266,6 +253,6 @@ def logo_points():
 
 if __name__ == "__main__":
     os.makedirs(MEDIA, exist_ok=True)
-    only = sys.argv[3:] or ["gun", "girl", "stand", "slop", "tools", "logo"]
+    only = sys.argv[3:] or ["gun", "girl", "reach", "slop", "tools", "logo"]
     for step in only:
-        {"gun": gun, "girl": girl, "stand": stand, "slop": slop, "tools": tools, "logo": logo_points}[step]()
+        {"gun": gun, "girl": girl, "stand": stand, "reach": reach, "slop": slop, "tools": tools, "logo": logo_points}[step]()

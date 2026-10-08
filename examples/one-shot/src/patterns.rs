@@ -197,6 +197,45 @@ impl Patterns {
                 Some(fframes::svgr!(<circle cx={x} cy={y} r={1.5 + ink::hash(k + 4.) * 2.5} fill={color} opacity={(1. - a / 0.9) * 0.9} />))
             })
             .collect::<Vec<_>>();
+        let speed = if n < RUN {
+            (0..5)
+                .map(|k| {
+                    let kk = k as f32;
+                    let y = top + 140. + kk * 70. + (ink::hash(kk + nf * 0.01) - 0.5) * 10.;
+                    let len = 120. + ink::hash(kk + 3.) * 160.;
+                    let x1 = girl_x - 120. - ink::hash(kk + 5.) * 40.;
+                    Stroke::new(
+                        &[[x1 - len, y], [x1 - len * 0.4, y - 3.], [x1, y]],
+                        3. + (k % 2) as f32 * 2.,
+                        CREAM,
+                        560. + kk,
+                    )
+                    .taper(0.6, 0.1)
+                    .draw(1., e)
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        let puffs = (0..9)
+            .filter_map(|k| {
+                let at = 2. + k as f32 * 4.6;
+                let a = (nf - at) / 24.;
+                if !(0. ..0.6).contains(&a) {
+                    return None;
+                }
+                let x = path(at) + if k % 2 == 0 { 10. } else { -30. };
+                let rings = (0..3)
+                    .map(|j| {
+                        let jj = j as f32;
+                        let r = 6. + a * (40. + jj * 25.);
+                        fframes::svgr!(<circle cx={x - 20. + jj * 18. - a * 60.} cy={GROUND - 4. - a * 30. * (jj + 1.) * 0.5} r={r}
+                            fill="none" stroke={CREAM} stroke-width="1.5" opacity={(1. - a / 0.6) * 0.5} />)
+                    })
+                    .collect::<Vec<_>>();
+                Some(fframes::svgr!(<g>{rings}</g>))
+            })
+            .collect::<Vec<_>>();
         let steps = (0..9)
             .filter_map(|k| {
                 let at = 2. + k as f32 * 4.6;
@@ -238,6 +277,8 @@ impl Patterns {
             {stamps}
             {equals}
             {steps}
+            {puffs}
+            {speed}
             {embers}
             {girl}
         </g>)
