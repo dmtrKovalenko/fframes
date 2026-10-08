@@ -173,6 +173,7 @@ The full API reference is on [docs.rs/fframes](https://docs.rs/fframes).
 | [motion-graphics](examples/motion-graphics) | spring "punch in" motion and monospace text fitted to its box |
 | [shaders](examples/shaders) | GPU shader layers composed with SVG: an SkSL background and a Shadertoy raymarcher clipped into a card |
 | [shader-mode](examples/shader-mode) | a 31-second shader promo with reference audio, a moving panel wall, native preview footage and 18 GPU shader programs, rendered with Skia on Metal or Vulkan |
+| [one-shot](examples/one-shot) | a 27-second promo in the made-of-motion style: stock footage as thermal heat fields, a procedural pen, a pixelated slop pot and 404 tool photos assembling the wordmark |
 | [neon-triangle](examples/neon-triangle) | a minimal shader clip built to make banding and motion artifacts easy to spot |
 | [hello-world](examples/hello-world) | a simple "hello world" video |
 | [beta](examples/beta) | a complicated multi-scene example (our beta announce video) |

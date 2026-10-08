@@ -1,0 +1,30 @@
+// The slop pot as chunky pixels: nearest texel from the atlas, a faint grid,
+// bevelled cells and a sickly tint.
+uniform float3 iResolution;
+uniform shader uAtlas;
+uniform float2 uCell;
+uniform float uN;
+uniform float uSick;
+uniform float uWobble;
+uniform float uClock;
+
+half4 main(float2 p) {
+    float2 uv = p / iResolution.xy;
+    // Each row sways a little, like the mush is still moving.
+    float row = floor(uv.y * uN);
+    uv.x += sin(row * .45 + uClock * 5.) * uWobble / uN;
+    float2 g = uv * uN;
+    float2 cell = floor(g);
+    if (cell.x < 0. || cell.y < 0. || cell.x >= uN || cell.y >= uN) return half4(0);
+    float2 f = fract(g);
+    half4 c = uAtlas.eval(uCell + cell + .5);
+    if (c.a < .5) return half4(0);
+    float3 rgb = c.rgb / c.a;
+    float l = dot(rgb, float3(.3, .59, .11));
+    float3 sick = mix(float3(.52, .50, .30), float3(.86, .80, .58), l);
+    rgb = mix(rgb, sick, uSick);
+    float edge = min(min(f.x, f.y), min(1. - f.x, 1. - f.y));
+    rgb *= mix(.78, 1., smoothstep(.0, .1, edge));
+    rgb += (smoothstep(.2, .0, f.y) * .08 - smoothstep(.8, 1., f.y) * .06);
+    return half4(rgb, 1);
+}

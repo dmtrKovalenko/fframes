@@ -50,6 +50,7 @@ members = [
     "examples/fframes-intro",
     "examples/made-of-motion",
     "examples/shader-mode",
+    "examples/one-shot",
 ]
 
 [workspace.lints.rust]

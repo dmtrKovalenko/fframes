@@ -1,0 +1,66 @@
+// Thermal rendering of a precomputed heat field. Three frames share one atlas
+// cell (R, G, B); uChan selects the channel. 0 is empty.
+uniform float3 iResolution;
+uniform shader uAtlas;
+uniform float2 uCell;
+uniform float2 uCellSize;
+uniform float3 uChan;
+uniform float uPalette;
+uniform float uGain;
+uniform float uGlow;
+uniform float uOpacity;
+uniform float uHot;
+uniform float2 uHotPos;
+
+float field(float2 q) {
+    q = clamp(q, float2(1.5), uCellSize - 1.5);
+    return dot(uAtlas.eval(uCell + q).rgb, uChan);
+}
+
+float3 ramp5(float v, float3 a, float3 b, float3 c, float3 d, float3 e) {
+    v = clamp(v, 0., 1.) * 4.;
+    if (v < 1.) return mix(a, b, v);
+    if (v < 2.) return mix(b, c, v - 1.);
+    if (v < 3.) return mix(c, d, v - 2.);
+    return mix(d, e, v - 3.);
+}
+
+float3 palette(float v) {
+    if (uPalette < .5) // thermal camera
+        return ramp5(v, float3(.36, .03, .14), float3(.80, .07, .10), float3(.98, .36, .09), float3(1., .78, .20), float3(1., .98, .86));
+    if (uPalette < 1.5) // yellow
+        return ramp5(v, float3(.86, .48, .04), float3(.95, .66, .06), float3(.99, .82, .16), float3(1., .93, .42), float3(1., .99, .88));
+    if (uPalette < 2.5) // flat orange
+        return mix(float3(.86, .30, .06), float3(1., .56, .24), smoothstep(.45, 1., v));
+    // cold echo
+    return ramp5(v, float3(.10, .04, .16), float3(.36, .06, .22), float3(.62, .14, .18), float3(.82, .32, .16), float3(.92, .62, .36));
+}
+
+half4 main(float2 p) {
+    float2 q = p / iResolution.xy * uCellSize;
+    float v = field(q) * uGain;
+    float a = uPalette > .5 && uPalette < 1.5 ? smoothstep(.08, .2, v) : smoothstep(.035, .1, v);
+    float3 c = palette(v);
+    if (uPalette > 1.5 && uPalette < 2.5) {
+        // Rim light on the upper edges of the flat silhouette.
+        float up = field(q + float2(0, -5.)) * uGain;
+        c = mix(c, float3(1., .78, .52), smoothstep(.12, .0, up) * a * .9);
+        // A barrel that just fired glows white-hot and cools.
+        float hd = length((q - uHotPos) * float2(.55, 1.));
+        float hot = uHot * exp(-hd * hd / 9000.);
+        c = mix(c, float3(1., .95, .7), clamp(hot * 1.2, 0., 1.));
+        c = mix(c, float3(1., .8, .3), clamp(uHot * exp(-hd * hd / 40000.) * .6, 0., 1.));
+    }
+    float glow = 0.;
+    if (uGlow > 0.) {
+        for (int i = 0; i < 10; i++) {
+            float ang = float(i) * .628318;
+            glow += field(q + float2(cos(ang), sin(ang)) * 16.) + field(q + float2(cos(ang + .3), sin(ang + .3)) * 34.) * .6;
+        }
+        glow = clamp(glow / 16. * uGain, 0., 1.) * uGlow * (1. - a);
+    }
+    float3 gc = palette(.3 + glow * .4);
+    float alpha = (a + glow * .55) * uOpacity;
+    float3 rgb = (c * a + gc * glow * .55) * uOpacity;
+    return half4(rgb, alpha);
+}

@@ -1,0 +1,3 @@
+/output
+dynamic_media/*
+!dynamic_media/.gitkeep

@@ -1,0 +1,22 @@
+// Warm drawing paper (or a warm near-black) with soft, slowly drifting mottling.
+// Deliberately no per-pixel grain.
+uniform float3 iResolution;
+uniform float uDark;
+uniform float uVignette;
+uniform float uClock;
+
+float hash(float2 p) { return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
+float noise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3. - 2. * f);
+    return mix(mix(hash(i), hash(i + float2(1, 0)), f.x), mix(hash(i + float2(0, 1)), hash(i + 1.), f.x), f.y);
+}
+half4 main(float2 p) {
+    float2 uv = p / iResolution.xy;
+    float2 drift = float2(uClock * 3.0, uClock * -1.6);
+    float cloud = noise((p + drift) / 360.) * .55 + noise((p - drift) / 110.) * .3 + noise(p / 31.) * .15;
+    float v = smoothstep(.22, .88, length((uv - float2(.5, .47)) * float2(1.1, 1.)));
+    float3 paper = float3(.912, .899, .866) + (cloud - .5) * .065 - v * (.07 + uVignette * .25);
+    float3 dark = float3(.047, .043, .041) + (cloud - .5) * .022 - v * .025;
+    return half4(mix(paper, dark, uDark), 1);
+}

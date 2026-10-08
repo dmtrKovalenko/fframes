@@ -1,0 +1,21 @@
+// Muzzle flash, centred on the image, firing towards +x.
+uniform float3 iResolution;
+uniform float uAge;
+uniform float uSeed;
+
+half4 main(float2 p) {
+    float2 d = (p - iResolution.xy * .5) / (iResolution.y * .5);
+    float r = length(d);
+    float a = atan(d.y, d.x);
+    float life = exp(-uAge * .75);
+    float spikes = pow(abs(sin(a * 4. + uSeed)), 22.) + pow(abs(sin(a * 7. + uSeed * 2.3)), 40.) * .8;
+    float fwd = pow(max(cos(a), 0.), 6.);
+    float reach = .18 + .55 * spikes + 1.1 * fwd;
+    float rays = smoothstep(reach * life, 0., r) * (.4 + .6 * spikes + fwd);
+    float core = exp(-r * r / (.012 + .03 * life)) * 1.6;
+    float v = (core + rays) * life;
+    float3 c = mix(float3(.98, .22, .03), float3(1., .74, .25), smoothstep(.15, .7, v));
+    c = mix(c, float3(1., .98, .9), smoothstep(.8, 1.5, v));
+    float alpha = clamp(v, 0., 1.);
+    return half4(c * alpha, alpha);
+}

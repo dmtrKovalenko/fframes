@@ -1,0 +1,35 @@
+// The "stunning" fill: flowing molten heat, a travelling glint and prismatic edges.
+uniform float3 iResolution;
+uniform float uClock;
+uniform float uHeat;
+
+float hash(float2 p) { return fract(sin(dot(p, float2(41.3, 289.1))) * 43758.5453); }
+float noise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3. - 2. * f);
+    return mix(mix(hash(i), hash(i + float2(1, 0)), f.x), mix(hash(i + float2(0, 1)), hash(i + 1.), f.x), f.y);
+}
+float fbm(float2 p) {
+    float v = 0., a = .5;
+    for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + float2(1.7, 9.2); a *= .5; }
+    return v;
+}
+half4 main(float2 p) {
+    float2 uv = p / iResolution.y;
+    float t = uClock;
+    float2 w = float2(fbm(uv * 2.4 + float2(t * .5, -t * .2)), fbm(uv * 2.4 + float2(-t * .3, t * .45) + 5.2));
+    float v = fbm(uv * 3.1 + w * 1.8 + float2(t * .9, 0.));
+    v = clamp(v * 1.5 - .32 + uHeat * .1, 0., 1.);
+    float3 c = mix(float3(.42, .02, .07), float3(.86, .12, .05), smoothstep(.05, .35, v));
+    c = mix(c, float3(.99, .42, .06), smoothstep(.35, .62, v));
+    c = mix(c, float3(1., .78, .2), smoothstep(.62, .85, v));
+    c = mix(c, float3(1., .97, .85), smoothstep(.9, 1., v));
+    // A glint sweeping across the word every 1.4 s.
+    float x = p.x - p.y * .45 - mix(-.3, 1.4, fract(t / 1.4)) * iResolution.x;
+    float glint = exp(-x * x / 900.) + exp(-(x + 70.) * (x + 70.) / 120.) * .6;
+    c += glint * float3(1., .9, .7) * .85;
+    // Prismatic tint drifting through the colours.
+    float3 prism = .5 + .5 * cos(6.2831 * (uv.x * .8 + t * .3 + float3(0., .33, .67)));
+    c = mix(c, prism, .12 * smoothstep(.3, .9, w.x));
+    return half4(c, 1);
+}
