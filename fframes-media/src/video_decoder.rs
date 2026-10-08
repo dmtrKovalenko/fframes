@@ -477,10 +477,17 @@ impl FFmpegFrameBuf {
     ) -> Result<Arc<PreloadedImageData>> {
         unsafe {
             let scaler = self.sws_scaler.get().as_mut().unwrap();
-            // fast path if we have the image already decoded and converted last time
-            // e.g. the same video frame is requested from multiple scenes
+            // fast path if we have the image already decoded and converted last time with the
+            // same options (the scaler keeps them), e.g. the same video frame is requested at
+            // the same size from multiple scenes. A buffer without the length of the scaler's
+            // output holds no converted image (its conversion failed), so the frame is converted
+            // again.
             match self.data_buf.get().as_ref().and_then(|q| q.back()) {
-                Some(image) if image.pts == (*self.latest_av_frame).pts => {
+                Some(image)
+                    if image.pts == (*self.latest_av_frame).pts
+                        && scaler.options == options.copied()
+                        && image.data.len() == scaler.frame_data_len =>
+                {
                     return Ok(create_preloaded_image(
                         scaler.video_stream_info.pixel_format,
                         encode_video_resource(&self.resource_name, image.pts),

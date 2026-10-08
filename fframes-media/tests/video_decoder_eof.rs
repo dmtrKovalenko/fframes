@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use fframes_media::FFmpegDecoder;
+use fframes_media::{FFmpegDecoder, FrameConvertOptions, ResizeVideoFrame};
 
 const FPS: usize = 30;
 const FRAME_COUNT: i64 = 300;
@@ -128,6 +128,103 @@ fn videos_without_b_frames_stop_at_eof() {
     }
     for _ in 0..2 {
         assert!(!unsafe { decoder.decode_up_to(FRAME_COUNT) }.unwrap());
+    }
+}
+
+#[test]
+fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
+    let video = VideoFixture::new(0);
+    let thumbnail = FrameConvertOptions {
+        resize: ResizeVideoFrame {
+            width: 16,
+            height: 16,
+        },
+    };
+    let thumbnail_len = 16 * 16 * 4;
+    // The CPU renderer decodes into a single reused buffer, the Skia pipeline into a ring.
+    for buffer_size in [1, 3] {
+        unsafe {
+            let mut decoder = FFmpegDecoder::new(&video.path(), FPS, buffer_size).unwrap();
+            let mut reference = FFmpegDecoder::new(&video.path(), FPS, 1).unwrap();
+            assert!(decoder.decode_up_to(5).unwrap());
+            assert!(reference.decode_up_to(5).unwrap());
+            let expected = reference
+                .get_raw_frame()
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+
+            // One frame drawn at its own size and as a thumbnail, e.g. by two scenes
+            let frame = decoder.get_raw_frame();
+            let image = frame
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            assert_eq!((image.width, image.height), (32, 32));
+            // The second thumbnail request is served from the cache
+            for _ in 0..2 {
+                let image = frame
+                    .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                    .unwrap();
+                assert_eq!(
+                    (image.width, image.height),
+                    (16, 16),
+                    "buffer size {buffer_size}"
+                );
+                // A buffer last sized for a larger output can be longer than the image
+                assert!(
+                    image.data[..thumbnail_len] == expected.data[..thumbnail_len],
+                    "the thumbnail differs from a decoder that only converts to 16x16 \
+                     (buffer size {buffer_size})"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_frame_is_converted_again_after_a_failed_conversion() {
+    let video = VideoFixture::new(0);
+    let thumbnail = FrameConvertOptions {
+        resize: ResizeVideoFrame {
+            width: 16,
+            height: 16,
+        },
+    };
+    // The scaler can't be created for an empty output
+    let empty = FrameConvertOptions {
+        resize: ResizeVideoFrame {
+            width: 0,
+            height: 0,
+        },
+    };
+    for buffer_size in [1, 3] {
+        unsafe {
+            let mut decoder = FFmpegDecoder::new(&video.path(), FPS, buffer_size).unwrap();
+            assert!(decoder.decode_up_to(5).unwrap());
+            let frame = decoder.get_raw_frame();
+            frame
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+            assert!(
+                frame
+                    .convert_last_decoded_frame_into_svg_image(Some(&empty))
+                    .is_err()
+            );
+
+            let image = frame
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+            assert_eq!(
+                (image.width, image.height),
+                (16, 16),
+                "buffer size {buffer_size}"
+            );
+            // A buffer last sized for a larger output can be longer than the image
+            assert!(
+                image.data.len() >= 16 * 16 * 4,
+                "{} bytes for a 16x16 image (buffer size {buffer_size})",
+                image.data.len()
+            );
+        }
     }
 }
 
