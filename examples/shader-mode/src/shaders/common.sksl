@@ -52,8 +52,8 @@ float capsule(float2 p, float width, float radius) {
 }
 
 float line(float2 p, float2 a, float2 b, float width) {
-    float2 pa = p - a, ba = b - a;
-    float d = length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0));
+    float2 pa = p - a, ab = b - a;
+    float d = length(pa - ab * clamp(dot(pa, ab) / dot(ab, ab), 0.0, 1.0));
     return 1.0 - smoothstep(width, width + 0.07, d);
 }
 
