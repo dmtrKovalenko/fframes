@@ -1,4 +1,6 @@
-use crate::renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_base;
+use crate::renderer::pix_fmt::{YuvMatrix, fill_yuv420_from_rgba_pixmap_base};
+
+const MATRICES: [YuvMatrix; 2] = [YuvMatrix::Bt601, YuvMatrix::Bt709];
 
 struct TestImage {
     width: i32,
@@ -44,6 +46,30 @@ impl TestImage {
         img
     }
 
+    /// Every color with channels in steps of 17 (0 to 255), each a 2x2 block so its
+    /// chroma is sampled too.
+    fn color_grid() -> Self {
+        let mut img = Self::new(128, 128);
+        let level = |i: usize| (i * 17) as u8;
+        for (pixel, rgba) in img
+            .rgba_pixels
+            .as_chunks_mut::<4>()
+            .0
+            .iter_mut()
+            .enumerate()
+        {
+            let (x, y) = (pixel % 128 / 2, pixel / 128 / 2);
+            let color = y * 64 + x;
+            *rgba = [
+                level(color / 256),
+                level(color / 16 % 16),
+                level(color % 16),
+                255,
+            ];
+        }
+        img
+    }
+
     fn create_test_patterns() -> Vec<Self> {
         vec![
             Self::with_solid_color(8, 8, 255, 0, 0, 255), // Pure red
@@ -55,6 +81,7 @@ impl TestImage {
             Self::with_solid_color(32, 24, 128, 128, 128, 255), // Gray
             Self::random(32, 24),
             Self::random(64, 48),
+            Self::color_grid(),
         ]
     }
 }
@@ -131,6 +158,7 @@ fn yuv_base_implementation() {
         } = test_image;
 
         fill_yuv420_from_rgba_pixmap_base(
+            YuvMatrix::Bt601,
             width,
             height,
             width,     // y_linesize same as width for simplicity
@@ -172,6 +200,7 @@ fn yuv_neon_implementation() {
 
         unsafe {
             fill_yuv420_from_rgba_pixmap_accelerated(
+                YuvMatrix::Bt601,
                 width,
                 height,
                 width,     // y_linesize same as width for simplicity
@@ -202,7 +231,11 @@ fn yuv_neon_implementation() {
 #[cfg(target_feature = "neon")]
 fn yuv_neon_matches_base() {
     use crate::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
-    for test_image in TestImage::create_test_patterns() {
+    for (matrix, test_image) in MATRICES.into_iter().flat_map(|matrix| {
+        TestImage::create_test_patterns()
+            .into_iter()
+            .map(move |image| (matrix, image))
+    }) {
         let TestImage {
             width,
             height,
@@ -221,6 +254,7 @@ fn yuv_neon_matches_base() {
         unsafe {
             // Run base implementation
             fill_yuv420_from_rgba_pixmap_base(
+                matrix,
                 width,
                 height,
                 width,
@@ -234,6 +268,7 @@ fn yuv_neon_matches_base() {
 
             // Run NEON implementation
             fill_yuv420_from_rgba_pixmap_accelerated(
+                matrix,
                 width,
                 height,
                 width,
@@ -247,9 +282,15 @@ fn yuv_neon_matches_base() {
         }
 
         // Compare results
-        assert_eq!(y_pixels_base, y_pixels_neon, "Y planes differ");
-        assert_eq!(cb_pixels_base, cb_pixels_neon, "Cb planes differ");
-        assert_eq!(cr_pixels_base, cr_pixels_neon, "Cr planes differ");
+        assert_eq!(y_pixels_base, y_pixels_neon, "Y planes differ ({matrix:?})");
+        assert_eq!(
+            cb_pixels_base, cb_pixels_neon,
+            "Cb planes differ ({matrix:?})"
+        );
+        assert_eq!(
+            cr_pixels_base, cr_pixels_neon,
+            "Cr planes differ ({matrix:?})"
+        );
     }
 }
 
@@ -257,7 +298,11 @@ fn yuv_neon_matches_base() {
 #[cfg(target_feature = "neon")]
 fn yuv_neon_matches_base_with_padded_linesize() {
     use crate::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
-    for test_image in TestImage::create_test_patterns() {
+    for (matrix, test_image) in MATRICES.into_iter().flat_map(|matrix| {
+        TestImage::create_test_patterns()
+            .into_iter()
+            .map(move |image| (matrix, image))
+    }) {
         let TestImage {
             width,
             height,
@@ -283,6 +328,7 @@ fn yuv_neon_matches_base_with_padded_linesize() {
         unsafe {
             // Run base implementation
             fill_yuv420_from_rgba_pixmap_base(
+                matrix,
                 width,
                 height,
                 y_linesize,
@@ -296,6 +342,7 @@ fn yuv_neon_matches_base_with_padded_linesize() {
 
             // Run NEON implementation
             fill_yuv420_from_rgba_pixmap_accelerated(
+                matrix,
                 width,
                 height,
                 y_linesize,
@@ -309,21 +356,30 @@ fn yuv_neon_matches_base_with_padded_linesize() {
         }
 
         // Compare results
-        assert_eq!(y_pixels_base, y_pixels_neon, "Y planes differ");
-        assert_eq!(cb_pixels_base, cb_pixels_neon, "Cb planes differ");
-        assert_eq!(cr_pixels_base, cr_pixels_neon, "Cr planes differ");
+        assert_eq!(y_pixels_base, y_pixels_neon, "Y planes differ ({matrix:?})");
+        assert_eq!(
+            cb_pixels_base, cb_pixels_neon,
+            "Cb planes differ ({matrix:?})"
+        );
+        assert_eq!(
+            cr_pixels_base, cr_pixels_neon,
+            "Cr planes differ ({matrix:?})"
+        );
     }
 }
 
-type ConvertFn = unsafe fn(i32, i32, i32, i32, i32, &[u8], *mut u8, *mut u8, *mut u8);
+type ConvertFn = unsafe fn(YuvMatrix, i32, i32, i32, i32, i32, &[u8], *mut u8, *mut u8, *mut u8);
 
-/// BT.601 limited range: players map Y 16 to black and 235 to white. Writing
+/// Limited range with either matrix: players map Y 16 to black and 235 to white. Writing
 /// full-range values into an untagged limited stream crushes shadows.
 #[test]
 fn yuv_uses_limited_range_levels() {
     use crate::renderer::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
 
-    for (rgb, expected_y) in [(0u8, 16u8), (255, 235)] {
+    for (matrix, (rgb, expected_y)) in MATRICES
+        .into_iter()
+        .flat_map(|matrix| [(0u8, 16u8), (255, 235)].map(|levels| (matrix, levels)))
+    {
         let TestImage {
             width,
             height,
@@ -341,6 +397,7 @@ fn yuv_uses_limited_range_levels() {
             };
             unsafe {
                 convert(
+                    matrix,
                     width,
                     height,
                     width,
@@ -355,10 +412,81 @@ fn yuv_uses_limited_range_levels() {
 
             assert!(
                 y_pixels.iter().all(|&y| y == expected_y),
-                "{rgb}: {y_pixels:?}"
+                "{matrix:?} {rgb}: {y_pixels:?}"
             );
-            assert!(cb_pixels.iter().all(|&c| c == 128), "{rgb}: {cb_pixels:?}");
-            assert!(cr_pixels.iter().all(|&c| c == 128), "{rgb}: {cr_pixels:?}");
+            assert!(
+                cb_pixels.iter().all(|&c| c == 128),
+                "{matrix:?} {rgb}: {cb_pixels:?}"
+            );
+            assert!(
+                cr_pixels.iter().all(|&c| c == 128),
+                "{matrix:?} {rgb}: {cr_pixels:?}"
+            );
+        }
+    }
+}
+
+/// Every matrix converts close to its definition (limited range, Kr and Kb of ITU-R BT.601
+/// and BT.709), so a player decoding by the stream's tag gets the colors back: Y within one
+/// code value, Cb and Cr within two (the converters floor them, and the integer weights add
+/// up to 0.7 on saturated colors).
+#[test]
+fn yuv_follows_the_matrix_definition() {
+    for matrix in MATRICES {
+        let (kr, kb) = match matrix {
+            YuvMatrix::Bt601 => (0.299, 0.114),
+            YuvMatrix::Bt709 => (0.2126, 0.0722),
+        };
+        let kg = 1. - kr - kb;
+        for test_image in TestImage::create_test_patterns() {
+            let TestImage {
+                width,
+                height,
+                rgba_pixels,
+                mut y_pixels,
+                mut cb_pixels,
+                mut cr_pixels,
+            } = test_image;
+            fill_yuv420_from_rgba_pixmap_base(
+                matrix,
+                width,
+                height,
+                width,
+                width / 2,
+                width / 2,
+                &rgba_pixels,
+                y_pixels.as_mut_ptr(),
+                cb_pixels.as_mut_ptr(),
+                cr_pixels.as_mut_ptr(),
+            );
+
+            for (i, rgba) in rgba_pixels.as_chunks::<4>().0.iter().enumerate() {
+                let [r, g, b] = [rgba[0], rgba[1], rgba[2]].map(|c| f64::from(c) / 255.);
+                let luma = kr * r + kg * g + kb * b;
+                let near = |actual: u8, exact: f64, plane: &str| {
+                    let tolerance = if plane == "Y" { 1. } else { 2. };
+                    assert!(
+                        (f64::from(actual) - exact).abs() <= tolerance,
+                        "{matrix:?} {plane} of {rgba:?}: {actual}, exact {exact:.2}"
+                    );
+                };
+                near(y_pixels[i], 16. + 219. * luma, "Y");
+
+                let (x, y) = (i % width as usize, i / width as usize);
+                if x % 2 == 0 && y % 2 == 0 {
+                    let chroma = (y / 2) * (width as usize / 2) + x / 2;
+                    near(
+                        cb_pixels[chroma],
+                        128. + 224. * (b - luma) / (2. * (1. - kb)),
+                        "Cb",
+                    );
+                    near(
+                        cr_pixels[chroma],
+                        128. + 224. * (r - luma) / (2. * (1. - kr)),
+                        "Cr",
+                    );
+                }
+            }
         }
     }
 }

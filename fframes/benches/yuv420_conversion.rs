@@ -1,4 +1,5 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use fframes::pix_fmt::YuvMatrix;
 #[cfg(target_arch = "aarch64")]
 use fframes::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated;
 use fframes::pix_fmt::fill_yuv420_from_rgba_pixmap_base;
@@ -26,6 +27,7 @@ fn benchmark_yuv420_conversion(c: &mut Criterion) {
         group.bench_function(format!("base_{width}x{height}"), |b| {
             b.iter(|| {
                 fill_yuv420_from_rgba_pixmap_base(
+                    black_box(YuvMatrix::Bt601),
                     black_box(width),
                     black_box(height),
                     black_box(width),     // y_linesize
@@ -45,6 +47,7 @@ fn benchmark_yuv420_conversion(c: &mut Criterion) {
                 b.iter(|| {
                     unsafe {
                         fill_yuv420_from_rgba_pixmap_accelerated(
+                            black_box(YuvMatrix::Bt601),
                             black_box(width),
                             black_box(height),
                             black_box(width),     // y_linesize

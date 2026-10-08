@@ -5,7 +5,9 @@ use super::{
     stream,
     stream::Stream,
 };
-pub use super::{encoder_frame::EncoderFrame, renderer_error::RenderEncodingResult};
+pub use super::{
+    encoder_frame::EncoderFrame, pix_fmt::YuvMatrix, renderer_error::RenderEncodingResult,
+};
 use crate::ffmpeg_sys_fframes::*;
 use crate::{RenderOptions, ffmpeg_action};
 use std::ops::Range;
@@ -94,6 +96,12 @@ pub struct EncoderOptions<'a> {
     /// Ignored for audio streams.
     /// @default `AV_PIX_FMT_YUV420P`
     pub pixel_format: AVPixelFormat,
+    /// The matrix the rendered RGB is converted to YUV with, and the colors the stream is
+    /// tagged with. `YuvMatrix::Bt709` is the usual choice for HD video.
+    ///
+    /// Ignored for audio streams and for pixel formats that are not YUV.
+    /// @default `YuvMatrix::Bt601`
+    pub color_matrix: YuvMatrix,
     /// Sample format used to store encoded audio frame. By default equals to `AvSampleFormat::AV_SAMPLE_FMT_FLTP`
     /// Ignored for video streams.
     ///
@@ -207,6 +215,7 @@ impl Default for EncoderOptions<'_> {
             bitrate: None,
             bitrate_tolerance: 0,
             codec: None,
+            color_matrix: YuvMatrix::Bt601,
             codec_params: None,
             gop_size: 24,
             max_qdiff: 4,
@@ -293,7 +302,7 @@ impl Encoder {
                 fps,
                 filename,
                 render_options,
-                &EncoderInput::software(render_options.video_encoder_options.pixel_format),
+                &EncoderInput::for_options(&render_options.video_encoder_options),
                 logger,
             )
         }

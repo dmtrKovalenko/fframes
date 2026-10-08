@@ -8,7 +8,7 @@ use core_foundation::string::{CFString, CFStringRef};
 use fframes::ffmpeg_sys_fframes::{AVHWDeviceType, AVPixelFormat, av_buffer_create};
 use fframes::{
     AvBuffer, EncoderInput, FFramesRendererError, FFramesRendererResult, VideoEncoderInfo,
-    VideoFrame,
+    VideoFrame, YuvMatrix,
 };
 use skia_safe::gpu::{self, DirectContext, SurfaceOrigin, backend_render_targets, mtl};
 use skia_safe::{ColorType, Surface};
@@ -36,6 +36,7 @@ unsafe extern "C" {
     static kCVMetalTextureUsage: CFStringRef;
     static kCVImageBufferYCbCrMatrixKey: CFStringRef;
     static kCVImageBufferYCbCrMatrix_ITU_R_601_4: CFStringRef;
+    static kCVImageBufferYCbCrMatrix_ITU_R_709_2: CFStringRef;
 
     fn CVBufferSetAttachment(
         buffer: CVPixelBufferRef,
@@ -111,7 +112,8 @@ pub(crate) fn negotiate(
         (encoder.width, encoder.height),
         |_| {},
     )
-    .ok()?;
+    .ok()?
+    .with_color_matrix(encoder.options.color_matrix);
 
     // Draw a frame the way the render will. When Metal can not render into the pixel
     // buffers on this machine the frames take another way.
@@ -150,6 +152,8 @@ pub(crate) struct VideoToolboxFrameTarget {
     pixel_buffers: CVPixelBufferPoolRef,
     texture_cache: CVMetalTextureCacheRef,
     frames: AvBuffer,
+    /// What `VideoToolbox` converts the BGRA pixel buffers to YUV with.
+    matrix: YuvMatrix,
     width: i32,
     height: i32,
 }
@@ -244,6 +248,7 @@ impl VideoToolboxFrameTarget {
                 pixel_buffers,
                 texture_cache,
                 frames: frames.clone(),
+                matrix: input.color_matrix,
                 width,
                 height,
             },
@@ -270,12 +275,16 @@ impl VideoToolboxFrameTarget {
 
             // FFmpeg passes hardware pixel buffers through unchanged. The session's
             // YCbCrMatrix property tags the stream, but does not choose the RGB input
-            // conversion matrix without this attachment. Match the BT.601 stream tag
-            // and the software/GPU YUV converters instead of VideoToolbox's HD default.
+            // conversion matrix without this attachment. Match the stream tag and the
+            // software/GPU YUV converters instead of VideoToolbox's HD default.
+            let matrix = match self.matrix {
+                YuvMatrix::Bt601 => kCVImageBufferYCbCrMatrix_ITU_R_601_4,
+                YuvMatrix::Bt709 => kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            };
             CVBufferSetAttachment(
                 pixel_buffer,
                 kCVImageBufferYCbCrMatrixKey,
-                kCVImageBufferYCbCrMatrix_ITU_R_601_4.cast(),
+                matrix.cast(),
                 1, // kCVAttachmentMode_ShouldPropagate
             );
 

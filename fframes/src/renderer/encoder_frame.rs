@@ -1,3 +1,5 @@
+use super::frame_export::set_sws_output_matrix;
+use super::pix_fmt::YuvMatrix;
 use super::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use super::stream;
 use crate::ffmpeg_action;
@@ -31,6 +33,10 @@ impl FrameFormatConvertor {
                 return Err(RenderEncodingError::Internal(
                     "Can not allocate sws".to_owned(),
                 ));
+            }
+            if let Err(err) = set_sws_output_matrix(sws_ctx, stream_matrix(video_stream)) {
+                sws_freeContext(sws_ctx);
+                return Err(err);
             }
 
             let tmp_frame = av_frame_alloc();
@@ -80,6 +86,17 @@ pub struct EncoderFrame {
     pub(crate) av_frame: *mut AVFrame,
     /// Used to store original yuv frame before converting it to the output pixel format.
     pub(crate) format_convertor: Option<FrameFormatConvertor>,
+    /// The matrix the stream is tagged with, which RGBA pixels are converted with.
+    pub(crate) matrix: YuvMatrix,
+}
+
+/// The matrix the encoder of `stream` tagged the stream with.
+unsafe fn stream_matrix(stream: &stream::Stream) -> YuvMatrix {
+    if unsafe { (*stream.enc).colorspace } == AVColorSpace::AVCOL_SPC_BT709 {
+        YuvMatrix::Bt709
+    } else {
+        YuvMatrix::Bt601
+    }
 }
 
 impl EncoderFrame {
@@ -134,6 +151,7 @@ impl EncoderFrame {
                 av_frame: frame,
                 packet,
                 format_convertor,
+                matrix: stream_matrix(stream),
             })
         }
     }
@@ -244,13 +262,14 @@ impl EncoderFrame {
                 (*converter.tmp_frame).data[0] = rgba_pixels.as_ptr().cast_mut(); // sws_scale doesn't do any mutations when converting from
                 converter.convert(self.av_frame)
             } else {
-                Self::fill_yuv420_from_rgba_pixmap(self.av_frame, rgba_pixels)
+                Self::fill_yuv420_from_rgba_pixmap(self.av_frame, self.matrix, rgba_pixels)
             }
         }
     }
 
     pub unsafe fn fill_yuv420_from_rgba_pixmap(
         frame: *mut AVFrame,
+        matrix: YuvMatrix,
         rgba_pixels: &[u8],
     ) -> *mut AVFrame {
         unsafe {
@@ -258,6 +277,7 @@ impl EncoderFrame {
             assert!(is_writable >= 0, "Can not reuse frame allocations");
 
             super::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated(
+                matrix,
                 (*frame).width,
                 (*frame).height,
                 (*frame).linesize[0],

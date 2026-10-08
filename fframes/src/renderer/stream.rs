@@ -1,6 +1,7 @@
 use super::EncoderOptions;
 use super::ffmpeg_helper::STEREO_CH_LAYOUT;
 use super::frame_export::EncoderInput;
+use super::pix_fmt::YuvMatrix;
 use super::renderer_error::{RenderEncodingError, RenderEncodingResult};
 use crate::ffmpeg_action;
 use crate::ffmpeg_loggable_action;
@@ -179,15 +180,24 @@ pub(crate) unsafe fn open_video_encoder(
         if let Some(device) = &input.hw_device_ctx {
             (*c).hw_device_ctx = device.new_ref();
         }
-        // Every RGBA to YUV path (the built-in yuv420 converter, swscale's
-        // default and the GPU converters of the backends) produces BT.601
-        // limited range. Say so: an untagged HD stream is decoded as BT.709,
-        // shifting colors. Hardware encoders that are fed RGB surfaces
-        // convert with the matrix they are told here.
+        // Every RGBA to YUV path (the built-in yuv420 converter, swscale and
+        // the GPU converters of the backends) produces limited range with
+        // `input.color_matrix`. Say so: an untagged HD stream is decoded as
+        // BT.709, shifting the colors of a BT.601 one. Hardware encoders that
+        // are fed RGB surfaces convert with the matrix they are told here.
         let pix_fmt_desc = av_pix_fmt_desc_get(input.pixel_format);
         if !pix_fmt_desc.is_null() && (*pix_fmt_desc).flags & AV_PIX_FMT_FLAG_RGB as u64 == 0 {
             (*c).color_range = AVColorRange::AVCOL_RANGE_MPEG;
-            (*c).colorspace = AVColorSpace::AVCOL_SPC_SMPTE170M;
+            match input.color_matrix {
+                YuvMatrix::Bt601 => (*c).colorspace = AVColorSpace::AVCOL_SPC_SMPTE170M,
+                // The frames are sRGB, whose primaries are BT.709's. Players treat
+                // the BT.709 transfer of an SDR stream as sRGB's display.
+                YuvMatrix::Bt709 => {
+                    (*c).colorspace = AVColorSpace::AVCOL_SPC_BT709;
+                    (*c).color_primaries = AVColorPrimaries::AVCOL_PRI_BT709;
+                    (*c).color_trc = AVColorTransferCharacteristic::AVCOL_TRC_BT709;
+                }
+            }
         }
         (*c).gop_size = encoder_options.gop_size;
         (*c).qmin = encoder_options.qmin;
