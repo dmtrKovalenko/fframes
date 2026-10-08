@@ -146,24 +146,25 @@ def girl():
     return pack(out, "girl-heat.png", 0.8)
 
 
-def reach():
-    # A man in profile lifts his hand and reaches out (Pexels 10204155, 5.5-9.6 s).
-    total = 103
-    picks = [round(i * (total - 1) / 59) for i in range(60)]
-    src = frames(f"{WORK}/footage/reach.mp4", 0, total)
-    vis = masks(f"{WORK}/footage/reach-mask", 0, total)
+def rise():
+    # Someone stands up from a low seat against a plain wall (Pexels 8011362,
+    # 3.1-5.7 s). Only the silhouette is kept: the heat comes from the mask's
+    # depth, not from the pixels, so no face or clothing detail survives.
+    picks = list(range(40, 106))
+    vis = smooth_time(masks(f"{WORK}/footage/rise-mask", 0, 125))
+    union = vis[picks].max(0) > 0.3
+    ys, xs = np.where(union)
+    x0, x1 = max(xs.min() - 30, 0), min(xs.max() + 30, vis.shape[2])
+    y0, y1 = max(ys.min() - 30, 0), min(ys.max() + 10, vis.shape[1])
+    print("rise crop", x0, y0, x1 - x0, y1 - y0)
     out = []
     for i in picks:
-        rgb, m = src[i], smoothstep(0.3, 0.7, vis[i])
-        luma = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
-        lo, hi = np.percentile(luma[m > 0.5], [5, 95]) if (m > 0.5).any() else (0.0, 1.0)
-        warm = np.clip((luma - lo) / max(hi - lo, 1e-3), 0, 1)
-        core = blur(m, 30)
-        h = m.shape[0]
-        lift = np.linspace(0, 1, h, dtype=np.float32)[:, None]
-        heat = m * np.clip(0.06 + 0.3 * core + 0.58 * warm ** 1.3 + 0.12 * lift, 0, 1)
-        out.append(heat)
-    return pack(out, "reach-heat.png", 0.55)
+        m = smoothstep(0.35, 0.65, vis[i])
+        deep = blur(m, 22) * blur(m, 60)
+        top = np.linspace(1, 0, m.shape[0], dtype=np.float32)[:, None]
+        heat = m * np.clip(0.1 + 0.62 * deep + 0.22 * top, 0, 1)
+        out.append(heat[y0:y1, x0:x1])
+    return pack(out, "rise-heat.png", 0.75)
 
 
 def slop():
@@ -253,6 +254,6 @@ def logo_points():
 
 if __name__ == "__main__":
     os.makedirs(MEDIA, exist_ok=True)
-    only = sys.argv[3:] or ["gun", "girl", "reach", "slop", "tools", "logo"]
+    only = sys.argv[3:] or ["gun", "girl", "rise", "slop", "tools", "logo"]
     for step in only:
-        {"gun": gun, "girl": girl, "stand": stand, "reach": reach, "slop": slop, "tools": tools, "logo": logo_points}[step]()
+        {"gun": gun, "girl": girl, "rise": rise, "slop": slop, "tools": tools, "logo": logo_points}[step]()

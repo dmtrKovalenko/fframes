@@ -69,11 +69,11 @@ pub(crate) const GIRL: Atlas = Atlas {
     cell: [707., 576.],
     cols: 4,
 };
-pub(crate) const REACH: Atlas = Atlas {
-    file: "reach-heat.png",
-    frames: 60,
-    cell: [1126., 594.],
-    cols: 4,
+pub(crate) const RISE: Atlas = Atlas {
+    file: "rise-heat.png",
+    frames: 66,
+    cell: [376., 771.],
+    cols: 7,
 };
 
 #[derive(Debug, Clone, Copy)]

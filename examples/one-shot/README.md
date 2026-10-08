@@ -16,7 +16,7 @@ reused from that film: the footage, ink, objects, music and edit are new.
 | Patterns | 8.13–11.13 s | a girl (footage as a thermal field) dashes across, the line appears in her wake; her echoes snap into six identical copies |
 | Slop | 11.13–14.13 s | a porridge pot stirred at 52 px with pixel flies, drips and steam; "slop." knocked out of ink blots with turbulent edges and drips |
 | Tool | 14.13–16.13 s | a vortex of pen strokes around "AI is a tool." that collapses into the next figure |
-| Author | 16.13–19.13 s | a man in profile rises into frame out of a cold blur, warms to a yellow heat field and reaches his open hand toward "you are the author."; pen sparks fly off his fingertips |
+| Author | 16.13–19.13 s | an anonymous figure, reduced to a yellow heat silhouette, stands up and rises into the frame from its bottom edge while a pen ruler measures the rise: "you are the author." |
 | Create | 19.13–27.00 s | nineteen real tools orbit "create.", break into 404 copies that fly into the fframes wordmark and resolve into the logo |
 
 Cuts sit on the 120 BPM soundtrack; every sound effect is timed from the same
@@ -38,12 +38,13 @@ cargo run --release -p one-shot -- strip all -n 36    # contact sheet
 `media/` holds derivatives only, produced by `tools/footage.sh`:
 
 1. Stock clips and photos are downloaded from Pexels.
-2. `tools/vision.swift` uses Apple Vision: person segmentation for the man reaching out,
+2. `tools/vision.swift` uses Apple Vision: person segmentation for the figure standing up,
    per-person instance masks (tracked by centroid) for the running girl, foreground
    instance masks for the pistol and for lifting each tool out of its photo.
 3. `tools/prep.py` turns masks into heat fields (blurred cores, warmer skin, a colour
-   key and hole filling for the pistol's camo, skin hot and hair cool for the profile)
-   and packs three frames per RGB atlas cell. `src/shaders/heat.sksl`
+   key and hole filling for the pistol's camo; the standing figure's heat comes only
+   from its mask depth, so no face or clothing survives) and packs three frames per
+   RGB atlas cell. `src/shaders/heat.sksl`
    maps them through thermal, yellow and flat-orange palettes with a glow. The pot is
    quantised to a shared 14-colour palette at 52 px and drawn by `pixel.sksl`. The
    wordmark from `landing/brand` is rasterised to sample the mosaic targets
@@ -58,7 +59,7 @@ Footage and photos, [Pexels licence](https://www.pexels.com/license/):
 
 - toy pistol, [5257461](https://www.pexels.com/video/person-holding-a-toy-gun-5257461/)
 - girls playing tag, [5273821](https://www.pexels.com/video/two-girls-playing-tag-inside-the-playground-5273821/)
-- man reaching out, [10204155](https://www.pexels.com/video/side-view-of-a-man-moving-his-arm-10204155/)
+- someone standing up, [8011362](https://www.pexels.com/video/a-woman-standing-up-and-walking-away-8011362/)
 - porridge pot, [4909363](https://www.pexels.com/video/a-person-is-stirring-a-pot-of-oatmeal-4909363/)
 - tools: photos 1117543, 1203819, 12997264, 13044706, 1772123, 187334, 210927,
   30452350, 3394650, 4523060, 4678185, 6461504, 7138915, 9227661
