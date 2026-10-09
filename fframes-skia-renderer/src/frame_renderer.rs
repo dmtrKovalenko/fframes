@@ -83,9 +83,10 @@ impl<TBackend: SkiaBackend> SkiaFrameRenderer<'_, TBackend> {
             // what lives on the context goes first
             self.render_cache = crate::render::RenderCache::with_config(self.cache_config);
             drop(surface);
-            drop(reader);
             let _queue = lock_queue(queue_lock.as_ref());
             drop(gpu);
+            // Keep readback resources alive until the GPU context has waited.
+            drop(reader);
         }
     }
 }
