@@ -357,10 +357,11 @@ impl Drop for SkiaEncoderFrameRenderer<'_> {
             (Some(Target::Hardware(target)), Some(gpu)) => target.retire(gpu),
             (target, gpu) => {
                 drop(target);
-                self.queue.reader = None;
                 // destroying a context waits for its queue
                 let _queue = lock_queue(self.queue.lock.as_ref());
                 drop(gpu);
+                // A failed readback may still have a copy using the reader's resources.
+                self.queue.reader = None;
             }
         }
     }

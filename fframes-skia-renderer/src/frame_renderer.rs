@@ -22,11 +22,15 @@ pub fn context_with_size<TBackend: SkiaBackend + ?Sized>(
     width: i32,
     height: i32,
 ) -> FFramesRendererResult<SkiaContext> {
-    let mut context = backend.create_skia_context()?;
+    let context = backend.create_skia_context()?;
     if context.surface.width() == width && context.surface.height() == height {
         return Ok(context);
     }
 
+    let queue_lock = context.queue_lock.clone();
+    let _queue = lock_queue(queue_lock.as_ref());
+    // Declare the context after the guard so failed resizing drops it while locked.
+    let mut context = context;
     let info = ImageInfo::new(
         (width, height),
         ColorType::RGBA8888,
@@ -83,9 +87,10 @@ impl<TBackend: SkiaBackend> SkiaFrameRenderer<'_, TBackend> {
             // what lives on the context goes first
             self.render_cache = crate::render::RenderCache::with_config(self.cache_config);
             drop(surface);
-            drop(reader);
             let _queue = lock_queue(queue_lock.as_ref());
             drop(gpu);
+            // Keep readback resources alive until the GPU context has waited.
+            drop(reader);
         }
     }
 }
