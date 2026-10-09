@@ -415,3 +415,36 @@ pub fn string_attributes_that_look_like_colors() {
         ),
     );
 }
+
+/// usvgr reads `font-weight` as text. A numeric expression must keep its weight in the
+/// compile-time tree as it does in the runtime one, not fall back to 400.
+#[test]
+pub fn numeric_font_weight_expression() {
+    let mut fontdb = fframes::usvgr::fontdb::Database::default();
+    fontdb.load_font_data(include_bytes!("../../examples/beta/media/DMSans-Regular.ttf").to_vec());
+    let convert = |svgr: fframes::Svgr| {
+        svgr.into_svg_tree(
+            &fframes::usvgr::Options::default(),
+            &mut fframes::usvgr::Cache::default(),
+            &fontdb,
+        )
+        .unwrap()
+        .to_string(&fframes::usvgr::WriteOptions {
+            preserve_text: true,
+            ..Default::default()
+        })
+    };
+    let weight: u16 = 700;
+    let literal = convert(svgr!(
+        <svg xmlns="http://www.w3.org/2000/svg" width="400" height="100">
+            <text x="10" y="60" font-family="DM Sans" font-size="40" font-weight="700">"Bold"</text>
+        </svg>
+    ));
+    let numeric = convert(svgr!(
+        <svg xmlns="http://www.w3.org/2000/svg" width="400" height="100">
+            <text x="10" y="60" font-family="DM Sans" font-size="40" font-weight={weight}>"Bold"</text>
+        </svg>
+    ));
+    assert!(literal.contains(r#"font-weight="700""#), "{literal}");
+    assert_eq!(numeric, literal);
+}

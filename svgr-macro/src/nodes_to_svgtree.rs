@@ -179,6 +179,13 @@ fn accepts_color(aid: AId) -> bool {
     )
 }
 
+/// Attributes usvgr reads as text whose valid values include numbers. A numeric expression
+/// becomes `SvgAttributeValue::Float(v, "")`, whose text is empty, so these get the expression
+/// converted to text instead: `font-weight={700}` must not silently draw at 400.
+fn reads_number_as_text(aid: AId) -> bool {
+    matches!(aid, AId::FontWeight)
+}
+
 fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
     // Special handling for path data - parse at compile time
     if aid == AId::D {
@@ -254,6 +261,14 @@ impl ToTokens for MaybeAttribute {
                     Attribute {
                         name: #name_tokens,
                         value: #value_tokens
+                    }
+                }
+            }
+            MaybeParsedValue::Expression(block) if reads_number_as_text(*name) => {
+                quote! {
+                    Attribute {
+                        name: #name_tokens,
+                        value: SvgAttributeValue::from(::std::string::ToString::to_string(&(#block)))
                     }
                 }
             }
