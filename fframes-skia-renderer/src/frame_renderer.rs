@@ -22,11 +22,15 @@ pub fn context_with_size<TBackend: SkiaBackend + ?Sized>(
     width: i32,
     height: i32,
 ) -> FFramesRendererResult<SkiaContext> {
-    let mut context = backend.create_skia_context()?;
+    let context = backend.create_skia_context()?;
     if context.surface.width() == width && context.surface.height() == height {
         return Ok(context);
     }
 
+    let queue_lock = context.queue_lock.clone();
+    let _queue = lock_queue(queue_lock.as_ref());
+    // Declare the context after the guard so failed resizing drops it while locked.
+    let mut context = context;
     let info = ImageInfo::new(
         (width, height),
         ColorType::RGBA8888,

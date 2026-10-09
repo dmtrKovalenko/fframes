@@ -239,6 +239,34 @@ fn surfaces_release_images_and_memory_on_success_and_failure() {
         assert!(failed_factory.is_err(), "Skia factory must actually fail");
         let factory_unlocked = FACTORY_UNLOCKED.load(Ordering::SeqCst);
 
+        let resize_waits = WAITS.load(Ordering::SeqCst);
+        let failed_resize = crate::frame_renderer::context_with_size(&backend, 0, 180);
+        assert!(failed_resize.is_err(), "zero-width resize must fail");
+        assert!(
+            WAITS.load(Ordering::SeqCst) > resize_waits,
+            "failed resize must retire its GPU context"
+        );
+        assert!(
+            !UNLOCKED_WAIT.load(Ordering::SeqCst),
+            "failed resize destroys GPU context outside queue lock"
+        );
+        assert_eq!(
+            (IMAGES.load(Ordering::SeqCst), MEMORY.load(Ordering::SeqCst)),
+            (0, 0),
+            "failed resize retains allocations"
+        );
+
+        let resized = crate::frame_renderer::context_with_size(&backend, 160, 90).unwrap();
+        assert_eq!(
+            (resized.surface.width(), resized.surface.height()),
+            (160, 90)
+        );
+        let queue = resized.queue_lock.clone();
+        {
+            let _lock = super::super::lock_queue(queue.as_ref());
+            drop(resized);
+        }
+
         let mut context = backend.create_skia_context().unwrap();
         context.surface.canvas().clear(skia_safe::Color::RED);
         {
