@@ -17,11 +17,7 @@ fn solve_t_for_x(x: f64, a: f64, b: f64, c: f64) -> f64 {
         let u = -(if h < 0.0 { h - d.sqrt() } else { h + d.sqrt() }).cbrt();
         let v = u + m / u;
         // triple root (m = h = 0) gives NaN
-        if v.is_nan() {
-            0.0
-        } else {
-            v
-        }
+        if v.is_nan() { 0.0 } else { v }
     } else {
         // three real roots, take the largest
         let r = m.sqrt();
@@ -72,14 +68,14 @@ impl CubicBezierRuntime {
 
         // x(t) = ((2a * t + 3b) * t + 3c) * t with a = (3x1 - 3x2 + 1) / 2, b = x2 - 2x1, c = x1
         let (x1, y1, x2, y2) = (
-            self.x1 as f64,
-            self.y1 as f64,
-            self.x2 as f64,
-            self.y2 as f64,
+            f64::from(self.x1),
+            f64::from(self.y1),
+            f64::from(self.x2),
+            f64::from(self.y2),
         );
         let t = solve_t_for_x(
-            x as f64,
-            (3.0 * x1 - 3.0 * x2 + 1.0) / 2.0,
+            f64::from(x),
+            f64::midpoint(3.0 * x1 - 3.0 * x2, 1.0),
             x2 - 2.0 * x1,
             x1,
         );
@@ -221,7 +217,7 @@ mod tests {
         let mut previous = 0.0;
         for i in 0..=10000 {
             let y = easing.solve(0.49 + 0.02 * i as f32 / 10000.0);
-            assert!(y >= previous, "not monotonic at step {}", i);
+            assert!(y >= previous, "not monotonic at step {i}");
             previous = y;
         }
         assert_relative_eq!(easing.solve(0.4996), 0.4306, epsilon = 1e-4);
