@@ -413,6 +413,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: jakoch/install-vulkan-sdk-action@v1.7.0
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           install_runtime_only: true
           install_lavapipe: true
 
