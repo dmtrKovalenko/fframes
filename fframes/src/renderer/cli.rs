@@ -60,6 +60,22 @@ pub struct Cli<A: Args = NoArgs> {
     /// Output resolution factor, e.g. 0.5 for half resolution.
     #[arg(long, global = true)]
     pub scale: Option<f64>,
+
+    /// Render with this backend instead of the video's own. The Skia ones need
+    /// `Runner::renderers`.
+    #[arg(long, global = true, value_enum)]
+    pub renderer: Option<Renderer>,
+}
+
+/// The backends `--renderer` picks from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum Renderer {
+    /// The built-in CPU backend (tiny-skia).
+    Cpu,
+    /// Skia on the CPU.
+    SkiaCpu,
+    /// Skia on the GPU: Metal on macOS, Vulkan elsewhere.
+    Gpu,
 }
 
 impl<A: Args> Cli<A> {
@@ -258,13 +274,57 @@ type Player<'r, 'a, 'media, V> = Box<
 >;
 
 /// The command line of one video, created with `cli::new`.
-pub struct Runner<'r, 'a, 'media, V, B = crate::cpu::CpuRenderingBackend, A: Args = NoArgs> {
+pub struct Runner<
+    'r,
+    'a,
+    'media,
+    V,
+    B = crate::cpu::CpuRenderingBackend,
+    A: Args = NoArgs,
+    R = NoRenderers,
+> {
     video: &'a V,
     options: RenderOptions<'a, 'media>,
     backend: B,
     args: Option<Cli<A>>,
     player: Option<Player<'r, 'a, 'media, V>>,
     default_output: PathBuf,
+    renderers: R,
+}
+
+/// The backends behind `--renderer skia-cpu|gpu`, see `Runner::renderers`.
+pub trait Renderers {
+    /// What renders without `--renderer`, `None` for the runner's backend.
+    fn default_renderer(&self) -> Option<Renderer> {
+        None
+    }
+
+    /// Runs the command with the backend `renderer` asks for.
+    fn run<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Args>(
+        self,
+        renderer: Renderer,
+        runner: Runner<'r, 'a, 'media, V, B, A>,
+    ) -> ExitCode;
+}
+
+/// Only `--renderer cpu`: the binary has no Skia.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoRenderers;
+
+impl Renderers for NoRenderers {
+    fn run<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Args>(
+        self,
+        renderer: Renderer,
+        runner: Runner<'r, 'a, 'media, V, B, A>,
+    ) -> ExitCode {
+        let name = renderer
+            .to_possible_value()
+            .map(|v| v.get_name().to_owned());
+        runner.fail(format!(
+            "--renderer {} needs `.renderers(fframes_skia_renderer::cli::SkiaRenderers::default())`",
+            name.unwrap_or_default()
+        ))
+    }
 }
 
 /// The command line for `video`: render, frame, strip, inspect, audio, ... Call `.run()`.
@@ -279,18 +339,19 @@ pub fn new<'a, 'media: 'a, V: Video + Send + Sync>(
         args: None,
         player: None,
         default_output: PathBuf::from("out.mp4"),
+        renderers: NoRenderers,
     }
 }
 
-impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Args>
-    Runner<'r, 'a, 'media, V, B, A>
+impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Args, R: Renderers>
+    Runner<'r, 'a, 'media, V, B, A, R>
 {
     /// Renders with another backend, e.g. `SkiaFFramesRenderer`. Frame previews use the
     /// backend's own renderer, so they look like the rendered video.
     pub fn backend<B2: FFramesRenderBackend>(
         self,
         backend: B2,
-    ) -> Runner<'r, 'a, 'media, V, B2, A> {
+    ) -> Runner<'r, 'a, 'media, V, B2, A, R> {
         Runner {
             video: self.video,
             options: self.options,
@@ -298,11 +359,12 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
             args: self.args,
             player: self.player,
             default_output: self.default_output,
+            renderers: self.renderers,
         }
     }
 
     /// Uses already parsed arguments with application flags (see `cli::parse`).
-    pub fn args<A2: Args>(self, args: Cli<A2>) -> Runner<'r, 'a, 'media, V, B, A2> {
+    pub fn args<A2: Args>(self, args: Cli<A2>) -> Runner<'r, 'a, 'media, V, B, A2, R> {
         Runner {
             video: self.video,
             options: self.options,
@@ -310,6 +372,7 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
             args: Some(args),
             player: self.player,
             default_output: self.default_output,
+            renderers: self.renderers,
         }
     }
 
@@ -322,7 +385,7 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
             &super::PreviewRequest,
         ) -> Result<(), String>
         + 'r2,
-    ) -> Runner<'r2, 'a, 'media, V, B, A> {
+    ) -> Runner<'r2, 'a, 'media, V, B, A, R> {
         Runner {
             video: self.video,
             options: self.options,
@@ -330,6 +393,7 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
             args: self.args,
             player: Some(Box::new(play)),
             default_output: self.default_output,
+            renderers: self.renderers,
         }
     }
 
@@ -339,8 +403,52 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
         self
     }
 
+    /// Backends for `--renderer skia-cpu|gpu`, usually
+    /// `fframes_skia_renderer::cli::SkiaRenderers`. Without them only `--renderer cpu` works.
+    pub fn renderers<R2: Renderers>(self, renderers: R2) -> Runner<'r, 'a, 'media, V, B, A, R2> {
+        Runner {
+            video: self.video,
+            options: self.options,
+            backend: self.backend,
+            args: self.args,
+            player: self.player,
+            default_output: self.default_output,
+            renderers,
+        }
+    }
+
+    /// Reports an error like a failed command does and returns its exit code.
+    pub fn fail(self, message: impl std::fmt::Display) -> ExitCode {
+        fail(self.args.is_some_and(|args| args.json), message)
+    }
+
     /// Parses the command line (unless `args` was given) and runs the command.
-    pub fn run(self) -> ExitCode {
+    pub fn run(mut self) -> ExitCode {
+        let renderer = self
+            .args
+            .get_or_insert_with(Cli::<A>::parse)
+            .renderer
+            .take()
+            .or(self.renderers.default_renderer());
+        let runner = Runner {
+            video: self.video,
+            options: self.options,
+            backend: self.backend,
+            args: self.args,
+            player: self.player,
+            default_output: self.default_output,
+            renderers: NoRenderers,
+        };
+        match renderer {
+            None => runner.execute(),
+            Some(Renderer::Cpu) => runner
+                .backend(crate::cpu::CpuRenderingBackend::default())
+                .execute(),
+            Some(renderer) => self.renderers.run(renderer, runner),
+        }
+    }
+
+    fn execute(self) -> ExitCode {
         let Runner {
             video,
             mut options,
@@ -348,6 +456,7 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
             args,
             player,
             default_output,
+            renderers: _,
         } = self;
         let cli = args.unwrap_or_else(Cli::<A>::parse);
 
@@ -424,18 +533,17 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
             }
         };
 
-        match result {
-            Ok(code) => code,
-            Err(message) => {
-                if json {
-                    println!("{}", serde_json::json!({ "error": message }));
-                } else {
-                    eprintln!("error: {message}");
-                }
-                ExitCode::FAILURE
-            }
-        }
+        result.unwrap_or_else(|message| fail(json, message))
     }
+}
+
+fn fail(json: bool, message: impl std::fmt::Display) -> ExitCode {
+    if json {
+        println!("{}", serde_json::json!({ "error": message.to_string() }));
+    } else {
+        eprintln!("error: {message}");
+    }
+    ExitCode::FAILURE
 }
 
 fn print<T: Serialize>(json: bool, value: &T, text: impl FnOnce() -> String) {

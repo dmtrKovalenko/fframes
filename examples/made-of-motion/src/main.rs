@@ -3,9 +3,9 @@ use std::process::ExitCode;
 use fframes::cli::clap;
 use fframes::{
     AudioMixOptions, CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider,
-    RenderOptions, StaticMediaProvider, Video, cli,
+    RenderOptions, StaticMediaProvider, cli,
 };
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use fframes_skia_renderer::{SkiaPipelineConfig, cli::SkiaRenderers};
 use made_of_motion::{MadeOfMotion, MotionMedia};
 
 #[derive(Debug, cli::clap::Args)]
@@ -32,18 +32,6 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
     let dynamic = directory.process_media_source()?;
     let all = CombinedMediaProvider::from([&media as &dyn MediaProvider, &dynamic]);
     let video = MadeOfMotion::new().with_ink_only(args.app.ink_only);
-    #[cfg(target_os = "macos")]
-    let gpu =
-        fframes_skia_renderer::metal::SkiaMetalCtx::new(MadeOfMotion::WIDTH, MadeOfMotion::HEIGHT)?;
-    #[cfg(not(target_os = "macos"))]
-    let gpu = fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(
-        MadeOfMotion::WIDTH,
-        MadeOfMotion::HEIGHT,
-    )?;
-    #[cfg(target_os = "macos")]
-    let backend = SkiaFFramesRenderer::new_metal(&gpu, SkiaPipelineConfig::default())?;
-    #[cfg(not(target_os = "macos"))]
-    let backend = SkiaFFramesRenderer::new_vulkan(&gpu, SkiaPipelineConfig::default())?;
     Ok(cli::new(
         &video,
         RenderOptions {
@@ -61,11 +49,11 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
         },
     )
     .args(args)
-    .backend(backend)
     .preview(fframes_native_player::cli_preview)
     .default_output(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("output/made-of-motion.mp4"),
     )
+    .renderers(SkiaRenderers::gpu(SkiaPipelineConfig::default()))
     .run())
 }
 

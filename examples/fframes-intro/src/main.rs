@@ -2,9 +2,9 @@ use fframes::{
     AudioMixOptions, CombinedMediaProvider, EncoderOptions, LimiterOptions, MediaDirectory,
     MediaProvider, RenderOptions, StaticMediaProvider, cli,
 };
-use fframes_intro::{HEIGHT, IntroMedia, IntroVideo, WIDTH};
+use fframes_intro::{IntroMedia, IntroVideo};
 use fframes_skia_renderer::{
-    SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig,
+    SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig, cli::SkiaRenderers,
 };
 use std::path::Path;
 use std::process::ExitCode;
@@ -16,19 +16,6 @@ fn main() -> ExitCode {
     let dir = MediaDirectory::read_folder(&folder).expect("dynamic media folder");
     let dynamic = dir.process_media_source().expect("dynamic media");
     let all = CombinedMediaProvider::from([&media as &dyn MediaProvider, &dynamic]);
-    #[cfg(target_os = "macos")]
-    let gpu = fframes_skia_renderer::metal::SkiaMetalCtx::new(WIDTH, HEIGHT).expect("GPU context");
-    #[cfg(not(target_os = "macos"))]
-    let gpu =
-        fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(WIDTH, HEIGHT).expect("GPU context");
-    let pipeline = SkiaPipelineConfig {
-        concurrency_policy: SkiaPipelineConcurrencyPolicy::MaxPerformance,
-        ..Default::default()
-    };
-    #[cfg(target_os = "macos")]
-    let backend = SkiaFFramesRenderer::new_metal(&gpu, pipeline);
-    #[cfg(not(target_os = "macos"))]
-    let backend = SkiaFFramesRenderer::new_vulkan(&gpu, pipeline);
 
     cli::new(
         &IntroVideo,
@@ -52,7 +39,10 @@ fn main() -> ExitCode {
             ..Default::default()
         },
     )
-    .backend(backend.expect("skia renderer"))
     .preview(fframes_native_player::cli_preview)
+    .renderers(SkiaRenderers::gpu(SkiaPipelineConfig {
+        concurrency_policy: SkiaPipelineConcurrencyPolicy::MaxPerformance,
+        ..Default::default()
+    }))
     .run()
 }

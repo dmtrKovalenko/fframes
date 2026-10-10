@@ -7,14 +7,15 @@ publish = false
 [dependencies]
 fframes = { workspace = true, features = ["compile-time-svgtree", "cli"] }
 
-# Metal on macOS, Vulkan everywhere else
+# `--renderer cpu|skia-cpu|gpu`: Skia on Metal on macOS, on Vulkan everywhere else
+# `preview`: real-time GPU window
 [target.'cfg(target_os = "macos")'.dependencies]
-fframes_skia_renderer = { workspace = true, features = ["metal"] }
-fframes_native_player = { workspace = true, features = ["metal"] }
+fframes_skia_renderer = { workspace = true, features = ["metal", "cli"] }
+fframes_native_player = { workspace = true, features = ["metal", "audio"] }
 
-[target.'cfg(not(target_os = "macos"))'.dependencies]
-fframes_skia_renderer = { workspace = true, features = ["vulkan"] }
-fframes_native_player.workspace = true
+[target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "cli"] }
+fframes_native_player = { workspace = true, features = ["vulkan", "audio"] }
 
 [target.'cfg(not(windows))'.dependencies]
 fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }

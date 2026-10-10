@@ -11,6 +11,13 @@ fframes = { workspace = true }
 [dev-dependencies]
 fframes_test_utils = { path = "../../fframes-test-utils" }
 
+# `--renderer cpu|skia-cpu|gpu`: Skia on Metal on macOS, on Vulkan everywhere else
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["metal", "cli"] }
+
+[target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "cli"] }
+
 # Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
 [target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
 fframes = { workspace = true, features = ["build-portable"] }

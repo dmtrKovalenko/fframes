@@ -1,4 +1,5 @@
 use fframes::{EncoderOptions, MediaDirectory, RenderOptions, cli};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use podcast_example::PodcastVideo;
 use std::path::Path;
 use std::process::ExitCode;
@@ -22,5 +23,6 @@ fn main() -> ExitCode {
             ..Default::default()
         },
     )
+    .renderers(SkiaRenderers::default())
     .run()
 }

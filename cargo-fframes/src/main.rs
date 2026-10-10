@@ -407,9 +407,9 @@ fn new(args: NewArgs) -> Result<(), String> {
     let skia_deps = |renderer_source: &str, player_source: &str| {
         skia_feature
             .map(|f| {
-                // Workspace dependencies can not turn default features off.
+                // The workspace dependency turns default features off already.
                 let player_features = if player_source == "workspace = true" {
-                    format!("features = [\"{f}\"]")
+                    format!("features = [\"{f}\", \"audio\"]")
                 } else {
                     format!("default-features = false, features = [\"{f}\", \"audio\"]")
                 };

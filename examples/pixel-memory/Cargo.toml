@@ -8,22 +8,24 @@ clap = { version = "4.3.4", features = ["derive"] }
 image = "0.25.5"
 rand = "0.8.5"
 getrandom = { version = "0.2.15", features = ["js"] }
-fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl", "exif"] }
+fframes = { workspace = true, features = ["exif"] }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fframes_skia_renderer = { workspace = true, features = ["vulkan", "debug"] }
+# `--renderer cpu|skia-cpu|gpu`: Skia on Metal on macOS, on Vulkan everywhere else
 # `preview`: real-time GPU window
-fframes_native_player.workspace = true
-
 [target.'cfg(target_os = "macos")'.dependencies]
-fframes_native_player = { workspace = true, features = ["metal"] }
+fframes_skia_renderer = { workspace = true, features = ["metal", "cli", "debug"] }
+fframes_native_player = { workspace = true, features = ["metal", "audio"] }
 
-# Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
+[target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "cli", "debug"] }
+fframes_native_player = { workspace = true, features = ["vulkan", "audio"] }
+
+# FFmpeg codecs, portable so cached source builds work across CI runner CPUs. Windows
+# links a prebuilt FFmpeg instead (see README).
 [target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
-fframes = { workspace = true, features = ["build-portable"] }
+fframes = { workspace = true, features = ["h264", "h265", "libav-agree-gpl", "build-portable"] }
 
 [features]
-cpu = []
 default = ["renderer"]
 renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
 

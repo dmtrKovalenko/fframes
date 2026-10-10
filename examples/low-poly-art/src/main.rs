@@ -1,4 +1,5 @@
 use fframes::{CombinedMediaProvider, MediaProvider, RenderOptions, cli};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use low_poly_art_example::{LowPolyMedia, LowPolyVideo, owl};
 use std::process::ExitCode;
 
@@ -28,5 +29,6 @@ fn main() -> ExitCode {
         cache_capacity: 5,
         ..Default::default()
     })
+    .renderers(SkiaRenderers::default())
     .run()
 }

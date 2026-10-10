@@ -657,6 +657,7 @@ version = "1.2.0"
 dependencies = [
  "clap",
  "fframes",
+ "fframes_skia_renderer",
  "image",
  "rayon",
  "serde",
@@ -1520,6 +1521,7 @@ version = "1.2.0"
 dependencies = [
  "clap",
  "fframes",
+ "fframes_skia_renderer",
 ]
 
 [[package]]
@@ -1896,6 +1898,7 @@ name = "low-poly-art-example"
 version = "1.2.0"
 dependencies = [
  "fframes",
+ "fframes_skia_renderer",
  "fframes_test_utils",
  "libm",
  "rand 0.8.5",
@@ -1940,6 +1943,7 @@ name = "marketing-example"
 version = "1.2.0"
 dependencies = [
  "fframes",
+ "fframes_skia_renderer",
  "fframes_test_utils",
  "futures",
 ]
@@ -2036,6 +2040,7 @@ version = "1.2.0"
 dependencies = [
  "clap",
  "fframes",
+ "fframes_skia_renderer",
 ]
 
 [[package]]
@@ -3780,6 +3785,7 @@ name = "tiktok-example"
 version = "1.2.0"
 dependencies = [
  "fframes",
+ "fframes_skia_renderer",
  "libm",
  "tiktok-media",
 ]

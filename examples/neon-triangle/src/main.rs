@@ -1,6 +1,6 @@
 use fframes::cli::{self, clap};
-use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, Video};
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
+use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider};
+use fframes_skia_renderer::{SkiaPipelineConfig, cli::SkiaRenderers};
 use neon_triangle_example::{NeonTriangleMedia, NeonTriangleVideo};
 use std::process::ExitCode;
 
@@ -17,10 +17,7 @@ fn main() -> ExitCode {
     let video_codec = args.app.video_codec.clone();
 
     // Shaders run on the Skia backend's own GPU surface; the tiny-skia CPU
-    // backend would draw nothing in their place, so previews use Skia too.
-    let vulkan_ctx =
-        SkiaVulkanCtx::new(NeonTriangleVideo::WIDTH, NeonTriangleVideo::HEIGHT).unwrap();
-
+    // backend (`--renderer cpu`) draws nothing in their place.
     cli::new(
         &video,
         RenderOptions {
@@ -34,10 +31,7 @@ fn main() -> ExitCode {
         },
     )
     .args(args)
-    .backend(
-        SkiaFFramesRenderer::new_vulkan(&vulkan_ctx, SkiaPipelineConfig::default())
-            .expect("Failed to create renderer"),
-    )
     .preview(fframes_native_player::cli_preview)
+    .renderers(SkiaRenderers::gpu(SkiaPipelineConfig::default()))
     .run()
 }
