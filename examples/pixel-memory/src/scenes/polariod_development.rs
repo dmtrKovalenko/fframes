@@ -37,8 +37,8 @@ impl Scene for PolaroidDevelopment<'_> {
         frame: fframes::Frame,
         ctx: &fframes::FFramesContext<'a, '_>,
     ) -> fframes::Svgr<'a> {
-        let video_width = ctx.current_video_size.width as f32;
-        let video_height = ctx.current_video_size.height as f32;
+        let video_width = PixelVideo::WIDTH as f32;
+        let video_height = PixelVideo::HEIGHT as f32;
 
         fframes::svgr!(
             <defs>

@@ -36,7 +36,7 @@ impl Scene for EndScene {
             "rames"
           </text>
 
-          <text font-size="80" x="1220" y="605" fill="url(#text)" font-family="Chalkboard SE"
+          <text font-size="80" x="1220" y="605" fill="url(#text)" font-family="Fredoka One"
             opacity={
               frame.animate(
                 &fframes::timeline!(
