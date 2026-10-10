@@ -327,8 +327,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
       # Windows links a prebuilt FFmpeg instead of compiling it (see README). The
-      # codec features of the examples request a from-source build, so only the
-      # core crates are built here.
+      # examples are built by the e2e job.
       FFMPEG_BUILD: ffmpeg-n9.0-latest-win64-gpl-shared-9.0
       PACKAGES: -p fframes -p fframes-media -p webvtt-parser -p fframes-media-dir-macro -p svgr-macro -p e2e-tests
     steps:
@@ -363,3 +362,89 @@ jobs:
 
       - name: Render a video
         run: cargo test -p e2e-tests --test render_smoke -- --nocapture
+
+  # Key frames of every example, rendered through its command line by the CPU backend and by
+  # Skia on the CPU and on the GPU (Metal on macOS, lavapipe Vulkan on Linux and Windows), all
+  # compared with the same images in e2e/snapshots.
+  e2e:
+    name: E2E frames (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install apt-deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm nasm yasm libx264-dev libx265-dev libvpx-dev libopus-dev \
+            libfontconfig1-dev libasound2-dev libwayland-dev mesa-vulkan-drivers libvulkan1
+
+      - name: Install brew deps
+        if: runner.os == 'macOS'
+        run: brew install pkg-config nasm x264 x265 libvpx opus
+
+      - name: Install FFmpeg 9
+        if: runner.os == 'Windows'
+        env:
+          FFMPEG_BUILD: ffmpeg-n9.0-latest-win64-gpl-shared-9.0
+        run: |
+          TMP_DIR="$(cygpath -u "$RUNNER_TEMP")"
+          curl -fsSL -o "$TMP_DIR/ffmpeg.zip" \
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$FFMPEG_BUILD.zip"
+          7z x "$TMP_DIR/ffmpeg.zip" -o"$TMP_DIR" > /dev/null
+          FFMPEG_DIR="$(cygpath -w "$TMP_DIR/$FFMPEG_BUILD")"
+          echo "FFMPEG_DIR=$FFMPEG_DIR" >> "$GITHUB_ENV"
+          echo "$FFMPEG_DIR\bin" >> "$GITHUB_PATH"
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> "$GITHUB_ENV"
+
+      - name: Install the Vulkan loader and lavapipe
+        if: runner.os == 'Windows'
+        uses: jakoch/install-vulkan-sdk-action@v1.7.0
+        with:
+          install_runtime_only: true
+          install_lavapipe: true
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-key: "v1-e2e"
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install odiff
+        run: pnpm install --frozen-lockfile --filter fframes-root
+
+      - name: CPU
+        run: node scripts/e2e.mjs cpu
+
+      - name: Skia CPU
+        if: ${{ !cancelled() }}
+        run: node scripts/e2e.mjs skia-cpu
+
+      - name: Skia GPU
+        if: ${{ !cancelled() }}
+        run: node scripts/e2e.mjs gpu
+
+      - name: Upload frames and diffs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-${{ runner.os }}
+          if-no-files-found: ignore
+          path: target/e2e

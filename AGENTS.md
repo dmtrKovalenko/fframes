@@ -206,6 +206,9 @@ let make = (~prop1: type1, ~prop2: type2) => {
 - Unit tests in `#[cfg(test)] mod tests` blocks
 - Integration tests in `/e2e/tests/`
 - Visual regression tests compare rendered frames using `odiff`
+- `just e2e cpu|skia-cpu|gpu` renders key frames of every example through its CLI and compares
+  them with `e2e/snapshots`, the same images for every renderer; pass `--update` after an
+  intended change and commit the new PNGs
 
 **Running specific tests:**
 
