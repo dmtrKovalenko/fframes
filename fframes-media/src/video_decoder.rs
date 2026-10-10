@@ -5,12 +5,66 @@ use ffmpeg_sys_fframes::SwsFlags::{SWS_BICUBIC, SWS_BILINEAR};
 use ffmpeg_sys_fframes::*;
 use std::cell::UnsafeCell;
 use std::collections::VecDeque;
-use std::ffi::{CString, c_void};
+use std::ffi::{CStr, CString, c_void};
 use std::mem::size_of;
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
 use usvgr::PreloadedImageData;
+
+/// The video stream's duration in its own time base. Matroska and `WebM` leave the stream
+/// duration unset (`AV_NOPTS_VALUE`); their muxers write each track's length as a `DURATION`
+/// tag instead, so use that. Only when the tag is missing too fall back to the container's
+/// duration, which also covers any longer audio track. Any of these can be missing or 0; the
+/// caller treats a non-positive duration as unknown.
+unsafe fn stream_duration(fmt_ctx: *mut AVFormatContext, stream: *mut AVStream) -> i64 {
+    unsafe {
+        if (*stream).duration > 0 {
+            return (*stream).duration;
+        }
+        if let Some(micros) = duration_tag(stream) {
+            return av_rescale_q(micros, AV_TIME_BASE_Q, (*stream).time_base);
+        }
+        if (*fmt_ctx).duration <= 0 {
+            return (*stream).duration;
+        }
+        av_rescale_q((*fmt_ctx).duration, AV_TIME_BASE_Q, (*stream).time_base)
+    }
+}
+
+/// The stream's `DURATION` tag (`HH:MM:SS.nnnnnnnnn`) in `AV_TIME_BASE` units.
+unsafe fn duration_tag(stream: *mut AVStream) -> Option<i64> {
+    let entry = unsafe { av_dict_get((*stream).metadata, c"DURATION".as_ptr(), ptr::null(), 0) };
+    if entry.is_null() {
+        return None;
+    }
+    let value = unsafe { CStr::from_ptr((*entry).value) }.to_str().ok()?;
+    let mut parts = value.trim().splitn(3, ':');
+    let hours: i64 = parts.next()?.parse().ok()?;
+    let minutes: i64 = parts.next()?.parse().ok()?;
+    let seconds = parts.next()?;
+    let (seconds, fraction) = seconds.split_once('.').unwrap_or((seconds, ""));
+    let seconds: i64 = seconds.parse().ok()?;
+    // Keep the first 6 fractional digits (microseconds), right-padded with zeros.
+    let micros = fraction
+        .bytes()
+        .chain(std::iter::repeat(b'0'))
+        .take(6)
+        .try_fold(0i64, |acc, digit| {
+            digit
+                .is_ascii_digit()
+                .then(|| acc * 10 + i64::from(digit - b'0'))
+        })?;
+    // A malformed tag can be arbitrarily large; treat an overflow like a missing tag.
+    let total = hours
+        .checked_mul(60)?
+        .checked_add(minutes)?
+        .checked_mul(60)?
+        .checked_add(seconds)?
+        .checked_mul(1_000_000)?
+        .checked_add(micros)?;
+    (total > 0).then_some(total)
+}
 
 const FFRAMES_VIDEO_PATH_TAG: &str = "___fframes_internal_video_frame_pts___";
 // just a little bit faster than the format! macro
@@ -727,7 +781,7 @@ impl FFmpegDecoder {
                 color_space: (*video_dec_ctx).colorspace,
                 color_range: (*video_dec_ctx).color_range,
                 time_base: (*stream).time_base,
-                duration: (*stream).duration,
+                duration: stream_duration(fmt_ctx, stream),
                 frame_rate: (*stream).r_frame_rate,
             })
         }
@@ -772,7 +826,8 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn adjust_offset_for_looping(&mut self, offset: i64) -> Result<i64> {
-        if offset < self.duration_in_frames {
+        // An unknown or empty duration can't be looped over (and would divide by zero below).
+        if self.duration_in_frames <= 0 || offset < self.duration_in_frames {
             return Ok(offset);
         }
 
