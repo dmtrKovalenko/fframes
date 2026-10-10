@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 # Encodes a rendered video into the two files the landing page plays:
 #
-#   scripts/landing-video.sh out.mp4
+#   scripts/landing-video.sh out.mp4 [name]
 #
-# landing/fframes-demo.av1.mp4  AV1 10-bit, played by browsers with AV1 support
-# landing/fframes-demo.mp4      H.264 High@4.1, the fallback for everything else
+# landing/<name>.av1.mp4  AV1 10-bit, played by browsers with AV1 support
+# landing/<name>.mp4      H.264 High@4.1, the fallback for everything else
 #
-# Both are 1280x720 with AAC audio and the index at the front (faststart) so playback
-# starts before the download finishes. Cloudflare rejects files over 25 MiB, so the video
-# bitrate is derived from the duration to land each file near TARGET_MIB (default 23).
+# name defaults to fframes-demo, the intro of the page; made-of-motion is the intro that
+# landing-worker/ A/B tests against it. Both files are SIZE (default 1280:720) with AAC
+# audio and the index at the front (faststart) so playback starts before the download
+# finishes. Cloudflare rejects files over 25 MiB, so the video bitrate is derived from the
+# duration to land each file near TARGET_MIB (default 23).
 # AV1 keeps film grain with grain synthesis: the encoder denoises, sends grain parameters
 # and the decoder adds the grain back, which costs almost no bits.
 set -euo pipefail
 
-input="${1:?usage: scripts/landing-video.sh <rendered-video>}"
+input="${1:?usage: scripts/landing-video.sh <rendered-video> [name]}"
+name="${2:-fframes-demo}"
 out="$(cd "$(dirname "$0")/.." && pwd)/landing"
 target_mib="${TARGET_MIB:-23}"
 audio_kbps=96
@@ -25,15 +28,15 @@ duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$input")
 video_kbps=$(echo "$target_mib * 1024 * 1024 * 8 / 1000 * 0.97 / $duration - $audio_kbps" | bc)
 echo "duration ${duration}s, video ${video_kbps} kbps"
 
-scale="scale=1280:720:flags=lanczos"
+scale="scale=${SIZE:-1280:720}:flags=lanczos"
 
 ffmpeg -hide_banner -loglevel error -y -i "$input" -vf "$scale" \
   -c:v libsvtav1 -preset 4 -b:v "${video_kbps}k" -g 240 -pix_fmt yuv420p10le \
   -svtav1-params "rc=1:tune=0:film-grain=8:film-grain-denoise=1" \
-  -c:a aac -b:a "${audio_kbps}k" -movflags +faststart "$tmp/fframes-demo.av1.mp4"
+  -c:a aac -b:a "${audio_kbps}k" -movflags +faststart "$tmp/$name.av1.mp4"
 
 for pass in 1 2; do
-  target="$tmp/fframes-demo.mp4"
+  target="$tmp/$name.mp4"
   [ "$pass" = 1 ] && target=/dev/null
   ffmpeg -hide_banner -loglevel error -y -i "$input" -vf "$scale" \
     -c:v libx264 -preset slow -b:v "${video_kbps}k" -pass "$pass" -passlogfile "$tmp/x264" \
@@ -51,4 +54,4 @@ for file in "$tmp"/*.mp4; do
 done
 
 mv "$tmp"/*.mp4 "$out/"
-ls -lh "$out"/fframes-demo*.mp4
+ls -lh "$out/$name".*mp4

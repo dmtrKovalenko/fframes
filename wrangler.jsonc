@@ -3,11 +3,17 @@
 // npm runs the script from the repository root even when Builds starts in landing/.
 // The build step publishes skills/ under landing/.well-known/agent-skills for
 // `npx skills add https://fframes.studio`.
+// landing-worker/ runs only for the page itself, to A/B test the intro video.
 {
   "name": "fframes",
   "account_id": "86ddf0334885d2955aa80c778509d857",
   "compatibility_date": "2026-09-01",
   "build": { "command": "npm run build:landing", "watch_dir": "skills" },
-  "assets": { "directory": "./landing" },
+  "main": "./landing-worker/index.js",
+  "assets": {
+    "directory": "./landing",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/index.html"]
+  },
   "previews": {}
 }
