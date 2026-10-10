@@ -198,7 +198,7 @@ impl Video for TeejPodcast<'_> {
                     alignment-baseline="text-before-edge"
                     font-size="75"
                     fill="#fff"
-                    font-family="Berkeley Mono"
+                    font-family="JetBrains Mono"
                 >
                     "2D: Rust"
                 </text>

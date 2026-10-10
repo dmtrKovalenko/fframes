@@ -48,6 +48,8 @@ vulkan = ["gpu", "skia-safe/vulkan", "ash"]
 # Share the Vulkan device with FFmpeg, so Vulkan Video encoders (h264_vulkan, hevc_vulkan)
 # read the frames on the GPU. Builds FFmpeg with Vulkan support.
 vulkan-video = ["vulkan", "fframes/vulkan"]
+# `--renderer skia-cpu|gpu` for `fframes::cli`, see `cli::SkiaRenderers`
+cli = ["fframes/cli"]
 d3d = ["skia-safe/d3d"]
 gl = ["skia-safe/gl"]
 x11 = ["skia-safe/x11"]

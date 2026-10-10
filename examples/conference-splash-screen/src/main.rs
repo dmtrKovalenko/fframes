@@ -2,6 +2,7 @@
 use conference_splash_screen::ConferenceMedia;
 use fframes::cli::{self, clap};
 use fframes::{CombinedMediaProvider, MediaProvider, StaticMediaProvider};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use std::process::ExitCode;
 
 mod talks;
@@ -54,5 +55,6 @@ fn main() -> ExitCode {
     )
     .args(args)
     .backend(talks::backend())
+    .renderers(SkiaRenderers::default())
     .run()
 }

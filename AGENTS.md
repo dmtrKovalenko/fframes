@@ -206,6 +206,9 @@ let make = (~prop1: type1, ~prop2: type2) => {
 - Unit tests in `#[cfg(test)] mod tests` blocks
 - Integration tests in `/e2e/tests/`
 - Visual regression tests compare rendered frames using `odiff`
+- `just e2e cpu|skia-cpu|gpu` renders key frames of every example through its CLI and compares
+  them with `e2e/snapshots`, the same images for every renderer; pass `--update` after an
+  intended change and commit the new PNGs
 
 **Running specific tests:**
 
@@ -607,9 +610,10 @@ See `examples/teej-podcast/src/main.rs`; `cargo fframes new` generates the same 
 | `preview [TIME] [--paused] [--mute]` | real-time GPU window (`fframes_native_player`), blocks until closed |
 
 Global flags: `--json` (one JSON document on stdout, JSON progress events on stderr),
-`--scale 0.5`. Times: frames `120`, `3.2s`, `1:05`, `50%`, `start`/`end`, scenes `Intro`
-(`IntroScene` also matches), `#3`, `Intro[1]`, `Intro@1.5s`/`@50%`/`@end`; ranges `a..b`,
-`a..`, `..b`, `all` or a scene name.
+`--scale 0.5`, `--renderer cpu|skia-cpu|gpu` (another backend for this run, see below).
+Times: frames `120`, `3.2s`, `1:05`, `50%`, `start`/`end`, scenes `Intro` (`IntroScene` also
+matches), `#3`, `Intro[1]`, `Intro@1.5s`/`@50%`/`@end`; ranges `a..b`, `a..`, `..b`, `all` or
+a scene name.
 
 - Backends: `fframes::cpu::CpuRenderingBackend` (default, tiny-skia, multi-threaded) or the
   Skia backend from `fframes_skia_renderer` with `SkiaFFramesRenderer::new_vulkan(&SkiaVulkanCtx::new(W, H)?, SkiaPipelineConfig { .. })`
@@ -632,6 +636,10 @@ Global flags: `--json` (one JSON document on stdout, JSON progress events on std
   `FFramesRenderBackend::negotiate_encoder_input` (a software format or
   `EncoderInput::hardware_frames`) and `encoder_frame_renderer`, which returns libav frames
   (`fframes::VideoFrame`) for `SegmentWriter::submit_frame`.
+- `--renderer skia-cpu|gpu` needs `.renderers(SkiaRenderers::default())` before `.run()`
+  (`fframes_skia_renderer::cli`, feature `cli`): it builds the Skia backend that is asked for
+  (Metal on macOS, Vulkan elsewhere). `SkiaRenderers::gpu(SkiaPipelineConfig { .. })` also
+  renders on the GPU without the flag. Every example does this.
 - macOS: request `hevc_videotoolbox` only with `fframes = { features = ["videotoolbox"] }`
   (see `examples/teej-podcast/Cargo.toml`), otherwise the encoder silently falls back.
 - In code: `fframes::Previewer::new(&video, &options)` keeps fonts, images and caches between
