@@ -261,7 +261,6 @@ impl Stream {
         unsafe {
             // in case encoder is not needed (remux) we won't allocate the encoder
             if !self.enc.is_null() {
-                avcodec_send_frame(self.enc, std::ptr::null_mut());
                 avcodec_free_context(&raw mut self.enc);
 
                 if let StreamVariant::Audio(mut swr_ctx) = self.variant {

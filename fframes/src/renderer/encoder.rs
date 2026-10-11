@@ -232,18 +232,10 @@ impl Drop for Encoder {
     fn drop(&mut self) {
         unsafe {
             if !self.oc.is_null() {
-                // Flush any remaining packets first
-                if !self.video_stream.enc.is_null() {
-                    avcodec_flush_buffers(self.video_stream.enc);
-                }
-
-                match self.audio_stream {
-                    Some(ref audio_stream) if audio_stream.enc.is_null() => {
-                        avcodec_flush_buffers(audio_stream.enc);
-                    }
-                    _ => {}
-                }
-
+                // Nothing is flushed here (and `Stream::free` sends no end of stream):
+                // `flush_stream` already wrote every packet of a finished stream, and for an
+                // unfinished one (a render that failed) libx264 would encode its whole
+                // lookahead only to throw it away.
                 av_write_trailer(self.oc);
                 self.video_stream.free();
 
@@ -630,6 +622,59 @@ mod tests {
             assert_eq!(count, 4);
             assert_eq!(frames, 4);
         }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn dropping_an_unfinished_stream_does_not_encode_its_lookahead() {
+        let directory =
+            std::env::temp_dir().join(format!("fframes-unfinished-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&directory).unwrap();
+        // In the first pass libx264 writes a line for every frame it encodes to the stats
+        // file, so it shows whether dropping the encoder encoded the frames it was holding.
+        let stats = directory.join("x264.stats");
+        let logger = make_logger(FFramesLoggerVariant::Silent);
+        let options = RenderOptions {
+            video_encoder_options: EncoderOptions {
+                preferred_encoder: Some("libx264"),
+                // `medium` holds 40 frames of lookahead before it encodes the first one
+                codec_params: Some(&[
+                    ("preset", "medium"),
+                    ("threads", "1"),
+                    ("flags", "+pass1"),
+                    ("stats", stats.to_str().unwrap()),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        unsafe {
+            let encoder = Encoder::new(
+                EncoderOutput::IntermediateChunk,
+                64,
+                64,
+                30,
+                &directory.join("unfinished.mp4"),
+                &options,
+                &logger,
+            )
+            .unwrap_or_else(|err| panic!("test encoder: {err}"));
+            let mut frame = EncoderFrame::new(&encoder.video_stream)
+                .unwrap_or_else(|err| panic!("test frame: {err}"));
+            for pts in 0..8 {
+                frame.fill_from_rgba_pixmap(&[128; 64 * 64 * 4]);
+                frame.set_pts(pts);
+                encoder
+                    .send_frame(&encoder.video_stream, &frame)
+                    .unwrap_or_else(|err| panic!("test encode: {err}"));
+            }
+            // a render that failed drops its unfinished segments like this
+            drop(encoder);
+        }
+
+        let stats = std::fs::read_to_string(&stats).unwrap();
+        let encoded = stats.lines().filter(|line| !line.starts_with('#'));
+        assert_eq!(encoded.count(), 0);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
