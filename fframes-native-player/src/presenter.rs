@@ -51,7 +51,7 @@ impl Presenter {
 
         let mut presenter = Self {
             surface: None,
-            render_cache: RenderCache::new(),
+            render_cache: RenderCache::new().for_backend(backend.as_ref()),
             gpu_context,
             _backend: backend,
             window_surface,

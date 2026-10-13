@@ -10,6 +10,7 @@ members = [
     "fframes-media",
     "fframes-skia-renderer",
     "fframes-native-player",
+    "fframes-3d",
     "media-dir-macro",
     "render-bench",
     "render-bench/vs-remotion",
@@ -48,6 +49,9 @@ members = [
     # "fframes-lyon-renderer",
     "examples/signal-lab",
     "examples/fframes-intro",
+    "examples/overdrive",
+    "examples/assembly",
+    "examples/arm",
     "examples/made-of-motion",
     "examples/shader-mode",
 ]
@@ -117,3 +121,4 @@ webvtt-parser = { path = "webvtt-parser", version = "1.2.0" }
 fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.2.0" }
 # Members pick metal or vulkan: both at once match no prebuilt Skia and build it from source.
 fframes_native_player = { path = "fframes-native-player", version = "1.2.0", default-features = false }
+fframes-3d = { path = "fframes-3d", version = "1.2.0" }

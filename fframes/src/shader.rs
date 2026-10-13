@@ -240,90 +240,20 @@ pub fn resolve_shader_draw(image: &Arc<usvgr::PreloadedImageData>) -> Option<Arc
 
 #[cfg(not(target_arch = "wasm32"))]
 mod registry {
-    use std::collections::HashMap;
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use std::sync::{Arc, Mutex, Weak};
-
     use super::ShaderDraw;
-    use crate::media::{ImageData, ImageMetadata};
+    use crate::markers::Markers;
+    use crate::media::ImageData;
 
-    const MARKER_PREFIX: &str = "fframes-shader:";
-    /// A single transparent pixel: renderers that do not execute shaders draw
-    /// nothing in their place.
-    static MARKER_PIXEL: [u8; 4] = [0, 0, 0, 0];
-    /// Dead entries are swept every this many insertions.
-    const SWEEP_INTERVAL: usize = 256;
-
-    struct Entry {
-        image: Weak<usvgr::PreloadedImageData>,
-        draw: Arc<ShaderDraw>,
-    }
-
-    #[derive(Default)]
-    struct Registry {
-        entries: HashMap<usize, Entry>,
-        inserts: usize,
-    }
-
-    static REGISTRY: Mutex<Option<Registry>> = Mutex::new(None);
-    static NEXT_MARKER: AtomicU64 = AtomicU64::new(0);
+    static MARKERS: Markers<ShaderDraw> = Markers::new("fframes-shader:");
 
     pub(super) fn create_marker(draw: ShaderDraw) -> ImageData<'static> {
-        // Unique per draw so no id-keyed cache can hand a previous frame's
-        // placeholder (and so its uniforms) to this one.
-        let sequence = NEXT_MARKER.fetch_add(1, Ordering::Relaxed);
-        let id = format!("{MARKER_PREFIX}{}:{sequence}", draw.shader.id());
-        let image = Arc::new(usvgr::PreloadedImageData {
-            data: std::borrow::Cow::Borrowed(&MARKER_PIXEL),
-            width: 1,
-            height: 1,
-            id: id.clone(),
-        });
-
-        let mut guard = REGISTRY
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let registry = guard.get_or_insert_with(Registry::default);
-        registry.inserts += 1;
-        if registry.inserts.is_multiple_of(SWEEP_INTERVAL) {
-            registry
-                .entries
-                .retain(|_, entry| entry.image.strong_count() > 0);
-        }
-        registry.entries.insert(
-            Arc::as_ptr(&image) as usize,
-            Entry {
-                image: Arc::downgrade(&image),
-                draw: Arc::new(draw),
-            },
-        );
-        drop(guard);
-
-        ImageData::new_from_raw_data(
-            image,
-            id,
-            ImageMetadata {
-                width: 1,
-                height: 1,
-            },
-        )
+        MARKERS.create(draw, 1, 1)
     }
 
-    pub(super) fn resolve(image: &Arc<usvgr::PreloadedImageData>) -> Option<Arc<ShaderDraw>> {
-        // Cheap reject for every regular image without touching the lock.
-        if !image.id.starts_with(MARKER_PREFIX) {
-            return None;
-        }
-
-        let guard = REGISTRY
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let entry = guard
-            .as_ref()?
-            .entries
-            .get(&(Arc::as_ptr(image) as usize))?;
-
-        Weak::ptr_eq(&entry.image, &Arc::downgrade(image)).then(|| Arc::clone(&entry.draw))
+    pub(super) fn resolve(
+        image: &std::sync::Arc<usvgr::PreloadedImageData>,
+    ) -> Option<std::sync::Arc<ShaderDraw>> {
+        MARKERS.resolve(image)
     }
 }
 

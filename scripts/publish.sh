@@ -26,6 +26,7 @@ for crate in \
   fframes-media \
   media-dir-macro \
   fframes \
+  fframes-3d \
   fframes-editor-controller \
   fframes-skia-renderer \
   fframes-native-player \

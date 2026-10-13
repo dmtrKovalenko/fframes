@@ -233,6 +233,7 @@ cargo test -- --nocapture
 /fframes-editor            # Web editor UI (ReScript + React), published as @fframes/editor
 /fframes-editor-controller # WASM bridge between a Video impl and the editor
 /fframes-test-utils        # Snapshot helpers for svgr! trees
+/fframes-3d                # 3D: three.js style scene graph, glTF, CPU rasterizer or wgpu (GPU texture shared with Skia)
 /svgr-macro                # The svgr! procedural macro (SVG DSL + static-subtree hashing)
 /media-dir-macro           # include_media_dir! (embeds a media folder into the binary)
 /webvtt-parser             # Subtitle format parser
@@ -519,6 +520,104 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
 - Only the Skia backend (GPU, or `SkiaCpuCtx`) executes shaders. The tiny-skia CPU backend
   draws nothing in their place, and the editor shows a placeholder.
 - Requires the `compile-time-svgtree` feature (the default `renderer` feature of the examples).
+
+### 7d. 3D scenes (`fframes-3d`)
+
+`fframes-3d` is a three.js style scene graph with its own renderer: 4x MSAA, metal/roughness
+PBR with clearcoat, a studio or HDR panorama environment, soft sun shadows, planar
+reflections, transparency, additive glows, particles, fog, depth of field, motion blur, bloom
+and ACES. It returns an image for `<image href>`. glTF and STL models load too. See
+`examples/arm` (a lab robot spells "fframes"), `examples/overdrive` (a car becomes a robot)
+and the three.js table in `fframes-3d/src/lib.rs`.
+
+Two renderers draw the same picture:
+
+- The CPU rasterizer runs everywhere, also in the editor (at half size there).
+- With `fframes-3d = { features = ["gpu"] }` the renderer uses wgpu (Vulkan, Metal, DX12).
+  A frame differs from the CPU frame by less than one 8-bit step on average. Without a GPU
+  it falls back to the CPU. `Renderer::cpu()` forces the CPU.
+- With `fframes_skia_renderer = { features = ["vulkan", "wgpu"] }` as well, the 3D stays on
+  the GPU: Skia draws the wgpu texture in place and converts the frame for the encoder.
+  Nothing is read back. Other backends (the CPU backend, Metal, the editor) get pixels.
+
+Without these features nothing of wgpu compiles.
+
+```rust
+use fframes_3d::*;
+
+// once, in the constructor: geometry is shared by `Arc`, keep the ids you animate
+let mut scene = Scene::new().environment(Environment::studio()).background(Background::Transparent);
+let body = scene.add(Node::mesh(Geometry::rounded_box(1.0, 1.0, 1.0, 0.08, 4), Material::metal(0xd4d8e0, 0.25)).at(0.0, 0.5, 0.0));
+let arm = scene.add_to(body, Node::mesh(Geometry::cylinder(0.1, 0.1, 0.8, 24), Material::standard(0xff5500).clearcoat(1.0)).at(0.6, 0.2, 0.0));
+scene.add(Node::mesh(Geometry::floor(30.0, 30.0), Material::shadow_catcher(0.6)).shadows(false, true));
+scene.add(Node::light(Light::sun(Rgb::WHITE, 3.0, vec3(3.0, 6.0, 4.0))));
+let renderer = Renderer::new(1920, 1080).bloom(Bloom::default());
+
+// render_frame: clone (cheap), pose, render
+let mut s = scene.clone();
+s[arm].rotation = euler(0.0, 0.0, t * 2.0);
+s[body].material_mut().unwrap().emissive_intensity = glow;
+let camera = Camera::perspective(35.0).orbit(vec3(0.0, 0.6, 0.0), 6.0, 30.0 + t * 20.0, 15.0);
+let image = renderer.render(&s, &camera);
+// motion blur for fast shots: renderer.render_motion_blur(3, |o| build(t + o / 120.0))
+svgr!(<image href={image.href()} x="0" y="0" width="1920" height="1080" />)
+```
+
+- Y is up, the camera looks down -Z, angles are radians (`deg()`, `euler_deg()`), units are
+  meters. Hex and `&str` colors are sRGB like three.js. Multiply an `Rgb` above 1 for HDR
+  glow (`Rgb::hex(0x22e8ff) * 6.0`).
+- Geometry: `cuboid`, `rounded_box`, `sphere`, `cylinder`, `cone`, `capsule`, `torus`, `plane`,
+  `floor`, `ring`, `lathe`, `extrude` (concave shapes, bevels), `tube`, `icosahedron`, `text`,
+  with `translate`, `rotate_*`, `scale`, `merge`, `with_color`, `flat`, `smooth`.
+- Materials: `standard`, `metal`, `unlit`, `glow` (additive), `shadow_catcher`, with
+  `emissive`, `clearcoat`, `rim`, `opacity`, `additive`, `grid` (glowing floor lines), `map`.
+- Pin SVG to 3D: `camera.project(scene.local_to_world(id, local), 1920.0, 1080.0)` gives the
+  pixel. `camera.pixel_size(..)` sizes a bracket. HUD labels then stay on the object.
+- glTF: `let model = Model::from_gltf(bytes)?; let inst = model.add_to(&mut s, None);
+  inst.play(&mut s, model.animation("Dance").unwrap(), t);`
+- STL (geometry only): `Geometry::from_stl(bytes)?.smooth(40.0)` and a `Material`. Most
+  files are millimeters with Z up: `.scale(0.001, 0.001, 0.001).rotate_x(-FRAC_PI_2)`.
+- Depth of field: `camera.focus_on(point, blur_px)` or `.focus(distance, blur_px)`.
+- Reflections (three.js `Reflector`): `scene.reflector = Some(Reflector::floor())` names the
+  plane. `.reflection(0.8)` on a material on that plane shows the scene mirrored in it, blurred
+  by the roughness. One plane per scene, rendered at half resolution by default.
+- Highlights do not sparkle: a normal that turns inside a pixel widens the specular lobe.
+- Cost of a 1080p frame: 60 to 150 ms on 28 CPU threads, 5 to 20 ms on an Intel iGPU. The
+  GPU caches meshes and textures by their `Arc`, so build geometry once. Only the sun
+  (`Light::sun`) casts shadows. Set `.shadows(false, ..)` on floors and far scenery to keep
+  the shadow map tight. `fframes-3d/tests/gpu.rs` compares both renderers.
+- Pose skeletons with `rotation` on group nodes. To keep feet on the floor, measure the lowest
+  contact point after posing (see `Robot::ground_offset` in `examples/overdrive`).
+
+### 7e. Your own wgpu passes (`fframes::wgpu_layer`)
+
+With `fframes = { features = ["wgpu"] }` and the Skia Vulkan backend's `wgpu` feature,
+anything rendered with wgpu goes into a frame the way fframes-3d does:
+
+```rust
+use fframes::wgpu;
+
+let Some(gpu) = fframes::shared_gpu() else { return cpu_fallback() }; // CPU backend, editor
+let texture = gpu.device().create_texture(&wgpu::TextureDescriptor {
+    format: fframes::WGPU_LAYER_FORMAT, // Rgba8Unorm, premultiplied sRGB
+    usage: fframes::WGPU_LAYER_USAGE | wgpu::TextureUsages::RENDER_ATTACHMENT,
+    ..
+});
+let mut encoder = gpu.device().create_command_encoder(&Default::default());
+// passes rendering into `texture`
+fframes::finish_wgpu_layer(&mut encoder, &texture); // leaves it sampled, Skia adds no barrier
+gpu.submit([encoder.finish()]);                     // under the backend's queue lock
+let layer = fframes::wgpu_layer(&gpu, &texture);
+svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
+```
+
+- Render into the texture again only after the returned image is dropped. The backend has
+  submitted the frame that samples it by then. Keep a pool (see `LayerTarget` in
+  `fframes-3d/src/gpu/mod.rs`).
+- Keep per-device state in `gpu.state(|gpu| ..)`. It is dropped with the device. No wgpu
+  object may outlive the backend context (`SkiaVulkanCtx`).
+- Every Skia context then submits to the wgpu queue. The queue orders a layer before the
+  frame that samples it.
 
 ### 7c. Audio mix
 

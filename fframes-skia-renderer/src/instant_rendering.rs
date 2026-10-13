@@ -30,18 +30,18 @@ impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
         })?;
 
         Ok(Self {
+            render_cache: crate::render::RenderCache::new().for_backend(&backend),
             backend,
             surface,
             gpu_context,
             converter_cache: usvgr::Cache::default(),
-            render_cache: crate::render::RenderCache::new(),
         })
     }
 
     /// Applies cache limits to instant rendering and clears cached resources.
     pub fn with_cache_config(mut self, config: crate::SkiaCacheConfig) -> Self {
         self.converter_cache = usvgr::Cache::new_with_text_cache(config.text_capacity);
-        self.render_cache = crate::render::RenderCache::with_config(config);
+        self.render_cache = self.render_cache.cleared(config);
         self
     }
 
@@ -51,11 +51,11 @@ impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
         gpu_context: skia_safe::gpu::DirectContext,
     ) -> Self {
         Self {
+            render_cache: crate::render::RenderCache::new().for_backend(&backend),
             backend,
             surface,
             gpu_context,
             converter_cache: usvgr::Cache::default(),
-            render_cache: crate::render::RenderCache::new(),
         }
     }
 }

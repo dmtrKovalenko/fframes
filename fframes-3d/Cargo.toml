@@ -1,0 +1,37 @@
+[package]
+name = "fframes-3d"
+version = "1.2.0"
+edition = "2024"
+authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+license = "MIT"
+description = "3D scenes for fframes: a three.js style scene graph, glTF and STL models, a CPU rasterizer and a wgpu renderer"
+homepage = "https://fframes.studio"
+
+[lib]
+name = "fframes_3d"
+doctest = false
+
+[features]
+# Renders on the GPU with wgpu (Vulkan, Metal or DX12), see `Renderer::gpu`. Off by default.
+gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck", "fframes/wgpu"]
+
+[dependencies]
+fframes.workspace = true
+glam = "0.30"
+gltf = { version = "1.4", default-features = false, features = ["utils", "names", "KHR_materials_emissive_strength", "KHR_lights_punctual", "KHR_texture_transform", "KHR_materials_unlit"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "hdr", "webp"] }
+base64 = "0.22"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon = "1.5.1"
+# The `gpu` feature only.
+wgpu = { version = "30", optional = true, default-features = false, features = ["std", "parking_lot", "wgsl", "vulkan", "metal", "dx12"] }
+pollster = { version = "1", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Encodes the images as PNG data URLs in the editor.
+png = "0.17"
+
+[lints]
+workspace = true

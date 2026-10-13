@@ -81,7 +81,7 @@ impl<TBackend: SkiaBackend> SkiaFrameRenderer<'_, TBackend> {
         }) = self.surface.take()
         {
             // what lives on the context goes first
-            self.render_cache = crate::render::RenderCache::with_config(self.cache_config);
+            self.render_cache = self.render_cache.cleared(self.cache_config);
             drop(surface);
             drop(reader);
             let _queue = lock_queue(queue_lock.as_ref());
@@ -102,14 +102,14 @@ impl<'a, TBackend: SkiaBackend> SkiaFrameRenderer<'a, TBackend> {
             backend,
             cache_config: crate::SkiaCacheConfig::default(),
             surface: None,
-            render_cache: crate::render::RenderCache::new(),
+            render_cache: crate::render::RenderCache::new().for_backend(backend),
         }
     }
 
     /// Uses these cache limits for subsequent frames. Clears previously cached render resources.
     pub fn with_cache_config(mut self, config: crate::SkiaCacheConfig) -> Self {
         self.cache_config = config;
-        self.render_cache = crate::render::RenderCache::with_config(config);
+        self.render_cache = self.render_cache.cleared(config);
         self
     }
 }
