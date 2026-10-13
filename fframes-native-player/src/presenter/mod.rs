@@ -23,6 +23,12 @@ use crate::options::PlayerBackend;
 trait WindowTarget {
     fn is_gpu(&self) -> bool;
 
+    /// An empty cache for the canvas of this target. A target on a GPU that the backend
+    /// shares with wgpu samples the wgpu layers of the frames in place.
+    fn render_cache(&self) -> RenderCache {
+        RenderCache::new()
+    }
+
     /// The window has a new size in physical pixels, neither is zero.
     fn resize(&mut self, width: u32, height: u32) -> PlayerResult<()>;
 
@@ -65,7 +71,7 @@ impl Presenter {
         );
 
         let mut presenter = Self {
-            render_cache: RenderCache::new(),
+            render_cache: target.render_cache(),
             target,
             window,
             background: Color::from_argb(background.a, background.r, background.g, background.b),
