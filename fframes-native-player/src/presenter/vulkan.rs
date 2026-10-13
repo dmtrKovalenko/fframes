@@ -2,6 +2,7 @@ use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 use std::rc::Rc;
 
+use fframes_skia_renderer::render::RenderCache;
 use fframes_skia_renderer::skia_safe::gpu::ganesh::vk::backend_render_targets;
 use fframes_skia_renderer::skia_safe::gpu::{
     self, DirectContext, FlushInfo, SurfaceOrigin, SyncCpu,
@@ -370,6 +371,10 @@ impl VulkanTarget {
 impl WindowTarget for VulkanTarget {
     fn is_gpu(&self) -> bool {
         true
+    }
+
+    fn render_cache(&self) -> RenderCache {
+        RenderCache::new().for_backend(&self.backend)
     }
 
     fn resize(&mut self, width: u32, height: u32) -> PlayerResult<()> {

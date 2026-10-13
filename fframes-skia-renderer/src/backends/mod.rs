@@ -4,6 +4,8 @@ pub mod metal;
 pub mod vulkan;
 #[cfg(feature = "vulkan")]
 pub(crate) mod vulkan_readback;
+#[cfg(feature = "wgpu")]
+mod vulkan_wgpu;
 
 use fframes::{EncoderInput, FFramesRendererError, FFramesRendererResult, VideoEncoderInfo};
 use skia_safe::{Surface, gpu::DirectContext, surfaces};
@@ -54,6 +56,12 @@ pub struct SkiaContext {
 }
 
 pub trait SkiaBackend: Sync + Send {
+    /// The [`fframes::SharedGpu::id`] of the device this backend's contexts draw on, when
+    /// the backend shares it with wgpu: layers rendered on it are sampled in place.
+    fn shared_gpu_id(&self) -> Option<u64> {
+        None
+    }
+
     fn create_skia_surface(&self) -> FFramesRendererResult<(Surface, Option<DirectContext>)>;
 
     /// Like [`Self::create_skia_surface`], with what the context needs to share its GPU

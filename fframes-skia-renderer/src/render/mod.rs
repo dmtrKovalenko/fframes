@@ -14,6 +14,8 @@ mod image;
 mod occlusion;
 mod resources;
 mod shader;
+#[cfg(feature = "wgpu")]
+mod wgpu_layer;
 
 pub use shader::compile_shader;
 
@@ -157,6 +159,10 @@ pub struct RenderCache {
     /// `static_hash` → whether the static subtree contains filters, such subtrees are
     /// not recorded as pictures so the filtered groups inside can be rasterized.
     static_has_filters: AHashMap<u64, bool>,
+    /// The `fframes::SharedGpu` the context of this cache draws on: wgpu layers rendered
+    /// there are sampled in place, all others are read back.
+    #[cfg_attr(not(feature = "wgpu"), allow(dead_code))]
+    shared_gpu: Option<u64>,
 }
 
 struct FilteredLayer {
@@ -180,6 +186,21 @@ impl RenderCache {
                 config.geometry_bytes,
             ),
             ..Default::default()
+        }
+    }
+
+    /// Makes the cache one of a context of `backend`. wgpu layers on the backend's shared GPU
+    /// are then sampled in place, see [`crate::SkiaBackend::shared_gpu_id`].
+    pub fn for_backend<B: crate::SkiaBackend + ?Sized>(mut self, backend: &B) -> Self {
+        self.shared_gpu = backend.shared_gpu_id();
+        self
+    }
+
+    /// An empty cache with `config` for the same context as this cache.
+    pub fn cleared(&self, config: crate::SkiaCacheConfig) -> Self {
+        Self {
+            shared_gpu: self.shared_gpu,
+            ..Self::with_config(config)
         }
     }
 
@@ -1127,11 +1148,34 @@ fn render_raster_image(
     cache: &mut RenderCache,
     alpha: f32,
 ) {
+    #[cfg(feature = "wgpu")]
+    if let Some(layer) = fframes::resolve_wgpu_layer(img) {
+        if let Some(image) = wgpu_layer::image(&layer, canvas, cache.shared_gpu) {
+            draw_raster_image(&image, view_box, rendering_mode, canvas, alpha);
+        } else if let Some(pixels) = layer.pixels()
+            && let Some(image) = SkiaImage::new(&pixels)
+        {
+            draw_raster_image(image.image(), view_box, rendering_mode, canvas, alpha);
+        }
+        return;
+    }
+
     let Some(sk_image) = cache.image(img).map(SkiaImage::image) else {
         return;
     };
+    draw_raster_image(sk_image, view_box, rendering_mode, canvas, alpha);
+}
 
-    let Some(img_size) = usvgr::Size::from_wh(img.width as f32, img.height as f32) else {
+/// Draws `sk_image` into the `view_box` of an `<image>` element.
+fn draw_raster_image(
+    sk_image: &skia_safe::Image,
+    view_box: usvgr::ViewBox,
+    rendering_mode: usvgr::ImageRendering,
+    canvas: &Canvas,
+    alpha: f32,
+) {
+    let (width, height) = (sk_image.width(), sk_image.height());
+    let Some(img_size) = usvgr::Size::from_wh(width as f32, height as f32) else {
         return;
     };
 
@@ -1180,7 +1224,7 @@ fn render_raster_image(
         ),
     };
 
-    let rect = skia_safe::Rect::from_wh(img.width as f32, img.height as f32);
+    let rect = skia_safe::Rect::from_wh(width as f32, height as f32);
     canvas.draw_image_rect_with_sampling_options(
         sk_image,
         Some((&rect, skia_safe::canvas::SrcRectConstraint::Strict)),

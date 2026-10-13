@@ -111,6 +111,8 @@ mod duration;
 mod fframes_context;
 mod font_data;
 mod frame;
+#[cfg(not(target_arch = "wasm32"))]
+mod markers;
 mod media_provider;
 mod named_range;
 mod scenes;
@@ -119,6 +121,8 @@ mod svgr;
 mod text;
 mod time_spec;
 mod video;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+mod wgpu_layer;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod renderer;
@@ -158,6 +162,10 @@ pub use time_spec::*;
 pub use transform::*;
 pub use video::*;
 pub use video_data::*;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use wgpu;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use wgpu_layer::*;
 
 // reexported deps
 pub use crate::usvgr::roxmltree;
