@@ -99,6 +99,10 @@ test *ARGS:
   cargo test {{ARGS}}
   cargo test -p fframes_test_utils --no-default-features {{ARGS}}
 
+# Key frames of every example on one renderer against e2e/snapshots; --update accepts changes
+e2e renderer *ARGS:
+  node scripts/e2e.mjs {{renderer}} {{ARGS}}
+
 # Render a markdown file in the terminal (defaults to the agent guidelines)
 md file="AGENTS.md":
   bat {{file}}

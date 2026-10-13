@@ -25,6 +25,9 @@ pub use frame_export::{
 
 pub mod render;
 
+#[cfg(feature = "cli")]
+pub mod cli;
+
 #[cfg(feature = "debug")]
 mod metrics;
 

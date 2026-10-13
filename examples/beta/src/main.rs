@@ -3,6 +3,7 @@ use fframes::{
     CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
     StaticMediaProvider, cli, cpu::CpuRenderingBackend,
 };
+use fframes_skia_renderer::cli::SkiaRenderers;
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use marketing_example::{MarketingMedia, MarketingVideo};
 use podcast_example::PodcastVideo;
@@ -71,5 +72,6 @@ fn main() -> ExitCode {
         ..Default::default()
     })
     .preview(fframes_native_player::cli_preview)
+    .renderers(SkiaRenderers::default())
     .run()
 }

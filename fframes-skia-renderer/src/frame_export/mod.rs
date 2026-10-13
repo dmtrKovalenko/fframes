@@ -238,10 +238,14 @@ impl<'b> SkiaEncoderFrameRenderer<'b> {
                 reader,
             } = crate::context_with_size(backend, width, height)?;
             let exporter = match gpu.as_mut() {
-                Some(gpu) if mode != SkiaFrameExport::CpuConversion => {
-                    planes::PlaneExporter::new(gpu, input.pixel_format, width, height)
-                        .and_then(Result::ok)
-                }
+                Some(gpu) if mode != SkiaFrameExport::CpuConversion => planes::PlaneExporter::new(
+                    gpu,
+                    input.pixel_format,
+                    input.color_matrix,
+                    width,
+                    height,
+                )
+                .and_then(Result::ok),
                 _ => None,
             };
 

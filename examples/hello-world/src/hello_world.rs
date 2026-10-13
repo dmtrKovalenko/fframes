@@ -32,8 +32,8 @@ impl Video for HelloWorldVideo<'_> {
                 height={ctx.current_video_size.height}
             >
                 <rect
-                    width={ctx.current_video_size.width}
-                    height={ctx.current_video_size.height}
+                    width="1920"
+                    height="1080"
                     fill={frame.animate(&fframes::timeline!(
                         at 0., animate Color::hex("#fff") => Color::hex("#f8fafc"), Easing::Linear,
                         at 5., animate Color::hex("#f8fafc") => Color::hex("#fff7ed"), Easing::Linear,

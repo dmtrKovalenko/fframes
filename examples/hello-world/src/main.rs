@@ -1,5 +1,6 @@
 use clap::Args;
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -40,5 +41,6 @@ fn main() -> ExitCode {
         },
     )
     .args(args)
+    .renderers(SkiaRenderers::default())
     .run()
 }

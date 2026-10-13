@@ -72,6 +72,7 @@ impl Video for PixelVideo<'_> {
         fframes::svgr!(
           <svg
             xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 1920 1080"
             width={ctx.current_video_size.width}
             height={ctx.current_video_size.height}
           >

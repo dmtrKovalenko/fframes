@@ -1,6 +1,6 @@
-use crate::{FramedImage, PhotoFrame, pixel_video_randomizer::RandomPhotos};
+use crate::{FramedImage, PhotoFrame, PixelVideo, pixel_video_randomizer::RandomPhotos};
 use fframes::{
-    Scene, Svgr, Transform,
+    Scene, Svgr, Transform, Video,
     animation::{Easing, KeyFrame, KeyFramesAnimation},
 };
 use rand::Rng;
@@ -86,7 +86,7 @@ impl Scene for ParallaxGridPhotos<'_> {
 
                     Some(
                         image.render_framed(PhotoFrame {
-                            x: ctx.current_video_size.width as f32 / 2.,
+                            x: PixelVideo::WIDTH as f32 / 2.,
                             y: 1080. * index as f32 + (1080. - PHOTO_HEIGHT) / 2.,
                             width: width as u32,
                             height: PHOTO_HEIGHT as u32,

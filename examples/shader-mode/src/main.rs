@@ -2,9 +2,9 @@ use std::process::ExitCode;
 
 use fframes::{
     AudioMixOptions, CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider,
-    RenderOptions, StaticMediaProvider, Video, cli,
+    RenderOptions, StaticMediaProvider, cli,
 };
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use fframes_skia_renderer::{SkiaPipelineConfig, cli::SkiaRenderers};
 use shader_mode::{ShaderMode, ShaderModeMedia};
 
 fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
@@ -15,17 +15,6 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
     let dynamic = directory.process_media_source()?;
     let all = CombinedMediaProvider::from([&media as &dyn MediaProvider, &dynamic]);
     let video = ShaderMode::new();
-    #[cfg(target_os = "macos")]
-    let gpu =
-        fframes_skia_renderer::metal::SkiaMetalCtx::new(ShaderMode::WIDTH, ShaderMode::HEIGHT)?;
-    #[cfg(not(target_os = "macos"))]
-    let gpu =
-        fframes_skia_renderer::vulkan::SkiaVulkanCtx::new(ShaderMode::WIDTH, ShaderMode::HEIGHT)?;
-
-    #[cfg(target_os = "macos")]
-    let backend = SkiaFFramesRenderer::new_metal(&gpu, SkiaPipelineConfig::default())?;
-    #[cfg(not(target_os = "macos"))]
-    let backend = SkiaFFramesRenderer::new_vulkan(&gpu, SkiaPipelineConfig::default())?;
 
     Ok(cli::new(
         &video,
@@ -44,9 +33,9 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
             ..Default::default()
         },
     )
-    .backend(backend)
     .preview(fframes_native_player::cli_preview)
     .default_output(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("output/shader-mode.mp4"))
+    .renderers(SkiaRenderers::gpu(SkiaPipelineConfig::default()))
     .run())
 }
 

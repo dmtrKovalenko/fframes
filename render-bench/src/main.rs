@@ -474,6 +474,7 @@ impl Bench<'_> {
                     let t = Instant::now();
                     unsafe {
                         fframes::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated(
+                            fframes::YuvMatrix::Bt601,
                             w as i32,
                             h as i32,
                             w as i32,

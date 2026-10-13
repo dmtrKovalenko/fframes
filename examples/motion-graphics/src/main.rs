@@ -1,5 +1,6 @@
 use fframes::StaticMediaProvider;
 use fframes::cli::{self, clap};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use motion_graphics_example::{MotionGraphicsMedia, MotionGraphicsVideo, render_options};
 use std::process::ExitCode;
 
@@ -24,5 +25,6 @@ fn main() -> ExitCode {
         cache_capacity: 10,
         ..Default::default()
     })
+    .renderers(SkiaRenderers::default())
     .run()
 }

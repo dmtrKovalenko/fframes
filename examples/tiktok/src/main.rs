@@ -1,4 +1,5 @@
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use tiktok_example::{GooseMedia, GooseVideo};
@@ -33,5 +34,6 @@ fn main() -> ExitCode {
         ..Default::default()
     })
     .default_output("out.webm")
+    .renderers(SkiaRenderers::default())
     .run()
 }

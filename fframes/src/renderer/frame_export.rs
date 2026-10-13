@@ -1,4 +1,5 @@
 use super::encoder::EncoderOptions;
+use super::pix_fmt::YuvMatrix;
 use super::renderer_error::{
     FFramesRendererError, FFramesRendererResult, RenderEncodingError, RenderEncodingResult,
 };
@@ -325,15 +326,32 @@ pub struct EncoderInput {
     pub hw_frames_ctx: Option<AvBuffer>,
     /// `AVCodecContext::hw_device_ctx` for encoders that want the device only.
     pub hw_device_ctx: Option<AvBuffer>,
+    /// The matrix the frames are converted to YUV with. The encoder tags the stream with it.
+    pub color_matrix: YuvMatrix,
 }
 
 impl EncoderInput {
-    /// Frames with pixels in memory.
+    /// Frames with pixels in memory, converted with BT.601.
     pub fn software(pixel_format: AVPixelFormat) -> Self {
         Self {
             pixel_format,
             hw_frames_ctx: None,
             hw_device_ctx: None,
+            color_matrix: YuvMatrix::Bt601,
+        }
+    }
+
+    /// Frames with pixels in memory in the pixel format and color matrix of `options`.
+    pub fn for_options(options: &EncoderOptions<'_>) -> Self {
+        Self::software(options.pixel_format).with_color_matrix(options.color_matrix)
+    }
+
+    /// The same frames converted with `color_matrix`.
+    #[must_use]
+    pub fn with_color_matrix(self, color_matrix: YuvMatrix) -> Self {
+        Self {
+            color_matrix,
+            ..self
         }
     }
 
@@ -343,11 +361,12 @@ impl EncoderInput {
         if !encoder.supports(format) {
             return Err(RenderEncodingError::InvalidPixFmt(format));
         }
-        Ok(Self::software(format))
+        Ok(Self::for_options(encoder.options))
     }
 
     /// Hardware frames of `format` holding `sw_format` pixels, allocated by libav on `device`
     /// (see [`hardware_device`]). Get the frames with [`VideoFrame::from_hw_frames`].
+    /// They are converted with BT.601 unless [`Self::with_color_matrix`] says otherwise.
     ///
     /// `configure` runs before the pool is initialized and may adjust the API specific
     /// context (`AVHWFramesContext::hwctx`).
@@ -378,6 +397,7 @@ impl EncoderInput {
                 pixel_format: format,
                 hw_frames_ctx: Some(frames),
                 hw_device_ctx: None,
+                color_matrix: YuvMatrix::Bt601,
             })
         }
     }
@@ -555,12 +575,24 @@ impl Drop for FramePool {
 pub struct RgbaFrameConverter {
     pool: FramePool,
     sws: *mut SwsContext,
+    matrix: YuvMatrix,
 }
 
 unsafe impl Send for RgbaFrameConverter {}
 
 impl RgbaFrameConverter {
+    /// Converts with BT.601, see [`Self::with_matrix`].
     pub fn new(format: AVPixelFormat, width: i32, height: i32) -> RenderEncodingResult<Self> {
+        Self::with_matrix(format, YuvMatrix::Bt601, width, height)
+    }
+
+    /// Converts to YUV formats with `matrix`.
+    pub fn with_matrix(
+        format: AVPixelFormat,
+        matrix: YuvMatrix,
+        width: i32,
+        height: i32,
+    ) -> RenderEncodingResult<Self> {
         if is_hardware_pixel_format(format) {
             return Err(RenderEncodingError::Internal(format!(
                 "RGBA pixels can not be converted into {format:?} hardware frames"
@@ -590,15 +622,19 @@ impl RgbaFrameConverter {
                     "Can not allocate sws".to_owned(),
                 ));
             }
+            if let Err(err) = unsafe { set_sws_output_matrix(sws, matrix) } {
+                unsafe { sws_freeContext(sws) };
+                return Err(err);
+            }
             sws
         };
 
-        Ok(Self { pool, sws })
+        Ok(Self { pool, sws, matrix })
     }
 
     /// For the frames `input` asks for.
     pub fn for_input(input: &EncoderInput, width: i32, height: i32) -> RenderEncodingResult<Self> {
-        Self::new(input.pixel_format, width, height)
+        Self::with_matrix(input.pixel_format, input.color_matrix, width, height)
     }
 
     /// `rgba` is `width * height * 4` bytes without line padding.
@@ -616,6 +652,7 @@ impl RgbaFrameConverter {
             let raw = &*frame.as_ptr();
             if self.sws.is_null() {
                 super::pix_fmt::fill_yuv420_from_rgba_pixmap_accelerated(
+                    self.matrix,
                     width,
                     height,
                     raw.linesize[0],
@@ -648,6 +685,54 @@ impl RgbaFrameConverter {
 
         Ok(frame)
     }
+}
+
+/// Makes `sws` convert RGB to YUV with `matrix`. swscale converts with BT.601 unless told
+/// otherwise. The ranges stay what swscale chose for the formats.
+///
+/// # Safety
+/// `sws` must be a valid context converting from an RGB format.
+pub(crate) unsafe fn set_sws_output_matrix(
+    sws: *mut SwsContext,
+    matrix: YuvMatrix,
+) -> RenderEncodingResult<()> {
+    let coefficients = match matrix {
+        YuvMatrix::Bt601 => SWS_CS_ITU601,
+        YuvMatrix::Bt709 => SWS_CS_ITU709,
+    };
+    unsafe {
+        let (mut input_table, mut output_table) = (std::ptr::null_mut(), std::ptr::null_mut());
+        let (mut input_range, mut output_range) = (0, 0);
+        let (mut brightness, mut contrast, mut saturation) = (0, 0, 0);
+        let status = sws_getColorspaceDetails(
+            sws,
+            &raw mut input_table,
+            &raw mut input_range,
+            &raw mut output_table,
+            &raw mut output_range,
+            &raw mut brightness,
+            &raw mut contrast,
+            &raw mut saturation,
+        );
+        if status < 0 {
+            return Err(ffmpeg_error(status));
+        }
+        // For RGB input only the output table (the YUV side) takes part.
+        let status = sws_setColorspaceDetails(
+            sws,
+            input_table,
+            input_range,
+            sws_getCoefficients(coefficients),
+            output_range,
+            brightness,
+            contrast,
+            saturation,
+        );
+        if status < 0 {
+            return Err(ffmpeg_error(status));
+        }
+    }
+    Ok(())
 }
 
 impl Drop for RgbaFrameConverter {

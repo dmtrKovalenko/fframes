@@ -1,4 +1,5 @@
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
+use fframes_skia_renderer::cli::SkiaRenderers;
 use marketing_example::{MarketingMedia, MarketingVideo};
 use std::process::ExitCode;
 
@@ -25,5 +26,6 @@ fn main() -> ExitCode {
         cache_capacity: 30,
         ..Default::default()
     })
+    .renderers(SkiaRenderers::default())
     .run()
 }

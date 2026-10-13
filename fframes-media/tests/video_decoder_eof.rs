@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use fframes_media::FFmpegDecoder;
+use fframes_media::{FFmpegDecoder, FrameConvertOptions, ResizeVideoFrame};
 
 const FPS: usize = 30;
 const FRAME_COUNT: i64 = 300;
@@ -117,6 +117,44 @@ fn b_frames_are_drained_and_decoding_can_restart_after_eof() {
     assert_eq!(offset, 0);
     assert_frame(&mut decoder, offset);
     assert_frame(&mut decoder, FRAME_COUNT - 1);
+}
+
+#[test]
+fn an_older_frame_is_not_returned_after_a_failed_conversion() {
+    let video = VideoFixture::new(0);
+    // The scaler can't be created for an empty output
+    let empty = FrameConvertOptions {
+        resize: ResizeVideoFrame {
+            width: 0,
+            height: 0,
+        },
+    };
+    // A single buffer, as in the CPU renderer, so frame 50 is written into frame 0's buffer
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    assert_frame(&mut decoder, 0);
+    unsafe {
+        let mut reference = FFmpegDecoder::new(&video.path(), FPS, 1).unwrap();
+        assert!(reference.decode_up_to(50).unwrap());
+        let expected = reference
+            .get_raw_frame()
+            .convert_last_decoded_frame_into_svg_image(None)
+            .unwrap();
+
+        assert!(decoder.decode_up_to(50).unwrap());
+        let frame = decoder.get_raw_frame();
+        assert!(
+            frame
+                .convert_last_decoded_frame_into_svg_image(Some(&empty))
+                .is_err()
+        );
+        let image = frame
+            .convert_last_decoded_frame_into_svg_image(None)
+            .unwrap();
+        assert!(
+            image.data == expected.data,
+            "frame 50 differs from a decoder that converted it without a failure"
+        );
+    }
 }
 
 #[test]

@@ -3,8 +3,9 @@ use fframes::cli::{self, clap};
 use fframes::{
     CombinedMediaProvider, EncoderOptions, MediaProvider, RenderOptions, StaticMediaProvider, Video,
 };
-use fframes_skia_renderer::vulkan::SkiaVulkanCtx;
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig};
+use fframes_skia_renderer::{
+    SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig, cli::SkiaRenderers,
+};
 use std::process::ExitCode;
 
 #[derive(Debug, clap::Args)]
@@ -24,8 +25,6 @@ fn main() -> ExitCode {
         &dynamic_media as &dyn MediaProvider,
     ]);
     let font = args.app.font.clone();
-
-    let vulkan_ctx = SkiaVulkanCtx::new(AudioAnnounce::WIDTH, AudioAnnounce::HEIGHT).unwrap();
 
     cli::new(
         &AudioAnnounce {
@@ -54,20 +53,13 @@ fn main() -> ExitCode {
         },
     )
     .args(args)
-    .backend(
-        // Swap in `fframes::cpu::CpuRenderingBackend::default()` to compare with the CPU.
-        SkiaFFramesRenderer::new_vulkan(
-            &vulkan_ctx,
-            SkiaPipelineConfig {
-                buffer_queue_size: AudioAnnounce::FPS,
-                // this works well on the author's machine, test other values on yours
-                concurrency_policy:
-                    fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::Concurrency(4),
-                ..Default::default()
-            },
-        )
-        .expect("Failed to create the skia renderer"),
-    )
     .preview(fframes_native_player::cli_preview)
+    // `--renderer cpu` compares with the CPU backend
+    .renderers(SkiaRenderers::gpu(SkiaPipelineConfig {
+        buffer_queue_size: AudioAnnounce::FPS,
+        // this works well on the author's machine, test other values on yours
+        concurrency_policy: SkiaPipelineConcurrencyPolicy::Concurrency(4),
+        ..Default::default()
+    }))
     .run()
 }

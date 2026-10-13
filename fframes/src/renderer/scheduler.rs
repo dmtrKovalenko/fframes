@@ -10,10 +10,62 @@ pub struct FrameClaim {
     pub last_in_segment: bool,
 }
 
+/// The most segments a timeline is cut into, unless that would make them shorter than
+/// `min_segment_frames`. Each segment is a separate encoder run. Fewer, longer segments
+/// leave threads idle for longer at the end of a render, while the last ones encode, and
+/// the Skia pipeline encodes up to 1.5 segments per thread at once.
+const MAX_SEGMENTS: usize = 128;
+
+/// The segments a timeline is encoded in. They depend only on the number of frames and
+/// `min_segment_frames`, never on the number of workers or on how fast they go.
+#[derive(Debug, Clone, Copy)]
+struct Segments {
+    total_frames: usize,
+    /// The length of every segment but the last, a multiple of `min_segment_frames`.
+    length: usize,
+    count: usize,
+}
+
+impl Segments {
+    fn new(total_frames: usize, min_segment_frames: usize) -> Self {
+        let length = total_frames
+            .div_ceil(MAX_SEGMENTS)
+            .next_multiple_of(min_segment_frames)
+            .max(min_segment_frames);
+        // a last segment shorter than the minimum joins the one before it
+        let count = if total_frames % length >= min_segment_frames {
+            total_frames.div_ceil(length)
+        } else {
+            total_frames / length
+        }
+        .max(1);
+
+        Self {
+            total_frames,
+            length,
+            count,
+        }
+    }
+
+    /// The segment `frame` is in.
+    fn index(&self, frame: usize) -> usize {
+        (frame / self.length).min(self.count - 1)
+    }
+
+    /// The first frame of segment `index`, the end of the timeline past the last segment.
+    fn start(&self, index: usize) -> usize {
+        if index < self.count {
+            index * self.length
+        } else {
+            self.total_frames
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Slot {
-    segment: usize,
     next: usize,
+    /// The start of a segment, or the end of the timeline.
     end: usize,
 }
 
@@ -22,16 +74,29 @@ impl Slot {
         self.end - self.next
     }
 
-    fn claim(&mut self) -> Option<FrameClaim> {
+    fn claim(&mut self, segments: &Segments) -> Option<FrameClaim> {
         (self.next < self.end).then(|| {
             let frame = self.next;
             self.next += 1;
+            let index = segments.index(frame);
             FrameClaim {
-                segment: self.segment,
+                segment: segments.start(index),
                 frame,
-                last_in_segment: self.next == self.end,
+                last_in_segment: self.next == segments.start(index + 1),
             }
         })
+    }
+
+    /// Where another worker can take over the frames left: the segment start at or before
+    /// their middle, but after the segment of the next frame.
+    fn split(&self, segments: &Segments) -> Option<usize> {
+        if self.remaining() == 0 {
+            return None;
+        }
+        let first = segments.start(segments.index(self.next) + 1);
+        let last = segments.start(segments.index(self.end - 1));
+        (first <= last)
+            .then(|| align(self.next + self.remaining() / 2, segments.length).clamp(first, last))
     }
 }
 
@@ -42,13 +107,18 @@ fn align(frame: usize, step: usize) -> usize {
 
 /// Distributes the frames of a video between rendering workers.
 ///
-/// Every worker starts with an equal, contiguous share of the timeline and renders it in
-/// order into its own encoded segment, which keeps per-worker caches and video decoders
-/// sequential. A worker that runs out of frames:
+/// The timeline is cut into segments before rendering starts: at most `MAX_SEGMENTS` of the
+/// same length, a multiple of `min_segment_frames`. Every segment is encoded separately, and
+/// the cuts depend only on the number of frames and `min_segment_frames`, so two renders of
+/// the same frames encode to the same bytes, whatever the number of workers and however
+/// fast each one goes.
 ///
-/// 1. takes the second half of the largest range left to another worker as a new
-///    segment, when both halves are at least `min_segment_frames` long (every segment
-///    is encoded separately and starts with a keyframe);
+/// Every worker starts with an equal, contiguous run of segments and renders it in order,
+/// which keeps per-worker caches and video decoders sequential. A worker that runs out of
+/// frames:
+///
+/// 1. takes the second half of the segments another worker has not started yet, from the
+///    worker with the most frames left;
 /// 2. otherwise helps with the frames right after the ones another worker is rendering,
 ///    in that worker's segment, so nobody idles while the last frames render. The
 ///    segment writer puts such frames back in order.
@@ -58,46 +128,34 @@ fn align(frame: usize, step: usize) -> usize {
 #[doc(hidden)]
 pub struct FrameScheduler {
     slots: Vec<Mutex<Slot>>,
-    min_segment_frames: usize,
+    segments: Segments,
 }
 
 impl FrameScheduler {
     pub fn new(total_frames: usize, workers: usize, min_segment_frames: usize) -> Self {
-        let min_segment_frames = min_segment_frames.max(1);
-        let segments = workers
-            .min(total_frames / min_segment_frames)
-            .max(1)
-            .min(total_frames.max(1));
+        let segments = Segments::new(total_frames, min_segment_frames.max(1));
+        let workers = workers.max(1);
+        // workers without an initial run of segments only help the others
+        let runs = workers.min(segments.count);
 
-        let mut slots: Vec<_> = (0..segments)
-            .map(|segment| {
-                let start = align(total_frames * segment / segments, min_segment_frames);
-                let end = if segment + 1 == segments {
-                    total_frames
+        let slots = (0..workers)
+            .map(|worker| {
+                let (first, last) = if worker < runs {
+                    (
+                        segments.count * worker / runs,
+                        segments.count * (worker + 1) / runs,
+                    )
                 } else {
-                    align(total_frames * (segment + 1) / segments, min_segment_frames)
+                    (segments.count, segments.count)
                 };
                 Mutex::new(Slot {
-                    segment: start,
-                    next: start,
-                    end,
+                    next: segments.start(first),
+                    end: segments.start(last),
                 })
             })
             .collect();
 
-        // workers without an initial range only help the others
-        slots.extend((segments..workers.max(1)).map(|_| {
-            Mutex::new(Slot {
-                segment: total_frames,
-                next: total_frames,
-                end: total_frames,
-            })
-        }));
-
-        Self {
-            slots,
-            min_segment_frames,
-        }
+        Self { slots, segments }
     }
 
     pub fn workers(&self) -> usize {
@@ -106,18 +164,25 @@ impl FrameScheduler {
 
     /// The next frame `worker` should render, `None` once every frame was handed out.
     pub fn claim(&self, worker: usize) -> Option<FrameClaim> {
-        if let Some(claim) = self.slots[worker].lock().unwrap().claim() {
+        if let Some(claim) = self.slots[worker].lock().unwrap().claim(&self.segments) {
             return Some(claim);
         }
 
         loop {
-            let (victim, remaining) = self
+            // the most frames left, preferring segments another worker can take over
+            let (victim, (_, remaining)) = self
                 .slots
                 .iter()
                 .enumerate()
                 .filter(|(index, _)| *index != worker)
-                .map(|(index, slot)| (index, slot.lock().unwrap().remaining()))
-                .max_by_key(|(_, remaining)| *remaining)?;
+                .map(|(index, slot)| {
+                    let slot = slot.lock().unwrap();
+                    (
+                        index,
+                        (slot.split(&self.segments).is_some(), slot.remaining()),
+                    )
+                })
+                .max_by_key(|(_, key)| *key)?;
 
             if remaining == 0 {
                 return None;
@@ -129,32 +194,27 @@ impl FrameScheduler {
                 continue;
             }
 
-            if victim_slot.remaining() >= self.min_segment_frames * 2 {
-                let middle = align(
-                    victim_slot.next + victim_slot.remaining() / 2,
-                    self.min_segment_frames,
-                );
+            if let Some(start) = victim_slot.split(&self.segments) {
                 let mut own = Slot {
-                    segment: middle,
-                    next: middle,
+                    next: start,
                     end: victim_slot.end,
                 };
-                victim_slot.end = middle;
+                victim_slot.end = start;
                 drop(victim_slot);
 
-                let claim = own.claim();
+                let claim = own.claim(&self.segments);
                 *self.slots[worker].lock().unwrap() = own;
                 return claim;
             }
 
-            return victim_slot.claim();
+            return victim_slot.claim(&self.segments);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::FrameScheduler;
+    use super::{FrameScheduler, MAX_SEGMENTS};
     use std::collections::{BTreeMap, BTreeSet};
 
     #[test]
@@ -199,12 +259,14 @@ mod tests {
                     }
                 }
             }
+            assert!(segments.len() <= MAX_SEGMENTS);
 
             let mut all = BTreeSet::new();
             for (start, frames) in &segments {
                 let mut sorted = frames.clone();
                 sorted.sort_unstable();
                 assert_eq!(sorted[0], *start);
+                assert_eq!(start % min, 0, "segment {start} does not start on the GOP");
                 assert!(sorted.windows(2).all(|w| w[1] == w[0] + 1));
                 assert_eq!(last_flags[start], *sorted.last().unwrap());
                 assert!(sorted.len() >= min.min(total));

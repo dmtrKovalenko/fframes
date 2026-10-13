@@ -1,5 +1,7 @@
-use fframes::{EncoderOptions, MediaDirectory, RenderOptions, Video, cli};
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
+use fframes::{EncoderOptions, MediaDirectory, RenderOptions, cli};
+use fframes_skia_renderer::{
+    SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig, cli::SkiaRenderers,
+};
 use std::path::Path;
 use std::process::ExitCode;
 use teej_podcast_example::{Chapter, TeejPodcast};
@@ -7,7 +9,6 @@ use teej_podcast_example::{Chapter, TeejPodcast};
 fn main() -> ExitCode {
     let media_folder = MediaDirectory::read_folder(Path::new("./dynamic_media")).unwrap();
     let dynamic_media = media_folder.process_media_source().unwrap();
-    let vulkan_ctx = SkiaVulkanCtx::new(TeejPodcast::WIDTH, TeejPodcast::HEIGHT).unwrap();
 
     let chapters = [
         Chapter::new("Introduction to Lunch Bites Podcast", "00:00"),
@@ -51,18 +52,11 @@ fn main() -> ExitCode {
     };
 
     cli::new(&video, options)
-        .backend(
-            SkiaFFramesRenderer::new_vulkan(
-                &vulkan_ctx,
-                SkiaPipelineConfig {
-                    buffer_queue_size: 20,
-                    concurrency_policy:
-                        fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::MaxPerformance,
-                    ..Default::default()
-                },
-            )
-            .expect("Failed to create renderer"),
-        )
         .preview(fframes_native_player::cli_preview)
+        .renderers(SkiaRenderers::gpu(SkiaPipelineConfig {
+            buffer_queue_size: 20,
+            concurrency_policy: SkiaPipelineConcurrencyPolicy::MaxPerformance,
+            ..Default::default()
+        }))
         .run()
 }

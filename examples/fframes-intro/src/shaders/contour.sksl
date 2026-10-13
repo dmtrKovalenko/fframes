@@ -9,7 +9,13 @@ uniform float uBright;     // overall line brightness
 uniform float4 uInk;       // line color
 uniform float4 uHot;       // color near the well
 
-float hash(float2 p) { return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
+// No sin(): GPUs compute it with less precision than CPUs, so a sin() hash gives every
+// device different noise. "Hash without Sine" by Dave Hoskins.
+float hash(float2 p) {
+    float3 p3 = fract(float3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
 float noise(float2 p) {
     float2 i = floor(p); float2 f = fract(p);
     float2 u = f * f * (3.0 - 2.0 * f);

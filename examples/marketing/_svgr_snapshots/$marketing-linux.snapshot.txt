@@ -149,17 +149,15 @@
     <g filter="url(#3-shadow)">
         <path fill="url(#3-gradient)" stroke="none" d="M 940 140 L 940 140 C 966.5096 140 988 161.49033 988 188 L 988 812 C 988 838.5096 966.5096 860 940 860 L 940 860 C 913.49036 860 892 838.5096 892 812 L 892 188 C 892 161.49033 913.49036 140 940 140 Z"/>
     </g>
-    <g opacity="0">
-        <g opacity="0" transform="matrix(0.4980346 0 0 0.4980346 200 725.9133)">
-            <g transform="matrix(1 0 0 1 12.767951 11.630297)">
-                <path fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="8 12" d="M -2.19 -1.63 C 8.29 53.639996 -34.21 264.71 62.09 331.05 C 158.39 397.38 490.59 385.91 575.58 396.35995"/>
-            </g>
-            <g transform="matrix(1 0 0 1 12.767951 11.630297)">
-                <path fill="none" stroke="#ffffff" stroke-width="4.5" d="M 544.61 406.42004 C 552.39 404.4 562.6 396.92 572.02 395.83997"/>
-            </g>
-            <g transform="matrix(1 0 0 1 12.767951 11.630297)">
-                <path fill="none" stroke="#ffffff" stroke-width="4.5" d="M 545.58 385.92 C 553.02 389.43 562.97 387.49 572.02 395.83997"/>
-            </g>
+    <g opacity="0" transform="matrix(0.4980346 0 0 0.4980346 200 725.9133)">
+        <g transform="matrix(1 0 0 1 12.767951 11.630297)">
+            <path fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="8 12" d="M -2.19 -1.63 C 8.29 53.639996 -34.21 264.71 62.09 331.05 C 158.39 397.38 490.59 385.91 575.58 396.35995"/>
+        </g>
+        <g transform="matrix(1 0 0 1 12.767951 11.630297)">
+            <path fill="none" stroke="#ffffff" stroke-width="4.5" d="M 544.61 406.42004 C 552.39 404.4 562.6 396.92 572.02 395.83997"/>
+        </g>
+        <g transform="matrix(1 0 0 1 12.767951 11.630297)">
+            <path fill="none" stroke="#ffffff" stroke-width="4.5" d="M 545.58 385.92 C 553.02 389.43 562.97 387.49 572.02 395.83997"/>
         </g>
     </g>
     <image x="-1000" y="10" width="900" height="900" xlink:href="code.png"/>

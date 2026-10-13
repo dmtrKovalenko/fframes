@@ -1,5 +1,5 @@
+use fframes::YuvMatrix;
 use fframes::ffmpeg_sys_fframes::AVPixelFormat::{self, *};
-use fframes::pix_fmt::RGB_TO_YUV;
 use fframes::{
     FFramesRendererError, FFramesRendererResult, FrameLayout, FramePool, RenderEncodingError,
     VideoFrame,
@@ -20,10 +20,10 @@ pub(crate) enum Channel {
 }
 
 impl Channel {
-    /// `([r, g, b, a], offset)`
-    pub(crate) fn weights(self) -> ([f32; 4], f32) {
+    /// `([r, g, b, a], offset)` when converting with `matrix`.
+    pub(crate) fn weights(self, matrix: YuvMatrix) -> ([f32; 4], f32) {
         let yuv = |row: usize| {
-            let [r, g, b, offset] = RGB_TO_YUV[row];
+            let [r, g, b, offset] = matrix.rgb_to_yuv()[row];
             ([r, g, b, 0.], offset)
         };
 
@@ -226,6 +226,7 @@ pub(crate) struct PlaneExporter {
     effect: RuntimeEffect,
     packing: Packing,
     pool: FramePool,
+    matrix: YuvMatrix,
 }
 
 impl PlaneExporter {
@@ -233,16 +234,18 @@ impl PlaneExporter {
     pub(crate) fn new(
         gpu: &mut gpu::DirectContext,
         format: AVPixelFormat,
+        matrix: YuvMatrix,
         width: i32,
         height: i32,
     ) -> Option<FFramesRendererResult<Self>> {
         let specs = plane_specs(format)?;
-        Some(Self::with_specs(gpu, format, specs, width, height))
+        Some(Self::with_specs(gpu, format, matrix, specs, width, height))
     }
 
     fn with_specs(
         gpu: &mut gpu::DirectContext,
         format: AVPixelFormat,
+        matrix: YuvMatrix,
         specs: &[PlaneSpec],
         width: i32,
         height: i32,
@@ -278,16 +281,19 @@ impl PlaneExporter {
             effect,
             packing,
             pool,
+            matrix,
         })
     }
 
     fn uniforms(&self, plane: &PlacedPlane) -> FFramesRendererResult<Data> {
-        let (even_weights, even_offset) = plane.spec.channels.0.weights();
+        let (even_weights, even_offset) = plane.spec.channels.0.weights(self.matrix);
         let (odd_weights, odd_offset) = plane
             .spec
             .channels
             .1
-            .map_or((even_weights, even_offset), Channel::weights);
+            .map_or((even_weights, even_offset), |channel| {
+                channel.weights(self.matrix)
+            });
 
         super::pack_uniforms(
             &self.effect,

@@ -1,12 +1,11 @@
-#[cfg(not(feature = "cpu"))]
-use fframes::Video;
 use fframes::cli::{self, clap};
 use fframes::{
     CombinedMediaProvider, EncoderOptions, MediaDirectory, MediaProvider, RenderOptions,
     StaticMediaProvider,
 };
-#[cfg(not(feature = "cpu"))]
-use fframes_skia_renderer::{SkiaFFramesRenderer, SkiaPipelineConfig, vulkan::SkiaVulkanCtx};
+use fframes_skia_renderer::{
+    SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig, cli::SkiaRenderers,
+};
 use pixel_memory_example::{ALL_SONGS, PixelMedia, PixelVideo, RandomPhotos};
 use rand::prelude::*;
 use std::process::ExitCode;
@@ -71,33 +70,17 @@ fn main() -> ExitCode {
         ..Default::default()
     };
 
-    #[cfg(feature = "cpu")]
-    return cli::new(&video, options)
+    cli::new(&video, options)
         .args(args)
         .backend(fframes::cpu::CpuRenderingBackend {
             cache_capacity: 300,
             ..Default::default()
         })
-        .run();
-
-    #[cfg(not(feature = "cpu"))]
-    {
-        let vulkan_ctx = SkiaVulkanCtx::new(PixelVideo::WIDTH, PixelVideo::HEIGHT).unwrap();
-        cli::new(&video, options)
-            .args(args)
-            .backend(
-                SkiaFFramesRenderer::new_vulkan(
-                    &vulkan_ctx,
-                    SkiaPipelineConfig {
-                        buffer_queue_size: 20,
-                        concurrency_policy:
-                            fframes_skia_renderer::SkiaPipelineConcurrencyPolicy::MaxPerformance,
-                        ..Default::default()
-                    },
-                )
-                .expect("Failed to create the skia renderer"),
-            )
-            .preview(fframes_native_player::cli_preview)
-            .run()
-    }
+        .preview(fframes_native_player::cli_preview)
+        .renderers(SkiaRenderers::gpu(SkiaPipelineConfig {
+            buffer_queue_size: 20,
+            concurrency_policy: SkiaPipelineConcurrencyPolicy::MaxPerformance,
+            ..Default::default()
+        }))
+        .run()
 }

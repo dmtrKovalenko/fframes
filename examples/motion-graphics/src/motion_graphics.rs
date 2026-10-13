@@ -79,7 +79,7 @@ impl fframes::Video for MotionGraphicsVideo<'_> {
                         x="960"
                         y={line1_y}
                         opacity={line1_opacity}
-                        font-family="Helvetica Neue"
+                        font-family="Inter 24pt"
                         font-size="340"
                         font-weight="700"
                         fill="white"
@@ -127,7 +127,7 @@ impl fframes::Video for MotionGraphicsVideo<'_> {
                         x="960"
                         y={line3_y}
                         opacity={line3_opacity}
-                        font-family="Helvetica Neue"
+                        font-family="Inter 24pt"
                         font-size="60"
                         font-weight="300"
                         font-style="italic"

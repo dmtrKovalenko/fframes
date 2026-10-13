@@ -4,7 +4,7 @@ use fframes::ffmpeg_sys_fframes::AVPixelFormat::AV_PIX_FMT_VIDEOTOOLBOX;
 use fframes::media::FFmpegDecoder;
 use fframes::{
     AudioMap, Color, Duration, EncoderOptions, FFramesContext, FFramesRenderBackend, Frame,
-    RenderOptions, Svgr, Video, VideoEncoderInfo,
+    RenderOptions, Svgr, Video, VideoEncoderInfo, YuvMatrix,
 };
 use fframes_skia_renderer::metal::SkiaMetalCtx;
 use fframes_skia_renderer::{
@@ -83,17 +83,20 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
     let metal = SkiaMetalCtx::new(TwoColors::WIDTH, TwoColors::HEIGHT).expect("a Metal device");
 
     let configurations = [
-        (SkiaFrameExport::Auto, 1),
-        (SkiaFrameExport::Auto, 3),
-        (SkiaFrameExport::GpuConversion, 1),
-        (SkiaFrameExport::CpuConversion, 1),
+        (SkiaFrameExport::Auto, 1, YuvMatrix::Bt601),
+        (SkiaFrameExport::Auto, 3, YuvMatrix::Bt601),
+        (SkiaFrameExport::GpuConversion, 1, YuvMatrix::Bt601),
+        (SkiaFrameExport::CpuConversion, 1, YuvMatrix::Bt601),
+        (SkiaFrameExport::Auto, 1, YuvMatrix::Bt709),
+        (SkiaFrameExport::GpuConversion, 1, YuvMatrix::Bt709),
+        (SkiaFrameExport::CpuConversion, 1, YuvMatrix::Bt709),
     ];
-    for (encoder, (mode, contexts)) in ["h264_videotoolbox", "hevc_videotoolbox"]
+    for (encoder, (mode, contexts, color_matrix)) in ["h264_videotoolbox", "hevc_videotoolbox"]
         .into_iter()
         .flat_map(|encoder| configurations.map(|config| (encoder, config)))
     {
         let dir = std::env::temp_dir().join(format!(
-            "fframes-skia-export-{}-{encoder}-{mode:?}-{contexts}",
+            "fframes-skia-export-{}-{encoder}-{mode:?}-{contexts}-{color_matrix:?}",
             std::process::id()
         ));
         std::fs::create_dir_all(&dir).unwrap();
@@ -105,6 +108,7 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
                 preferred_encoder: Some(encoder),
                 bitrate: Some(4_000_000),
                 codec_params: Some(&[("allow_sw", "0")]),
+                color_matrix,
                 ..Default::default()
             },
             ..Default::default()
@@ -136,6 +140,7 @@ fn videotoolbox_encoders_read_the_frames_skia_rendered() {
         .unwrap()
         .frame_export(mode);
         let input = backend.negotiate_encoder_input(&info).unwrap();
+        assert_eq!(input.color_matrix, color_matrix, "{encoder} {mode:?}");
         if mode == SkiaFrameExport::Auto {
             assert_eq!(
                 input.pixel_format, AV_PIX_FMT_VIDEOTOOLBOX,

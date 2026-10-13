@@ -1,17 +1,68 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-/// The RGB to `YCbCr` conversion every encoder input goes through (BT.601, limited range),
-/// as weights for channel values in `0.0..=1.0`: `[r, g, b, offset]` for Y, Cb and Cr.
-///
-/// These are the coefficients of the integer converter below. Backends that convert on the
-/// GPU use them too, so the streams (tagged as BT.601 limited by the encoder) look the same
-/// whichever way a frame took.
+/// The matrix every RGB to `YCbCr` conversion of the encoder input uses, limited range
+/// either way. The encoder tags the stream with it, so players decode the colors that were
+/// rendered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum YuvMatrix {
+    /// ITU-R BT.601, tagged `smpte170m`.
+    #[default]
+    Bt601,
+    /// ITU-R BT.709, tagged `bt709` for the matrix, the primaries and the transfer. The
+    /// usual matrix of HD video, and what players assume for an untagged HD stream.
+    Bt709,
+}
+
+impl YuvMatrix {
+    /// The integer weights of the converters for 8 bit channels: `[r, g, b]` for Y, Cb and
+    /// Cr, scaled by 256. Every row of Cb and Cr sums to 0, so grays get neutral chroma,
+    /// and Y's sums to 220, so white is 235.
+    pub const fn weights(self) -> [[i32; 3]; 3] {
+        match self {
+            Self::Bt601 => [[66, 129, 25], [-38, -74, 112], [112, -94, -18]],
+            Self::Bt709 => [[47, 157, 16], [-26, -86, 112], [112, -102, -10]],
+        }
+    }
+
+    /// The same conversion as weights for channel values in `0.0..=1.0`: `[r, g, b, offset]`
+    /// for Y, Cb and Cr. Backends that convert on the GPU use these, so a stream looks the
+    /// same whichever way a frame took.
+    pub fn rgb_to_yuv(self) -> [[f32; 4]; 3] {
+        let offsets = [16. / 255., 128. / 255., 128. / 255.];
+        let weights = self.weights();
+        std::array::from_fn(|row| {
+            let [r, g, b] = weights[row].map(|weight| weight as f32 / 256.);
+            [r, g, b, offsets[row]]
+        })
+    }
+}
+
+/// [`YuvMatrix::Bt601`] as [`YuvMatrix::rgb_to_yuv`] gives it.
 pub const RGB_TO_YUV: [[f32; 4]; 3] = [
     [66. / 256., 129. / 256., 25. / 256., 16. / 255.],
     [-38. / 256., -74. / 256., 112. / 256., 128. / 255.],
     [112. / 256., -94. / 256., -18. / 256., 128. / 255.],
 ];
+
+/// Y of one pixel with integer `weights` (see [`YuvMatrix::weights`]). Limited range:
+/// black is 16, white is 235 (+128 rounds the >> 8).
+#[inline(always)]
+fn luma(weights: &[[i32; 3]; 3], (r, g, b): (i32, i32, i32)) -> u8 {
+    let [y, _, _] = weights;
+    (16 + ((y[0] * r + y[1] * g + y[2] * b + 128) >> 8)) as u8
+}
+
+/// Cb and Cr of one pixel with integer `weights`. The sums are floored, as the SIMD
+/// converter does.
+#[inline(always)]
+fn chroma(weights: &[[i32; 3]; 3], (r, g, b): (i32, i32, i32)) -> (u8, u8) {
+    let [_, cb, cr] = weights;
+    (
+        (128 + ((cb[0] * r + cb[1] * g + cb[2] * b) >> 8)) as u8,
+        (128 + ((cr[0] * r + cr[1] * g + cr[2] * b) >> 8)) as u8,
+    )
+}
 
 #[inline(always)]
 pub fn get_rgb(pixmap: &[u8], i: usize) -> (i32, i32, i32) {
@@ -25,8 +76,8 @@ pub fn get_rgb(pixmap: &[u8], i: usize) -> (i32, i32, i32) {
 /// ! Publicly exported only for benchmarking.
 /// We support only yuv420 format as for now so we can pretty efficiently convert the bitmap buffer.
 /// yuv420 represented by y per each pixel and uv (cb and cr) per each 2x2 pixel block.
-#[allow(clippy::precedence)]
 pub fn fill_yuv420_from_rgba_pixmap_base(
+    matrix: YuvMatrix,
     width: i32,
     height: i32,
     y_linesize: i32,
@@ -63,24 +114,21 @@ pub fn fill_yuv420_from_rgba_pixmap_base(
             plane_len(cr_linesize, chroma_width, chroma_height),
         );
 
+        let weights = matrix.weights();
         for y in 0..height {
             for x in 0..width {
-                let (r, g, b) = get_rgb(rgba_pixels, y * width + x);
-
                 // use a linesize to get the correct index for the pixel as it can differ for different dimensions.
-                // BT.601 limited range: black is 16, white is 235 (+128 rounds the >> 8).
-                y_pixels[y * y_linesize as usize + x] =
-                    (16 + ((66 * r + 129 * g + 25 * b + 128) >> 8)) as u8;
+                let rgb = get_rgb(rgba_pixels, y * width + x);
+                y_pixels[y * y_linesize as usize + x] = luma(&weights, rgb);
 
                 if y % 2 == 0 && x % 2 == 0 {
                     // the bounds are 1/4 of the image size
                     let x = x / 2;
                     let y = y / 2;
 
-                    cb_pixels[y * cb_linesize as usize + x] =
-                        (128 + ((-38 * r) - (74 * g) + (112 * b) >> 8)) as u8;
-                    cr_pixels[y * cr_linesize as usize + x] =
-                        (128 + ((112 * r) - (94 * g) - (18 * b) >> 8)) as u8;
+                    let (cb, cr) = chroma(&weights, rgb);
+                    cb_pixels[y * cb_linesize as usize + x] = cb;
+                    cr_pixels[y * cr_linesize as usize + x] = cr;
                 }
             }
         }
@@ -91,6 +139,7 @@ pub fn fill_yuv420_from_rgba_pixmap_base(
 /// Accelerated version of the yuv420 for neon using SIMD instructions.
 #[cfg(target_feature = "neon")]
 pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
+    matrix: YuvMatrix,
     width: i32,
     height: i32,
     y_linesize: i32,
@@ -106,6 +155,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
     }
     if width < 8 {
         return fill_yuv420_from_rgba_pixmap_base(
+            matrix,
             width,
             height,
             y_linesize,
@@ -120,20 +170,29 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
 
     // Keep full eight-pixel blocks on NEON even when a row has a scalar tail.
     let vector_width = width & !7;
+    let weights = matrix.weights();
+    // The SIMD code multiplies unsigned bytes and subtracts the negative weights.
+    let mut coefficients = [0_u8; 16];
+    for (byte, weight) in coefficients.iter_mut().zip(weights.as_flattened()) {
+        *byte = weight.unsigned_abs() as u8;
+    }
     unsafe {
         std::arch::asm!(
-            // setup conversion coefficients
-            "movi v20.8b, #66",         // r coef for y
-            "movi v21.8b, #129",        // g coef for y
-            "movi v22.8b, #25",         // b coef for y
+            // setup conversion coefficients, the magnitudes of `matrix.weights()`:
+            // Y's r, g, b, then Cb's r, g (subtracted) and b, then Cr's r, g and b
+            // (both subtracted)
+            "ld1 {{v31.16b}}, [{coefficients}]",
+            "dup v20.8b, v31.b[0]",
+            "dup v21.8b, v31.b[1]",
+            "dup v22.8b, v31.b[2]",
 
-            "movi v23.8b, #38",         // r coef for cb
-            "movi v24.8b, #74",         // 74 g (positive)
-            "movi v25.8b, #112",        // 112 b (positive)
+            "dup v23.8b, v31.b[3]",
+            "dup v24.8b, v31.b[4]",
+            "dup v25.8b, v31.b[5]",
 
-            "movi v26.8b, #112",        // setup cr coeffs (r is positive)
-            "movi v27.8b, #94",         // 94 g (positive)
-            "movi v28.8b, #18",         // 18 b (positive)
+            "dup v26.8b, v31.b[6]",
+            "dup v27.8b, v31.b[7]",
+            "dup v28.8b, v31.b[8]",
 
             // constants
             // y offset: (16 << 8) + 128, so the high-half narrow below yields
@@ -207,6 +266,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
 
             // the pointers are advanced by the loop, and every value used as a 64 bit
             // register has to be passed as one (the upper half of an i32 is undefined)
+            coefficients = in(reg) coefficients.as_ptr(),
             src = inout(reg) rgba_pixels.as_ptr() => _,
             dst_y = inout(reg) y_pixels_destination => _,
             dst_cb = inout(reg) cb_pixels_destination => _,
@@ -224,21 +284,19 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
             out("v14") _, out("v15") _, out("v16") _, out("v17") _, out("v18") _,
             out("v19") _, out("v20") _, out("v21") _, out("v22") _, out("v23") _,
             out("v24") _, out("v25") _, out("v26") _, out("v27") _, out("v28") _,
-            out("v29") _, out("v30") _,
+            out("v29") _, out("v30") _, out("v31") _,
 
             options(nostack)
         );
         if vector_width != width {
             for row in 0..height as usize {
                 for x in vector_width as usize..width as usize {
-                    let (r, g, b) = get_rgb(rgba_pixels, row * width as usize + x);
-                    *y_pixels_destination.add(row * y_linesize as usize + x) =
-                        (16 + ((66 * r + 129 * g + 25 * b + 128) >> 8)) as u8;
+                    let rgb = get_rgb(rgba_pixels, row * width as usize + x);
+                    *y_pixels_destination.add(row * y_linesize as usize + x) = luma(&weights, rgb);
                     if row % 2 == 0 && x % 2 == 0 {
-                        *cb_pixels_destination.add((row / 2) * cb_linesize as usize + x / 2) =
-                            (128 + ((-38 * r - 74 * g + 112 * b) >> 8)) as u8;
-                        *cr_pixels_destination.add((row / 2) * cr_linesize as usize + x / 2) =
-                            (128 + ((112 * r - 94 * g - 18 * b) >> 8)) as u8;
+                        let (cb, cr) = chroma(&weights, rgb);
+                        *cb_pixels_destination.add((row / 2) * cb_linesize as usize + x / 2) = cb;
+                        *cr_pixels_destination.add((row / 2) * cr_linesize as usize + x / 2) = cr;
                     }
                 }
             }
@@ -248,6 +306,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
 
 #[cfg(not(target_feature = "neon"))]
 pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
+    matrix: YuvMatrix,
     width: i32,
     height: i32,
     y_linesize: i32,
@@ -259,6 +318,7 @@ pub unsafe fn fill_yuv420_from_rgba_pixmap_accelerated(
     cr_pixels_destination: *mut u8,
 ) {
     fill_yuv420_from_rgba_pixmap_base(
+        matrix,
         width,
         height,
         y_linesize,

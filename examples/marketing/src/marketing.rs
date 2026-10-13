@@ -382,7 +382,7 @@ impl Video for MarketingVideo<'_> {
                     x="50%"
                     text-anchor="middle"
                     fill="white"
-                    font-family="Chalkboard SE"
+                    font-family="Fredoka One"
                 >
                     {frame.get_subtitle_phrase(&self.media.subtitles_vtt).unwrap_or("")}
                 </text>
@@ -415,7 +415,7 @@ impl Video for MarketingVideo<'_> {
                             <text x="960" y="570" font-family="Bubble Bobble" font-size="154" text-anchor="middle">
                                 <tspan fill={if frame.seconds() > 18.8 { "#7351d8" } else { "#000" }}>"ff"</tspan>"rames"
                             </text>
-                            <text x="960" y="610" font-family="Chalkboard SE" font-size="30" text-anchor="middle">
+                            <text x="960" y="610" font-family="Fredoka One" font-size="30" text-anchor="middle">
                                 "Write some code. Get video. Enjoy!"
                             </text>
                             <g y="540" transform="scale(2.7) translate(-218, 110)">
