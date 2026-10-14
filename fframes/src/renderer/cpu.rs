@@ -4,8 +4,8 @@ use super::{
     renderer_error::RenderEncodingError,
 };
 use crate::{
-    AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, TextCache,
-    Video, VideoDecodersWorker, usvgr,
+    AbortSignal, AudioTimelineSamples, Frame, RenderOptions, ResolvedRenderingTimeline, SvgrImages,
+    TextCache, Video, VideoDecodersWorker, usvgr,
 };
 use std::{
     path::Path,
@@ -117,6 +117,32 @@ impl EncoderFrameRenderer for CpuEncoderFrameRenderer {
     }
 }
 
+/// Renders the trees of `FFramesContext::render_svgr` with tiny-skia, the rasterizer of the
+/// CPU backend. The default [`FFramesRenderBackend::svgr_rasterizer`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CpuSvgrRasterizer;
+
+impl crate::SvgrRasterizer for CpuSvgrRasterizer {
+    fn rasterize(
+        &self,
+        tree: &usvgr::Tree,
+        width: u32,
+        height: u32,
+    ) -> Option<crate::media::ImageData<'static>> {
+        let mut pixmap = svgr::tiny_skia::Pixmap::new(width, height)?;
+        let context = svgr::Context::new_from_pixmap_unsafe(&pixmap);
+        svgr::render(
+            tree,
+            super::fit_transform(tree, width, height),
+            &mut pixmap.as_mut(),
+            &mut SvgrCache::new(0),
+            &PixmapPool::new(),
+            &context,
+        );
+        Some(crate::rendered_image(width, height, pixmap.take()))
+    }
+}
+
 impl FFramesRenderBackend for CpuRenderingBackend {
     fn frame_renderer(&self) -> Option<impl FrameRenderer + '_> {
         Some(super::CpuFrameRenderer::new(self.cache_capacity))
@@ -185,6 +211,7 @@ impl FFramesRenderBackend for CpuRenderingBackend {
             .map_err(|err| FFramesRendererError::RenderChunkError(0, err))?;
         let writer = writer.with_encoder_input(encoder_input);
         let failed = AtomicBool::new(false);
+        let svgr_images = SvgrImages::new(self.svgr_rasterizer());
 
         let render_worker = |worker: usize| -> FFramesRendererResult<()> {
             let worker_local_decoders = VideoDecodersWorker::new(1);
@@ -235,10 +262,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         std::thread::scope(|scope| {
             let workers: Vec<_> = (0..scheduler.workers())
                 .map(|worker| {
-                    let render_worker = &render_worker;
-                    let failed = &failed;
+                    let (render_worker, failed, svgr_images) =
+                        (&render_worker, &failed, &svgr_images);
                     scope.spawn(move || {
-                        let result = render_worker(worker);
+                        let result =
+                            svgr_images.enter(usvg_options, font_db, || render_worker(worker));
                         if result.is_err() {
                             failed.store(true, Ordering::Relaxed);
                         }
@@ -286,11 +314,11 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         ctx: crate::FFramesContext<'a, 'media>,
     ) -> FFramesRendererResult<Vec<u8>> {
         let mut converter_cache = usvgr::Cache::default();
-        let rtree = super::render_frame_guarded(video, frame, &ctx)?.into_svg_tree(
-            usvg_options,
-            &mut converter_cache,
-            font_db,
-        )?;
+        let svgr_images = SvgrImages::new(self.svgr_rasterizer());
+        let svgr = svgr_images.enter(usvg_options, font_db, || {
+            super::render_frame_guarded(video, frame, &ctx)
+        })?;
+        let rtree = svgr.into_svg_tree(usvg_options, &mut converter_cache, font_db)?;
 
         let frame = super::CpuFrameRenderer::new(0).render_tree(
             &rtree,
