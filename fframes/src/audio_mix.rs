@@ -943,4 +943,69 @@ mod tests {
         assert_eq!(left.len(), RATE / 2);
         assert!((left[0] - 0.5).abs() < 1e-4);
     }
+
+    /// FNV-1a over the bits of both channels.
+    fn fingerprint(left: &[f32], right: &[f32]) -> u64 {
+        left.iter()
+            .chain(right)
+            .fold(0xcbf2_9ce4_8422_2325, |hash, s| {
+                (hash ^ u64::from(s.to_bits())).wrapping_mul(0x0100_0000_01b3)
+            })
+    }
+
+    // libm `sin`, `exp` and `powf` can differ in the last bit on other platforms.
+    #[test]
+    #[cfg_attr(
+        not(all(target_os = "linux", target_arch = "x86_64")),
+        ignore = "the fingerprint is from x86_64 Linux"
+    )]
+    fn tracks_without_effects_mix_bit_identical_to_before_effects() {
+        // The fingerprint is from the mixer before effects existed. The mix has resampling,
+        // a stereo file, an offset, pan, fades, ducking, the limiter and a range render.
+        let tone = |frequency: f64, rate: u32, seconds: f64| -> Vec<f32> {
+            (0..(seconds * f64::from(rate)) as usize)
+                .map(|i| {
+                    (0.8 * (std::f64::consts::TAU * frequency * i as f64 / f64::from(rate)).sin())
+                        as f32
+                })
+                .collect()
+        };
+        let stereo = AudioData::Preloaded(crate::media::PreloadedAudioData {
+            samples: Cow::Owned(tone(220., 48000, 3.)),
+            sample_rate: 48000,
+            right: Some(Cow::Owned(tone(330., 48000, 3.))),
+        });
+        let media = Media(HashMap::from([
+            ("music".into(), stereo),
+            (
+                "voice".into(),
+                audio(tone(440., RATE as u32, 1.5), RATE as u32),
+            ),
+            ("hit".into(), audio(tone(90., 22050, 0.5), 22050)),
+        ]));
+        let map = resolve(
+            AudioMap::from([
+                AudioTrack::new("music", Second(0.)..Eof)
+                    .offset(0.3)
+                    .gain_db(-3.)
+                    .fade_out(0.7)
+                    .duck_under_voice(),
+                AudioTrack::new("voice", Second(0.6)..Eof).voice().pan(-0.3),
+                AudioTrack::new("hit", Second(1.234)..Second(1.6))
+                    .fade_in(0.05)
+                    .fade_curve(crate::FadeCurve::Exponential),
+            ]),
+            &media,
+        );
+        let mut mixer = AudioMixer::new(
+            Some(&map),
+            Some(&media),
+            RATE,
+            RATE / 3..3 * RATE,
+            3 * RATE,
+            AudioMixOptions::default(),
+        );
+        let (left, right) = mixer.render_all();
+        assert_eq!(fingerprint(&left, &right), 9_847_675_520_623_648_258);
+    }
 }
