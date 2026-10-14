@@ -76,6 +76,16 @@ pub trait SkiaBackend: Sync + Send {
         })
     }
 
+    /// A GPU context without a surface, and the lock of its queue. Code that draws into
+    /// surfaces of its own size uses it (`FFramesContext::render_svgr`). The default makes
+    /// a whole context with [`Self::create_skia_context`] and drops the surface.
+    fn create_offscreen_context(
+        &self,
+    ) -> FFramesRendererResult<(Option<DirectContext>, Option<QueueLock>)> {
+        let context = self.create_skia_context()?;
+        Ok((context.gpu, context.queue_lock))
+    }
+
     /// Offers hardware frames to the video encoder of a render: textures Skia draws into and
     /// the encoder reads, so the pixels never leave the GPU. Called once per render before
     /// the encoders are opened.
