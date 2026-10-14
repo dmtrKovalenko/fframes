@@ -1220,6 +1220,7 @@ dependencies = [
  "glam",
  "gltf",
  "image",
+ "lru",
  "png 0.17.16",
  "pollster",
  "rayon",

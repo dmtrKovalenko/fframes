@@ -7,13 +7,12 @@
 //! `Video::render_frame` ([`SvgrImages::enter`]). `render_svgr` uses the images that the
 //! thread entered.
 
-use std::borrow::Cow;
 use std::cell::Cell;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Mutex, PoisonError};
 
-use crate::media::{ImageData, ImageMetadata};
+use crate::media::ImageData;
+pub use crate::media::{image_pixels, rendered_image};
 use crate::{Svgr, usvgr};
 
 /// The number of images of static trees that one render keeps.
@@ -148,33 +147,4 @@ fn static_hash(svgr: &Svgr<'_>) -> Option<u64> {
     }
     let _ = svgr;
     None
-}
-
-/// An image of premultiplied RGBA pixels, `width * 4` bytes per row. Each image gets a new
-/// id, so a cache keyed by the id never returns an old image.
-pub fn rendered_image(width: u32, height: u32, rgba: Vec<u8>) -> ImageData<'static> {
-    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
-    let id = format!("fframes-svgr:{}", NEXT_ID.fetch_add(1, Ordering::Relaxed));
-    ImageData::new_from_raw_data(
-        Arc::new(usvgr::PreloadedImageData {
-            data: Cow::Owned(rgba),
-            width,
-            height,
-            id: id.clone(),
-        }),
-        id,
-        ImageMetadata { width, height },
-    )
-}
-
-/// The pixels of `image`. An image on the GPU (`fframes::wgpu_layer`) is read back, which
-/// waits for the GPU. `None` when that fails. Other images are their own pixels.
-pub fn image_pixels(
-    image: &Arc<usvgr::PreloadedImageData>,
-) -> Option<Arc<usvgr::PreloadedImageData>> {
-    #[cfg(feature = "wgpu")]
-    if let Some(layer) = crate::resolve_wgpu_layer(image) {
-        return layer.pixels();
-    }
-    Some(Arc::clone(image))
 }
