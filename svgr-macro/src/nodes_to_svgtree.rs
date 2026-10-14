@@ -1024,8 +1024,8 @@ mod tests {
         // An empty value parses as the identity transform but is text for usvgr.
         for aid in [AId::FontFamily, AId::Class, AId::D, AId::TransformOrigin] {
             let value = tokens("", aid);
-            assert!(!value.contains("Transform"), "{aid:?}: {value}");
-            assert!(value.contains("StringStorage"), "{aid:?}: {value}");
+            assert!(!value.contains("Transform"), "{:?}: {}", aid, value);
+            assert!(value.contains("StringStorage"), "{:?}: {}", aid, value);
         }
     }
 }
