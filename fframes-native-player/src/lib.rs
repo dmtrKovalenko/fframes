@@ -121,6 +121,9 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         },
     };
 
+    // The window owns the Skia context, so the trees of `render_svgr` render on the CPU.
+    let svgr_images = fframes::SvgrImages::new(Some(Box::new(fframes::cpu::CpuSvgrRasterizer)));
+
     let scheduler = Scheduler::new(
         timeline.duration_in_frames,
         options.prefetch_frames,
@@ -154,16 +157,19 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
     let result = std::thread::scope(|scope| {
         for _ in 0..options.render_threads() {
             scope.spawn(|| {
-                scheduler.run_worker(
-                    video,
-                    &ctx,
-                    &usvg_options,
-                    font_source.as_db_ref(),
-                    // Decoders hand out their current frame buffer, which is recycled by the
-                    // next decode, so they must not be shared between threads.
-                    VideoDecodersWorker::new(options.prefetch_frames.max(1) * 2),
-                    &notify_frame_ready,
-                );
+                let db = font_source.as_db_ref();
+                svgr_images.enter(&usvg_options, db, || {
+                    scheduler.run_worker(
+                        video,
+                        &ctx,
+                        &usvg_options,
+                        db,
+                        // Decoders hand out their current frame buffer, which is recycled by
+                        // the next decode, so they must not be shared between threads.
+                        VideoDecodersWorker::new(options.prefetch_frames.max(1) * 2),
+                        &notify_frame_ready,
+                    );
+                });
             });
         }
 

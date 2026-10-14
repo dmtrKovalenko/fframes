@@ -20,7 +20,25 @@ pub(super) fn image(
         return None;
     }
     let mut context = canvas.recording_context()?;
-    let texture = layer.texture();
+    let backend_texture = backend_texture(
+        layer.texture(),
+        gpu::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+    )?;
+    gpu::images::borrow_texture_from(
+        &mut context,
+        &backend_texture,
+        SurfaceOrigin::TopLeft,
+        ColorType::RGBA8888,
+        AlphaType::Premul,
+        None,
+    )
+}
+
+/// `texture` as a Skia texture in `layout`. `None` when the texture is not a Vulkan texture.
+pub(crate) fn backend_texture(
+    texture: &wgpu::Texture,
+    layout: gpu::vk::ImageLayout,
+) -> Option<gpu::BackendTexture> {
     let raw = {
         let hal = unsafe { texture.as_hal::<wgpu::hal::api::Vulkan>() }?;
         unsafe { hal.raw_handle() }
@@ -30,7 +48,7 @@ pub(super) fn image(
             raw.as_raw() as _,
             gpu::vk::Alloc::default(),
             gpu::vk::ImageTiling::OPTIMAL,
-            gpu::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            layout,
             gpu::vk::Format::R8G8B8A8_UNORM,
             1,
             None,
@@ -41,21 +59,13 @@ pub(super) fn image(
     };
     info.image_usage_flags = usage_flags(texture.usage()).as_raw();
     info.sample_count = 1;
-    let backend_texture = unsafe {
+    Some(unsafe {
         backend_textures::make_vk(
             (texture.width() as i32, texture.height() as i32),
             &info,
-            "fframes wgpu layer",
+            "fframes wgpu texture",
         )
-    };
-    gpu::images::borrow_texture_from(
-        &mut context,
-        &backend_texture,
-        SurfaceOrigin::TopLeft,
-        ColorType::RGBA8888,
-        AlphaType::Premul,
-        None,
-    )
+    })
 }
 
 fn usage_flags(usage: wgpu::TextureUsages) -> vk::ImageUsageFlags {
