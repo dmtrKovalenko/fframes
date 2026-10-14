@@ -1,0 +1,8 @@
+/assets/hls/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+/assets/hls/*.m4s
+  Content-Type: video/mp4
+/assets/hls/*.mp4
+  Content-Type: video/mp4
+/assets/captions.vtt
+  Content-Type: text/vtt

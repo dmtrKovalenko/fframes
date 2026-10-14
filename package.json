@@ -8,6 +8,7 @@
     "syncpack": "^12.3.0"
   },
   "scripts": {
-    "build:landing": "node scripts/build-skills-index.mjs"
+    "build:landing": "node scripts/build-skills-index.mjs && node scripts/build-movie-landing.mjs",
+    "preview:landing": "node examples/the-why/landing/serve.mjs landing 4174"
   }
 }

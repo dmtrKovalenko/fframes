@@ -1,0 +1,1 @@
+{"name":"the-why-landing","private":true,"scripts":{"dev":"node serve.mjs","start":"node serve.mjs","check":"node --check app.js && node --check serve.mjs"}}

@@ -1,0 +1,7 @@
+
+/the-why/assets/hls/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+/the-why/assets/hls/*.m4s
+  Content-Type: video/mp4
+/the-why/assets/captions.vtt
+  Content-Type: text/vtt
