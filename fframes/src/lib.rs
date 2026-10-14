@@ -102,6 +102,7 @@
 //!
 mod audio_analysis;
 mod audio_data;
+mod audio_effects;
 mod audio_map;
 mod audio_mix;
 mod audio_window_functions;
@@ -137,6 +138,7 @@ mod video_data;
 
 pub use audio_analysis::*;
 pub use audio_data::*;
+pub use audio_effects::*;
 pub use audio_map::*;
 pub use audio_mix::*;
 pub use audio_window_functions::*;

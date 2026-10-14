@@ -1,4 +1,6 @@
-use crate::{FFramesContext, ResolvedScenesTimeline, ScenesWithAudio, TimeBase, error};
+use crate::{
+    Compressor, Effect, FFramesContext, ResolvedScenesTimeline, ScenesWithAudio, TimeBase, error,
+};
 use serde::Serialize;
 use std::{
     iter::FromIterator,
@@ -137,32 +139,36 @@ impl AudioTimestamp<'_> {
         }
     }
 
-    /// The timestamp in exact seconds. `eof_base` is added to the file duration for `Eof`
-    /// (the start of the range minus the part of the file that is skipped).
+    /// The timestamp in exact seconds. For `Eof` it is the file duration divided by
+    /// `eof_rate` (the playback rate) plus `eof_base` (the start of the range minus the
+    /// timeline time of the part of the file that is skipped).
     pub(crate) fn to_seconds(
         &self,
         filename: &str,
         fps: usize,
         eof_base: Option<f64>,
+        eof_rate: f64,
         resolve_audio_duration: &impl Fn(&str) -> error::Result<f64>,
     ) -> error::Result<f64> {
         Ok(match self {
             AudioTimestamp::Frame(frame) => *frame as f64 / fps as f64,
             AudioTimestamp::Second(seconds) => f64::from(*seconds),
-            AudioTimestamp::Eof => resolve_audio_duration(filename)? + eof_base.unwrap_or(0.),
+            AudioTimestamp::Eof => {
+                resolve_audio_duration(filename)? / eof_rate + eof_base.unwrap_or(0.)
+            }
             AudioTimestamp::DurationOfAudio(filename) => resolve_audio_duration(filename)?,
             AudioTimestamp::Time { minutes, seconds } => {
                 f64::from(*minutes) * 60. + f64::from(*seconds)
             }
             AudioTimestamp::__Add(add) => {
                 let (a, b) = &**add;
-                a.to_seconds(filename, fps, eof_base, resolve_audio_duration)?
-                    + b.to_seconds(filename, fps, eof_base, resolve_audio_duration)?
+                a.to_seconds(filename, fps, eof_base, eof_rate, resolve_audio_duration)?
+                    + b.to_seconds(filename, fps, eof_base, eof_rate, resolve_audio_duration)?
             }
             AudioTimestamp::__Subtract(sub) => {
                 let (a, b) = &**sub;
-                a.to_seconds(filename, fps, eof_base, resolve_audio_duration)?
-                    - b.to_seconds(filename, fps, eof_base, resolve_audio_duration)?
+                a.to_seconds(filename, fps, eof_base, eof_rate, resolve_audio_duration)?
+                    - b.to_seconds(filename, fps, eof_base, eof_rate, resolve_audio_duration)?
             }
         }
         .max(0.))
@@ -236,7 +242,10 @@ impl Default for Ducking {
 }
 
 /// How a track is mixed. Everything defaults to "play the file as is".
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+///
+/// Order: the mixer reads the file at `rate`, runs `effects` in order, then applies
+/// `gain_db`, pan, fades and ducking.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TrackMix {
     /// Level in decibels, `0.0` is the file's level.
     pub gain_db: f32,
@@ -253,6 +262,10 @@ pub struct TrackMix {
     pub duck: Option<Ducking>,
     /// This track is a voice: other tracks with `duck` get quieter while it plays.
     pub voice: bool,
+    /// Playback speed of the file, `1.0` is the original speed and pitch.
+    pub rate: f32,
+    /// Processing steps in order, see `Effect`.
+    pub effects: Vec<Effect>,
 }
 
 impl Default for TrackMix {
@@ -266,6 +279,8 @@ impl Default for TrackMix {
             offset: 0.,
             duck: None,
             voice: false,
+            rate: 1.,
+            effects: Vec::new(),
         }
     }
 }
@@ -297,6 +312,7 @@ impl<'a> AudioTrack<'a> {
         }
     }
 
+    /// Level in decibels. It applies after the effects, so it adds to `normalize_lufs`.
     pub fn gain_db(mut self, gain_db: f32) -> Self {
         self.mix.gain_db = gain_db;
         self
@@ -348,6 +364,85 @@ impl<'a> AudioTrack<'a> {
     pub fn duck(mut self, ducking: Ducking) -> Self {
         self.mix.duck = Some(ducking);
         self
+    }
+
+    /// Plays the file faster (`2.0`) or slower (`0.5`), with speed and pitch together like a
+    /// tape. `rate(1.06)` is one semitone up. The track's length on the timeline follows: a
+    /// range that ends at `Eof` ends when the file ends at this rate. `offset` stays in
+    /// seconds of the file. The rate applies first, when the file is read, so the effects see
+    /// the changed pitch. Values are clamped to `0.05..=20.0`.
+    pub fn rate(mut self, rate: f32) -> Self {
+        self.mix.rate = rate.clamp(0.05, 20.);
+        self
+    }
+
+    /// Adds an effect after the effects that are already on the track.
+    ///
+    /// The mixer renders a track with effects once per render. It reads the played part of
+    /// the file at the mix rate, then runs the effects in the order of the calls. Gain, pan,
+    /// fades and ducking apply after the effects. Filters run at the mix rate, after `rate`.
+    pub fn effect(mut self, effect: Effect) -> Self {
+        self.mix.effects.push(effect);
+        self
+    }
+
+    /// Changes the level so that the integrated loudness (EBU R128, the value of
+    /// `audio analyze`) of the track is `lufs`. The measurement is on the part of the file
+    /// that plays, after the effects before this one. `gain_db` adds to the result. A track
+    /// shorter than 400 ms or silent does not change. A mono track is measured as it plays,
+    /// on both sides. Usual targets: `-16.0` for voice, `-23.0` for background music.
+    pub fn normalize_lufs(self, lufs: f32) -> Self {
+        self.effect(Effect::NormalizeLufs { lufs })
+    }
+
+    /// Removes the sound below `hz`: 12 dB per octave, Butterworth (-3 dB at `hz`). Call it
+    /// twice for 24 dB per octave (Linkwitz-Riley, -6 dB at `hz`). For another Q, use
+    /// `effect(Effect::Highpass { hz, q })`. Typical: 80 Hz removes rumble from a voice.
+    pub fn highpass(self, hz: f32) -> Self {
+        self.effect(Effect::Highpass {
+            hz,
+            q: std::f32::consts::FRAC_1_SQRT_2,
+        })
+    }
+
+    /// Removes the sound above `hz`: 12 dB per octave, Butterworth (-3 dB at `hz`). Call it
+    /// twice for 24 dB per octave. For another Q, use `effect(Effect::Lowpass { hz, q })`.
+    pub fn lowpass(self, hz: f32) -> Self {
+        self.effect(Effect::Lowpass {
+            hz,
+            q: std::f32::consts::FRAC_1_SQRT_2,
+        })
+    }
+
+    /// Changes the level below `hz` by `db` decibels. At `hz` the change is half of `db`.
+    pub fn low_shelf(self, hz: f32, db: f32) -> Self {
+        self.effect(Effect::LowShelf { hz, db })
+    }
+
+    /// Changes the level above `hz` by `db` decibels. At `hz` the change is half of `db`.
+    pub fn high_shelf(self, hz: f32, db: f32) -> Self {
+        self.effect(Effect::HighShelf { hz, db })
+    }
+
+    /// Bell filter: changes the level at `hz` by `db` decibels. A larger `q` makes the band
+    /// narrower (bandwidth `hz / q`): `0.7` is wide, `4.0` is narrow.
+    pub fn peak(self, hz: f32, db: f32, q: f32) -> Self {
+        self.effect(Effect::Peak { hz, db, q })
+    }
+
+    /// Makes loud parts quieter, see `Compressor`. Put it before `normalize_lufs` to
+    /// normalize the compressed sound.
+    pub fn compress(self, compressor: Compressor) -> Self {
+        self.effect(Effect::Compress(compressor))
+    }
+
+    /// Stereo width through mid/side: `0.0` is mono, `1.0` is unchanged, `2.0` doubles the
+    /// side. The mono sum (left + right) does not change. A mono file becomes stereo: the
+    /// side is the sound delayed by 12 ms, without the bass below 250 Hz, at `0.3 * width`.
+    pub fn width(self, width: f32) -> Self {
+        self.effect(Effect::Width {
+            width: width.max(0.),
+        })
     }
 }
 
@@ -489,15 +584,20 @@ impl<'a> AudioMap<'a> {
                 tracks
                     .iter()
                     .map(|AudioTrack { file, range, mix }| {
-                        let start =
-                            range
-                                .start
-                                .to_seconds(file, tb.fps, None, &resolve_audio_duration)?;
+                        let start = range.start.to_seconds(
+                            file,
+                            tb.fps,
+                            None,
+                            1.,
+                            &resolve_audio_duration,
+                        )?;
 
+                        let rate = f64::from(mix.rate);
                         let end = range.end.to_seconds(
                             file,
                             tb.fps,
-                            Some(start - f64::from(mix.offset)),
+                            Some(start - f64::from(mix.offset) / rate),
+                            rate,
                             &resolve_audio_duration,
                         )?;
 
@@ -505,7 +605,7 @@ impl<'a> AudioMap<'a> {
                             file: file.to_string(),
                             range: TUnit::from_seconds(start + offset, tb)
                                 ..TUnit::from_seconds(end.max(start) + offset, tb),
-                            mix: *mix,
+                            mix: mix.clone(),
                         })
                     })
                     .collect::<error::Result<Vec<_>>>()

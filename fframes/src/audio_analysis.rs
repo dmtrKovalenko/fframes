@@ -9,14 +9,23 @@ use std::ops::Range;
 
 /// Biquad in transposed direct form II, f64 state.
 #[derive(Clone, Copy)]
-struct Biquad {
+pub(crate) struct Biquad {
     b: [f64; 3],
     a: [f64; 2],
     z: [f64; 2],
 }
 
 impl Biquad {
-    fn process(&mut self, x: f64) -> f64 {
+    /// A filter from the coefficients of `H(z) = (b0 + b1/z + b2/z^2) / (a0 + a1/z + a2/z^2)`.
+    pub(crate) fn new(b: [f64; 3], a: [f64; 3]) -> Self {
+        Self {
+            b: b.map(|b| b / a[0]),
+            a: [a[1] / a[0], a[2] / a[0]],
+            z: [0.; 2],
+        }
+    }
+
+    pub(crate) fn process(&mut self, x: f64) -> f64 {
         let y = self.b[0] * x + self.z[0];
         self.z[0] = self.b[1] * x - self.a[0] * y + self.z[1];
         self.z[1] = self.b[2] * x - self.a[1] * y;

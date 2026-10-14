@@ -374,7 +374,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
                             file: track.file.clone(),
                             start_seconds: track.range.start.to_seconds(&time_base),
                             end_seconds: track.range.end.to_seconds(&time_base),
-                            mix: track.mix,
+                            mix: track.mix.clone(),
                         })
                         .collect()
                 })

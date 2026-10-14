@@ -3,12 +3,15 @@
 //!
 //! - tracks start and end at their exact sample, also in the middle of an encoder frame,
 //! - each track has gain, pan, fades, a file offset and range-driven ducking (`TrackMix`),
-//! - a Kaiser-windowed sinc resamples sources at other sample rates,
+//! - a Kaiser-windowed sinc resamples sources at other sample rates and plays them at their
+//!   `rate`,
+//! - a track with effects (`Effect`) is rendered with its effects once, when the mixer is
+//!   built, and is then read from that buffer,
 //! - the mixer sums overlapping tracks linearly and runs the sum through a lookahead peak
 //!   limiter, so loud overlaps neither intermodulate nor clip.
 use crate::{
-    AudioData, AudioTimelineSamples, AudioTimelineUnit, Ducking, MediaProvider, ResolvedAudioMap,
-    TrackMix,
+    AudioData, AudioTimelineSamples, AudioTimelineUnit, Ducking, Effect, MediaProvider,
+    ResolvedAudioMap, TrackMix,
 };
 use std::collections::VecDeque;
 use std::ops::Range;
@@ -255,10 +258,26 @@ impl Limiter {
     }
 }
 
+/// Value of `channel` at the source position `position`.
+fn read_sample(resampler: Option<&SincResampler>, channel: &[f32], position: f64) -> f32 {
+    match resampler {
+        None => channel
+            .get(position.round() as usize)
+            .copied()
+            .unwrap_or(0.),
+        Some(resampler) => resampler.sample(channel, position),
+    }
+}
+
 struct PreparedTrack<'m> {
     file: String,
     left: &'m [f32],
     right: Option<&'m [f32]>,
+    /// The track after its effects, one or two channels from `range.start` at the output
+    /// rate. `None` for a track without effects, which is read from the file.
+    processed: Option<Vec<Vec<f32>>>,
+    /// Gain in dB that `Effect::NormalizeLufs` applied.
+    normalize_db: f32,
     /// Output samples.
     range: Range<usize>,
     /// Position in the file (source samples) at `range.start`.
@@ -279,14 +298,19 @@ struct PreparedTrack<'m> {
 }
 
 impl PreparedTrack<'_> {
-    fn source_sample(&self, channel: &[f32], position: f64) -> f32 {
-        match &self.resampler {
-            None => channel
-                .get(position.round() as usize)
-                .copied()
-                .unwrap_or(0.),
-            Some(resampler) => resampler.sample(channel, position),
+    /// Left sample and right sample (`None` for mono) at output sample `n`.
+    fn frame(&self, n: usize) -> (f32, Option<f32>) {
+        if let Some(channels) = &self.processed {
+            let i = n - self.range.start;
+            return (channels[0][i], channels.get(1).map(|right| right[i]));
         }
+        let position = self.source_start + (n - self.range.start) as f64 * self.ratio;
+        let resampler = self.resampler.as_ref();
+        (
+            read_sample(resampler, self.left, position),
+            self.right
+                .map(|right| read_sample(resampler, right, position)),
+        )
     }
 
     fn envelope(&self, n: usize, sample_rate: f64) -> f32 {
@@ -434,17 +458,46 @@ impl<'m> AudioMixer<'m> {
             }
 
             let source_rate = f64::from(audio.sample_rate);
-            let ratio = source_rate / rate;
+            let speed = f64::from(track.mix.rate);
+            let ratio = source_rate / rate * speed;
             let source_start = f64::from(track.mix.offset) * source_rate;
             let natural_end =
                 range.start as f64 + (audio.samples.len() as f64 - source_start) / ratio;
-            let resampler = (audio.sample_rate as usize != sample_rate)
-                .then(|| SincResampler::new(source_rate, rate));
+            #[expect(
+                clippy::float_cmp,
+                reason = "1.0 means the file is read sample by sample"
+            )]
+            let resampler = (ratio != 1.).then(|| SincResampler::new(source_rate * speed, rate));
+
+            let mut normalize_db = 0.;
+            let processed = (!track.mix.effects.is_empty()).then(|| {
+                let read = |channel: &[f32]| -> Vec<f32> {
+                    (0..range.len())
+                        .map(|i| {
+                            let position = source_start + i as f64 * ratio;
+                            read_sample(resampler.as_ref(), channel, position)
+                        })
+                        .collect()
+                };
+                let mut channels: Vec<Vec<f32>> = std::iter::once(audio.samples.as_ref())
+                    .chain(audio.right.as_deref())
+                    .map(read)
+                    .collect();
+                normalize_db = crate::audio_effects::apply_effects(
+                    &track.mix.effects,
+                    sample_rate,
+                    &mut channels,
+                );
+                channels
+            });
+            let stereo = processed
+                .as_ref()
+                .map_or(audio.is_stereo(), |channels| channels.len() == 2);
 
             let pan = track.mix.pan.clamp(-1., 1.);
             let pan = if pan.abs() < 1e-6 {
                 (1., 1.)
-            } else if audio.is_stereo() {
+            } else if stereo {
                 // Balance: attenuate the opposite side.
                 let attenuation = (pan.abs() * std::f32::consts::FRAC_PI_2).cos();
                 if pan > 0. {
@@ -480,12 +533,14 @@ impl<'m> AudioMixer<'m> {
                 file: track.file.clone(),
                 left: audio.samples.as_ref(),
                 right: audio.right.as_deref(),
+                processed,
+                normalize_db,
                 source_start,
                 ratio,
                 resampler,
                 gain: db_to_gain(track.mix.gain_db),
                 pan,
-                mix: track.mix,
+                mix: track.mix.clone(),
                 fade_in: f64::from(track.mix.fade_in) * rate,
                 fade_out: f64::from(track.mix.fade_out) * rate,
                 declick_in: options.declick && track.mix.offset > 0.,
@@ -532,16 +587,14 @@ impl<'m> AudioMixer<'m> {
             }
 
             for n in from..to {
-                let position = track.source_start + (n - track.range.start) as f64 * track.ratio;
                 let gain = track.envelope(n, rate);
                 if gain == 0. {
                     continue;
                 }
 
                 let i = n - start;
-                let l = track.source_sample(track.left, position);
-                if let Some(right_channel) = track.right {
-                    let r = track.source_sample(right_channel, position);
+                let (l, r) = track.frame(n);
+                if let Some(r) = r {
                     left[i] += l * gain * track.pan.0;
                     right[i] += r * gain * track.pan.1;
                 } else {
@@ -642,13 +695,13 @@ impl<'m> AudioMixer<'m> {
             .filter(|t| t.range.contains(&sample))
             .map(|t| {
                 let position = t.source_start + (sample - t.range.start) as f64 * t.ratio;
-                let source_rate = t.ratio * rate;
+                let source_rate = t.ratio * rate / f64::from(t.mix.rate);
                 let gain = t.envelope(sample, rate);
                 ActiveTrack {
                     file: t.file.clone(),
                     file_seconds: position / source_rate,
                     gain_db: if gain > 0. {
-                        20. * gain.log10()
+                        20. * gain.log10() + t.normalize_db
                     } else {
                         f32::NEG_INFINITY
                     },
@@ -657,6 +710,8 @@ impl<'m> AudioMixer<'m> {
                         .mix
                         .duck
                         .map_or(0., |d| duck_db(&t.duck_under, &d, sample as f64, rate)),
+                    rate: t.mix.rate,
+                    effects: t.mix.effects.clone(),
                 }
             })
             .collect()
@@ -669,11 +724,14 @@ pub struct ActiveTrack {
     pub file: String,
     /// Position inside the file.
     pub file_seconds: f64,
-    /// Effective level (gain, fades and ducking) in dB.
+    /// Effective level (gain, `normalize_lufs`, fades and ducking) in dB.
     pub gain_db: f32,
     pub voice: bool,
     /// Current ducking attenuation (0 when not ducked).
     pub ducked_db: f32,
+    /// Playback rate of the file.
+    pub rate: f32,
+    pub effects: Vec<Effect>,
 }
 
 fn merge_ranges(mut ranges: Vec<Range<f64>>, gap: f64) -> Vec<Range<f64>> {
@@ -1007,5 +1065,105 @@ mod tests {
         );
         let (left, right) = mixer.render_all();
         assert_eq!(fingerprint(&left, &right), 9_847_675_520_623_648_258);
+    }
+
+    fn sine(frequency: f64, amplitude: f32, rate: usize, seconds: f64) -> Vec<f32> {
+        (0..(seconds * rate as f64) as usize)
+            .map(|i| {
+                amplitude
+                    * (std::f64::consts::TAU * frequency * i as f64 / rate as f64).sin() as f32
+            })
+            .collect()
+    }
+
+    #[test]
+    fn normalize_lufs_reaches_the_target_after_the_effects_before_it() {
+        let low = sine(60., 0.3, RATE, 4.);
+        let mixed: Vec<f32> = sine(1000., 0.02, RATE, 4.)
+            .iter()
+            .zip(&low)
+            .map(|(a, b)| a + b)
+            .collect();
+        let media = Media(HashMap::from([("take".into(), audio(mixed, RATE as u32))]));
+        let measure = |track: AudioTrack| {
+            let map = resolve(AudioMap::from([track]), &media);
+            let mut mixer = AudioMixer::new(
+                Some(&map),
+                Some(&media),
+                RATE,
+                0..4 * RATE,
+                4 * RATE,
+                no_master(),
+            );
+            let (left, right) = mixer.render_all();
+            crate::LoudnessAnalysis::new(&left, &right, RATE).integrated(0..left.len())
+        };
+
+        let take = || AudioTrack::new("take", Second(0.)..Eof);
+        let lufs = measure(take().highpass(200.).normalize_lufs(-16.));
+        assert!((lufs + 16.).abs() < 0.3, "{lufs}");
+        let lufs = measure(take().normalize_lufs(-23.).gain_db(-2.));
+        assert!((lufs + 25.).abs() < 0.3, "{lufs}");
+    }
+
+    #[test]
+    fn rate_changes_pitch_and_length_together() {
+        let media = Media(HashMap::from([(
+            "tone".into(),
+            audio(sine(1000., 0.5, 48000, 0.5), 48000),
+        )]));
+        let map = resolve(
+            AudioMap::from([AudioTrack::new("tone", Second(0.)..Eof).rate(0.5)]),
+            &media,
+        );
+        assert_eq!(map.tracks()[0].range.end.as_usize(), RATE);
+
+        let mut mixer = AudioMixer::new(
+            Some(&map),
+            Some(&media),
+            RATE,
+            0..2 * RATE,
+            2 * RATE,
+            no_master(),
+        );
+        let (left, _) = mixer.render_all();
+        let audible = left.iter().rposition(|s| s.abs() > 1e-3).unwrap_or(0);
+        assert!(audible.abs_diff(RATE) < RATE / 100, "{audible}");
+        // 500 Hz: 1000 sign changes in the second that plays.
+        let crossings = left[..RATE]
+            .windows(2)
+            .filter(|w| (w[0] < 0.) != (w[1] < 0.))
+            .count();
+        assert!(crossings.abs_diff(1000) <= 2, "{crossings}");
+    }
+
+    #[test]
+    fn effects_render_the_same_in_a_range_render() {
+        let media = Media(HashMap::from([(
+            "tone".into(),
+            audio(sine(300., 0.8, 48000, 2.), 48000),
+        )]));
+        let map = resolve(
+            AudioMap::from([AudioTrack::new("tone", Second(0.1)..Eof)
+                .rate(1.5)
+                .compress(crate::Compressor::default())
+                .width(1.)
+                .pan(0.4)]),
+            &media,
+        );
+        let mut full = AudioMixer::new(Some(&map), Some(&media), RATE, 0..RATE, RATE, no_master());
+        let (left, right) = full.render_all();
+        assert_ne!(left, right, "width makes the mono file stereo");
+        let mut part = AudioMixer::new(
+            Some(&map),
+            Some(&media),
+            RATE,
+            RATE / 2..RATE,
+            RATE,
+            no_master(),
+        );
+        let (part_left, part_right) = part.render_all();
+        assert_eq!(part_left, left[RATE / 2..]);
+        assert_eq!(part_right, right[RATE / 2..]);
     }
 }
