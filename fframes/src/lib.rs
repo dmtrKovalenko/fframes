@@ -122,6 +122,8 @@ mod named_range;
 mod scenes;
 mod shader;
 mod svgr;
+#[cfg(not(target_arch = "wasm32"))]
+mod svgr_image;
 mod text;
 mod time_spec;
 mod video;
@@ -164,6 +166,8 @@ pub use named_range::*;
 pub use scenes::*;
 pub use shader::*;
 pub use svgr::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub use svgr_image::*;
 pub use svgr_macro::*;
 pub use text::*;
 pub use time_spec::*;
