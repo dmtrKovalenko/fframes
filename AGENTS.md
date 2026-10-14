@@ -249,7 +249,7 @@ Every video is a Rust crate under `examples/` (or your own crate) with three par
 crate implementing `fframes::Video`, a binary that renders it, and a small WASM crate that
 plugs it into the web editor for live preview. `examples/hello-world` is the minimal template;
 `examples/teej-podcast` shows video sources, dynamic media and the Skia GPU backend;
-`examples/beta` shows scenes; `examples/svg-in-3d` nests svgr and 3D.
+`examples/beta` shows scenes.
 
 ### 1. Scaffold the crate
 
@@ -618,50 +618,6 @@ svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
   object may outlive the backend context (`SkiaVulkanCtx`).
 - Every Skia context then submits to the wgpu queue. The queue orders a layer before the
   frame that samples it.
-
-### 7f. svgr inside 3D inside svgr (`ctx.render_svgr`)
-
-`ctx.render_svgr(svgr, width, height)` renders an `<svg>` tree into an image with the
-backend of the video. Use the image as `<image href>` or as a 3D texture
-(`Texture::from_image`). A 3D render is an image too, so the levels nest to any depth. See
-`examples/svg-in-3d`: a turning monitor whose screen is a live UI, and the UI shows a cube
-with an svgr logo.
-
-```rust
-// in render_frame: logo svgr -> cube (3D) -> UI svgr -> monitor (3D) -> frame
-let Some(logo) = ctx.render_svgr(svgr!(<svg viewBox="0 0 256 256" width="256" height="256">..</svg>), 256, 256)
-else { return Svgr::empty() };
-let mut cube = self.cube_scene.clone();
-cube[self.cube].material_mut().unwrap().map = Some(Texture::from_image(&logo).into());
-let cube = self.cube_renderer.render(&cube, &camera);
-let Some(ui) = ctx.render_svgr(svgr!(
-    <svg viewBox="0 0 1280 800" width="1280" height="800">
-        <text ..>{timer}</text>
-        <image href={cube.href()} x="88" y="172" width="480" height="480" />
-    </svg>
-), 1280, 800) else { return Svgr::empty() };
-let mut room = self.scene.clone();
-room[self.screen].material_mut().unwrap().map = Some(Texture::from_image(&ui).into());
-let monitor = self.renderer.render(&room, &camera);
-svgr!(<svg ..><image href={monitor.href()} x="0" y="0" width="1920" height="1080" /></svg>)
-```
-
-- The tree must be a whole `<svg>` with `width` and `height`. It is scaled to fill the
-  image, over a transparent background.
-- A tree without `{}` renders once per render and size; later calls return the same image,
-  and its texture keeps its mipmap levels. Build changing parts as a separate tree.
-- The CPU backend renders with tiny-skia, the Skia backends with Skia. On Skia Vulkan with
-  `fframes_skia_renderer/wgpu` and `fframes-3d/gpu` the image is a texture on the shared
-  GPU: Skia draws into it, the 3D renderer makes its mipmap levels on the GPU, and nothing
-  is read back. `fframes-3d` without `gpu` reads such an image back.
-- `<image href>` of the result needs the `compile-time-svgtree` feature (like 3D renders).
-- `None` in the editor and when the tree does not convert. Fall back to `Svgr::empty()` or
-  a texture of your own.
-- A `Scene` at its own time: `let local = Frame::clone_with_scene_offset(&frame, start)`,
-  then `ctx.render_svgr(svgr!(<svg viewBox="0 0 1920 1080" width="1920" height="1080">{scene.render_frame(local, ctx)}</svg>), w, h)`.
-- Frames render in parallel. The svgr images of a render share a small pool of Skia
-  contexts, and no lock is held while `render_frame` code runs, so nesting does not
-  deadlock.
 
 ### 7c. Audio mix
 
