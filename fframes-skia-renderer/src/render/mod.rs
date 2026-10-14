@@ -15,7 +15,7 @@ mod occlusion;
 mod resources;
 mod shader;
 #[cfg(feature = "wgpu")]
-mod wgpu_layer;
+pub(crate) mod wgpu_layer;
 
 pub use shader::compile_shader;
 
