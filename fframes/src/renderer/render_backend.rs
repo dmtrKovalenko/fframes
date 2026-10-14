@@ -60,6 +60,13 @@ pub trait FFramesRenderBackend {
             .map_err(|err| FFramesRendererError::from_chunk(0, err))
     }
 
+    /// Renders svgr trees inside `Video::render_frame` for
+    /// [`crate::FFramesContext::render_svgr`] during the renders and previews of this
+    /// backend. The default renders on the CPU with tiny-skia (feature `cpu_renderer`).
+    fn svgr_rasterizer(&self) -> Option<Box<dyn crate::SvgrRasterizer + '_>> {
+        super::default_svgr_rasterizer()
+    }
+
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized + Send>(
         self,
         frame: crate::Frame,

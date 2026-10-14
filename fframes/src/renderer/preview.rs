@@ -294,6 +294,7 @@ pub struct Previewer<'a, 'media, TVideo: Video> {
     timeline_index: TimelineIndex,
     worker: Worker,
     converter_text_cache_capacity: usize,
+    svgr_images: crate::SvgrImages<'a>,
 }
 
 impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
@@ -336,7 +337,19 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
             timeline_index,
             worker: Worker::new(10),
             converter_text_cache_capacity: 10,
+            svgr_images: crate::SvgrImages::new(default_svgr_rasterizer()),
         })
+    }
+
+    /// Renders the trees of [`FFramesContext::render_svgr`] with `rasterizer`, usually
+    /// what [`super::FFramesRenderBackend::svgr_rasterizer`] of the backend returns. The
+    /// default is the CPU rasterizer.
+    pub fn with_svgr_rasterizer(
+        mut self,
+        rasterizer: Option<Box<dyn crate::SvgrRasterizer + 'a>>,
+    ) -> Self {
+        self.svgr_images = crate::SvgrImages::new(rasterizer);
+        self
     }
 
     /// Scenes and duration for resolving time specs like `Intro@1.5s`.
@@ -431,6 +444,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
             &self.options,
             &self.image_source,
             &self.size,
+            &self.svgr_images,
             fast_shapes,
         )
         .convert(&mut self.worker, frame)
@@ -458,6 +472,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
             &self.options,
             &self.image_source,
             &self.size,
+            &self.svgr_images,
             batch.fast_shapes,
         );
         let convert = |worker: &mut Worker, frame: usize| {
@@ -692,6 +707,7 @@ struct Conversion<'p, 'media, TVideo> {
     ctx: FFramesContext<'p, 'media>,
     options: usvgr::Options<'p>,
     font_db: &'p usvgr::fontdb::Database,
+    svgr_images: &'p crate::SvgrImages<'p>,
 }
 
 impl<'p, 'media: 'p, TVideo: Video> Conversion<'p, 'media, TVideo> {
@@ -701,6 +717,7 @@ impl<'p, 'media: 'p, TVideo: Video> Conversion<'p, 'media, TVideo> {
         options: &RenderOptions<'_, 'media>,
         image_source: &'p HashMap<String, Arc<usvgr::PreloadedImageData>>,
         size: &VideoSize,
+        svgr_images: &'p crate::SvgrImages<'p>,
         fast_shapes: bool,
     ) -> Self {
         Self {
@@ -722,6 +739,7 @@ impl<'p, 'media: 'p, TVideo: Video> Conversion<'p, 'media, TVideo> {
                 ..Default::default()
             },
             font_db: runtime.font_source.as_db_ref(),
+            svgr_images,
         }
     }
 
@@ -733,19 +751,30 @@ impl<'p, 'media: 'p, TVideo: Video> Conversion<'p, 'media, TVideo> {
                 self.ctx.duration_in_frames
             )));
         }
-        let svgr = super::render_frame_guarded(
-            self.video,
-            Frame::__internal_make_for_renderer(
-                frame,
-                frame,
-                TVideo::FPS,
-                worker.text_cache.clone(),
-                worker.decoders.clone(),
-            ),
-            &self.ctx,
-        )?;
+        let svgr = self.svgr_images.enter(&self.options, self.font_db, || {
+            super::render_frame_guarded(
+                self.video,
+                Frame::__internal_make_for_renderer(
+                    frame,
+                    frame,
+                    TVideo::FPS,
+                    worker.text_cache.clone(),
+                    worker.decoders.clone(),
+                ),
+                &self.ctx,
+            )
+        })?;
         Ok(svgr.into_svg_tree(&self.options, &mut worker.converter_cache, self.font_db)?)
     }
+}
+
+/// The CPU rasterizer when the crate has it.
+#[cfg_attr(feature = "cpu_renderer", allow(clippy::unnecessary_wraps))]
+pub(super) fn default_svgr_rasterizer() -> Option<Box<dyn crate::SvgrRasterizer + 'static>> {
+    #[cfg(feature = "cpu_renderer")]
+    return Some(Box::new(super::cpu::CpuSvgrRasterizer));
+    #[cfg(not(feature = "cpu_renderer"))]
+    None
 }
 
 /// How [`Previewer::convert_each`] converts frames.
