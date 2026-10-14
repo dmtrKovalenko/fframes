@@ -126,7 +126,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
 
     /// Renders `svgr` into an image of `width` x `height` pixels with the backend that
     /// renders the video. Use the image as `<image href={image.href()} .../>`, or as the
-    /// texture of a 3D material (`fframes_3d::Texture::from_image`). The tree is scaled to
+    /// texture of a 3D material (`three_d::Texture::from_image`). The tree is scaled to
     /// fill the image, over a transparent background. So `svgr` is a whole `<svg>` document
     /// with a `width` and a `height`.
     ///
