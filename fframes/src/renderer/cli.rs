@@ -968,6 +968,10 @@ fn timeline<'a, 'm: 'a, V: Video>(json: bool, previewer: &Previewer<'a, 'm, V>) 
             if mix.duck.is_some() {
                 extra.push("ducked".into());
             }
+            let processing = track_processing(mix.rate, &mix.effects);
+            if let Some(processing) = processing.strip_prefix(", ") {
+                extra.push(processing.to_owned());
+            }
             let _ = writeln!(
                 text,
                 "audio {:<28} {:>8.3}s..{:.3}s {}",
@@ -1159,6 +1163,28 @@ fn snapshots<'a, 'm: 'a, V: Video>(
     })
 }
 
+/// One time of `audio at`.
+#[derive(Serialize)]
+struct AudioAt {
+    spec: String,
+    frame: usize,
+    seconds: f64,
+    tracks: Vec<crate::ActiveTrack>,
+}
+
+/// `, rate 0.50, highpass 80 Hz Q 0.71, ...` for a track that has them.
+fn track_processing(rate: f32, effects: &[crate::Effect]) -> String {
+    let mut text = String::new();
+    #[expect(clippy::float_cmp, reason = "1.0 is the exact default")]
+    if rate != 1. {
+        let _ = write!(text, ", rate {rate:.2}");
+    }
+    for effect in effects {
+        let _ = write!(text, ", {effect}");
+    }
+    text
+}
+
 fn mixer_for<'a, 'm: 'a, V: Video>(
     previewer: &Previewer<'a, 'm, V>,
     range: std::ops::Range<usize>,
@@ -1302,43 +1328,34 @@ fn audio<'a, 'm: 'a, V: Video>(
             let mut results = Vec::new();
             for (spec, frame) in resolve_frames(previewer, &at)? {
                 let sample = (frame as f64 / V::FPS as f64 * sample_rate as f64).round() as usize;
-                results.push(serde_json::json!({
-                    "spec": spec,
-                    "frame": frame,
-                    "seconds": frame as f64 / V::FPS as f64,
-                    "tracks": mixer.active_tracks_at(sample),
-                }));
+                results.push(AudioAt {
+                    spec,
+                    frame,
+                    seconds: frame as f64 / V::FPS as f64,
+                    tracks: mixer.active_tracks_at(sample),
+                });
             }
             print(json, &results, || {
                 results
                     .iter()
                     .map(|r| {
-                        let mut text = format!(
-                            "{} ({:.3}s):",
-                            r["spec"].as_str().unwrap_or(""),
-                            r["seconds"].as_f64().unwrap_or(0.)
-                        );
-                        let tracks = r["tracks"].as_array().cloned().unwrap_or_default();
-                        if tracks.is_empty() {
+                        let mut text = format!("{} ({:.3}s):", r.spec, r.seconds);
+                        if r.tracks.is_empty() {
                             text.push_str(" silence");
                         }
-                        for t in tracks {
+                        for t in &r.tracks {
                             let _ = write!(
                                 text,
-                                "\n  {} at {:.3}s of the file, {:.1} dB{}{}",
-                                t["file"].as_str().unwrap_or(""),
-                                t["file_seconds"].as_f64().unwrap_or(0.),
-                                t["gain_db"].as_f64().unwrap_or(f64::NEG_INFINITY),
-                                if t["voice"].as_bool() == Some(true) {
-                                    ", voice"
-                                } else {
-                                    ""
-                                },
-                                match t["ducked_db"].as_f64() {
-                                    Some(d) if d < -0.05 => format!(", ducked {d:.1} dB"),
-                                    _ => String::new(),
-                                }
+                                "\n  {} at {:.3}s of the file, {:.1} dB",
+                                t.file, t.file_seconds, t.gain_db
                             );
+                            if t.voice {
+                                text.push_str(", voice");
+                            }
+                            if t.ducked_db < -0.05 {
+                                let _ = write!(text, ", ducked {:.1} dB", t.ducked_db);
+                            }
+                            text.push_str(&track_processing(t.rate, &t.effects));
                         }
                         text
                     })
