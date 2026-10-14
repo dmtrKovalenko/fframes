@@ -124,6 +124,49 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         }
     }
 
+    /// Renders `svgr` into an image of `width` x `height` pixels with the backend that
+    /// renders the video. Use the image as `<image href={image.href()} .../>`, or as the
+    /// texture of a 3D material (`fframes_3d::Texture::from_image`). The tree is scaled to
+    /// fill the image, over a transparent background. So `svgr` is a whole `<svg>` document
+    /// with a `width` and a `height`.
+    ///
+    /// The images nest: an svgr image can show a 3D render that shows another svgr image.
+    ///
+    /// - The CPU backend and the Skia CPU backend return pixels. The Skia GPU backends
+    ///   return pixels or, on Vulkan with the `wgpu` feature, a texture that stays on the GPU.
+    /// - An svgr tree without `{}` renders once per render and size. Later calls return the
+    ///   same image.
+    /// - `None` in the editor, and when the tree does not convert (the problem is logged).
+    /// - `<image href>` of the image needs the `compile-time-svgtree` feature.
+    ///
+    /// To show a [`Scene`](crate::Scene) at its own time, render it into an `<svg>`.
+    /// `start_frame` is the frame of the video where the scene starts:
+    ///
+    /// ```rust,ignore
+    /// let local = Frame::clone_with_scene_offset(&frame, start_frame);
+    /// let screen = ctx.render_svgr(
+    ///     svgr!(<svg viewBox="0 0 1920 1080" width="1920" height="1080">
+    ///         {self.intro.render_frame(local, ctx)}
+    ///     </svg>),
+    ///     1024,
+    ///     576,
+    /// );
+    /// ```
+    pub fn render_svgr(
+        &self,
+        svgr: Svgr<'_>,
+        width: u32,
+        height: u32,
+    ) -> Option<ImageData<'static>> {
+        #[cfg(not(target_arch = "wasm32"))]
+        return crate::svgr_image::render_svgr(svgr, width, height);
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = (svgr, width, height);
+            None
+        }
+    }
+
     /// Finds the scene layout and duration information based on the layout of defined in `define_scenes` of the `Video`.
     pub fn get_scene_info<T: crate::Scene>(&self, scene: &T) -> Option<&crate::SceneInfo> {
         let scenes = self.scenes.as_ref()?;
