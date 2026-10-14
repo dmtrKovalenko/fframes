@@ -474,7 +474,8 @@ impl<'a> From<(&'a str, AudioDuration<'a>)> for AudioTrack<'a> {
 /// ```
 ///
 /// In this case audio 1 will be playing from second 10 to second 20 and audio 2 will be playing from second 5 to the end of file.
-/// Use `AudioTrack` entries instead of tuples for gain, pan, fades, offsets and ducking.
+/// Use `AudioTrack` entries instead of tuples for gain, pan, fades, offsets, ducking, rate and
+/// effects.
 pub struct AudioMap<'a>(pub Option<Vec<AudioTrack<'a>>>);
 
 /// A track with its position on the timeline resolved.

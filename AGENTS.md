@@ -545,8 +545,38 @@ AudioMap::from([
   range renders) get 5 ms de-click fades.
 - Verify without listening: `audio analyze` (integrated/short-term loudness in LUFS, true
   peak, clipping, silent ranges, loudness per scene, `--waveform` PNG with scenes and cues)
-  and `audio at 4.2s` (which files play, where in the file, at what level, ducked or not).
-  Aim for about -14 LUFS integrated for web video and a true peak below -1 dBTP.
+  and `audio at 4.2s` (which files play, where in the file, at what level, ducked or not,
+  rate and effects). Aim for about -14 LUFS integrated for web video and a true peak below
+  -1 dBTP.
+
+Per-track effects master the takes inside `fn audio`, no ffmpeg pass before the mix:
+
+```rust
+use fframes::{AudioTrack, AudioTimestamp::*, Compressor};
+
+AudioTrack::new("voice.wav", Second(1.)..Eof)
+    .highpass(80.)                         // 12 dB/oct, Butterworth; twice for 24 dB/oct
+    .peak(3000., 2.5, 1.2)                 // hz, db, q
+    .high_shelf(9000., -3.)                // hz, db (half of db at hz); also low_shelf
+    .compress(Compressor { threshold_db: -24., ratio: 3., ..Default::default() })
+    .normalize_lufs(-16.)                  // integrated loudness of the played part
+    .gain_db(-1.)                          // applies after the effects
+    .voice();
+AudioTrack::new("whoosh.wav", Second(4.)..Eof).rate(0.8).width(1.5); // a lower, longer, wider variation
+```
+
+- Order: the file is read at `rate`, then the effects run in the order of the calls, then
+  gain, pan, fades and ducking. Filters run at the mix rate, after the rate change.
+- `rate(f)` changes speed and pitch together like a tape. A range that ends at `Eof` follows
+  the new length. `offset` stays in seconds of the file.
+- `compress`: feed-forward, peak detector, both channels linked; `Compressor::default()` is
+  -18 dB, 3:1, 10 ms attack, 150 ms release, 6 dB soft knee.
+- `width(w)`: mid/side, 0 mono, 1 unchanged, above 1 wider; the mono sum does not change. A
+  mono file becomes stereo (a delayed, high-passed side signal).
+- `normalize_lufs` measures after the effects before it, so put it after `compress`.
+- The mixer renders a track with effects once, when it is built (one per render, preview or
+  `audio` command). It keeps the played part in memory at the mix rate: 23 MB per stereo
+  minute at 48 kHz. Tracks without effects are read from the file as before.
 
 ### 8. Render it: `fframes::cli`
 
