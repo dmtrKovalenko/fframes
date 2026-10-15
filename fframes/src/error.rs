@@ -21,6 +21,8 @@ pub enum FFramesError {
     RequiredAudioNotFound(String),
     PoisonedLock,
     MediaError(crate::media::FFramesMediaError),
+    /// A named timeline marker could not be resolved.
+    InvalidMarker(String),
 }
 
 impl Error for FFramesError {}
@@ -39,6 +41,7 @@ impl fmt::Display for FFramesError {
                 FFramesError::MediaError(err) => format!("Media parsing error: {err:?}"),
                 FFramesError::RequiredAudioNotFound(audio) => format!("The required audio for resolving video duration {audio} was not found."),
                 FFramesError::PoisonedLock => "Some lock was poisoned".to_owned(),
+                FFramesError::InvalidMarker(message) => format!("Invalid timeline marker: {message}"),
             }
         )
     }

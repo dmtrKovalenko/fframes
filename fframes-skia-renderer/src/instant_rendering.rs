@@ -131,6 +131,7 @@ impl<TBackend: SkiaBackend> SkiaFFramesRenderer<'_, TBackend> {
             duration_in_frames: fframes_ctx.runtime.timeline.duration_in_frames,
             mode: fframes::FFramesMode::Editor,
             scenes: fframes_ctx.runtime.timeline.scenes.as_ref(),
+            markers: &fframes_ctx.runtime.timeline.markers,
             media_source: media,
             font_source: Some(&fframes_ctx.runtime.font_source),
         };

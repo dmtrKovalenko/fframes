@@ -81,6 +81,7 @@ pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> 
     break_lines_cache: fframes::TextCache,
     fonts: Mutex<wasm_font_source::WasmFontSource>,
     scenes: Mutex<Option<fframes::ResolvedScenesTimeline<'static>>>,
+    markers: Mutex<Vec<fframes::TimelineMarker>>,
     time_base: Mutex<Option<fframes::TimeBase>>,
     media_provider: Mutex<fframes::DynamicMediaProvider<'static>>,
     video_decoders: fframes::VideoDecodersWorker,
@@ -96,6 +97,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             break_lines_cache: fframes::TextCache::new(20).unwrap(),
             fonts: Mutex::new(wasm_font_source::WasmFontSource::new()),
             scenes: Mutex::new(None),
+            markers: Mutex::new(Vec::new()),
             time_base: Mutex::new(None),
             media_provider: Mutex::new(fframes::DynamicMediaProvider::new(
                 HashMap::new(),
@@ -127,7 +129,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
         self.time_base.lock().unwrap().replace(tb);
         let video_ctx = self.video_ctx.borrow();
 
-        let (duration, scenes, audio_map) = wasm_audio::prepare_video_with_audio(
+        let (duration, scenes, audio_map, markers) = wasm_audio::prepare_video_with_audio(
             &video_ctx.video,
             &tb,
             self.static_media,
@@ -152,11 +154,13 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             tb.fps,
             audio_map,
             scenes.as_ref(),
+            markers.clone(),
         );
 
         if let Some(scenes_data) = scenes {
             self.scenes.lock().unwrap().replace(scenes_data.clone());
         }
+        *self.markers.lock().unwrap() = markers;
 
         Ok(video_metadata)
     }
@@ -271,6 +275,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     time_base,
                     font_source: Some(self.fonts.lock().unwrap().deref()),
                     scenes: self.scenes.lock().unwrap().as_ref(),
+                    markers: self.markers.lock().unwrap().as_slice(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
                     abort_signal: None,
                 },
@@ -312,6 +317,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     duration_in_frames: *self.duration_in_frames.lock().unwrap(),
                     mode: FFramesMode::EditorTimelinePreview,
                     scenes: self.scenes.lock().unwrap().as_ref(),
+                    markers: self.markers.lock().unwrap().as_slice(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
                     font_source: Some(self.fonts.lock().unwrap().deref()),
                     abort_signal: None,
