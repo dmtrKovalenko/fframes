@@ -52,6 +52,13 @@ impl Video for FakeVideo {
         ])
     }
 
+    fn markers(&self) -> crate::Markers<'_> {
+        crate::Markers::from([
+            ("title-hit", crate::Duration::Seconds(1.5)),
+            ("halfway", crate::Duration::Seconds(30.)),
+        ])
+    }
+
     fn render_frame(&self, _: Frame, _: &FFramesContext) -> crate::Svgr<'_> {
         unimplemented!()
     }
@@ -72,6 +79,7 @@ fn test_audio_map_resolve() {
         &crate::ScenesWithAudio::new(&video.define_scenes()),
         &tb,
         &audio_map,
+        &video.markers(),
         |_| Ok(1.),
     )
     .unwrap();
@@ -112,4 +120,28 @@ fn test_audio_map_resolve() {
             )
         ]
     );
+}
+
+#[test]
+fn resolve_timeline_places_markers_on_the_frame_clock() {
+    let video = FakeVideo {};
+    let tb = crate::TimeBase {
+        sample_rate: 1000,
+        fps: 24,
+    };
+
+    let ResolvedRenderingTimeline { markers, .. } = resolve_timeline::<AudioTimelineSamples, _>(
+        &video.duration(),
+        &crate::ScenesWithAudio::new(&video.define_scenes()),
+        &tb,
+        &video.audio(),
+        &video.markers(),
+        |_| Ok(1.),
+    )
+    .unwrap();
+
+    assert_eq!(markers[0].name, "title-hit");
+    assert_eq!(markers[0].frame, 36);
+    assert_eq!(markers[1].name, "halfway");
+    assert_eq!(markers[1].frame, 720);
 }

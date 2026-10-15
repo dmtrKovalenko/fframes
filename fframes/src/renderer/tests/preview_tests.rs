@@ -120,3 +120,49 @@ fn inspect_reports_missing_media_and_empty_frames() {
     );
     assert!(kinds.iter().any(|d| matches!(d, Diagnostic::EmptyFrame)));
 }
+
+struct MarkedVideo;
+
+impl Video for MarkedVideo {
+    const FPS: usize = 10;
+    const WIDTH: usize = 40;
+    const HEIGHT: usize = 20;
+    const BACKGROUND_COLOR: Color = Color::BLACK;
+
+    fn duration(&self) -> crate::Duration<'_> {
+        crate::Duration::Seconds(2.0)
+    }
+
+    fn audio(&self) -> AudioMap<'_> {
+        AudioMap::none()
+    }
+
+    fn markers(&self) -> crate::Markers<'_> {
+        crate::Markers::from([("title-hit", crate::Duration::Seconds(0.5))])
+    }
+
+    fn render_frame<'a>(&'a self, _: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+        let marker = ctx.marker("title-hit").expect("title-hit");
+        assert_eq!(marker.frame, 5);
+        crate::svgr!(<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"></svg>)
+    }
+}
+
+#[test]
+fn timeline_resolves_and_reports_markers() {
+    let video = MarkedVideo;
+    let mut previewer = Previewer::new(&video, &RenderOptions::default()).unwrap();
+    assert_eq!(previewer.timeline().resolve_frame("title-hit").unwrap(), 5);
+    assert_eq!(
+        previewer.timeline().resolve_range("title-hit").unwrap(),
+        5..6
+    );
+
+    let report = previewer.timeline_report();
+    assert_eq!(report.markers.len(), 1);
+    assert_eq!(report.markers[0].name, "title-hit");
+    assert_eq!(report.markers[0].frame, 5);
+
+    let mut renderer = CpuFrameRenderer::default();
+    previewer.render(5, &mut renderer).unwrap();
+}

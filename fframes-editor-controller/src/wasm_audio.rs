@@ -1,7 +1,8 @@
 use fframes::error::FFramesError;
 use fframes::{
-    AudioTimelineFrames, Duration, ResolvedAudioMap, ResolvedRenderingTimeline,
-    ResolvedScenesTimeline, Scenes, ScenesWithAudio, StaticMediaProvider, TimeBase, Video,
+    AudioTimelineFrames, Duration, Markers, ResolvedAudioMap, ResolvedRenderingTimeline,
+    ResolvedScenesTimeline, Scenes, ScenesWithAudio, StaticMediaProvider, TimeBase, TimelineMarker,
+    Video,
 };
 use futures::future::join_all;
 use std::collections::HashMap;
@@ -61,6 +62,7 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     duration: &'a Duration<'a>,
     scene_audios: &'a ScenesWithAudio<'media>,
     global_audio_map: &'a fframes::AudioMap<'a>,
+    markers: &'a Markers<'a>,
     static_media: &'media TStaticMedia,
     resolve_video_duration: impl Fn(&str) -> Option<f32>,
 ) -> fframes::error::Result<HashMap<String, f64>> {
@@ -77,6 +79,7 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
     if let Some(duration_audios) = scene_audios.used_audio_files() {
         all_used_files.extend(duration_audios.into_iter());
     }
+    all_used_files.extend(markers.used_audio_files());
 
     // The editor registers video metadata while `prepare` is already
     // running, so a video that is not registered yet is measured through
@@ -86,6 +89,7 @@ async fn resolve_used_media_durations<'a, 'media: 'a, TStaticMedia: StaticMediaP
         .used_video_files()
         .into_iter()
         .chain(scene_audios.used_video_files())
+        .chain(Some(markers.used_video_files()))
         .flatten()
     {
         match resolve_video_duration(file) {
@@ -159,16 +163,19 @@ pub async fn prepare_video_with_audio<
     usize,
     Option<ResolvedScenesTimeline<'static>>,
     Option<ResolvedAudioMap<AudioTimelineFrames>>,
+    Vec<TimelineMarker>,
 ) {
     let video_duration = video.duration();
 
     let audio_map = video.audio();
+    let markers = video.markers();
     let scene_audios = ScenesWithAudio::new(scenes);
 
     let audio_durations = resolve_used_media_durations(
         &video_duration,
         &scene_audios,
         &audio_map,
+        &markers,
         static_media,
         resolve_video_duration,
     )
@@ -186,14 +193,16 @@ pub async fn prepare_video_with_audio<
         duration_in_frames: duration,
         scenes,
         audio_map,
+        markers,
     } = fframes::resolve_timeline::<AudioTimelineFrames, _>(
         &video_duration,
         &scene_audios,
         tb,
         &audio_map,
+        &markers,
         resolve_audio_duration_in_frames,
     )
     .unwrap();
 
-    (duration, scenes, audio_map)
+    (duration, scenes, audio_map, markers)
 }
