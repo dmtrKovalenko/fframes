@@ -120,3 +120,41 @@ footer.studio-footer{display:block;margin:0;padding:0;overflow:hidden;text-align
 header nav{align-items:center;gap:32px;margin-left:auto;padding-left:32px}
 header nav a{white-space:nowrap;flex-shrink:0}
 @media(max-width:600px){header nav{gap:18px;padding-left:20px}}
+
+/* Header: the studio name before the film title, a link back to the homepage. */
+.wordmark{display:inline-flex;align-items:baseline;gap:12px}
+.wordmark .wordmark-studio{font-size:13px;font-weight:400;letter-spacing:0;color:var(--muted);vertical-align:baseline;margin:0;padding-right:12px;border-right:1px solid var(--line);transition:color .2s}
+.wordmark:hover .wordmark-studio{color:var(--warm)}
+
+/* End screen over the player after the film finishes. */
+.player-end{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;padding:20px;text-align:center;background:radial-gradient(ellipse at center,#10100fcc,#10100ff2 70%);animation:end-in .6s ease both}
+.player-end[hidden]{display:none}
+.player-end-title{margin:0;font-size:clamp(34px,5vw,72px);letter-spacing:-2px;line-height:1}
+.player-end-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+.player-end .watch-button{gap:12px}
+.ghost-button{display:inline-flex;align-items:center;gap:12px;padding:17px 22px;border:1px solid #ffffff55;border-radius:2px;background:#10100f80;font-size:14px;transition:border-color .25s,color .25s}
+.ghost-button:hover{border-color:var(--warm);color:var(--warm)}
+.ghost-button .icon{width:18px;height:18px}
+.player-wrap.ended .player-close{z-index:5}
+@keyframes end-in{from{opacity:0}to{opacity:1}}
+@media(max-width:600px){.player-end{gap:16px}.player-end-title{font-size:30px}.player-end-actions{gap:8px}.player-end .watch-button,.ghost-button{padding:11px 14px;font-size:12px}.player-end .ghost-button:last-child{display:none}}
+
+/* Closing call to action: make your own film. */
+.make{position:relative;max-width:760px;margin:0 auto;text-align:left}
+.make-lead{text-align:center;font-size:clamp(18px,1.7vw,22px);line-height:1.5;margin:0 0 34px}
+.make-commands{display:grid;gap:18px}
+.make-label{display:block;font:12px/1.5 monospace;letter-spacing:.3px;color:var(--muted);margin-bottom:8px}
+.command{position:relative;border:1px solid var(--line);background:#0b0b0acc;backdrop-filter:blur(6px)}
+.command pre{padding:18px 64px 18px 20px;font:14px/1.75 monospace;white-space:pre;overflow-x:auto}
+.command .prompt{color:var(--warm);user-select:none}
+.copy{position:absolute;top:10px;right:10px;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:2px;background:#10100f;color:var(--muted);transition:color .2s,border-color .2s}
+.copy:hover{color:var(--ink);border-color:#ffffff55}
+.copy .icon{grid-area:1/1;width:17px;height:17px}
+.copy .done,.copy.copied .idle{display:none}
+.copy.copied .done{display:block;color:var(--warm)}
+.closing-links{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 40px;margin-top:44px}
+button.text-link{border:0;background:none;padding:0}
+.text-link{display:inline-flex;align-items:center;gap:10px;transition:color .2s}
+.text-link:hover{color:var(--warm)}
+.text-link .icon{margin-left:0;width:17px;height:17px}
+@media(max-width:600px){.command pre{font-size:12px;padding:15px 56px 15px 14px}.closing-links{flex-direction:column;align-items:center;gap:18px}}

@@ -25,25 +25,46 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Movie",
-  "@id": "https://fframes.studio/the-why#movie",
-  "name": "The Why",
-  "url": "https://fframes.studio/the-why",
-  "description": "Our first short film made with code and AI. Watch The Why: 98 seconds about engineers and purpose, rendered in Rust with fframes.",
-  "image": "https://fframes.studio/the-why/assets/the-why-poster.jpg",
-  "duration": "PT1M38S",
-  "inLanguage": "en",
-  "isAccessibleForFree": true
+  "@graph": [
+    {
+      "@type": "Movie",
+      "@id": "https://fframes.studio/the-why#movie",
+      "name": "The Why",
+      "url": "https://fframes.studio/the-why",
+      "description": "Our first short film made with code and AI. Watch The Why: 98 seconds about engineers and purpose, rendered in Rust with fframes.",
+      "image": "https://fframes.studio/the-why/assets/the-why-poster.jpg",
+      "duration": "PT1M38S",
+      "inLanguage": "en",
+      "isAccessibleForFree": true,
+      "video": { "@id": "https://fframes.studio/the-why#video" }
+    },
+    {
+      "@type": "VideoObject",
+      "@id": "https://fframes.studio/the-why#video",
+      "name": "The Why",
+      "description": "Our first short film made with code and AI. 98 seconds about engineers and purpose, rendered in Rust with fframes.",
+      "thumbnailUrl": "https://fframes.studio/the-why/assets/the-why-poster.jpg",
+      "uploadDate": "2026-10-14",
+      "duration": "PT1M38S",
+      "contentUrl": "https://fframes.studio/the-why/assets/hls/master.m3u8",
+      "embedUrl": "https://fframes.studio/the-why",
+      "inLanguage": "en",
+      "isFamilyFriendly": true
+    }
+  ]
 }
 </script>
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2310100f'/%3E%3Cpath d='M8 8l8 10 8-10M16 18v8' fill='none' stroke='%23f7b76d' stroke-width='3'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css"><script src="vendor/hls.min.js" defer></script><script src="app.js" defer></script>
+<link rel="preload" as="image" href="assets/hero.jpg" fetchpriority="high">
+<link rel="stylesheet" href="style.css"><script src="app.js" defer></script>
+<script defer data-domain="fframes.studio" src="https://plausible.io/js/script.js"></script>
+<script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };</script>
 </head>
 <body>
 <a class="skip" href="#film">Skip to film</a>
 <div class="reading-progress" aria-hidden="true"></div>
-<header><a class="wordmark" href="/" aria-label="Visit fframes.studio" target="_blank" rel="noopener noreferrer">THE WHY</a><nav aria-label="Main navigation"><a href="#film">The film</a><a href="#making">Behind the frames</a><a class="source-link" href="https://github.com/dmtrKovalenko/fframes/tree/the-why-mac-render/examples/the-why" target="_blank" rel="noopener noreferrer">Source code <svg
+<header><a class="wordmark" href="/" aria-label="THE WHY, a film by fframes. Visit fframes.studio"><span class="wordmark-studio">fframes</span>THE WHY</a><nav aria-label="Main navigation"><a href="#film">The film</a><a href="#making">Behind the frames</a><a class="source-link" href="https://github.com/dmtrKovalenko/fframes/tree/the-why-mac-render/examples/the-why" target="_blank" rel="noopener noreferrer">Source code <svg
   class="icon icon-arrow-up-right" aria-hidden="true" focusable="false"
   xmlns="http://www.w3.org/2000/svg"
   width="24"
@@ -129,7 +150,7 @@
 >
   <polygon points="6 3 20 12 6 21 6 3" />
 </svg>
-</button></div></div>
+</button></div><div class="player-end" id="player-end" hidden><p class="player-end-title">The why is <em>yours.</em></p><div class="player-end-actions"><button class="watch-button" id="replay-film"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Watch again</span></button><button class="ghost-button" data-share><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg><span>Share the film</span></button><a class="ghost-button" href="#make"><span>Make your own</span><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></a></div></div></div>
 <p id="player-status" class="player-status" role="status"></p>
 
 </section>
@@ -211,22 +232,13 @@
   <polygon points="6 3 20 12 6 21 6 3" />
 </svg>
 </span></button></div><h3>Motion capture.</h3><p>Real motion-capture datasets record how people walk, kneel and shift their weight.</p></article></div></section>
-<section class="closing" aria-labelledby="closing-title"><div class="closing-orbit" aria-hidden="true"><i></i><i></i><i></i></div><h2 id="closing-title" class="reveal">The why<br>is <em>yours.</em></h2><div class="light-line" aria-hidden="true"></div><a class="text-link reveal" href="https://github.com/dmtrKovalenko/fframes/tree/the-why-mac-render/examples/the-why" target="_blank" rel="noopener noreferrer">See how it’s built <svg
-  class="icon icon-arrow-up-right" aria-hidden="true" focusable="false"
-  xmlns="http://www.w3.org/2000/svg"
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <path d="M7 7h10v10" />
-  <path d="M7 17 17 7" />
-</svg>
-</a></section>
+<section class="closing" aria-labelledby="closing-title"><div class="closing-orbit" aria-hidden="true"><i></i><i></i><i></i></div><h2 id="closing-title" class="reveal">The why<br>is <em>yours.</em></h2><div class="light-line" aria-hidden="true"></div>
+<div class="make reveal" id="make"><p class="make-lead">Write your own film in Rust. Or ask your agent to.</p>
+<div class="make-commands"><div class="make-command"><span class="make-label">With your agent</span><div class="command"><pre><code><span class="prompt">$ </span>npx skills add https://fframes.studio</code></pre><button class="copy" type="button" aria-label="Copy command"><svg class="icon idle" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="icon done" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></div></div>
+<div class="make-command"><span class="make-label">With cargo</span><div class="command"><pre><code><span class="prompt">$ </span>cargo install --locked cargo-fframes \
+    --git https://github.com/dmtrKovalenko/fframes
+<span class="prompt">$ </span>cargo fframes new my-film</code></pre><button class="copy" type="button" aria-label="Copy command"><svg class="icon idle" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="icon done" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></div></div></div>
+<div class="closing-links"><a class="text-link" href="https://github.com/dmtrKovalenko/fframes/tree/the-why-mac-render/examples/the-why" target="_blank" rel="noopener noreferrer">See how it’s built <svg class="icon icon-arrow-up-right" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a><button class="text-link" data-share>Share the film <svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg></button><a class="text-link" href="https://github.com/dmtrKovalenko/fframes" target="_blank" rel="noopener noreferrer">Star fframes on GitHub <svg class="icon icon-arrow-up-right" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a></div></div></section>
 <template id="close-icon">
 <svg
   class="icon" aria-hidden="true" focusable="false"
@@ -244,6 +256,7 @@
   <path d="m6 6 12 12" />
 </svg>
 </template></main><footer class="studio-footer"><div class="footer-wrap"><ul class="footer-links">
+        <li><a href="/">fframes.studio</a></li>
         <li><a href="https://github.com/dmtrKovalenko/fframes" target="_blank" rel="noopener noreferrer">GitHub</a></li>
         <li><a href="https://x.com/fframes_rust" target="_blank" rel="noopener noreferrer">X</a></li>
         <li><a href="https://discord.gg/5UaUVewRe" target="_blank" rel="noopener noreferrer">Discord</a></li>
