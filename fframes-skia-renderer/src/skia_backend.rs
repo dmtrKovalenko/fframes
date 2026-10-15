@@ -34,6 +34,15 @@ impl<'a, TSkiaBackend: SkiaBackend> SkiaFFramesRenderer<'a, TSkiaBackend> {
         }
     }
 
+    /// The rasterizer of `FFramesContext::render_svgr` for renders with this backend.
+    pub(crate) fn svgr_rasterizer_impl(&self) -> crate::SkiaSvgrRasterizer<'a, TSkiaBackend> {
+        crate::SkiaSvgrRasterizer::new(
+            self.backend,
+            self.pipeline_config.cache,
+            self.pipeline_config.gpu_contexts().max(2),
+        )
+    }
+
     /// How rendered frames are handed to the video encoder. By default the fastest way the
     /// backend and the encoder support is used, see [`SkiaFrameExport`].
     pub fn frame_export(mut self, frame_export: SkiaFrameExport) -> Self {
@@ -54,6 +63,11 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
             crate::SkiaFrameRenderer::new(self.backend)
                 .with_cache_config(self.pipeline_config.cache),
         )
+    }
+
+    /// Skia renders the trees of `FFramesContext::render_svgr`, see [`crate::SkiaSvgrRasterizer`].
+    fn svgr_rasterizer(&self) -> Option<Box<dyn fframes::SvgrRasterizer + '_>> {
+        Some(Box::new(self.svgr_rasterizer_impl()))
     }
 
     fn negotiate_encoder_input(
@@ -85,11 +99,11 @@ impl<TBackend: SkiaBackend> FFramesRenderBackend for SkiaFFramesRenderer<'_, TBa
     ) -> FFramesRendererResult<Vec<u8>> {
         let mut converter_cache =
             usvgr::Cache::new_with_text_cache(self.pipeline_config.cache.text_capacity);
-        let rtree = fframes::render_frame_guarded(video, frame, &ctx)?.into_svg_tree(
-            usvg_options,
-            &mut converter_cache,
-            font_db,
-        )?;
+        let svgr_images = fframes::SvgrImages::new(self.svgr_rasterizer());
+        let svgr = svgr_images.enter(usvg_options, font_db, || {
+            fframes::render_frame_guarded(video, frame, &ctx)
+        })?;
+        let rtree = svgr.into_svg_tree(usvg_options, &mut converter_cache, font_db)?;
 
         let frame = crate::SkiaFrameRenderer::new(self.backend)
             .with_cache_config(self.pipeline_config.cache)

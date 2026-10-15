@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use glam::{Vec2, Vec4};
 
@@ -7,14 +7,16 @@ use crate::color::{linear_to_srgb, srgb_to_linear};
 
 /// An RGBA8 image that materials sample. The image repeats outside `0..1`. Sampling is
 /// trilinear between mipmap levels that match the pixel footprint, so fine detail (floor
-/// tiles, text) does not shimmer.
+/// tiles, text) does not shimmer. Clones share the image.
 #[derive(Clone)]
 pub struct Texture {
     pub width: u32,
     pub height: u32,
-    /// Mipmap levels. Level 0 is the image. Each next level has half the size, down to one
-    /// texel.
-    levels: Vec<Level>,
+    levels: Arc<Levels>,
+    /// The image the texture comes from. While it lives, the backend does not draw into its
+    /// texture on the GPU again, see [`Levels::layer`].
+    #[cfg(not(target_arch = "wasm32"))]
+    _image: Option<Arc<fframes::usvgr::PreloadedImageData>>,
     /// True for color data. The texture keeps it as sRGB and converts it to linear when it
     /// samples it. False for linear data such as metalness and roughness.
     pub srgb: bool,
@@ -22,6 +24,37 @@ pub struct Texture {
     pub repeat: Vec2,
     /// UV offset applied before sampling, after `repeat`.
     pub offset: Vec2,
+}
+
+/// The mipmap levels of a texture. Level 0 is the image. Each next level has half the size,
+/// down to one texel.
+pub(crate) struct Levels {
+    cpu: OnceLock<Vec<Level>>,
+    /// The width and the height of level 0.
+    size: (u32, u32),
+    /// The texture on the GPU that the image is (feature `gpu`): an svgr image or a 3D
+    /// render that stays on the GPU. The GPU renderer makes the levels from it on the GPU.
+    /// The CPU levels are its pixels, read back on first use. It is weak: the layer and its
+    /// device go with the image and with the backend.
+    #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+    layer: Option<std::sync::Weak<fframes::WgpuLayer>>,
+}
+
+impl Levels {
+    fn cpu(levels: Vec<Level>) -> Arc<Self> {
+        Arc::new(Self {
+            size: (levels[0].width, levels[0].height),
+            cpu: OnceLock::from(levels),
+            #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+            layer: None,
+        })
+    }
+
+    /// The texture on the GPU that the levels come from.
+    #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+    pub(crate) fn layer(&self) -> Option<Arc<fframes::WgpuLayer>> {
+        self.layer.as_ref()?.upgrade()
+    }
 }
 
 #[derive(Clone)]
@@ -37,7 +70,7 @@ impl std::fmt::Debug for Texture {
             .field("width", &self.width)
             .field("height", &self.height)
             .field("srgb", &self.srgb)
-            .field("levels", &self.levels.len())
+            .field("levels", &self.cpu_levels().len())
             .finish_non_exhaustive()
     }
 }
@@ -68,28 +101,37 @@ impl Texture {
         ))
     }
 
-    /// A color texture from an fframes image: a media file, a decoded video frame, or a
-    /// rendered frame of another video. Use a new texture for each frame of a video, so a
-    /// screen in the scene plays it. Resize large frames first (`into_resized_image`), because
-    /// the texture makes its mipmap levels on the CPU.
+    /// A color texture from an fframes image: a media file, a decoded video frame, a
+    /// rendered frame of another video, an svgr tree from `ctx.render_svgr`, or a 3D render.
+    /// Use a new texture for each frame of a video, so a screen in the scene plays it.
+    ///
+    /// The texture makes its mipmap levels on the CPU, once for each image: a texture of
+    /// the same image again (a static svgr tree, a media file) reuses them. Resize large
+    /// video frames first (`into_resized_image`). An image that stays on the GPU (an svgr
+    /// image or a 3D render on the Skia Vulkan backend with the `wgpu` feature) gets its
+    /// levels on the GPU with the `gpu` feature and does not leave the GPU.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn from_image(image: &fframes::media::ImageData<'_>) -> Self {
         let source = &image.image;
-        // fframes keeps premultiplied alpha; the texture keeps straight alpha
-        let rgba: Vec<u8> = source
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .flat_map(|&[r, g, b, a]| match a {
-                0 | 255 => [r, g, b, a],
-                _ => {
-                    let straight = |c: u8| (u32::from(c) * 255 / u32::from(a)).min(255) as u8;
-                    [straight(r), straight(g), straight(b), a]
-                }
+        let levels = images::levels(source, || {
+            #[cfg(feature = "gpu")]
+            if let Some(layer) = fframes::resolve_wgpu_layer(source) {
+                return Arc::new(Levels {
+                    cpu: OnceLock::new(),
+                    layer: Some(Arc::downgrade(&layer)),
+                    size: (layer.texture().width(), layer.texture().height()),
+                });
+            }
+            // an image on the GPU without the `gpu` feature is read back
+            Levels::cpu(match fframes::image_pixels(source) {
+                Some(pixels) => levels_of_premultiplied(&pixels, true),
+                None => transparent(),
             })
-            .collect();
-        Self::from_rgba8(source.width, source.height, &rgba, true)
+        });
+        Self {
+            _image: Some(Arc::clone(source)),
+            ..Self::with_levels(levels, true)
+        }
     }
 
     /// Decodes a PNG, JPEG or WebP image of linear data: a normal, roughness, metalness or
@@ -150,30 +192,45 @@ impl Texture {
     }
 
     fn from_level(level: Level, srgb: bool) -> Self {
-        let (width, height) = (level.width, level.height);
-        let mut levels = vec![level];
-        while let Some(last) = levels.last()
-            && (last.width > 1 || last.height > 1)
-        {
-            let next = downsample(last, srgb);
-            levels.push(next);
-        }
+        Self::with_levels(Levels::cpu(mip_chain(level, srgb)), srgb)
+    }
+
+    fn with_levels(levels: Arc<Levels>, srgb: bool) -> Self {
         Self {
-            width,
-            height,
+            width: levels.size.0,
+            height: levels.size.1,
             levels,
+            #[cfg(not(target_arch = "wasm32"))]
+            _image: None,
             srgb,
             repeat: Vec2::ONE,
             offset: Vec2::ZERO,
         }
     }
 
+    /// The mipmap levels. Clones of the texture share them.
+    #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+    pub(crate) fn shared_levels(&self) -> &Arc<Levels> {
+        &self.levels
+    }
+
     /// The mipmap levels as width, height and RGBA8 texels, largest first.
     #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
     pub(crate) fn levels(&self) -> impl Iterator<Item = (u32, u32, &[[u8; 4]])> {
-        self.levels
+        self.cpu_levels()
             .iter()
             .map(|l| (l.width, l.height, l.data.as_slice()))
+    }
+
+    /// The mipmap levels on the CPU. A texture on the GPU reads them back on first use.
+    fn cpu_levels(&self) -> &[Level] {
+        self.levels.cpu.get_or_init(|| {
+            #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+            if let Some(pixels) = self.levels.layer().and_then(|l| l.pixels()) {
+                return levels_of_premultiplied(&pixels, self.srgb);
+            }
+            transparent()
+        })
     }
 
     /// Sets how many times the texture repeats along U and V.
@@ -191,19 +248,20 @@ impl Texture {
     /// half the size. Returns linear RGBA with straight alpha.
     pub fn sample_lod(&self, uv: Vec2, lod: f32) -> Vec4 {
         let uv = uv * self.repeat + self.offset;
-        let max = (self.levels.len() - 1) as f32;
+        let levels = self.cpu_levels();
+        let max = (levels.len() - 1) as f32;
         let lod = if lod.is_finite() {
             lod.clamp(0.0, max)
         } else {
             0.0
         };
         let l0 = lod.floor() as usize;
-        let a = self.bilinear(&self.levels[l0], uv);
+        let a = self.bilinear(&levels[l0], uv);
         let f = lod - l0 as f32;
-        if f < 1e-3 || l0 + 1 >= self.levels.len() {
+        if f < 1e-3 || l0 + 1 >= levels.len() {
             return a;
         }
-        a.lerp(self.bilinear(&self.levels[l0 + 1], uv), f)
+        a.lerp(self.bilinear(&levels[l0 + 1], uv), f)
     }
 
     /// Anisotropic sample like the GPU sampler (`anisotropy_clamp` 8). `dx` and `dy` are the
@@ -249,6 +307,105 @@ impl Texture {
         let top = texel(xi, yi).lerp(texel(xi1, yi), fx);
         let bottom = texel(xi, yi1).lerp(texel(xi1, yi1), fx);
         top.lerp(bottom, fy)
+    }
+}
+
+/// One transparent texel, for an image that has no pixels to read.
+#[cfg(not(target_arch = "wasm32"))]
+fn transparent() -> Vec<Level> {
+    vec![Level {
+        width: 1,
+        height: 1,
+        data: vec![[0; 4]],
+    }]
+}
+
+/// Level 0 and the levels below it.
+fn mip_chain(level: Level, srgb: bool) -> Vec<Level> {
+    let mut levels = vec![level];
+    while let Some(last) = levels.last()
+        && (last.width > 1 || last.height > 1)
+    {
+        let next = downsample(last, srgb);
+        levels.push(next);
+    }
+    levels
+}
+
+/// The levels of premultiplied pixels (how fframes keeps images). The texture keeps
+/// straight alpha.
+#[cfg(not(target_arch = "wasm32"))]
+fn levels_of_premultiplied(image: &fframes::usvgr::PreloadedImageData, srgb: bool) -> Vec<Level> {
+    let data = image
+        .data
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|&[r, g, b, a]| match a {
+            0 | 255 => [r, g, b, a],
+            _ => {
+                let straight = |c: u8| (u32::from(c) * 255 / u32::from(a)).min(255) as u8;
+                [straight(r), straight(g), straight(b), a]
+            }
+        })
+        .collect();
+    mip_chain(
+        Level {
+            width: image.width,
+            height: image.height,
+            data,
+        },
+        srgb,
+    )
+}
+
+/// The levels of the images that textures were made of, so that a texture of the same
+/// image again reuses them.
+#[cfg(not(target_arch = "wasm32"))]
+mod images {
+    use std::num::NonZeroUsize;
+    use std::sync::{Arc, Mutex, PoisonError, Weak};
+
+    use fframes::lru::LruCache;
+    use fframes::usvgr::PreloadedImageData;
+
+    use super::Levels;
+
+    /// Images that live for a whole render (media files) stay in the cache. This bounds
+    /// their memory.
+    const CAPACITY: NonZeroUsize = NonZeroUsize::new(32).unwrap();
+
+    type Entry = (Weak<PreloadedImageData>, Arc<Levels>);
+
+    static IMAGES: Mutex<Option<LruCache<usize, Entry>>> = Mutex::new(None);
+
+    /// The levels of `image`: the ones made before, or the ones `make` makes. The cache
+    /// holds the image weakly. The entry goes when the image is dropped.
+    pub(super) fn levels(
+        image: &Arc<PreloadedImageData>,
+        make: impl FnOnce() -> Arc<Levels>,
+    ) -> Arc<Levels> {
+        let key = Arc::as_ptr(image) as usize;
+        let found = {
+            let mut images = IMAGES.lock().unwrap_or_else(PoisonError::into_inner);
+            let images = images.get_or_insert_with(|| LruCache::new(CAPACITY));
+            let dead: Vec<usize> = (images.iter())
+                .filter(|(_, (image, _))| image.strong_count() == 0)
+                .map(|(key, _)| *key)
+                .collect();
+            for key in dead {
+                images.pop(&key);
+            }
+            images.get(&key).map(|(_, levels)| Arc::clone(levels))
+        };
+        // the levels are made without the lock, so other threads go on
+        found.unwrap_or_else(|| {
+            let levels = make();
+            (IMAGES.lock().unwrap_or_else(PoisonError::into_inner))
+                .get_or_insert_with(|| LruCache::new(CAPACITY))
+                .put(key, (Arc::downgrade(image), Arc::clone(&levels)));
+            levels
+        })
     }
 }
 

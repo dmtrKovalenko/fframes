@@ -278,6 +278,7 @@ pub struct Previewer<'a, 'media, TVideo: Video> {
     converter_text_cache_capacity: usize,
     text_cache: Option<TextCache>,
     decoders: VideoDecodersWorker,
+    svgr_images: crate::SvgrImages<'a>,
 }
 
 impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
@@ -322,7 +323,19 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
             converter_text_cache_capacity: 10,
             text_cache: TextCache::new(10),
             decoders: VideoDecodersWorker::new(2),
+            svgr_images: crate::SvgrImages::new(default_svgr_rasterizer()),
         })
+    }
+
+    /// Renders the trees of [`FFramesContext::render_svgr`] with `rasterizer`, usually
+    /// what [`super::FFramesRenderBackend::svgr_rasterizer`] of the backend returns. The
+    /// default is the CPU rasterizer.
+    pub fn with_svgr_rasterizer(
+        mut self,
+        rasterizer: Option<Box<dyn crate::SvgrRasterizer + 'a>>,
+    ) -> Self {
+        self.svgr_images = crate::SvgrImages::new(rasterizer);
+        self
     }
 
     /// Scenes and duration for resolving time specs like `Intro@1.5s`.
@@ -470,6 +483,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
             &self.context(),
             &self.usvg_options(fast_shapes),
             self.runtime.font_source.as_db_ref(),
+            &self.svgr_images,
             &mut worker,
             frame,
         );
@@ -504,6 +518,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
         let video = self.video;
         let (ctx, options) = (self.context(), self.usvg_options(fast_shapes));
         let font_db = self.runtime.font_source.as_db_ref();
+        let svgr_images = &self.svgr_images;
         let text_capacity = self.converter_text_cache_capacity;
         let next = std::sync::atomic::AtomicUsize::new(0);
         let stop = std::sync::atomic::AtomicBool::new(false);
@@ -525,7 +540,15 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
                             break;
                         }
                         let (tree, found) = diagnostics::collect(|| {
-                            convert(video, ctx, options, font_db, &mut worker, frames[index])
+                            convert(
+                                video,
+                                ctx,
+                                options,
+                                font_db,
+                                svgr_images,
+                                &mut worker,
+                                frames[index],
+                            )
                         });
                         if sender.send((index, tree, found)).is_err() {
                             break;
@@ -707,21 +730,33 @@ fn convert<'a, TVideo: Video>(
     ctx: &FFramesContext<'a, '_>,
     options: &usvgr::Options,
     font_db: &usvgr::fontdb::Database,
+    svgr_images: &crate::SvgrImages,
     worker: &mut Worker,
     frame: usize,
 ) -> FFramesRendererResult<usvgr::Tree> {
-    let svgr = super::render_frame_guarded(
-        video,
-        Frame::__internal_make_for_renderer(
-            frame,
-            frame,
-            TVideo::FPS,
-            worker.text_cache.clone(),
-            worker.decoders.clone(),
-        ),
-        ctx,
-    )?;
+    let svgr = svgr_images.enter(options, font_db, || {
+        super::render_frame_guarded(
+            video,
+            Frame::__internal_make_for_renderer(
+                frame,
+                frame,
+                TVideo::FPS,
+                worker.text_cache.clone(),
+                worker.decoders.clone(),
+            ),
+            ctx,
+        )
+    })?;
     Ok(svgr.into_svg_tree(options, &mut worker.converter_cache, font_db)?)
+}
+
+/// The CPU rasterizer when the crate has it.
+#[cfg_attr(feature = "cpu_renderer", allow(clippy::unnecessary_wraps))]
+pub(super) fn default_svgr_rasterizer() -> Option<Box<dyn crate::SvgrRasterizer + 'static>> {
+    #[cfg(feature = "cpu_renderer")]
+    return Some(Box::new(super::cpu::CpuSvgrRasterizer));
+    #[cfg(not(feature = "cpu_renderer"))]
+    None
 }
 
 /// The number of threads that convert frames for the CLI commands: a quarter of

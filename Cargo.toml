@@ -53,6 +53,7 @@ members = [
     "examples/arm",
     "examples/made-of-motion",
     "examples/shader-mode",
+    "examples/svg-in-3d",
 ]
 
 [workspace.lints.rust]

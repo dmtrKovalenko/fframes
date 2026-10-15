@@ -3881,6 +3881,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
+name = "svg-in-3d-example"
+version = "1.2.0"
+dependencies = [
+ "fframes",
+ "fframes-3d",
+ "fframes_skia_renderer",
+]
+
+[[package]]
 name = "svgr"
 version = "0.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

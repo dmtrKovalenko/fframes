@@ -1,0 +1,34 @@
+[package]
+name = "svg-in-3d-example"
+version = "1.2.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fframes.workspace = true
+fframes-3d = { workspace = true, features = ["gpu"] }
+
+# Skia on Metal on macOS, on Vulkan everywhere else.
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["metal"] }
+
+[target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
+# `wgpu`: the svgr images and the 3D render on the Vulkan device of Skia and stay on the GPU
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "wgpu"] }
+
+[features]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
+
+[lib]
+name = "svg_in_3d_example"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "svg-in-3d"
+path = "src/main.rs"
+required-features = ["renderer"]
+
+[lints]
+workspace = true
