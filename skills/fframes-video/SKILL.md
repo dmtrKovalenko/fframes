@@ -28,6 +28,46 @@ When matching a supplied video, first follow the reference-analysis guidance in
 `references/design.md`. Its cuts, pacing and motion take precedence over the design defaults
 below; fast edits and intentional black frames may be part of the requested result.
 
+## Two rules before anything else
+
+### Plan before you write code
+
+Do not open the template and start animating. First:
+
+1. Pin down the brief: who watches it and where (the platform decides format and length), the
+   one thing the viewer must remember, the tone, and the assets that exist (logo, product
+   shots, footage, music, voice-over). Ask the user for what is missing and matters. Never
+   invent product facts, numbers or quotes.
+2. When the video is cut to music or a voice, choose the sound first. Its tempo, beats and
+   phrases set the timing of everything else.
+3. Plan the motion design first, sync the motion design to the sound peaks to make a single
+   unique flow: where the elements will appear from, how they will transform. Try to create a
+   unique motion design for every scene so it looks unique and polished. The video shouldn't
+   look like a slide show.
+4. Try to reason about the feeling for the person that is watching the final video and adjust
+   every piece of design you do accordingly: the flow, tempo, beats, motion, and colors.
+
+### No slop
+
+Slop is a video made of default choices: it could be about any product with only the text
+changed, and viewers recognise it within a second. Unless the user asks for it, do not ship:
+
+- Template leftovers: the starter layout, colors, font or decorations, placeholder text, fake
+  logos, invented numbers.
+- Beat spam: the whole frame zooming, shaking or flashing on every beat. Sync small things to
+  the beat (a stroke, a word, a spark) and change the whole frame only at a few cuts.
+- One motion for everything: every element fading up 40 px with the same easing and duration.
+- Static scenes: one thing appears, holds and fades while nothing else moves.
+- Generic copy: "Introducing", "Unleash", "Seamless", "Next-level", three-word taglines
+  ("Fast. Simple. Powerful."). Write on-screen text the way a person would say it.
+- Text in general: the amount of text should be limited and on point.
+
+Instead, give every element a reason tied to the subject and remove what has none. Spend the
+effort on detail and motion rather than words: secondary motion, staggered entrances, drawn
+strokes, objects that react to each other, elements carried across cuts. Before showing the
+user anything, look at a strip and ask whether the video would still work for a different
+product with only the text changed. If it would, change the idea, not the colors.
+
 ## 1. Install
 
 Rust from <https://rustup.rs>, then the system libraries ffmpeg is built with:
@@ -263,8 +303,9 @@ the user listen in `$R preview`.
 
 1. `$R inspect --fail-on warning` passes, or the remaining warnings are understood entrances.
 2. A strip of every scene looks right and key frames are checked at full size.
-3. `$R audio analyze` shows sensible levels.
-4. For GPU work awaiting review, show the preview command and offer to run it at the relevant
+3. Nothing from the "No slop" list at the top of this file is left in any strip.
+4. `$R audio analyze` shows sensible levels.
+5. For GPU work awaiting review, show the preview command and offer to run it at the relevant
    second. When the user requests the final export, run `$R render -o out.mp4`, then confirm
    size, frame count and audio with
    `ffprobe -v error -show_entries stream=codec_type,width,height,nb_frames,duration out.mp4`.
