@@ -18,6 +18,11 @@ winit = "0.30"
 softbuffer = "0.4"
 cpal = { version = "0.18", optional = true }
 
+# The CAMetalLayer of the window, presented to by Metal and by Vulkan (MoltenVK).
+[target.'cfg(target_os = "macos")'.dependencies]
+raw-window-metal = { version = "1.1", optional = true }
+core-graphics-types = { version = "0.2", optional = true, default-features = false }
+
 [dev-dependencies]
 fframes = { workspace = true, features = ["compile-time-svgtree"] }
 hello-world-example = { path = "../examples/hello-world" }
@@ -27,8 +32,8 @@ default = ["vulkan", "audio"]
 audio = ["cpal"]
 # At least one GPU backend is required to build Skia with Ganesh. The player falls back
 # to the Skia CPU raster backend at runtime if the GPU backend can not be initialized.
-vulkan = ["fframes_skia_renderer/vulkan"]
-metal = ["fframes_skia_renderer/metal"]
+vulkan = ["fframes_skia_renderer/vulkan", "dep:raw-window-metal"]
+metal = ["fframes_skia_renderer/metal", "dep:raw-window-metal", "dep:core-graphics-types"]
 
 # See fframes-media/Cargo.toml: docs.rs cannot build FFmpeg from source.
 [package.metadata.docs.rs]

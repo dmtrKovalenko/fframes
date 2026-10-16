@@ -1,5 +1,6 @@
 //! Real-time native preview of an fframes [`Video`] in a desktop window, rendered by the
-//! Skia backend.
+//! Skia backend. The GPU backends draw into the swapchain of the window (a `CAMetalLayer`
+//! drawable or a Vulkan swapchain image) and no frame is read back.
 //!
 //! ```rust,ignore
 //! fn main() {

@@ -1,5 +1,6 @@
 use super::SkiaBackend;
 use crate::skia_backend::{SkiaFFramesRenderer, SkiaPipelineConfig};
+pub use ash;
 use ash::vk::{self, Handle};
 use ash::{Entry, Instance};
 use fframes::{FFramesRendererError, FFramesRendererResult};
@@ -8,7 +9,7 @@ use skia_safe::gpu::ganesh::context_options::{Enable, ShaderCacheStrategy};
 use skia_safe::gpu::ganesh::vk::backend_render_targets;
 use skia_safe::gpu::{self, DirectContext};
 use skia_safe::{Surface, gpu::SurfaceOrigin};
-use std::ffi::{CString, c_void};
+use std::ffi::{CStr, CString, c_void};
 use std::os::raw::c_char;
 
 #[allow(dead_code)]
@@ -42,12 +43,13 @@ struct ForeignDevice {
 }
 
 /// A Skia GPU context and the queue it submits to.
-pub(crate) struct VulkanContext {
-    pub(crate) gpu: DirectContext,
-    pub(crate) queue_lock: super::QueueLock,
-    pub(crate) queue: vk::Queue,
-    #[cfg_attr(not(feature = "vulkan-video"), allow(dead_code))]
-    pub(crate) queue_index: u32,
+pub struct VulkanContext {
+    pub gpu: DirectContext,
+    /// Held around everything that reaches [`Self::queue`]: Skia's submits, presents, readbacks.
+    pub queue_lock: super::QueueLock,
+    pub queue: vk::Queue,
+    /// The index of [`Self::queue`] in the queue family of the backend.
+    pub queue_index: u32,
 }
 
 unsafe impl Send for SkiaVulkanCtx {}
@@ -55,28 +57,42 @@ unsafe impl Sync for SkiaVulkanCtx {}
 
 impl SkiaVulkanCtx {
     pub fn new(width: usize, height: usize) -> FFramesRendererResult<Self> {
+        Self::new_with_instance_extensions(width, height, &[])
+    }
+
+    /// Like [`Self::new`], with more instance extensions enabled. Presenting to a window
+    /// needs the surface extension of its window system (`VK_KHR_xlib_surface`,
+    /// `VK_KHR_wayland_surface`, `VK_KHR_win32_surface`, `VK_EXT_metal_surface`, ...).
+    pub fn new_with_instance_extensions(
+        width: usize,
+        height: usize,
+        instance_extensions: &[&'static CStr],
+    ) -> FFramesRendererResult<Self> {
         unsafe {
             let entry = Entry::load().map_err(|e| {
                 FFramesRendererError::Skia(format!("Failed to load Vulkan entry: {e}"))
             })?;
 
+            let api_version = vulkan_version(&entry)?.map_or_else(
+                || vk::make_api_version(0, 1, 1, 0),
+                |(major, minor, patch)| {
+                    vk::make_api_version(0, major as u32, minor as u32, patch as u32)
+                },
+            );
+            let mut extension_names = vec![
+                vk::KHR_GET_PHYSICAL_DEVICE_PROPERTIES2_NAME,
+                vk::KHR_SURFACE_NAME,
+                vk::KHR_PORTABILITY_ENUMERATION_NAME,
+            ];
+            for name in instance_extensions {
+                if !extension_names.contains(name) {
+                    extension_names.push(*name);
+                }
+            }
             let instance: Instance = {
-                let api_version = vulkan_version(&entry)?.map_or_else(
-                    || vk::make_api_version(0, 1, 1, 0),
-                    |(major, minor, patch)| {
-                        vk::make_api_version(0, major as u32, minor as u32, patch as u32)
-                    },
-                );
-
                 let app_name = CString::new("fframes_skia_renderer").map_err(|e| {
                     FFramesRendererError::Skia(format!("Failed to create CString: {e}"))
                 })?;
-
-                let extension_names = [
-                    vk::KHR_GET_PHYSICAL_DEVICE_PROPERTIES2_NAME,
-                    vk::KHR_SURFACE_NAME,
-                    vk::KHR_PORTABILITY_ENUMERATION_NAME,
-                ];
 
                 let extension_name_ptrs: Vec<*const c_char> =
                     extension_names.iter().map(|name| name.as_ptr()).collect();
@@ -282,18 +298,29 @@ impl SkiaVulkanCtx {
         self.encoder_device.as_ref()
     }
 
-    #[cfg(feature = "vulkan-video")]
-    pub(crate) fn device(&self) -> &ash::Device {
+    pub fn entry(&self) -> &Entry {
+        &self.entry
+    }
+
+    pub fn instance(&self) -> &Instance {
+        &self.instance
+    }
+
+    pub fn physical_device(&self) -> vk::PhysicalDevice {
+        self.physical_device
+    }
+
+    pub fn device(&self) -> &ash::Device {
         &self.device
     }
 
-    #[cfg(feature = "vulkan-video")]
-    pub(crate) fn queue_family_index(&self) -> u32 {
+    /// The graphics queue family every context of this backend submits to.
+    pub fn queue_family_index(&self) -> u32 {
         self.queue_family_index
     }
 
     /// A new Skia context on the next queue of the device.
-    pub(crate) fn create_context(&self) -> FFramesRendererResult<VulkanContext> {
+    pub fn create_context(&self) -> FFramesRendererResult<VulkanContext> {
         unsafe {
             let get_proc = |of| {
                 let proc_ptr = match of {
