@@ -28,7 +28,7 @@ When matching a supplied video, first follow the reference-analysis guidance in
 `references/design.md`. Its cuts, pacing and motion take precedence over the design defaults
 below; fast edits and intentional black frames may be part of the requested result.
 
-## Two rules before anything else
+## Three rules before anything else
 
 ### Plan before you write code
 
@@ -67,6 +67,25 @@ effort on detail and motion rather than words: secondary motion, staggered entra
 strokes, objects that react to each other, elements carried across cuts. Before showing the
 user anything, look at a strip and ask whether the video would still work for a different
 product with only the text changed. If it would, change the idea, not the colors.
+
+### Preview, do not render
+
+Do not render the video after every change. A full render takes minutes and the user still has
+to open the file; the native preview window plays the video in real time with sound, from any
+second. With the Skia GPU backend (the default):
+
+- After a change, show the user the `preview` command in a copyable block, starting a second
+  or two before the change (`cargo run --release -p my-video -- preview 8.5s`), and offer to
+  run it. If the user already asked you to open the preview, run it in the background without
+  asking again.
+- Check the change yourself with `strip`, `frame` and `onion`. They write PNGs you can read in
+  seconds.
+- Run `render` only when the user asks for the file: a final export, an upload, something to
+  send. When an encoded sample is needed, `render <scene> --draft` encodes one scene at half
+  size.
+
+The CPU backend has no preview window. With it, show the user a `--draft` render of the
+changed scene instead of the full video.
 
 ## 1. Install
 
@@ -144,8 +163,8 @@ R() { cargo run --release -- "$@"; }
 snapshot or visual-regression tests, test modules, or test harnesses. Validate the video
 with `inspect`, rendered frames, contact sheets, audio checks and the native preview.
 
-**For the GPU backend, offer the native preview before a full render.** Do not render the
-whole video as a routine review step. Once the changes are ready to review:
+**Show the preview instead of rendering** (the "Preview, do not render" rule at the top). Once
+the changes are ready to review:
 
 1. Show a complete command in a copyable shell code block, using the actual project path and
    package name; do not require the user to have defined the `$R` helper. For example:
