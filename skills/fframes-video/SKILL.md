@@ -70,22 +70,13 @@ product with only the text changed. If it would, change the idea, not the colors
 
 ### Preview, do not render
 
-Do not render the video after every change. A full render takes minutes and the user still has
-to open the file; the native preview window plays the video in real time with sound, from any
-second. With the Skia GPU backend (the default):
+If the video uses the GPU render backend and a GPU is available on this machine, run the
+native preview (or show the user the command) instead of rendering the video again after
+every change:
 
-- After a change, show the user the `preview` command in a copyable block, starting a second
-  or two before the change (`cargo run --release -p my-video -- preview 8.5s`), and offer to
-  run it. If the user already asked you to open the preview, run it in the background without
-  asking again.
-- Check the change yourself with `strip`, `frame` and `onion`. They write PNGs you can read in
-  seconds.
-- Run `render` only when the user asks for the file: a final export, an upload, something to
-  send. When an encoded sample is needed, `render <scene> --draft` encodes one scene at half
-  size.
-
-The CPU backend has no preview window. With it, show the user a `--draft` render of the
-changed scene instead of the full video.
+```bash
+cargo run --release -p my-video -- preview 8.5s
+```
 
 ## 1. Install
 
