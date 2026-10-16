@@ -23,7 +23,7 @@ num = "0.4.1"
 konst = "0.3.16"
 rangemap = "1.0.3"
 ttf-parser = "0.25.1"
-lru = "0.14.0"
+lru = "0.18.5"
 serde = { version = "1.0", features = ["derive"] }
 parking_lot = "0.12.1"
 log = "0.4"
