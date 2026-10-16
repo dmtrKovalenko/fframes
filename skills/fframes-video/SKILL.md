@@ -28,7 +28,7 @@ When matching a supplied video, first follow the reference-analysis guidance in
 `references/design.md`. Its cuts, pacing and motion take precedence over the design defaults
 below; fast edits and intentional black frames may be part of the requested result.
 
-## Three rules before anything else
+## Two rules before anything else
 
 ### Plan before you write code
 
@@ -67,16 +67,6 @@ effort on detail and motion rather than words: secondary motion, staggered entra
 strokes, objects that react to each other, elements carried across cuts. Before showing the
 user anything, look at a strip and ask whether the video would still work for a different
 product with only the text changed. If it would, change the idea, not the colors.
-
-### Preview, do not render
-
-If the video uses the GPU render backend and a GPU is available on this machine, run the
-native preview (or show the user the command) instead of rendering the video again after
-every change:
-
-```bash
-cargo run --release -p my-video -- preview 8.5s
-```
 
 ## 1. Install
 
@@ -154,8 +144,9 @@ R() { cargo run --release -- "$@"; }
 snapshot or visual-regression tests, test modules, or test harnesses. Validate the video
 with `inspect`, rendered frames, contact sheets, audio checks and the native preview.
 
-**Show the preview instead of rendering** (the "Preview, do not render" rule at the top). Once
-the changes are ready to review:
+**Preview, do not render.** If the video uses the GPU render backend and a GPU is available
+on this machine, run the native preview (or show the user the command) instead of rendering
+the video again after every change. Once the changes are ready to review:
 
 1. Show a complete command in a copyable shell code block, using the actual project path and
    package name; do not require the user to have defined the `$R` helper. For example:
