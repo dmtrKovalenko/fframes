@@ -288,7 +288,9 @@ the editor bridge builds the library with `default-features = false`.
 Embed static assets with `include_media_dir!`. The path is relative to the **workspace root**
 and every file in the folder becomes a field of the generated struct; fonts are registered by
 their family name. Audio (`mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a`) is decoded to mono at
-compile time; files loaded with `MediaDirectory` keep stereo.
+compile time unless the macro gets the `stereo` option
+(`include_media_dir!(pub struct MyVideoMedia, "examples/my-video/media", stereo)`, twice the
+embedded size); files loaded with `MediaDirectory` keep stereo.
 
 ```rust
 use fframes::include_media_dir;
@@ -629,12 +631,12 @@ See `examples/teej-podcast/src/main.rs`; `cargo fframes new` generates the same 
 | command | what |
 | --- | --- |
 | `render [RANGE] [-o out.mp4] [--draft]` | the video or a range of it (default command); `--draft` = half size + fastest preset |
-| `frame 1s,50%,Intro@end [-o dir] [--svg]` | PNGs of single frames plus the problems found in them |
-| `strip [RANGE] -n 12` | labelled contact sheet of evenly spaced frames, one image to review motion |
+| `frame 1s,50%,Intro@end [-o dir] [--svg] [--crop x,y,w,h] [--zoom N] [--ids]` | PNGs of single frames plus the problems found in them; `--crop` renders one rectangle sharply (zoomed to about 960 px wide), `--ids` outlines and labels every element with an `id` |
+| `strip [RANGE \| TIMES] -n 12 [--crop x,y,w,h]` | labelled contact sheet of evenly spaced frames (or of comma separated times), one image to review motion |
 | `onion RANGE -n 6` | frames blended into one image, shows the path of a movement |
 | `svg TIME` | the frame as SVG after conversion |
 | `timeline` | size, fps, scenes with frame and second ranges, audio tracks |
-| `inspect [RANGE] [--every 0.25s]` | missing media/fonts/glyphs, text cut by the canvas edge, NaN transforms, panics; exit code 2 on errors |
+| `inspect [RANGE] [--every 0.25s] [--pops]` | missing media/fonts/glyphs, text cut by the canvas edge, NaN transforms, panics; exit code 2 on errors. `--pops` also renders every frame small and warns about pops: parts that change in one frame between still frames (an element appearing, vanishing or jumping in front of another) |
 | `snapshot TIMES [--update]` | compare frames with approved PNGs, writes `.actual.png` and `.diff.png` |
 | `audio render/analyze/at` | WAV of the mix, loudness report and waveform, tracks playing at a time |
 | `preview [TIME] [--paused] [--mute]` | real-time GPU window (`fframes_native_player`), blocks until closed |

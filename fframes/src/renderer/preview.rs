@@ -51,6 +51,24 @@ impl RgbaFrame {
             .expect("RgbaFrame pixel buffer matches its size")
     }
 
+    /// The pixels of a rectangle of the frame, clamped to the frame.
+    pub fn crop(&self, x: u32, y: u32, width: u32, height: u32) -> RgbaFrame {
+        let x = x.min(self.width.saturating_sub(1));
+        let y = y.min(self.height.saturating_sub(1));
+        let width = width.clamp(1, self.width - x);
+        let height = height.clamp(1, self.height - y);
+        let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+        for row in y..y + height {
+            let start = ((row * self.width + x) * 4) as usize;
+            pixels.extend_from_slice(&self.pixels[start..start + (width * 4) as usize]);
+        }
+        RgbaFrame {
+            width,
+            height,
+            pixels,
+        }
+    }
+
     pub fn save_png(&self, path: impl AsRef<Path>) -> FFramesRendererResult<()> {
         let path = path.as_ref();
         image::save_buffer(

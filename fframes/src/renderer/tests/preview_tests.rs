@@ -120,3 +120,84 @@ fn inspect_reports_missing_media_and_empty_frames() {
     );
     assert!(kinds.iter().any(|d| matches!(d, Diagnostic::EmptyFrame)));
 }
+
+struct Labelled;
+
+impl Video for Labelled {
+    const FPS: usize = 10;
+    const WIDTH: usize = 200;
+    const HEIGHT: usize = 100;
+    const BACKGROUND_COLOR: Color = Color::rgb(255, 255, 255);
+
+    fn duration(&self) -> crate::Duration<'_> {
+        crate::Duration::Frames(1)
+    }
+
+    fn audio(&self) -> AudioMap<'_> {
+        AudioMap::none()
+    }
+
+    fn render_frame<'a>(&'a self, _: Frame, _: &FFramesContext<'a, '_>) -> Svgr<'a> {
+        crate::svgr!(
+            <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+                <g id="group" transform="translate(100 0)">
+                    <rect id="box" x="10" y="20" width="30" height="40" fill="#336699" />
+                </g>
+                <path id="triangle" d="M10 90 L50 50 L60 90 Z" fill="#cc3300" />
+                <rect x="0" y="0" width="5" height="5" fill="#000000" />
+            </svg>
+        )
+    }
+}
+
+#[test]
+fn elements_with_ids_are_listed_and_labelled() {
+    use crate::renderer::element_labels::{draw_labels, labelled_elements};
+
+    let video = Labelled;
+    let mut previewer = Previewer::new(&video, &RenderOptions::default()).unwrap();
+    let mut renderer = CpuFrameRenderer::default();
+    let tree = previewer.svg_tree(0).unwrap();
+    let elements = labelled_elements(&tree);
+
+    let ids: Vec<&str> = elements.iter().map(|e| e.id.as_str()).collect();
+    assert_eq!(ids, ["group", "box", "triangle"]);
+    let rect = &elements[1];
+    assert_eq!(rect.kind, "path");
+    // Bounding boxes are in the video's coordinates, transforms applied.
+    assert_eq!(
+        (rect.x, rect.y, rect.width, rect.height),
+        (110., 20., 30., 40.)
+    );
+    assert_eq!(elements[0].kind, "group");
+
+    let frame = previewer.render(0, &mut renderer).unwrap();
+    let labelled =
+        draw_labels(&frame, &tree, &elements, previewer.font_db(), "sans-serif").unwrap();
+    assert_eq!(
+        (labelled.width, labelled.height),
+        (frame.width, frame.height)
+    );
+    assert_ne!(labelled.pixels, frame.pixels);
+}
+
+#[test]
+fn frames_crop_to_a_clamped_rectangle() {
+    let video = Labelled;
+    let mut previewer = Previewer::new(&video, &RenderOptions::default()).unwrap();
+    let frame = previewer
+        .render(0, &mut CpuFrameRenderer::default())
+        .unwrap();
+
+    let crop = frame.crop(110, 20, 30, 40);
+    assert_eq!((crop.width, crop.height), (30, 40));
+    // The crop is exactly the blue rect.
+    assert!(
+        crop.pixels
+            .chunks(4)
+            .all(|px| px == [0x33, 0x66, 0x99, 255])
+    );
+
+    let corner = frame.crop(190, 90, 50, 50);
+    assert_eq!((corner.width, corner.height), (10, 10));
+}

@@ -11,6 +11,16 @@ use std::{
 use syn::{Ident, parse_macro_input};
 
 /// Embed the contents of a directory in your crate.
+///
+/// ```ignore
+/// include_media_dir!(pub struct Media, "examples/my-video/media");
+/// // Keep both channels of stereo audio files (twice the embedded size):
+/// include_media_dir!(pub struct Media, "examples/my-video/media", stereo);
+/// ```
+///
+/// Every file becomes a field of the struct. Fonts are embedded as they are; images,
+/// subtitles and audio are decoded at compile time. Audio is mixed down to mono unless the
+/// `stereo` option is given; mono files stay mono either way.
 #[proc_macro]
 pub fn include_media_dir(input: TokenStream) -> TokenStream {
     let fframes_crate_ident = resolve_fframes_crate_ident();
@@ -19,9 +29,10 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
         visibility,
         ident,
         path,
+        stereo,
     } = parse_macro_input!(input as parser::IncludeMediaDirInput);
 
-    let media_files = read_media_files_dir(&path);
+    let media_files = read_media_files_dir(&path, stereo);
     let fields = media_files
         .iter()
         .map(|field| MediaFile::to_type_tokens(field, &fframes_crate_ident));
@@ -242,7 +253,8 @@ enum MediaVariant {
 impl MediaVariant {
     fn from_extension(file_name: &str, path: &Path) -> Option<Self> {
         match path.extension()?.to_str()? {
-            // Decoded to mono samples at compile time, every format ffmpeg reads works.
+            // Decoded to samples at compile time (mono unless `stereo`), every format ffmpeg
+            // reads works.
             "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" => Some(MediaVariant::Audio),
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
@@ -262,6 +274,25 @@ struct MediaFile {
     filename: String,
     ident: syn::Ident,
     variant: MediaVariant,
+    /// Audio only: keep the right channel of stereo files.
+    stereo: bool,
+}
+
+/// A `&'static [f32]` expression for samples embedded as an aligned byte literal.
+fn samples_tokens(samples: &[f32], fframes_crate_ident: &syn::Ident) -> proc_macro2::TokenStream {
+    let literal = Literal::byte_string(bytemuck::cast_slice::<f32, u8>(samples));
+    quote! {
+        {
+            static ALIGNED_LITERAL: &FFramesForceAlignTo<f32, [u8]> = &FFramesForceAlignTo {
+                _align: [],
+                bytes: *#literal
+            };
+
+            std::borrow::Cow::Borrowed(
+                #fframes_crate_ident::bytemuck::cast_slice::<u8, f32>(&ALIGNED_LITERAL.bytes)
+            )
+        }
+    }
 }
 
 impl MediaFile {
@@ -295,30 +326,36 @@ impl MediaFile {
     fn inline_file(&self, fframes_crate_ident: &syn::Ident) -> proc_macro2::TokenStream {
         match self.variant {
             MediaVariant::Audio => {
+                let decoded = if self.stereo {
+                    fframes_media::PreloadedAudioData::decode_raw_file_stereo(None, &self.path)
+                } else {
+                    fframes_media::PreloadedAudioData::decode_raw_file(None, &self.path)
+                };
                 let fframes_media::PreloadedAudioData {
                     samples,
                     sample_rate,
-                    ..
-                } = fframes_media::PreloadedAudioData::decode_raw_file(None, &self.path).unwrap();
+                    right,
+                } = decoded.unwrap_or_else(|err| {
+                    panic!(
+                        "Unable to decode the audio file {}: {err:?}",
+                        self.path.display()
+                    )
+                });
 
-                let bytes = bytemuck::cast_slice::<f32, u8>(&samples);
-                let literal = Literal::byte_string(bytes);
+                let samples = samples_tokens(&samples, fframes_crate_ident);
+                let right = if let Some(right) = right {
+                    let right = samples_tokens(&right, fframes_crate_ident);
+                    quote! { Some(#right) }
+                } else {
+                    quote! { None }
+                };
 
                 quote! {
                     #fframes_crate_ident::AudioData::Preloaded(
                         #fframes_crate_ident::media::PreloadedAudioData {
-                            samples: {
-                                static ALIGNED_LITERAL: &FFramesForceAlignTo<f32, [u8]> = &FFramesForceAlignTo {
-                                    _align: [],
-                                    bytes: *#literal
-                                };
-
-                                std::borrow::Cow::Borrowed(
-                                    #fframes_crate_ident::bytemuck::cast_slice::<u8, f32>(&ALIGNED_LITERAL.bytes)
-                                )
-                            },
+                            samples: #samples,
                             sample_rate: #sample_rate,
-                            right: None,
+                            right: #right,
                         }
                     )
                 }
@@ -475,7 +512,7 @@ fn create_image_identifier_for_platform_wasm(
     }
 }
 
-fn read_media_files_dir(path: &Path) -> Vec<MediaFile> {
+fn read_media_files_dir(path: &Path, stereo: bool) -> Vec<MediaFile> {
     let children = read_dir(path).unwrap_or_else(|e| {
         panic!(
             "Unable to read the entries in \"{}\": {}",
@@ -501,6 +538,7 @@ fn read_media_files_dir(path: &Path) -> Vec<MediaFile> {
                     variant,
                     filename: file_name.to_owned(),
                     path: child,
+                    stereo,
                 });
             }
         } else {

@@ -113,3 +113,44 @@ fn test_audio_map_resolve() {
         ]
     );
 }
+
+/// `include_media_dir!` mixes audio down to mono unless it gets the `stereo` option.
+mod embedded_audio_channels {
+    use crate::StaticMediaProvider;
+
+    mod stereo {
+        fframes_media_dir_macro::include_media_dir!(pub struct Media, "fframes/test-media/stereo", stereo);
+    }
+    mod mono {
+        fframes_media_dir_macro::include_media_dir!(pub struct Media, "fframes/test-media/stereo");
+    }
+
+    fn channels(audio: &crate::AudioData) -> (Vec<f32>, Option<Vec<f32>>) {
+        let crate::AudioData::Preloaded(data) = audio else {
+            panic!("embedded audio is preloaded");
+        };
+        (
+            data.samples.to_vec(),
+            data.right.as_ref().map(|r| r.to_vec()),
+        )
+    }
+
+    #[test]
+    fn stereo_option_keeps_both_channels() {
+        let media = stereo::Media::prepare().unwrap();
+        let (left, right) = channels(&media.tone_wav);
+        let right = right.expect("the right channel is embedded");
+        assert_eq!(left.len(), right.len());
+        // The fixture has a tone on the left and silence on the right.
+        assert!(left.iter().any(|s| s.abs() > 0.1));
+        assert!(right.iter().all(|s| s.abs() < 1e-3));
+    }
+
+    #[test]
+    fn audio_is_mono_by_default() {
+        let media = mono::Media::prepare().unwrap();
+        let (mixed, right) = channels(&media.tone_wav);
+        assert!(right.is_none());
+        assert!(mixed.iter().any(|s| s.abs() > 0.05));
+    }
+}

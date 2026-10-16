@@ -5,8 +5,9 @@ and ask the user to listen in `cargo run --release -- preview`.
 
 ## Files
 
-- Short SFX and music can live in `media/` (embedded, decoded to mono at compile time; mp3,
-  wav, flac, aac, ogg, m4a).
+- Short SFX and music can live in `media/` (embedded, decoded at compile time; mp3, wav, flac,
+  aac, ogg, m4a). Embedded audio is mono unless the macro gets the `stereo` option:
+  `include_media_dir!(pub struct Media, "media", stereo)` keeps both channels (twice the size).
 - Stereo music, voice-overs and anything large: a folder loaded at runtime keeps stereo:
 
 ```rust

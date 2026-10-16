@@ -168,7 +168,8 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
 
 - `include_media_dir!(pub struct MyMedia, "media")` embeds a folder; the path is relative to
   the Cargo workspace root, which in a generated project is the project folder. Call
-  `MyMedia::prepare()` in `main.rs`. Fonts register by family name, audio decodes to mono.
+  `MyMedia::prepare()` in `main.rs`. Fonts register by family name, audio decodes to mono;
+  `include_media_dir!(pub struct MyMedia, "media", stereo)` keeps stereo files stereo.
 - Large or stereo files: `let dir = MediaDirectory::read_folder("assets")?; let media = dir.process_media_source()?;`
   and combine providers with `CombinedMediaProvider::from([&static_media as &dyn MediaProvider, &media])`.
 - Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, editor_fallback_image })`
