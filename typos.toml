@@ -1,6 +1,6 @@
 [files]
 # Keep the upstream minified player unchanged; its identifiers are not prose.
-extend-exclude = ["*.snapshot.txt", "sessions.json", "examples/the-why/landing/vendor/hls.min.js"]
+extend-exclude = ["*.snapshot.txt", "sessions.json", "examples/the-why/landing/vendor/hls.min.js", "landing/vendor/hls.min.js"]
 [default.extend-words]
 hd = "hd"
 # "PNGs" is split into "PN" + "Gs"

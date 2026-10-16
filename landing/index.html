@@ -576,10 +576,7 @@
 
     <figure>
       <div class="video-frame">
-        <video poster="poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="A video made with fframes">
-          <source data-codec="av1" src="fframes-demo.av1.mp4" type='video/mp4; codecs="av01.0.08M.10, mp4a.40.2"'>
-          <source data-codec="h264" src="fframes-demo.mp4" type='video/mp4; codecs="avc1.640029, mp4a.40.2"'>
-        </video>
+        <video poster="poster.jpg" autoplay muted loop playsinline controls aria-label="A video made with fframes" data-stream="hls/fframes-demo/master.m3u8" data-fallback="fframes-demo.mp4"></video>
       </div>
       <figcaption>
         <svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -588,6 +585,40 @@
         </svg>
         <span>Built by Codex with <strong>fframes</strong>: 36 minutes to build, 24 seconds to render</span>
       </figcaption>
+      <script>
+        // The intro streams over HLS: natively where the browser can (Safari, Chrome), through
+        // hls.js elsewhere, and as a single MP4 when neither works. landing-worker/ swaps
+        // data-stream and data-fallback for the other A/B variant.
+        (() => {
+          const video = document.querySelector("figure video");
+          const fallback = () => {
+            video.src = video.dataset.fallback;
+            video.play().catch(() => {});
+          };
+          if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.addEventListener("error", fallback, { once: true });
+            video.src = video.dataset.stream;
+            return;
+          }
+          if (!("MediaSource" in window || "ManagedMediaSource" in window)) return fallback();
+          const script = document.createElement("script");
+          script.src = "vendor/hls.min.js";
+          script.onerror = fallback;
+          script.onload = () => {
+            if (!Hls.isSupported()) return fallback();
+            const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 20 });
+            hls.on(Hls.Events.ERROR, (_event, data) => {
+              if (!data.fatal) return;
+              hls.destroy();
+              fallback();
+            });
+            hls.loadSource(video.dataset.stream);
+            hls.attachMedia(video);
+            video.play().catch(() => {});
+          };
+          document.head.append(script);
+        })();
+      </script>
     </figure>
   </main>
 
