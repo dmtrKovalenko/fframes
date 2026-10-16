@@ -25,7 +25,7 @@ pub(super) struct MetalTarget {
 }
 
 impl MetalTarget {
-    pub(super) fn new(window: &Window) -> PlayerResult<Self> {
+    pub(super) fn new(window: &Window, vsync: bool) -> PlayerResult<Self> {
         // The size is for the backend's own surfaces, which the player does not use.
         let backend = SkiaMetalCtx::new(16, 16)?;
         let gpu = backend.create_context()?;
@@ -45,6 +45,7 @@ impl MetalTarget {
         // Skia copies the drawable for blend modes that read the destination.
         layer.set_framebuffer_only(false);
         layer.set_presents_with_transaction(false);
+        layer.set_display_sync_enabled(vsync);
         set_srgb_colorspace(&layer);
 
         Ok(Self {

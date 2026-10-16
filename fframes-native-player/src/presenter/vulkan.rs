@@ -38,6 +38,7 @@ pub(super) struct VulkanTarget {
     swapchain_fn: ash::khr::swapchain::Device,
     /// Signaled once an acquired image can be drawn into.
     acquired: vk::Fence,
+    present_mode: vk::PresentModeKHR,
     /// The window size in physical pixels.
     size: (u32, u32),
     _layer: SurfaceLayer,
@@ -76,7 +77,7 @@ const FORMATS: [(vk::Format, gpu::vk::Format, ColorType); 2] = [
 ];
 
 impl VulkanTarget {
-    pub(super) fn new(window: Rc<Window>) -> PlayerResult<Self> {
+    pub(super) fn new(window: Rc<Window>, vsync: bool) -> PlayerResult<Self> {
         let extension = surface_extension(window.display_handle()?.as_raw())?;
         // The size is for the backend's own surfaces, which the player does not use.
         let backend = SkiaVulkanCtx::new_with_instance_extensions(16, 16, &[extension])?;
@@ -101,6 +102,8 @@ impl VulkanTarget {
             surface_fn,
             swapchain_fn,
             acquired: vk::Fence::null(),
+            // vsync, the only mode every driver has
+            present_mode: vk::PresentModeKHR::FIFO,
             size: (size.width, size.height),
             _layer: layer,
             backend,
@@ -119,6 +122,23 @@ impl VulkanTarget {
             return Err(PlayerError::Surface(
                 "the graphics queue of the GPU can not present to the window".to_owned(),
             ));
+        }
+
+        if !vsync {
+            let modes = unsafe {
+                target.surface_fn.get_physical_device_surface_present_modes(
+                    target.backend.physical_device(),
+                    target.surface,
+                )
+            }
+            .map_err(vulkan_error("can not query the window surface"))?;
+            // `MAILBOX` replaces the queued image instead of showing it right away.
+            if let Some(mode) = [vk::PresentModeKHR::IMMEDIATE, vk::PresentModeKHR::MAILBOX]
+                .into_iter()
+                .find(|mode| modes.contains(mode))
+            {
+                target.present_mode = mode;
+            }
         }
 
         target.acquired = unsafe {
@@ -233,8 +253,7 @@ impl VulkanTarget {
             .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
             .pre_transform(capabilities.current_transform)
             .composite_alpha(composite_alpha)
-            // vsync, the only mode every driver has
-            .present_mode(vk::PresentModeKHR::FIFO)
+            .present_mode(self.present_mode)
             .clipped(true)
             .old_swapchain(
                 old.as_ref()

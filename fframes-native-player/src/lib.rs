@@ -140,6 +140,7 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
             title: options.title,
             window_size: initial_window_size::<TVideo>(options),
             backend: options.backend,
+            vsync: options.vsync,
             fps: TVideo::FPS,
             duration_in_frames: timeline.duration_in_frames,
             background: TVideo::BACKGROUND_COLOR,

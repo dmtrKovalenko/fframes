@@ -64,6 +64,7 @@ pub(crate) struct AppConfig<'a> {
     pub title: &'a str,
     pub window_size: LogicalSize<u32>,
     pub backend: PlayerBackend,
+    pub vsync: bool,
     pub fps: usize,
     pub duration_in_frames: usize,
     pub background: fframes::Color,
@@ -456,6 +457,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
         match Presenter::new(
             window.clone(),
             self.config.backend,
+            self.config.vsync,
             self.config.background,
             duration_label,
         ) {

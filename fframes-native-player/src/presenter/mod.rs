@@ -49,10 +49,11 @@ impl Presenter {
     pub(crate) fn new(
         window: Rc<Window>,
         backend: PlayerBackend,
+        vsync: bool,
         background: fframes::Color,
         duration_label: String,
     ) -> PlayerResult<Self> {
-        let target = create_target(&window, backend)?;
+        let target = create_target(&window, backend, vsync)?;
         let controls = Controls::new();
         let size = window.inner_size();
         let layout = ControlsLayout::new(
@@ -153,28 +154,29 @@ impl Presenter {
 fn create_target(
     window: &Rc<Window>,
     backend: PlayerBackend,
+    vsync: bool,
 ) -> PlayerResult<Box<dyn WindowTarget>> {
     match backend {
         PlayerBackend::Auto => {
             #[cfg(feature = "metal")]
-            match create_target(window, PlayerBackend::Metal) {
+            match create_target(window, PlayerBackend::Metal, vsync) {
                 Ok(target) => return Ok(target),
                 Err(err) => eprintln!("fframes player: metal is not available ({err})"),
             }
 
             #[cfg(feature = "vulkan")]
-            match create_target(window, PlayerBackend::Vulkan) {
+            match create_target(window, PlayerBackend::Vulkan, vsync) {
                 Ok(target) => return Ok(target),
                 Err(err) => eprintln!("fframes player: vulkan is not available ({err})"),
             }
 
             eprintln!("fframes player: falling back to the Skia CPU renderer");
-            create_target(window, PlayerBackend::Cpu)
+            create_target(window, PlayerBackend::Cpu, vsync)
         }
         #[cfg(feature = "metal")]
-        PlayerBackend::Metal => Ok(Box::new(metal::MetalTarget::new(window)?)),
+        PlayerBackend::Metal => Ok(Box::new(metal::MetalTarget::new(window, vsync)?)),
         #[cfg(feature = "vulkan")]
-        PlayerBackend::Vulkan => Ok(Box::new(vulkan::VulkanTarget::new(window.clone())?)),
+        PlayerBackend::Vulkan => Ok(Box::new(vulkan::VulkanTarget::new(window.clone(), vsync)?)),
         PlayerBackend::Cpu => Ok(Box::new(cpu::CpuTarget::new(window.clone())?)),
     }
 }
