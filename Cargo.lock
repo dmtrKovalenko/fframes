@@ -1883,6 +1883,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lottie-launch"
+version = "1.2.0"
+dependencies = [
+ "fframes",
+ "fframes_skia_renderer",
+]
+
+[[package]]
 name = "low-poly-art-bridge"
 version = "1.2.0"
 dependencies = [

@@ -50,6 +50,7 @@ members = [
     "examples/fframes-intro",
     "examples/made-of-motion",
     "examples/shader-mode",
+    "examples/lottie-launch",
 ]
 
 [workspace.lints.rust]
