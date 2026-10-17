@@ -290,8 +290,9 @@ fframes::cli::new(&video, options)
 - Zero width/height rects and zero radius circles are invalid SVG and are skipped (inspect
   reports them): animate from `0.5`, not `0`.
 - A panic in `render_frame` stops the render; the error names frame, second and scene.
-- `font-weight` must be numeric (`600`) or `normal`/`bold`. Unknown families fall back
-  silently in the renderer, `inspect` reports "No match for ... font-family".
+- `font-weight` is a number from 1 to 1000 (`600`, `{weight}`) or `normal`/`bold`; a number
+  outside that range is ignored. Unknown families fall back silently in the renderer,
+  `inspect` reports "No match for ... font-family".
 - `Color::TRANSPARENT` backgrounds need an alpha capable encoder and pixel format.
 - Heavy filters (`feGaussianBlur`, `feDropShadow`) on animated subtrees are slow on the CPU
   backend: keep them static or use Skia.

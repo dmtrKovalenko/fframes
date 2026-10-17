@@ -179,6 +179,15 @@ fn accepts_color(aid: AId) -> bool {
     )
 }
 
+/// Attributes usvgr reads as a transform. A literal of any other attribute stays text, even
+/// when it parses as one: an empty value parses as the identity transform.
+fn accepts_transform(aid: AId) -> bool {
+    matches!(
+        aid,
+        AId::Transform | AId::GradientTransform | AId::PatternTransform
+    )
+}
+
 fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
     // Special handling for path data - parse at compile time
     if aid == AId::D {
@@ -225,7 +234,10 @@ fn inline_attribute_value(value: &str, aid: AId, element: EId) -> TokenStream {
         quote! {
             SvgAttributeValue::Length(#length)
         }
-    } else if let Ok(transform) = svgtree::svgrtypes::Transform::from_str(value) {
+    } else if let Some(transform) = accepts_transform(aid)
+        .then(|| svgtree::svgrtypes::Transform::from_str(value).ok())
+        .flatten()
+    {
         quote! {
             SvgAttributeValue::Transform(#transform)
         }
@@ -998,4 +1010,22 @@ pub fn nodes_to_svgtree(
     };
 
     Ok(output_tree)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_transform_attributes_get_a_transform() {
+        let tokens = |value, aid| inline_attribute_value(value, aid, EId::Rect).to_string();
+        assert!(tokens("rotate(30)", AId::Transform).contains("Transform"));
+        assert!(tokens("rotate(30)", AId::GradientTransform).contains("Transform"));
+        // An empty value parses as the identity transform but is text for usvgr.
+        for aid in [AId::FontFamily, AId::Class, AId::D, AId::TransformOrigin] {
+            let value = tokens("", aid);
+            assert!(!value.contains("Transform"), "{:?}: {}", aid, value);
+            assert!(value.contains("StringStorage"), "{:?}: {}", aid, value);
+        }
+    }
 }

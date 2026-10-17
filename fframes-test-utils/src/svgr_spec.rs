@@ -415,3 +415,155 @@ pub fn string_attributes_that_look_like_colors() {
         ),
     );
 }
+
+/// Converts with DM Sans Regular and Medium and writes the tree twice, with text kept and as
+/// paths, so both the resolved values and the face the text is drawn in are compared.
+fn written_with_fonts(svgr: fframes::Svgr) -> String {
+    let tree = svgr
+        .into_svg_tree(
+            &fframes::usvgr::Options::default(),
+            &mut fframes::usvgr::Cache::default(),
+            &crate::dm_sans(),
+        )
+        .unwrap();
+    let mut out = tree.to_string(&fframes::usvgr::WriteOptions {
+        preserve_text: true,
+        ..Default::default()
+    });
+    out.push_str(&tree.to_string(&fframes::usvgr::WriteOptions::default()));
+    out
+}
+
+/// A number from an expression renders like the same number written in the markup. In
+/// compile-time trees the expression is a number without text, in runtime ones it is text.
+#[test]
+pub fn numeric_expressions_render_like_literals() {
+    let (w700, w650, w1500): (u16, u16, u16) = (700, 650, 1500);
+    let w550 = 550.5_f32;
+    let (angle, origin, order) = (20.0_f32, 40_i32, 2_u8);
+
+    macro_rules! label {
+        ($($attr:tt)*) => {
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="400" height="100">
+                    <text x="10" y="60" font-family="DM Sans" font-size="40" $($attr)*>"Ab"</text>
+                </svg>
+            )
+        };
+    }
+
+    let cases = [
+        (
+            "font-weight u16",
+            label!(font - weight = { w700 }),
+            label!(font - weight = "700"),
+        ),
+        (
+            "font-weight 650",
+            label!(font - weight = { w650 }),
+            label!(font - weight = "650"),
+        ),
+        (
+            "font-weight f32",
+            label!(font - weight = { w550 }),
+            label!(font - weight = "550.5"),
+        ),
+        (
+            "font-weight str",
+            label!(font - weight = { "bold" }),
+            label!(font - weight = "bold"),
+        ),
+        (
+            "font-weight String",
+            label!(font - weight = { w650.to_string() }),
+            label!(font - weight = "650"),
+        ),
+        (
+            "font-weight out of range",
+            label!(font - weight = { w1500 }),
+            label!(),
+        ),
+        (
+            "font-weight literal out of range",
+            label!(font - weight = "1500"),
+            label!(),
+        ),
+        ("rotate", label!(rotate = { angle }), label!(rotate = "20")),
+        (
+            "inherited font-weight",
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="400" height="100">
+                    <g font-weight={w700}><text x="10" y="60" font-family="DM Sans" font-size="40">"Ab"</text></g>
+                </svg>
+            ),
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="400" height="100">
+                    <g font-weight="700"><text x="10" y="60" font-family="DM Sans" font-size="40">"Ab"</text></g>
+                </svg>
+            ),
+        ),
+        (
+            "transform-origin",
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                    <rect width="60" height="40" transform="rotate(30)" transform-origin={origin} />
+                </svg>
+            ),
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                    <rect width="60" height="40" transform="rotate(30)" transform-origin="40" />
+                </svg>
+            ),
+        ),
+        (
+            "feConvolveMatrix order",
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                    <filter id="f"><feConvolveMatrix order={order} kernelMatrix="1 0 0 1" /></filter>
+                    <rect width="50" height="50" fill="red" filter="url(#f)" />
+                </svg>
+            ),
+            svgr!(
+                <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                    <filter id="f"><feConvolveMatrix order="2" kernelMatrix="1 0 0 1" /></filter>
+                    <rect width="50" height="50" fill="red" filter="url(#f)" />
+                </svg>
+            ),
+        ),
+    ];
+    for (case, expression, literal) in cases {
+        assert_eq!(
+            written_with_fonts(expression),
+            written_with_fonts(literal),
+            "{case}"
+        );
+    }
+
+    // The weights have an effect: 650 is drawn in Medium, not in Regular.
+    assert_ne!(
+        written_with_fonts(label!(font - weight = { w650 })),
+        written_with_fonts(label!())
+    );
+}
+
+/// Numeric expressions give the same tree in compile-time and runtime mode.
+#[test]
+pub fn numeric_expressions() {
+    let (w700, w650, angle) = (700_u16, 650_u16, 20.0_f32);
+    let w550 = 550.5_f32;
+
+    assert_compile_time_svgr_eq_runtime(
+        "numeric_expressions",
+        svgr!(
+            <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
+                <g font-family="DM Sans" font-size="40">
+                    <text x="10" y="50">"Literal"</text>
+                    <text x="10" y="100" font-weight={w700}>"u16"</text>
+                    <text x="10" y="150" font-weight={w650}>"650"</text>
+                    <text x="10" y="200" font-weight={w550}>"f32"</text>
+                    <text x="10" y="250" font-weight={w650.to_string()} rotate={angle}>"Text"</text>
+                </g>
+            </svg>
+        ),
+    );
+}

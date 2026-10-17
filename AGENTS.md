@@ -427,8 +427,8 @@ let paragraph = frame.text_break_lines(ctx, self.description, BreakLinesOpts {
 ```
 
 Use the same `FontQuery` values in the `<text>` attributes (`font-family`, `font-size`,
-`font-weight`) so what is measured is what is drawn. `font-weight` must be numeric or
-`normal`/`bold`.
+`font-weight`) so what is measured is what is drawn. `font-weight` is a number from 1 to
+1000, written or as `{expr}`, or `normal`/`bold`; a number outside that range is ignored.
 
 ### 6. Scenes (optional)
 

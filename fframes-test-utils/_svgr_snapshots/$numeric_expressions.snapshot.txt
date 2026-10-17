@@ -1,0 +1,11 @@
+(Compile-time)
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+    <defs/>
+    <g>
+        <text xml:space="preserve"><tspan x="10" y="50"><tspan font-family="DM Sans" font-size="40" fill="#000000" stroke="none">Literal</tspan></tspan></text>
+        <text xml:space="preserve"><tspan x="10" y="100"><tspan font-family="DM Sans" font-weight="700" font-size="40" fill="#000000" stroke="none">u16</tspan></tspan></text>
+        <text xml:space="preserve"><tspan x="10" y="150"><tspan font-family="DM Sans" font-weight="650" font-size="40" fill="#000000" stroke="none">650</tspan></tspan></text>
+        <text xml:space="preserve"><tspan x="10" y="200"><tspan font-family="DM Sans" font-weight="551" font-size="40" fill="#000000" stroke="none">f32</tspan></tspan></text>
+        <text xml:space="preserve" rotate="20 20 20 20"><tspan x="10" y="250"><tspan font-family="DM Sans" font-weight="650" font-size="40" fill="#000000" stroke="none">Text</tspan></tspan></text>
+    </g>
+</svg>
