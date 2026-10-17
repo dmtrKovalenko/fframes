@@ -83,6 +83,20 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         subtitles
     }
 
+    /// The Lottie animation `filename` from the media folder, see [`Frame::play_lottie`].
+    #[cfg(feature = "lottie")]
+    pub fn get_lottie(&self, filename: impl AsRef<str>) -> Option<&'media crate::Lottie> {
+        let filename = filename.as_ref();
+        let lottie = self.media_source.and_then(|m| m.resolve_lottie(filename));
+        if lottie.is_none() {
+            crate::diagnostics::report_missing_media(
+                crate::diagnostics::MediaKind::Lottie,
+                filename,
+            );
+        }
+        lottie
+    }
+
     pub fn get_image(&self, filename: impl AsRef<str>) -> Option<&'media ImageData<'media>> {
         let filename = filename.as_ref();
         let image = self.media_source.and_then(|m| m.resolve_image(filename));

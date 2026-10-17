@@ -306,8 +306,8 @@ include_media_dir!(pub struct MyVideoMedia, "examples/my-video/media");
   `let folder = MediaDirectory::read_folder("./dynamic_media")?;`
   `let media = folder.process_media_source()?;`
 - Inside `render_frame` resolve media through the context: `ctx.get_image("bg.png")`,
-  `ctx.get_audio("track.mp3")`, `ctx.get_subtitles("subs.vtt")`, `ctx.get_video("clip.mp4")`.
-  Never `.expect()` on these in real code; return a fallback element instead.
+  `ctx.get_audio("track.mp3")`, `ctx.get_subtitles("subs.vtt")`, `ctx.get_video("clip.mp4")`,
+  `ctx.get_lottie("anim.json")` (see 7d). Never `.expect()` on these in real code; return a fallback element instead.
 - Fonts are referenced by family name in `font-family=...`. `load_system_fonts: true` is a
   development convenience only; ship every font in `media/` so renders are reproducible.
 
@@ -579,6 +579,46 @@ AudioTrack::new("whoosh.wav", Second(4.)..Eof).rate(0.8).width(1.5); // a lower,
 - The mixer renders a track with effects once, when it is built (one per render, preview or
   `audio` command). It keeps the played part in memory at the mix rate: 23 MB per stereo
   minute at 48 kHz. Tracks without effects are read from the file as before.
+
+### 7d. Lottie animations (feature `lottie`)
+
+With `fframes = { features = ["lottie"] }`, a Lottie `.json` file is media like an image. Put it
+into the `include_media_dir!` folder or a `MediaDirectory` folder and play it by name.
+[velato](https://github.com/linebender/velato) reads and evaluates the file. fframes draws each
+frame as `svgr!` vector graphics, on every backend and in the editor. See
+`examples/lottie-launch`.
+
+```rust
+use fframes::LottieOptions;
+
+fn duration(&self) -> Duration<'_> {
+    self.media.confetti_json.duration() // each embedded file is a field of the media struct
+}
+
+fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+    let confetti = frame.play_lottie(ctx, "confetti.json", LottieOptions {
+        start: 1.5,          // second of the video or scene, nothing is drawn before it
+        looping: true,       // without it the last frame stays
+        x: 660.0,
+        y: 240.0,
+        width: Some(600.0),  // the height follows; with both, the file fits into the box
+        ..Default::default() // speed 1.0, the size of the file
+    });
+    fframes::svgr!(<svg ...>{confetti}</svg>)
+}
+```
+
+- A missing file gives an empty element, and `inspect` reports it. An invalid file makes
+  `prepare()` or `process_media_source()` fail.
+- `ctx.get_lottie(name)` and `fframes::Lottie::parse(bytes)` give the `Lottie` itself, with
+  `width()`, `height()`, `seconds()`, `duration()` and `render_at(seconds)` in the units of
+  the file.
+- The editor plays embedded files. For `.json` files in the dynamic media folder, enable
+  `fframes-editor-controller = { features = ["lottie"] }` in the bridge.
+- Drawn: shapes, fills, strokes, linear and radial gradients, trim paths, repeaters, masks,
+  track mattes, precomps, parenting and solid layers. Exports from bodymovin before 5.5 are
+  converted when they load.
+- Not drawn: text and image layers, time remapping, blend modes, effects and expressions.
 
 ### 8. Render it: `fframes::cli`
 

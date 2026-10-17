@@ -25,7 +25,10 @@ function MediaList$LoadedMediaIcon(Props) {
     case /* Subtitles */1 :
         tmp = React.createElement(Icon.CaptionOn, {});
         break;
-    case /* Image */2 :
+    case /* Lottie */2 :
+        tmp = React.createElement(Icon.PlayCircle, {});
+        break;
+    case /* Image */3 :
         tmp = React.cloneElement(React.createElement("img", {
                   className: "size-full object-cover",
                   alt: name,
@@ -34,7 +37,7 @@ function MediaList$LoadedMediaIcon(Props) {
               loading: "lazy"
             });
         break;
-    case /* Audio */3 :
+    case /* Audio */4 :
         tmp = React.createElement(Icon.Music, {});
         break;
     
@@ -107,11 +110,14 @@ function MediaList$LoadedMedia(Props) {
     case /* Subtitles */1 :
         tmp = String(media._0) + " phrases";
         break;
-    case /* Image */2 :
+    case /* Lottie */2 :
+        tmp = "Lottie, " + Utils.Duration.formatSeconds(media._0);
+        break;
+    case /* Image */3 :
         var match = media._0;
         tmp = String(match.width) + "x" + String(match.height);
         break;
-    case /* Audio */3 :
+    case /* Audio */4 :
         var match$1 = media._0;
         tmp = Utils.Duration.formatSeconds(match$1.duration) + ", " + String(match$1.sampleRate) + "hz";
         break;

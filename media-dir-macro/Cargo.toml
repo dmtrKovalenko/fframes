@@ -32,6 +32,8 @@ fframes-media = { workspace = true, features = ["videotoolbox"] }
 [features]
 build-portable = ["fframes-media/build-portable"]
 exif = ["fframes-media/kamadak-exif"]
+# `.json` files are Lottie animations (`fframes::Lottie`)
+lottie = []
 nightly = []
 metadata = []
 

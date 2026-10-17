@@ -21,6 +21,9 @@ pub enum FFramesError {
     RequiredAudioNotFound(String),
     PoisonedLock,
     MediaError(crate::media::FFramesMediaError),
+    /// A Lottie file could not be parsed.
+    #[cfg(feature = "lottie")]
+    LottieError(crate::LottieError),
 }
 
 impl Error for FFramesError {}
@@ -39,6 +42,8 @@ impl fmt::Display for FFramesError {
                 FFramesError::MediaError(err) => format!("Media parsing error: {err:?}"),
                 FFramesError::RequiredAudioNotFound(audio) => format!("The required audio for resolving video duration {audio} was not found."),
                 FFramesError::PoisonedLock => "Some lock was poisoned".to_owned(),
+                #[cfg(feature = "lottie")]
+                FFramesError::LottieError(err) => format!("Lottie parsing error: {err}"),
             }
         )
     }
@@ -49,6 +54,13 @@ impl From<crate::media::FFramesMediaError> for FFramesError {
         FFramesError::MediaError(err)
     }
 }
+#[cfg(feature = "lottie")]
+impl From<crate::LottieError> for FFramesError {
+    fn from(err: crate::LottieError) -> Self {
+        FFramesError::LottieError(err)
+    }
+}
+
 impl<T> From<std::sync::PoisonError<T>> for FFramesError {
     fn from(_: std::sync::PoisonError<T>) -> Self {
         FFramesError::PoisonedLock

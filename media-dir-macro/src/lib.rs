@@ -60,6 +60,32 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
             file.to_manual_selection_match_variant(MediaVariant::Subtitles, &fframes_crate_ident)
         })
         .collect::<Vec<_>>();
+    // The method and the `Lottie` type exist only with the `lottie` feature.
+    let resolve_lottie = cfg!(feature = "lottie").then(|| {
+        let lottie_handle_tokens = media_files.iter().filter_map(|file| {
+            file.to_manual_selection_match_variant(MediaVariant::Lottie, &fframes_crate_ident)
+        });
+        let lottie_identifiers = media_files
+            .iter()
+            .filter(|file| file.variant == MediaVariant::Lottie)
+            .map(
+                |MediaFile {
+                     ident, filename, ..
+                 }| quote! { (&self.#ident, #filename) },
+            );
+        quote! {
+            fn get_all_lottie_data(&self) -> Vec<(&#fframes_crate_ident::Lottie, &str)> {
+                vec![#(#lottie_identifiers),*]
+            }
+
+            fn resolve_lottie(&self, name: &str) -> Option<&#fframes_crate_ident::Lottie> {
+                match name {
+                    #(#lottie_handle_tokens)*
+                    _ => None
+                }
+            }
+        }
+    });
 
     // These are the values we give to the renderer/editor to access all of the media dynamically.
     let populate_fonts_expressions = media_files
@@ -128,7 +154,7 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
             MediaVariant::Font => {
                 font_identifiers.push(quote! { ( &self.#ident, #filename )});
             }
-            MediaVariant::Subtitles => {}
+            MediaVariant::Subtitles | MediaVariant::Lottie => {}
         }
     }
 
@@ -207,6 +233,8 @@ pub fn include_media_dir(input: TokenStream) -> TokenStream {
                 None
             }
 
+            #resolve_lottie
+
             fn populate_font_source(&self, font_source: &mut dyn #fframes_crate_ident::FontSource) {
                #(#populate_fonts_expressions);*
             }
@@ -248,6 +276,7 @@ enum MediaVariant {
     Image,
     Font,
     Subtitles,
+    Lottie,
 }
 
 impl MediaVariant {
@@ -259,6 +288,11 @@ impl MediaVariant {
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
             "vtt" => Some(MediaVariant::Subtitles),
+            "json" if cfg!(feature = "lottie") => Some(MediaVariant::Lottie),
+            "json" => panic!(
+                "{}: a `.json` file is a Lottie animation. Enable the `lottie` feature of fframes to embed it.",
+                path.display()
+            ),
             _ if file_name.starts_with('.') => None,
             _ => panic!(
                 "Can not parse the media file {}. File type is not supported, please remove all the unsupported files from the static media folder",
@@ -304,6 +338,7 @@ impl MediaFile {
             // In wasm or dynamic media provider we load the Subtitles type, but in the static
             // compilation we expose direct Vtt struct that does not allocate.
             MediaVariant::Subtitles => quote! { #fframes_crate_ident::media::Vtt<'static> },
+            MediaVariant::Lottie => quote! { #fframes_crate_ident::Lottie },
             MediaVariant::Font => {
                 quote! { &'static [u8] }
             }
@@ -371,6 +406,11 @@ impl MediaFile {
                         #file_str_literal
                     ).map_err(#fframes_crate_ident::media::FFramesMediaError::VttError)?
                 }
+            }
+            // `prepare()` parses the file. An invalid file makes `prepare()` fail.
+            MediaVariant::Lottie => {
+                let json = Literal::string(&std::fs::read_to_string(&self.path).unwrap());
+                quote! { #fframes_crate_ident::Lottie::parse(#json)? }
             }
             MediaVariant::Image => {
                 let file_name = self.path.file_name().and_then(|f| f.to_str()).unwrap();

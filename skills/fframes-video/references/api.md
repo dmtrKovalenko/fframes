@@ -93,7 +93,7 @@ fframes::svgr!(
         <rect x="160" y="240" width="600" height="120" rx="24"
             fill={frame.animate(fframes::timeline!(
                 at 0.0 => 1.0, animate Color::hex("#fff") => Color::hex("#0ea5e9"),
-                    Easing::CubicBezier(0.65, 0.0, 0.35, 1.0),
+                    Easing::EaseInOut,
             ))}
         />
     </g>
@@ -124,6 +124,7 @@ fframes::svgr!(
   does not clamp them. Use a custom curve only when the required motion is not represented
   by the available easings.
 - Easing: `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(x1, y1, x2, y2)`, `Spring {..}`.
+  Use the named ones and `Spring`; `design.md` says which fits where.
 - `Transform { translate_x, translate_y, scale: Scale { x, y }, rotate, .. }`,
   `Transform::translate(x, y)`. Scale around a point by translating by `p * (1 - s)`.
 
@@ -176,6 +177,29 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
 - Subtitles: `ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s))`.
 - Audio spectrum: `frame.visualize_audio_frame(VisualizeFrameInput { audio, sample_size: SampleSize::S256, smooth_level: 4, window: Some(WindowFunction::Hann) })`.
+
+## Lottie animations
+
+To play a Lottie `.json` file, enable the `lottie` feature
+(`fframes = { features = ["lottie"] }`) and put the file into the media folder, like an image.
+
+```rust
+use fframes::LottieOptions;
+
+let confetti = frame.play_lottie(ctx, "confetti.json", LottieOptions {
+    start: 1.5,          // second of the video or scene, nothing is drawn before it
+    looping: true,       // without it the last frame stays
+    x: 660.0,
+    y: 240.0,
+    width: Some(600.0),  // the height follows; give both to fit the file into a box
+    ..Default::default()
+});
+fframes::svgr!(<svg ...>{confetti}</svg>)
+```
+
+`media.confetti_json.duration()` (a field of the `include_media_dir!` struct) gives the length
+for `Video::duration`. Text layers, image layers, time remapping, blend modes and effects are
+not drawn.
 
 ## GPU shaders (Skia backend)
 
