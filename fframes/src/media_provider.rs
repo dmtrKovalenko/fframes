@@ -95,6 +95,14 @@ impl StaticMediaProvider<'_> for () {
     }
 }
 
+/// Media loaded at runtime. Start with `DynamicMediaProvider::default()` and add files with the
+/// `with_*` methods:
+///
+/// ```rust,ignore
+/// let music = DynamicMediaProvider::default().with_audio("music", AudioData::Preloaded(samples));
+/// ```
+///
+/// `Default` gives empty media of every kind that the enabled features support.
 #[derive(Clone, Default, Debug)]
 pub struct DynamicMediaProvider<'media> {
     pub audio: HashMap<String, AudioData<'media>>,
@@ -107,6 +115,7 @@ pub struct DynamicMediaProvider<'media> {
 }
 
 impl<'media> DynamicMediaProvider<'media> {
+    #[deprecated(note = "use `DynamicMediaProvider::default()` and the `with_*` methods")]
     pub fn new(
         audio: HashMap<String, AudioData<'media>>,
         images: HashMap<String, media::ImageData<'media>>,
@@ -123,6 +132,53 @@ impl<'media> DynamicMediaProvider<'media> {
             #[cfg(feature = "lottie")]
             lottie: HashMap::new(),
         }
+    }
+
+    /// Adds an audio track. `ctx.get_audio(name)` and the audio map find it by `name`.
+    #[must_use]
+    pub fn with_audio(mut self, name: impl Into<String>, audio: AudioData<'media>) -> Self {
+        self.audio.insert(name.into(), audio);
+        self
+    }
+
+    /// Adds an image. `ctx.get_image(name)` finds it by `name`.
+    #[must_use]
+    pub fn with_image(mut self, name: impl Into<String>, image: media::ImageData<'media>) -> Self {
+        self.images.insert(name.into(), image);
+        self
+    }
+
+    /// Adds subtitles. `ctx.get_subtitles(name)` finds them by `name`.
+    #[must_use]
+    pub fn with_subtitles(
+        mut self,
+        name: impl Into<String>,
+        subtitles: media::Subtitles<'media>,
+    ) -> Self {
+        self.subtitles.insert(name.into(), subtitles);
+        self
+    }
+
+    /// Adds a video. `ctx.get_video(name)` finds it by `name`.
+    #[must_use]
+    pub fn with_video(mut self, name: impl Into<String>, video: media::VideoMedia) -> Self {
+        self.videos.insert(name.into(), video);
+        self
+    }
+
+    /// Adds a font. Text finds it by its family name.
+    #[must_use]
+    pub fn with_font(mut self, font: RawFontData) -> Self {
+        self.fontdata.push(font);
+        self
+    }
+
+    /// Adds a Lottie animation. `frame.play_lottie(ctx, name, ..)` finds it by `name`.
+    #[cfg(feature = "lottie")]
+    #[must_use]
+    pub fn with_lottie(mut self, name: impl Into<String>, lottie: crate::Lottie) -> Self {
+        self.lottie.insert(name.into(), lottie);
+        self
     }
 }
 

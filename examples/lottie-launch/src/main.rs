@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::process::ExitCode;
 
 use fframes::{
@@ -10,13 +9,8 @@ use lottie_launch::{LaunchMedia, LaunchVideo, soundtrack};
 
 fn main() -> ExitCode {
     let media = LaunchMedia::new().expect("media");
-    let music = DynamicMediaProvider {
-        audio: HashMap::from([(
-            "music".to_owned(),
-            AudioData::Preloaded(soundtrack::music()),
-        )]),
-        ..Default::default()
-    };
+    let music = DynamicMediaProvider::default()
+        .with_audio("music", AudioData::Preloaded(soundtrack::music()));
     let all = CombinedMediaProvider::from([&media as &dyn MediaProvider, &music]);
 
     cli::new(

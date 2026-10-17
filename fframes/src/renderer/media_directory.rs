@@ -144,20 +144,14 @@ impl MediaDirectory {
                 Ok(())
             })?;
 
-        #[cfg_attr(not(feature = "lottie"), allow(unused_mut))]
-        let mut provider = DynamicMediaProvider::new(
-            audio_hash.into_inner()?,
-            image_hash.into_inner()?,
-            subtitles_hash.into_inner()?,
-            video_paths.into_inner()?,
-            fontdata.into_inner()?,
-        );
-
-        #[cfg(feature = "lottie")]
-        {
-            provider.lottie = lottie_hash.into_inner()?;
-        }
-
-        Ok(provider)
+        Ok(DynamicMediaProvider {
+            audio: audio_hash.into_inner()?,
+            images: image_hash.into_inner()?,
+            subtitles: subtitles_hash.into_inner()?,
+            videos: video_paths.into_inner()?,
+            fontdata: fontdata.into_inner()?,
+            #[cfg(feature = "lottie")]
+            lottie: lottie_hash.into_inner()?,
+        })
     }
 }

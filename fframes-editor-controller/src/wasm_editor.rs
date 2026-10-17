@@ -1,5 +1,5 @@
 use fframes::{FFramesContext, FFramesMode, Frame, StaticMediaProvider, Video, VideoSize};
-use std::{cell::RefCell, collections::HashMap, marker::PhantomPinned, pin::Pin, sync::Mutex};
+use std::{cell::RefCell, marker::PhantomPinned, pin::Pin, sync::Mutex};
 use wasm_bindgen::prelude::*;
 
 use crate::{video_metadata, wasm_audio, wasm_font_source};
@@ -89,21 +89,14 @@ pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> 
 impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<TVideo, TMedia> {
     pub fn new(video: TVideo, static_media: &'static TMedia) -> Self {
         fframes::set_video_frame_resolver(resolve_video_frame);
-        #[cfg_attr(not(feature = "lottie"), allow(unused_mut))]
-        let mut media_provider = fframes::DynamicMediaProvider::new(
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-            Vec::new(),
-        );
+        #[cfg(not(feature = "lottie"))]
+        let media_provider = fframes::DynamicMediaProvider::default();
         // `render_frame` reads media from this provider. The static animations go into it too.
         #[cfg(feature = "lottie")]
-        for (lottie, name) in static_media.get_all_lottie_data() {
-            media_provider
-                .lottie
-                .insert(name.to_owned(), lottie.clone());
-        }
+        let media_provider = static_media.get_all_lottie_data().into_iter().fold(
+            fframes::DynamicMediaProvider::default(),
+            |provider, (lottie, name)| provider.with_lottie(name, lottie.clone()),
+        );
 
         Self {
             video_ctx: RefCell::new(VideoCtx::new(video)),
