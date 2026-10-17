@@ -29,6 +29,8 @@ ttf-parser = "0.25.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 usvgr.workspace = true
+# The mipmap levels of images that several textures share.
+lru = "0.18.5"
 # The `gpu` feature only.
 wgpu = { version = "30", optional = true, default-features = false, features = ["std", "parking_lot", "wgsl", "vulkan", "metal", "dx12"] }
 pollster = { version = "1", optional = true }

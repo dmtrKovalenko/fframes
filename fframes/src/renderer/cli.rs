@@ -568,6 +568,7 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
                         &mut fallback
                     };
                 Previewer::new(video, &options)
+                    .map(|previewer| previewer.with_svgr_rasterizer(backend.svgr_rasterizer()))
                     .map_err(err)
                     .and_then(|mut previewer| match command {
                         Command::Frame(args) => frame(json, &mut previewer, frame_renderer, args),
@@ -602,7 +603,6 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
                                 audio: !args.mute,
                                 backend: args.backend,
                             };
-                            let options = previewer.options().clone();
                             // Fonts and caches of the previewer are not needed by the player.
                             drop(previewer);
                             play(video, &options, &request).map(|()| ExitCode::SUCCESS)

@@ -506,6 +506,13 @@ impl SkiaBackend for SkiaVulkanCtx {
         Ok((context.surface, context.gpu))
     }
 
+    fn create_offscreen_context(
+        &self,
+    ) -> FFramesRendererResult<(Option<DirectContext>, Option<super::QueueLock>)> {
+        let context = self.create_context()?;
+        Ok((Some(context.gpu), Some(context.queue_lock)))
+    }
+
     fn create_skia_context(&self) -> FFramesRendererResult<super::SkiaContext> {
         let context = self.create_context()?;
         let lock = context.queue_lock.clone();

@@ -1220,6 +1220,7 @@ dependencies = [
  "glam",
  "gltf",
  "image",
+ "lru",
  "png 0.17.16",
  "pollster",
  "rayon",
@@ -3872,6 +3873,14 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "svg-in-3d-example"
+version = "1.2.0"
+dependencies = [
+ "fframes",
+ "fframes_skia_renderer",
+]
 
 [[package]]
 name = "svgr"

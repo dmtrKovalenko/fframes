@@ -22,6 +22,7 @@
 //! premultiplied sRGB pixels.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 
 use bytemuck::{Pod, Zeroable};
@@ -317,7 +318,7 @@ struct GpuMesh {
 }
 
 struct GpuTexture {
-    source: Weak<Texture>,
+    source: Weak<crate::texture::Levels>,
     view: wgpu::TextureView,
 }
 
@@ -338,6 +339,8 @@ pub(crate) struct Gpu {
     queue: wgpu::Queue,
     /// The queue lock of the backend, when the backend shares the device.
     queue_lock: Option<Arc<Mutex<()>>>,
+    /// The [`SharedGpu::id`] of the device, when the backend shares it.
+    shared_id: Option<u64>,
     scene_module: wgpu::ShaderModule,
     frame_layout: wgpu::BindGroupLayout,
     draw_layout: wgpu::BindGroupLayout,
@@ -353,6 +356,10 @@ pub(crate) struct Gpu {
     particle_additive: wgpu::RenderPipeline,
     particle_normal: wgpu::RenderPipeline,
     post: PostPipelines,
+    /// Make the mipmap levels of an image on the GPU, see `mip.wgsl`.
+    mip_layout: wgpu::BindGroupLayout,
+    mip_level0: wgpu::RenderPipeline,
+    mip_down: wgpu::RenderPipeline,
     linear_repeat: wgpu::Sampler,
     linear_clamp: wgpu::Sampler,
     env_sampler: wgpu::Sampler,
@@ -369,6 +376,18 @@ pub(crate) struct Gpu {
     available: Condvar,
     /// The textures that frames render into as layers of the backend's frames.
     layers: Mutex<Vec<LayerTarget>>,
+    /// The frames between the start of their GPU work and its end, see
+    /// [`Gpu::frames_in_flight`].
+    in_flight: Arc<AtomicUsize>,
+}
+
+/// Counts a frame in [`Gpu::frames_in_flight`] until it is dropped.
+pub(crate) struct InFlight(Arc<AtomicUsize>);
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
 }
 
 /// A texture that a frame renders into for `fframes::wgpu_layer`. It is free again when
@@ -528,7 +547,7 @@ fn shared_gpu() -> Option<(SharedGpu, Arc<Gpu>)> {
         Gpu::with_device(
             shared.device().clone(),
             shared.queue().clone(),
-            Some(shared.queue_lock()),
+            Some((shared.queue_lock(), shared.id())),
         )
     });
     Some((shared, gpu))
@@ -603,13 +622,14 @@ impl Gpu {
         Ok(Self::with_device(device, queue, None))
     }
 
-    /// The renderer on `device`. When the backend shares the queue, the renderer holds
-    /// `queue_lock` while it submits.
+    /// The renderer on `device`. When the backend shares the device, `shared` is its queue
+    /// lock and its [`SharedGpu::id`]. The renderer holds the lock while it submits.
     fn with_device(
         device: wgpu::Device,
         queue: wgpu::Queue,
-        queue_lock: Option<Arc<Mutex<()>>>,
+        shared: Option<(Arc<Mutex<()>>, u64)>,
     ) -> Gpu {
+        let (queue_lock, shared_id) = shared.unzip();
         let scene_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("scene"),
             source: wgpu::ShaderSource::Wgsl(include_str!("scene.wgsl").into()),
@@ -849,6 +869,34 @@ impl Gpu {
             encode: post_pipeline("fs_encode", &[Some(OUTPUT.into())]),
         };
 
+        let mip_module = device.create_shader_module(wgpu::include_wgsl!("mip.wgsl"));
+        let mip_layout = bind_group_layout("mip", &[float_2d(0)]);
+        let mip_pipeline_layout = pipeline_layout("mip", &[Some(&mip_layout)]);
+        let mip_pipeline = |entry: &str| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(entry),
+                layout: Some(&mip_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &mip_module,
+                    entry_point: Some("vs_fullscreen"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[],
+                },
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                fragment: Some(wgpu::FragmentState {
+                    module: &mip_module,
+                    entry_point: Some(entry),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::TextureFormat::Rgba8UnormSrgb.into())],
+                }),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let (mip_level0, mip_down) = (mip_pipeline("fs_level0"), mip_pipeline("fs_down"));
+
         let linear = |address_mode_u, address_mode_v, anisotropy_clamp| {
             device.create_sampler(&wgpu::SamplerDescriptor {
                 address_mode_u,
@@ -902,9 +950,13 @@ impl Gpu {
                 wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING,
             ),
             post,
+            mip_layout,
+            mip_level0,
+            mip_down,
             device,
             queue,
             queue_lock,
+            shared_id,
             scene_module,
             frame_layout,
             draw_layout,
@@ -922,7 +974,23 @@ impl Gpu {
             }),
             available: Condvar::new(),
             layers: Mutex::new(Vec::new()),
+            in_flight: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    /// Counts a frame in [`Gpu::frames_in_flight`] until the result is dropped.
+    pub(crate) fn count_in_flight(&self) -> InFlight {
+        self.in_flight.fetch_add(1, Ordering::Relaxed);
+        InFlight(Arc::clone(&self.in_flight))
+    }
+
+    /// The frames that render on the GPU now, for [`crate::Hybrid`].
+    pub(crate) fn frames_in_flight(&self) -> usize {
+        // Runs the callbacks of the finished layers. A poll reads the fence of wgpu and frees
+        // the resources of finished submissions. It does not use the queue, so it needs no
+        // queue lock on a device that the backend shares.
+        let _ = self.device.poll(wgpu::PollType::Poll);
+        self.in_flight.load(Ordering::Relaxed)
     }
 
     /// Submits `commands`. Holds the queue lock of the backend when the queue is shared.
@@ -1028,14 +1096,31 @@ impl Gpu {
         )
     }
 
-    /// The view of a material texture with its mipmaps, uploaded on first use.
+    /// The view of a material texture with its mipmaps, made on first use. Textures that
+    /// share their levels share the view.
     fn texture(&self, texture: &Arc<Texture>) -> wgpu::TextureView {
-        let key = (Arc::as_ptr(texture) as usize, texture.srgb);
+        let levels = texture.shared_levels();
+        let key = (Arc::as_ptr(levels) as usize, texture.srgb);
         let mut textures = lock(&self.textures);
         if let Some(t) = textures.get(&key) {
             return t.view.clone();
         }
         textures.retain(|_, t| t.source.strong_count() > 0);
+        let on_this_gpu =
+            (levels.layer()).filter(|layer| texture.srgb && Some(layer.gpu_id()) == self.shared_id);
+        let view = match on_this_gpu {
+            Some(layer) => self.mipmaps(layer.texture()),
+            None => self.upload(texture),
+        };
+        let entry = textures.entry(key).or_insert(GpuTexture {
+            source: Arc::downgrade(levels),
+            view,
+        });
+        entry.view.clone()
+    }
+
+    /// Uploads the mipmap levels that the texture made on the CPU.
+    fn upload(&self, texture: &Texture) -> wgpu::TextureView {
         let format = if texture.srgb {
             wgpu::TextureFormat::Rgba8UnormSrgb
         } else {
@@ -1060,11 +1145,48 @@ impl Gpu {
                 bytemuck::cast_slice(texels),
             );
         }
-        let entry = textures.entry(key).or_insert(GpuTexture {
-            source: Arc::downgrade(texture),
-            view: gpu_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+        gpu_texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
+    /// A color texture with the mipmap levels of `image` (premultiplied sRGB on this
+    /// device), made on the GPU like the CPU makes them. The image does not leave the GPU.
+    fn mipmaps(&self, image: &wgpu::Texture) -> wgpu::TextureView {
+        let (width, height) = (image.width(), image.height());
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            mip_level_count: width.max(height).ilog2() + 1,
+            ..texture_desc(
+                "material texture",
+                width,
+                height,
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            )
         });
-        entry.view.clone()
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        let mut source = image.create_view(&wgpu::TextureViewDescriptor::default());
+        for level in 0..texture.mip_level_count() {
+            let target = texture.create_view(&wgpu::TextureViewDescriptor {
+                base_mip_level: level,
+                mip_level_count: Some(1),
+                ..Default::default()
+            });
+            let group = self.bind_group(
+                "mip",
+                &self.mip_layout,
+                &[wgpu::BindingResource::TextureView(&source)],
+            );
+            let pipeline = if level == 0 {
+                &self.mip_level0
+            } else {
+                &self.mip_down
+            };
+            fullscreen(&mut encoder, pipeline, &[&group], &[&target], None);
+            source = target;
+        }
+        self.submit(encoder.finish());
+        texture.create_view(&wgpu::TextureViewDescriptor::default())
     }
 
     /// The view and the level count of an environment panorama, uploaded on first use.
@@ -1273,6 +1395,7 @@ impl Gpu {
 
     /// Renders the moments (one, or more for motion blur) and returns the pixels.
     pub(crate) fn render(&self, renderer: &Renderer, moments: &[(&Scene, &Camera)]) -> Pixels {
+        let _in_flight = self.count_in_flight();
         let context = self.render_moments(renderer, moments);
         let pixels = self.finish(&context, renderer);
         self.give_back(context);
@@ -1287,6 +1410,7 @@ impl Gpu {
         moments: &[(&Scene, &Camera)],
         shared: &SharedGpu,
     ) -> fframes_media::ImageData<'static> {
+        let in_flight = self.count_in_flight();
         let context = self.render_moments(renderer, moments);
         let (slot, texture, view) = self.take_layer(context.width, context.height);
         let mut encoder = self
@@ -1295,6 +1419,8 @@ impl Gpu {
         self.post_process(&context, renderer, &mut encoder, &view);
         wgpu_layer::finish_wgpu_layer(&mut encoder, &texture);
         self.submit(encoder.finish());
+        // The frame counts until the GPU finishes it.
+        self.queue.on_submitted_work_done(move || drop(in_flight));
         self.give_back(context);
         let image = wgpu_layer::wgpu_layer(shared, &texture);
         let mut layers = lock(&self.layers);

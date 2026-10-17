@@ -169,6 +169,39 @@ impl<'a> ImageData<'a> {
     }
 }
 
+/// An image of premultiplied RGBA pixels, `width * 4` bytes per row. Each image gets a new
+/// id, so a cache keyed by the id never returns an old image.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn rendered_image(width: u32, height: u32, rgba: Vec<u8>) -> ImageData<'static> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+    let id = format!("fframes-svgr:{}", NEXT_ID.fetch_add(1, Ordering::Relaxed));
+    ImageData::new_from_raw_data(
+        Arc::new(usvgr::PreloadedImageData {
+            data: Cow::Owned(rgba),
+            width,
+            height,
+            id: id.clone(),
+        }),
+        id,
+        ImageMetadata { width, height },
+    )
+}
+
+/// The pixels of `image`. An image on the GPU (`fframes::wgpu_layer`) is read back, which
+/// waits for the GPU. `None` when that fails. Other images are their own pixels.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn image_pixels(
+    image: &Arc<usvgr::PreloadedImageData>,
+) -> Option<Arc<usvgr::PreloadedImageData>> {
+    #[cfg(feature = "wgpu")]
+    if let Some(layer) = crate::wgpu_layer::resolve_wgpu_layer(image) {
+        return layer.pixels();
+    }
+    Some(Arc::clone(image))
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn decode_image(
     filename: &str,

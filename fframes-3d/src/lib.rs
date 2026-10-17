@@ -21,6 +21,11 @@
 //! this with its `wgpu` feature. [`Renderer::render`] then renders on that device into a
 //! texture that Skia draws. The 3D image stays on the GPU until the encoder.
 //!
+//! A texture can show fframes content: [`Texture::from_image`] of
+//! `ctx.render_svgr(svgr, width, height)` puts an svgr tree on a surface, and a 3D render is
+//! an image for the next svgr tree. So svgr and 3D nest to any depth. On the shared GPU the
+//! svgr image stays a texture too, and the GPU makes its mipmap levels.
+//!
 //! Units are meters and radians. Colors as hex numbers or `&str` are sRGB.
 //!
 //! # Example
@@ -77,12 +82,16 @@
 //! | `GLTFLoader` + `AnimationMixer` | [`Model::from_gltf`] + [`ModelInstance::play`] |
 //! | `STLLoader`, `toCreasedNormals` | [`Geometry::from_stl`], [`Geometry::smooth`] |
 //! | `VideoTexture` | [`Texture::from_image`] of a decoded video frame, for each frame |
+//! | `CanvasTexture` | [`Texture::from_image`] of `ctx.render_svgr(svgr, width, height)` |
 //! | `UnrealBloomPass`, `ACESFilmicToneMapping` | [`Bloom`], [`ToneMapping`] |
 //! | `Points` | [`Node::particles`] |
 //! | `InstancedMesh`, `instanceColor` | [`Node::instanced`] with [`Instances`] |
 
 // Colors are hex numbers as in three.js: `0xff8800`.
 #![allow(clippy::unreadable_literal)]
+// A texture can hold a wgpu texture. Proving that a texture is `Sync` goes deep into the
+// types of wgpu in release builds.
+#![recursion_limit = "256"]
 // Rasterization and mesh generation index several parallel arrays in one loop.
 #![allow(clippy::needless_range_loop, clippy::items_after_statements)]
 
@@ -112,7 +121,7 @@ pub use gltf::{Model, ModelError, ModelInstance};
 pub use light::{DirectionalLight, Light, PointLight, Shadow, SpotLight};
 pub use material::{Blending, Material, Shading, Side};
 pub use math::{Aabb, Mat3, Mat4, Quat, Vec2, Vec3, Vec4, deg, euler, euler_deg, vec2, vec3, vec4};
-pub use render::{Bloom, Pixels, Renderer, ToneMapping};
+pub use render::{Bloom, Hybrid, Pixels, Renderer, ToneMapping};
 pub use scene::{
     Background, Fog, Instances, Mesh, Node, NodeId, Object, Particle, Particles, Reflector, Scene,
     Skin,
