@@ -40,6 +40,8 @@ fframes = { workspace = true, features = ["compile-time-svgtree"] }
 png = "0.17"
 svgr.workspace = true
 low-poly-art-example = { path = "../examples/low-poly-art" }
+# `tests/wgpu_layers.rs`: a 3D frame drawn through the shared GPU
+fframes-3d = { workspace = true, features = ["gpu"] }
 
 [features]
 default = ["gpu", "binary-cache"]

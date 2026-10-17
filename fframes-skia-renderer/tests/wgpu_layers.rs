@@ -147,3 +147,31 @@ fn layers_are_sampled_in_place_and_reused() {
     let layer = fframes::wgpu_layer(&gpu, &wrong);
     assert!(fframes::resolve_wgpu_layer(&layer.href()).is_none());
 }
+
+/// A fframes-3d frame on the shared GPU is a layer, and Skia draws the same picture as the
+/// pixels that the renderer reads back.
+#[test]
+fn fframes_3d_frames_are_layers() {
+    use fframes_3d::{Background, Camera, Geometry, Material, Node, Renderer, Rgb, Scene};
+
+    let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {
+        eprintln!("no Vulkan device, skipped");
+        return;
+    };
+    assert!(ctx.shared_gpu().is_some(), "wgpu opens the device");
+    let mut scene = Scene::new().background(Background::Color(Rgb::from("#2040ff")));
+    scene.add(Node::mesh(
+        Geometry::cuboid(1.0, 1.0, 1.0),
+        Material::unlit("#ff8000"),
+    ));
+    let camera = Camera::perspective(40.0).at(0.0, 0.0, 4.0);
+    let renderer = Renderer::new(SIZE, SIZE).gpu();
+
+    let layer = renderer.render(&scene, &camera);
+    assert!(fframes::resolve_wgpu_layer(&layer.href()).is_some());
+    let drawn = draw(&ctx, &layer, &mut RenderCache::new().for_backend(&ctx));
+    let expected = renderer.render_pixels(&scene, &camera);
+    let center = (SIZE / 2) as usize * SIZE as usize + (SIZE / 2) as usize;
+    let expected = expected.rgba.as_chunks::<4>().0[center];
+    assert_near(drawn, expected);
+}
