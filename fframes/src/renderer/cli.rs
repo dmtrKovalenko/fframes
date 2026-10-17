@@ -15,7 +15,8 @@
 //! into a `#[derive(clap::Args)]` struct: `let args = cli::parse::<MyArgs>();`, build the video
 //! from `args.app`, then `cli::new(&video, options).args(args).run()`.
 use super::{
-    CpuFrameRenderer, FFramesRenderBackend, FrameRenderer, FrameReport, Previewer, RgbaFrame,
+    CpuFrameRenderer, FFramesRenderBackend, FFramesRendererError, FrameRenderer, FrameReport,
+    Previewer, RgbaFrame,
     continuity::{PopDetector, PopKind},
     element_labels::{self, LabelledElement},
     fframes_logger::FFramesLoggerVariant,
@@ -852,9 +853,19 @@ fn frame<'a, 'm: 'a, V: Video>(
     check_render_size::<V>(scale)?;
     previewer.set_scale(scale);
 
+    let specs = resolve_frames(previewer, &args.at)?;
+    let frames: Vec<usize> = specs.iter().map(|(_, frame)| *frame).collect();
+    let mut rendered = Vec::with_capacity(frames.len());
+    previewer
+        .render_inspected_each(&frames, renderer, |pixels, report| {
+            rendered.push((pixels, report));
+            Ok(())
+        })
+        .map_err(err)?;
+
     let mut results = Vec::new();
-    for (spec, frame) in resolve_frames(previewer, &args.at)? {
-        let (mut pixels, report) = previewer.render_inspected(frame, renderer).map_err(err)?;
+    let mut images = Vec::new();
+    for ((spec, frame), (mut pixels, report)) in specs.into_iter().zip(rendered) {
         let elements = if args.ids {
             let tree = previewer.svg_tree(frame).map_err(err)?;
             let mut elements = element_labels::labelled_elements(&tree);
@@ -883,7 +894,6 @@ fn frame<'a, 'm: 'a, V: Video>(
         }
         let name = snapshot::snapshot_name(&spec);
         let path = args.output.join(format!("{name}.png"));
-        pixels.save_png(&path).map_err(err)?;
         let svg = if args.svg {
             let svg_path = args.output.join(format!("{name}.svg"));
             std::fs::write(&svg_path, previewer.svg(frame).map_err(err)?).map_err(err)?;
@@ -891,6 +901,7 @@ fn frame<'a, 'm: 'a, V: Video>(
         } else {
             None
         };
+        images.push(pixels);
         results.push(FrameResult {
             spec,
             path,
@@ -898,6 +909,15 @@ fn frame<'a, 'm: 'a, V: Video>(
             elements,
             report,
         });
+    }
+    // The PNGs encode on several threads.
+    {
+        use rayon::prelude::*;
+        images
+            .par_iter()
+            .zip(&results)
+            .try_for_each(|(pixels, result)| pixels.save_png(&result.path))
+            .map_err(err)?;
     }
 
     print(json, &results, || {
@@ -940,28 +960,30 @@ fn render_cells<'a, 'm: 'a, V: Video>(
 ) -> CliResult<(Vec<sheet::SheetCell>, Vec<FrameReport>)> {
     let mut cells = Vec::new();
     let mut reports = Vec::new();
-    for &frame in frames {
-        let (mut pixels, report) = previewer.render_inspected(frame, renderer).map_err(err)?;
-        if let Some(crop) = crop {
-            pixels = crop_frame::<V>(&pixels, crop);
-        }
-        cells.push(sheet::SheetCell {
-            frame: pixels,
-            label: format!(
-                "{:.2}s  f{}{}",
-                report.seconds,
-                frame,
-                scenes_label(&report.scenes)
-            ),
-        });
-        if report
-            .diagnostics
-            .iter()
-            .any(|d| d.severity > Severity::Info)
-        {
-            reports.push(report);
-        }
-    }
+    previewer
+        .render_inspected_each(frames, renderer, |mut pixels, report| {
+            if let Some(crop) = crop {
+                pixels = crop_frame::<V>(&pixels, crop);
+            }
+            cells.push(sheet::SheetCell {
+                frame: pixels,
+                label: format!(
+                    "{:.2}s  f{}{}",
+                    report.seconds,
+                    report.frame,
+                    scenes_label(&report.scenes)
+                ),
+            });
+            if report
+                .diagnostics
+                .iter()
+                .any(|d| d.severity > Severity::Info)
+            {
+                reports.push(report);
+            }
+            Ok(())
+        })
+        .map_err(err)?;
     Ok((cells, reports))
 }
 
@@ -1188,19 +1210,23 @@ fn scan_pops<'a, 'm: 'a, V: Video>(
     let mut detector = PopDetector::new(width, height);
     let progress = !json && std::io::stderr().is_terminal();
     let total = range.len();
-    for (i, frame) in range.clone().enumerate() {
-        let pixels = previewer.render(frame, renderer).map_err(err)?;
-        if (pixels.width, pixels.height) != (width, height) {
-            return Err(format!(
-                "the renderer returned a {}x{} frame instead of {width}x{height}",
-                pixels.width, pixels.height
-            ));
-        }
-        detector.push(pixels);
-        if progress && i % 30 == 0 {
-            eprint!("\rscanning for pops: frame {i}/{total}");
-        }
-    }
+    let frames: Vec<usize> = range.clone().collect();
+    previewer
+        .render_each(&frames, renderer, |frame, pixels| {
+            if (pixels.width, pixels.height) != (width, height) {
+                return Err(FFramesRendererError::Custom(format!(
+                    "the renderer returned a {}x{} frame instead of {width}x{height}",
+                    pixels.width, pixels.height
+                )));
+            }
+            detector.push(pixels);
+            let i = frame - range.start;
+            if progress && i.is_multiple_of(30) {
+                eprint!("\rscanning for pops: frame {i}/{total}");
+            }
+            Ok(())
+        })
+        .map_err(err)?;
     if progress {
         eprint!("\r{}\r", " ".repeat(48));
     }
@@ -1326,37 +1352,40 @@ fn inspect<'a, 'm: 'a, V: Video>(
     frames.dedup();
 
     let mut findings: Vec<Finding> = Vec::new();
-    for &frame in &frames {
-        let report = previewer.inspect(frame).map_err(err)?;
-        for diagnostic in report.diagnostics {
-            if diagnostic.severity == Severity::Info && !args.info {
-                continue;
-            }
-            match findings.iter_mut().find(|f| f.key == diagnostic.key) {
-                Some(finding) => {
-                    finding.last_frame = frame;
-                    finding.last_seconds = report.seconds;
-                    finding.frames += 1;
-                    for scene in &report.scenes {
-                        if !finding.scenes.contains(scene) {
-                            finding.scenes.push(scene.clone());
+    previewer
+        .inspect_each(&frames, |report| {
+            let frame = report.frame;
+            for diagnostic in report.diagnostics {
+                if diagnostic.severity == Severity::Info && !args.info {
+                    continue;
+                }
+                match findings.iter_mut().find(|f| f.key == diagnostic.key) {
+                    Some(finding) => {
+                        finding.last_frame = frame;
+                        finding.last_seconds = report.seconds;
+                        finding.frames += 1;
+                        for scene in &report.scenes {
+                            if !finding.scenes.contains(scene) {
+                                finding.scenes.push(scene.clone());
+                            }
                         }
                     }
+                    None => findings.push(Finding {
+                        severity: diagnostic.severity,
+                        key: diagnostic.key,
+                        message: diagnostic.message,
+                        first_frame: frame,
+                        last_frame: frame,
+                        first_seconds: report.seconds,
+                        last_seconds: report.seconds,
+                        frames: 1,
+                        scenes: report.scenes.clone(),
+                    }),
                 }
-                None => findings.push(Finding {
-                    severity: diagnostic.severity,
-                    key: diagnostic.key,
-                    message: diagnostic.message,
-                    first_frame: frame,
-                    last_frame: frame,
-                    first_seconds: report.seconds,
-                    last_seconds: report.seconds,
-                    frames: 1,
-                    scenes: report.scenes.clone(),
-                }),
             }
-        }
-    }
+            Ok(())
+        })
+        .map_err(err)?;
     let pop_scanned_frames = if args.pops {
         findings.extend(scan_pops(json, previewer, renderer, range.clone())?);
         Some(range.len())
@@ -1427,10 +1456,8 @@ fn snapshots<'a, 'm: 'a, V: Video>(
         max_diff_ratio: args.max_diff,
         update: args.update || snapshot::SnapshotOptions::default().update,
     };
-    let mut results = Vec::new();
-    for spec in args.at.iter().flat_map(|s| s.split_whitespace()) {
-        results.push(snapshot::check_frame(previewer, renderer, spec, &options).map_err(err)?);
-    }
+    let specs: Vec<&str> = args.at.iter().flat_map(|s| s.split_whitespace()).collect();
+    let results = snapshot::check_frames(previewer, renderer, &specs, &options).map_err(err)?;
     let failed = results
         .iter()
         .any(|r| r.status == snapshot::SnapshotStatus::Failed);

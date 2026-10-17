@@ -143,12 +143,59 @@ pub fn check_frame<'a, 'media: 'a, TVideo: Video>(
     spec: &str,
     options: &SnapshotOptions,
 ) -> FFramesRendererResult<SnapshotResult> {
-    let frame = previewer
+    let frame = resolve(previewer, spec)?;
+    let actual = previewer.render(frame, renderer)?;
+    compare(spec, frame, &actual, options)
+}
+
+/// [`check_frame`] for several specs. The frames render on several threads like
+/// [`Previewer::render_each`]. A spec that does not resolve stops the check after the specs
+/// before it.
+pub fn check_frames<'a, 'media: 'a, TVideo: Video>(
+    previewer: &mut Previewer<'a, 'media, TVideo>,
+    renderer: &mut dyn FrameRenderer,
+    specs: &[&str],
+    options: &SnapshotOptions,
+) -> FFramesRendererResult<Vec<SnapshotResult>> {
+    let mut frames = Vec::with_capacity(specs.len());
+    let mut unresolved = None;
+    for spec in specs {
+        match resolve(previewer, spec) {
+            Ok(frame) => frames.push(frame),
+            Err(err) => {
+                unresolved = Some(err);
+                break;
+            }
+        }
+    }
+    let mut results = Vec::with_capacity(frames.len());
+    previewer.render_each(&frames, renderer, |frame, actual| {
+        results.push(compare(specs[results.len()], frame, &actual, options)?);
+        Ok(())
+    })?;
+    match unresolved {
+        Some(err) => Err(err),
+        None => Ok(results),
+    }
+}
+
+fn resolve<TVideo: Video>(
+    previewer: &Previewer<'_, '_, TVideo>,
+    spec: &str,
+) -> FFramesRendererResult<usize> {
+    previewer
         .timeline()
         .resolve_frame(spec)
-        .map_err(|err| FFramesRendererError::Custom(err.to_string()))?;
-    let actual = previewer.render(frame, renderer)?;
+        .map_err(|err| FFramesRendererError::Custom(err.to_string()))
+}
 
+/// Compares the rendered frame of `spec` with its snapshot.
+fn compare(
+    spec: &str,
+    frame: usize,
+    actual: &RgbaFrame,
+    options: &SnapshotOptions,
+) -> FFramesRendererResult<SnapshotResult> {
     std::fs::create_dir_all(&options.directory)?;
     let name = snapshot_name(spec);
     let snapshot = options.directory.join(format!("{name}.png"));
@@ -174,7 +221,7 @@ pub fn check_frame<'a, 'media: 'a, TVideo: Video>(
     }
 
     let expected = load_png(&snapshot)?;
-    let (ratio, diff) = diff_frames(&expected, &actual, options.channel_threshold);
+    let (ratio, diff) = diff_frames(&expected, actual, options.channel_threshold);
     result.diff_ratio = ratio;
 
     if ratio <= options.max_diff_ratio {
