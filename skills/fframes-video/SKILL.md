@@ -5,10 +5,10 @@ description: >-
   encoding, Skia GPU rendering). Use whenever the user wants a video, animation, motion graphic,
   explainer, promo, social clip, title card, podcast visual, lyric/caption video or any rendered
   .mp4/.webm made programmatically, or asks to change, fix, speed up or check an fframes video.
-  Covers installing fframes, creating a project, designing good-looking motion, sound (music,
-  voice, SFX, loudness), watching it in a real-time preview window, and checking the result
-  without watching it: frames and contact sheets as PNG, automatic problem detection, loudness
-  numbers, fast draft and range renders.
+  Covers installing fframes, creating a project, designing good-looking motion, 3D shots
+  (fframes-3d, three.js style scenes), sound (music, voice, SFX, loudness), watching it in a
+  real-time preview window, and checking the result without watching it: frames and contact
+  sheets as PNG, automatic problem detection, loudness numbers, fast draft and range renders.
 ---
 
 # Making videos with fframes
@@ -22,7 +22,8 @@ and ffmpeg encodes the result.
 Each project gets a command line (from `fframes::cli`). Use it for everything: render a video,
 open the real-time preview window, and look at frames, contact sheets and loudness numbers as
 files you can read. Read `references/design.md` before designing, `references/api.md` while
-writing code and `references/audio.md` for sound.
+writing code, `references/audio.md` for sound and `references/3d.md` for 3D shots
+(`fframes-3d`).
 
 When matching a supplied video, first follow the reference-analysis guidance in
 `references/design.md`. Its cuts, pacing and motion take precedence over the design defaults
@@ -273,6 +274,9 @@ impl Video for MyVideo<'_> {
 - GPU shaders (SkSL or Shadertoy GLSL) run on the Skia backend through `fframes::Shader`; they
   take images and synced video frames as input (green-screen keying, color grading). See
   `references/api.md`.
+- 3D shots (products, devices, logos in a material, camera moves through a set) come from
+  `fframes-3d`, a three.js style scene graph that renders into an `<image>` with SVG below
+  and above it. Build the scene once, pose it per frame. See `references/3d.md`.
 
 ## 5. Making it look good
 
