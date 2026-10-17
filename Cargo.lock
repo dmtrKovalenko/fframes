@@ -203,6 +203,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "arm-example"
+version = "1.2.0"
+dependencies = [
+ "fframes",
+ "fframes-3d",
+ "fframes_native_player",
+ "fframes_skia_renderer",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
