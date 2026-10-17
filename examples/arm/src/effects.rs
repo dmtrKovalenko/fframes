@@ -1,8 +1,8 @@
 //! Effects that the film builds itself from the building blocks of fframes-3d: random
 //! numbers, camera shake, a light beam in hazy air, sparks and a printed grid.
 
-use fframes_3d::math::smoothstep;
-use fframes_3d::*;
+use fframes::three_d::math::smoothstep;
+use fframes::three_d::*;
 
 /// Maps an integer to a pseudo-random value in `0..1`. The same input always gives the same
 /// value.
@@ -168,7 +168,7 @@ pub fn grid_texture(cell: f32, major: u32, ink: Rgb, paper: Rgb) -> Texture {
         let minor = line(u * cells, cell_texels, 3.0).max(line(v * cells, cell_texels, 3.0));
         let major = line(u, size as f32, 10.0).max(line(v, size as f32, 10.0));
         let ink_amount = (minor * 0.55).max(major);
-        paper.lerp(ink, ink_amount).to_color()
+        paper.lerp(ink, ink_amount)
     })
     .repeat(1.0 / (cell * cells), 1.0 / (cell * cells))
 }

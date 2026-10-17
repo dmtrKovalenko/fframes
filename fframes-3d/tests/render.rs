@@ -151,8 +151,8 @@ fn renders_normal_maps() {
 
 #[test]
 fn textures_from_fframes_images() {
-    use fframes::media::{ImageData, ImageMetadata};
-    use fframes::usvgr::PreloadedImageData;
+    use fframes_media::{ImageData, ImageMetadata};
+    use usvgr::PreloadedImageData;
 
     // a red texel at half coverage next to an opaque blue one
     let data = PreloadedImageData::new("pair".into(), 2, 1, &[255, 0, 0, 128, 0, 0, 255, 255]);

@@ -9,12 +9,12 @@ pub mod effects;
 pub mod lab;
 pub mod story;
 
+use fframes::three_d::math::smoothstep;
+use fframes::three_d::*;
 use fframes::{
     AudioMap, AudioTimestamp, AudioTrack, Color, Duration, FFramesContext, Frame, Svgr, Video,
     include_media_dir, svgr,
 };
-use fframes_3d::math::smoothstep;
-use fframes_3d::*;
 
 use effects::{hash, noise, progress};
 

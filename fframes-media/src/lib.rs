@@ -29,6 +29,14 @@ mod video_decoder;
 pub use ffmpeg_sys_fframes;
 #[cfg(not(target_arch = "wasm32"))]
 pub use video_decoder::*;
+// For fframes shaders and wgpu layers, not public API.
+#[cfg(not(target_arch = "wasm32"))]
+#[doc(hidden)]
+pub mod markers;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use wgpu;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub mod wgpu_layer;
 
 #[cfg(feature = "exif")]
 pub use exif;

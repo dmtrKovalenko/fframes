@@ -36,12 +36,11 @@ core-foundation = { version = "0.10", optional = true }
 skia-safe = { version = "0.153.3", features = ["svg", "webp"] }
 
 [dev-dependencies]
-fframes = { workspace = true, features = ["compile-time-svgtree"] }
+# `3d`: `tests/wgpu_layers.rs` draws a 3D frame through the shared GPU
+fframes = { workspace = true, features = ["compile-time-svgtree", "3d"] }
 png = "0.17"
 svgr.workspace = true
 low-poly-art-example = { path = "../examples/low-poly-art" }
-# `tests/wgpu_layers.rs`: a 3D frame drawn through the shared GPU
-fframes-3d = { workspace = true, features = ["gpu"] }
 
 [features]
 default = ["gpu", "binary-cache"]
@@ -55,7 +54,7 @@ vulkan-video = ["vulkan", "fframes/vulkan"]
 # `--renderer skia-cpu|gpu` for `fframes::cli`, see `cli::SkiaRenderers`
 cli = ["fframes/cli"]
 # Open the Vulkan device as a wgpu device as well (`fframes::shared_gpu`): textures rendered
-# with wgpu (fframes-3d) are drawn into the frames on the GPU, without a readback.
+# with wgpu (`fframes::three_d`) are drawn into the frames on the GPU, without a readback.
 wgpu = ["vulkan", "fframes/wgpu", "dep:wgpu"]
 d3d = ["skia-safe/d3d"]
 gl = ["skia-safe/gl"]

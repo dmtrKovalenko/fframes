@@ -710,7 +710,7 @@ impl Geometry {
         size: f32,
         letter_spacing: f32,
     ) -> Result<Vec<GlyphShapes>, TextError> {
-        let face = fframes::ttf_parser::Face::parse(font, 0).map_err(|_| TextError::InvalidFont)?;
+        let face = ttf_parser::Face::parse(font, 0).map_err(|_| TextError::InvalidFont)?;
         let scale = size / f32::from(face.units_per_em());
         let mut pen = 0.0;
         text.chars()
@@ -1379,7 +1379,7 @@ impl OutlineCollector {
     }
 }
 
-impl fframes::ttf_parser::OutlineBuilder for OutlineCollector {
+impl ttf_parser::OutlineBuilder for OutlineCollector {
     fn move_to(&mut self, x: f32, y: f32) {
         self.finish();
         self.line_to(x, y);

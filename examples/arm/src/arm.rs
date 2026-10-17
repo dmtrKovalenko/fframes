@@ -3,7 +3,7 @@
 
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
-use fframes_3d::*;
+use fframes::three_d::*;
 
 /// Height of the J1 turret above the floor.
 pub const BASE_H: f32 = 0.45;

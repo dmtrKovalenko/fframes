@@ -1,9 +1,9 @@
 //! The GPU renderer (feature `gpu`). It draws the same scenes, materials and lights as the
 //! software rasterizer, with wgpu on Vulkan, Metal or DX12.
 //!
-//! The rendering backend can share its GPU ([`fframes::shared_gpu`]). The Skia Vulkan backend
+//! The rendering backend can share its GPU (`fframes::shared_gpu`). The Skia Vulkan backend
 //! does this with its `wgpu` feature. Then a frame renders on that device into a texture.
-//! The backend samples this texture in place ([`fframes::wgpu_layer`]). The renderer reads
+//! The backend samples this texture in place (`fframes::wgpu_layer`). The renderer reads
 //! nothing back. The frame stays on the GPU through Skia to the encoder. Without a shared
 //! GPU, frames render on a device of their own. Then the renderer reads the pixels back.
 //!
@@ -25,6 +25,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 
 use bytemuck::{Pod, Zeroable};
+use fframes_media::wgpu_layer::{self, SharedGpu};
 use glam::{Mat3, Mat4, Vec3, Vec4};
 use wgpu::util::DeviceExt;
 
@@ -370,13 +371,13 @@ pub(crate) struct Gpu {
     layers: Mutex<Vec<LayerTarget>>,
 }
 
-/// A texture that a frame renders into for [`fframes::wgpu_layer`]. It is free again when
+/// A texture that a frame renders into for `fframes::wgpu_layer`. It is free again when
 /// the image of the frame is dropped. At that time the backend has submitted the frame that
 /// samples it.
 struct LayerTarget {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
-    image: Weak<fframes::usvgr::PreloadedImageData>,
+    image: Weak<usvgr::PreloadedImageData>,
     reserved: bool,
 }
 
@@ -521,8 +522,8 @@ fn own_gpu() -> Option<Arc<Gpu>> {
 }
 
 /// The renderer on the GPU of the backend, when the backend shares it.
-fn shared_gpu() -> Option<(fframes::SharedGpu, Arc<Gpu>)> {
-    let shared = fframes::shared_gpu()?;
+fn shared_gpu() -> Option<(SharedGpu, Arc<Gpu>)> {
+    let shared = wgpu_layer::shared_gpu()?;
     let gpu = shared.state(|shared| {
         Gpu::with_device(
             shared.device().clone(),
@@ -544,7 +545,7 @@ pub(crate) fn gpu() -> Option<Arc<Gpu>> {
 pub(crate) fn layer(
     renderer: &Renderer,
     moments: &[(&Scene, &Camera)],
-) -> Option<fframes::media::ImageData<'static>> {
+) -> Option<fframes_media::ImageData<'static>> {
     let (shared, gpu) = shared_gpu()?;
     Some(gpu.render_layer(renderer, moments, &shared))
 }
@@ -1279,23 +1280,23 @@ impl Gpu {
     }
 
     /// Renders the moments into a texture that the backend samples in place, see
-    /// [`fframes::wgpu_layer`]. Does not wait for the GPU.
+    /// `fframes::wgpu_layer`. Does not wait for the GPU.
     fn render_layer(
         &self,
         renderer: &Renderer,
         moments: &[(&Scene, &Camera)],
-        shared: &fframes::SharedGpu,
-    ) -> fframes::media::ImageData<'static> {
+        shared: &SharedGpu,
+    ) -> fframes_media::ImageData<'static> {
         let context = self.render_moments(renderer, moments);
         let (slot, texture, view) = self.take_layer(context.width, context.height);
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         self.post_process(&context, renderer, &mut encoder, &view);
-        fframes::finish_wgpu_layer(&mut encoder, &texture);
+        wgpu_layer::finish_wgpu_layer(&mut encoder, &texture);
         self.submit(encoder.finish());
         self.give_back(context);
-        let image = fframes::wgpu_layer(shared, &texture);
+        let image = wgpu_layer::wgpu_layer(shared, &texture);
         let mut layers = lock(&self.layers);
         layers[slot].image = Arc::downgrade(&image.href());
         layers[slot].reserved = false;
@@ -1322,8 +1323,8 @@ impl Gpu {
             "fframes-3d layer",
             width,
             height,
-            fframes::WGPU_LAYER_FORMAT,
-            fframes::WGPU_LAYER_USAGE | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            wgpu_layer::WGPU_LAYER_FORMAT,
+            wgpu_layer::WGPU_LAYER_USAGE | wgpu::TextureUsages::RENDER_ATTACHMENT,
         ));
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         layers.push(LayerTarget {

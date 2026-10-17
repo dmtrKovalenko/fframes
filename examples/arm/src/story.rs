@@ -1,8 +1,8 @@
 //! The performance of the arm: keys with anticipation, overshoot and idle motion. It also
 //! holds the timelines of the letters, the tumble of the dropped letter and the events.
 
-use fframes_3d::math::smoothstep;
-use fframes_3d::*;
+use fframes::three_d::math::smoothstep;
+use fframes::three_d::*;
 
 use crate::arm::{self, Joints, OPEN, frame, looking, solve, tool_down};
 

@@ -3,6 +3,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use glam::{Mat3, Vec2, Vec3, vec3};
+use rayon::prelude::*;
 
 use crate::Rgb;
 use crate::color::srgb_to_linear;
@@ -275,7 +276,7 @@ impl Studio {
                 let height = width / 2;
                 let roughness = (k as f32 / (BAKED_LEVELS - 1) as f32).powi(2);
                 let mut data = vec![Vec3::ZERO; width * height];
-                crate::render::par::chunks_mut(&mut data, width, |y, row| {
+                data.par_chunks_mut(width).enumerate().for_each(|(y, row)| {
                     for (x, out) in row.iter_mut().enumerate() {
                         let uv = Vec2::new(
                             (x as f32 + 0.5) / width as f32,

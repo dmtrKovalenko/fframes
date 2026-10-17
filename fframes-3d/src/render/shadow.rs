@@ -2,8 +2,8 @@
 //! casters, read with a smooth percentage closer filter.
 
 use glam::{Mat4, Vec3};
+use rayon::prelude::*;
 
-use super::par;
 use super::prepare::{World, WorldTri};
 use crate::Shadow;
 use crate::material::Shading;
@@ -137,59 +137,63 @@ impl ShadowMap {
         }
 
         let mut depth = vec![1.0f32; size * size];
-        par::chunks_mut(&mut depth, size * BAND, |band, rows| {
-            let row0 = band * BAND;
-            for &ti in &bins[band] {
-                let t = &map_tris[ti as usize];
-                let area =
-                    (t.x[1] - t.x[0]) * (t.y[2] - t.y[0]) - (t.y[1] - t.y[0]) * (t.x[2] - t.x[0]);
-                if area.abs() < 1e-12 {
-                    continue;
-                }
-                let inv = 1.0 / area;
-                let edge = |i: usize, px: f32, py: f32| {
-                    let (j, k) = ((i + 1) % 3, (i + 2) % 3);
-                    ((t.x[k] - t.x[j]) * (py - t.y[j]) - (t.y[k] - t.y[j]) * (px - t.x[j])) * inv
-                };
-                let x_min = t.x[0].min(t.x[1]).min(t.x[2]);
-                let x_max = t.x[0].max(t.x[1]).max(t.x[2]);
-                for y in t.y0.max(row0)..t.y1.min(row0 + rows.len() / size) {
-                    let py = y as f32 + 0.5;
-                    // The texels between the points where the row crosses the edges. A thin
-                    // triangle covers a small part of its bounding box. The test below
-                    // decides each texel, so the span has a margin of one texel.
-                    let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
-                    for j in 0..3 {
-                        let k = (j + 1) % 3;
-                        let dy = t.y[k] - t.y[j];
-                        let s = (py - t.y[j]) / dy;
-                        if dy.abs() >= 1e-3 && (0.0..=1.0).contains(&s) {
-                            let x = t.x[j] + (t.x[k] - t.x[j]) * s;
-                            lo = lo.min(x);
-                            hi = hi.max(x);
+        depth
+            .par_chunks_mut(size * BAND)
+            .enumerate()
+            .for_each(|(band, rows)| {
+                let row0 = band * BAND;
+                for &ti in &bins[band] {
+                    let t = &map_tris[ti as usize];
+                    let area = (t.x[1] - t.x[0]) * (t.y[2] - t.y[0])
+                        - (t.y[1] - t.y[0]) * (t.x[2] - t.x[0]);
+                    if area.abs() < 1e-12 {
+                        continue;
+                    }
+                    let inv = 1.0 / area;
+                    let edge = |i: usize, px: f32, py: f32| {
+                        let (j, k) = ((i + 1) % 3, (i + 2) % 3);
+                        ((t.x[k] - t.x[j]) * (py - t.y[j]) - (t.y[k] - t.y[j]) * (px - t.x[j]))
+                            * inv
+                    };
+                    let x_min = t.x[0].min(t.x[1]).min(t.x[2]);
+                    let x_max = t.x[0].max(t.x[1]).max(t.x[2]);
+                    for y in t.y0.max(row0)..t.y1.min(row0 + rows.len() / size) {
+                        let py = y as f32 + 0.5;
+                        // The texels between the points where the row crosses the edges. A thin
+                        // triangle covers a small part of its bounding box. The test below
+                        // decides each texel, so the span has a margin of one texel.
+                        let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
+                        for j in 0..3 {
+                            let k = (j + 1) % 3;
+                            let dy = t.y[k] - t.y[j];
+                            let s = (py - t.y[j]) / dy;
+                            if dy.abs() >= 1e-3 && (0.0..=1.0).contains(&s) {
+                                let x = t.x[j] + (t.x[k] - t.x[j]) * s;
+                                lo = lo.min(x);
+                                hi = hi.max(x);
+                            }
                         }
-                    }
-                    if lo > hi {
-                        (lo, hi) = (x_min, x_max);
-                    }
-                    let x0 = (lo.max(x_min) - 1.0).floor().max(0.0) as usize;
-                    let x1 = ((hi.min(x_max) + 1.0).ceil().max(0.0) as usize).min(size);
-                    let row = &mut rows[(y - row0) * size..(y - row0 + 1) * size];
-                    for (x, d) in row.iter_mut().enumerate().take(x1).skip(x0) {
-                        let px = x as f32 + 0.5;
-                        let l0 = edge(0, px, py);
-                        let l1 = edge(1, px, py);
-                        let l2 = 1.0 - l0 - l1;
-                        if l0 >= 0.0 && l1 >= 0.0 && l2 >= 0.0 {
-                            let z = (l0 * t.z[0] + l1 * t.z[1] + l2 * t.z[2]).max(0.0);
-                            if z < *d {
-                                *d = z;
+                        if lo > hi {
+                            (lo, hi) = (x_min, x_max);
+                        }
+                        let x0 = (lo.max(x_min) - 1.0).floor().max(0.0) as usize;
+                        let x1 = ((hi.min(x_max) + 1.0).ceil().max(0.0) as usize).min(size);
+                        let row = &mut rows[(y - row0) * size..(y - row0 + 1) * size];
+                        for (x, d) in row.iter_mut().enumerate().take(x1).skip(x0) {
+                            let px = x as f32 + 0.5;
+                            let l0 = edge(0, px, py);
+                            let l1 = edge(1, px, py);
+                            let l2 = 1.0 - l0 - l1;
+                            if l0 >= 0.0 && l1 >= 0.0 && l2 >= 0.0 {
+                                let z = (l0 * t.z[0] + l1 * t.z[1] + l2 * t.z[2]).max(0.0);
+                                if z < *d {
+                                    *d = z;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
 
         Some(Self {
             size,

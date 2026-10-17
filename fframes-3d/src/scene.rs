@@ -68,7 +68,7 @@ impl Mesh {
 /// machines. The copies share the geometry and the material.
 ///
 /// ```rust
-/// use fframes_3d::*;
+/// use fframes::three_d::*;
 ///
 /// let posts = Instances::new((0..100).map(|i| Mat4::from_translation(vec3(i as f32, 0.0, 0.0))));
 /// let fence = Node::instanced(Geometry::cuboid(0.1, 1.0, 0.1), Material::standard(0x806040), posts);
@@ -163,7 +163,7 @@ impl Particle {
 /// chained methods:
 ///
 /// ```rust
-/// use fframes_3d::{Geometry, Material, Node, deg};
+/// use fframes::three_d::{Geometry, Material, Node, deg};
 ///
 /// let wheel = Node::mesh(Geometry::cylinder(0.4, 0.4, 0.2, 32), Material::standard(0x222222))
 ///     .at(1.0, 0.4, 0.8)
@@ -408,7 +408,7 @@ impl Fog {
 /// share the geometry, so a clone is cheap.
 ///
 /// ```rust
-/// use fframes_3d::*;
+/// use fframes::three_d::*;
 ///
 /// let mut scene = Scene::new().environment(Environment::studio());
 /// let cube = scene.add(Node::mesh(Geometry::rounded_box(1.0, 1.0, 1.0, 0.1, 3), Material::metal(0xd0d4dc, 0.25)));
@@ -442,7 +442,7 @@ pub struct Scene {
 /// has one reflector at most.
 ///
 /// ```rust
-/// use fframes_3d::*;
+/// use fframes::three_d::*;
 ///
 /// let mut scene = Scene::new().reflector(Reflector::floor());
 /// scene.add(Node::mesh(Geometry::floor(20.0, 20.0), Material::standard(0x303236).roughness(0.3).reflection(0.8)));
