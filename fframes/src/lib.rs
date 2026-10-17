@@ -84,6 +84,10 @@
 //! - `compile-time-svgtree`: [`svgr!`] builds the SVG tree at compile time and hashes static
 //!   subtrees. Required by the Skia backend and by [`Shader`].
 //! - `exif`: EXIF orientation of loaded images.
+//! - `3d`: [`three_d`], 3D scenes with the building blocks of three.js, rendered into an
+//!   `<image>` of the frame. Runs on the CPU, also in the editor.
+//! - `wgpu`: `wgpu_layer` puts textures rendered with wgpu into frames, and the Skia
+//!   Vulkan backend draws them without a readback. With `3d`, the 3D renders on the GPU.
 //! - Codecs `h264`, `h265`, `aac`, `mp3lame`, `opus`, `vpx`: compile the library into the static
 //!   `FFmpeg` build. Some of them need `libav-agree-gpl`, `libav-agree-nonfree` or
 //!   `libav-agree-version3`, which state that you accept the corresponding `FFmpeg` license terms.
@@ -147,6 +151,10 @@ pub use duration::*;
 pub use fframes_context::*;
 pub use font_data::*;
 pub use frame::*;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use media::wgpu;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use media::wgpu_layer::*;
 pub use media_provider::*;
 pub use named_range::*;
 pub use scenes::*;
@@ -172,5 +180,8 @@ pub use serde;
 pub use ttf_parser;
 pub use usvgr;
 
+#[cfg(feature = "3d")]
+#[doc(inline)]
+pub use fframes_3d as three_d;
 #[cfg(feature = "exif")]
 pub use media::exif;

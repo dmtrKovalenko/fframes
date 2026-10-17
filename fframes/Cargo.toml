@@ -34,6 +34,7 @@ svgr-macro.workspace = true
 fframes-media.workspace = true
 fframes-media-dir-macro.workspace = true
 kamadak-exif.workspace = true
+fframes-3d = { workspace = true, optional = true }
 
 # these are renderer/encoder specific dependnecies
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -66,6 +67,11 @@ cpu_renderer = ["svgr"]
 cli = ["cpu_renderer", "dep:clap", "dep:serde_json"]
 exif = ["fframes-media/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
+# `fframes::three_d`: 3D scenes with the building blocks of three.js (the fframes-3d crate)
+3d = ["dep:fframes-3d"]
+# `fframes::wgpu_layer`: textures rendered with wgpu on the GPU of the rendering backend go
+# into frames without leaving the GPU. With `3d`, the 3D renders with wgpu.
+wgpu = ["fframes-media/wgpu", "fframes-3d?/gpu"]
 
 # Keep FFmpeg source fallbacks portable, including compile-time media decoding.
 # Enable on native non-Windows targets; Windows uses a shared FFmpeg installation.
@@ -95,7 +101,7 @@ libav-agree-version3 = ["fframes-media/libav-agree-version3"]
 # The codec and hardware features compile FFmpeg from source, which docs.rs cannot do (no
 # network), so only the pure Rust features are documented. `--cfg fframes_docsrs` makes
 # fframes-media link the FFmpeg headers of the docs.rs image instead of building FFmpeg.
-features = ["cli", "compile-time-svgtree", "exif"]
+features = ["cli", "compile-time-svgtree", "exif", "3d"]
 rustc-args = ["--cfg", "fframes_docsrs"]
 
 [lints]

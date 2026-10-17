@@ -272,7 +272,7 @@ impl<'b> SkiaEncoderFrameRenderer<'b> {
 
         Ok(Self {
             target: Some(target),
-            render_cache: crate::render::RenderCache::new(),
+            render_cache: crate::render::RenderCache::new().for_backend(backend),
             converter: None,
             input: input.clone(),
             width,
@@ -285,7 +285,7 @@ impl<'b> SkiaEncoderFrameRenderer<'b> {
 
     /// Uses these cache limits and clears previously cached render resources.
     pub fn with_cache_config(mut self, config: crate::SkiaCacheConfig) -> Self {
-        self.render_cache = crate::render::RenderCache::with_config(config);
+        self.render_cache = self.render_cache.cleared(config);
         self
     }
 

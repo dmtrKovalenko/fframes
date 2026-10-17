@@ -25,6 +25,7 @@ for crate in \
   svgr-macro \
   fframes-media \
   media-dir-macro \
+  fframes-3d \
   fframes \
   fframes-editor-controller \
   fframes-skia-renderer \

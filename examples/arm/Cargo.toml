@@ -1,0 +1,50 @@
+[package]
+name = "arm-example"
+version = "1.2.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# `3d`: `fframes::three_d`; `wgpu`: the 3D renders on the GPU
+fframes = { workspace = true, features = ["3d", "wgpu"] }
+
+# Skia on Metal on macOS, on Vulkan everywhere else.
+# `preview`: real-time GPU window
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["metal"] }
+fframes_native_player = { workspace = true, features = ["metal", "audio"] }
+
+[target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
+# `wgpu`: the 3D renders on the Vulkan device of Skia and stays on the GPU
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "wgpu"] }
+fframes_native_player = { workspace = true, features = ["vulkan", "audio"] }
+
+[target.'cfg(not(windows))'.dependencies]
+fframes = { workspace = true, features = ["h264", "libav-agree-gpl"] }
+
+# Keep FFmpeg source fallbacks portable across CI runner CPUs (see README).
+[target.'cfg(not(any(target_arch = "wasm32", windows)))'.dependencies]
+fframes = { workspace = true, features = ["build-portable"] }
+
+[features]
+default = ["renderer"]
+renderer = ["fframes/compile-time-svgtree", "fframes/cli"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "arm_example"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "arm"
+path = "src/main.rs"
+required-features = ["renderer"]
+
+[[bin]]
+name = "arm-soundtrack"
+path = "src/bin/soundtrack.rs"
+
+[lints]
+workspace = true
+

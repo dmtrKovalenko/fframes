@@ -5,3 +5,7 @@ extend-exclude = ["*.snapshot.txt", "sessions.json", "examples/the-why/landing/v
 hd = "hd"
 # "PNGs" is split into "PN" + "Gs"
 PN = "PN"
+# graphics terms of fframes-3d: PBR metalness (three.js), level of detail, integer y next to ix
+metalness = "metalness"
+lod = "lod"
+iy = "iy"
