@@ -21,6 +21,10 @@ serde-wasm-bindgen = "0.6.5"
 fframes = { workspace = true }
 getrandom = { version = "0.2.15", features = ["js"] }
 
+[features]
+# Lottie `.json` files of the dynamic media folder (`fframes/lottie`)
+lottie = ["fframes/lottie"]
+
 
 
 # See fframes-media/Cargo.toml: docs.rs cannot build FFmpeg from source.

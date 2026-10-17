@@ -22,6 +22,10 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData<'a>>;
     fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles<'a>>;
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia>;
+    #[cfg(feature = "lottie")]
+    fn resolve_lottie(&'a self, _name: &str) -> Option<&'a crate::Lottie> {
+        None
+    }
 
     /// Returns all the font data along with the original file name
     /// `fn populate_font_source(&'a self, font_source: &mut dyn FontSource) -> Result<Vec<RawFontData>>;`
@@ -45,6 +49,11 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     }
 
     fn get_all_video_data(&self) -> Vec<(&media::VideoMedia, &str)> {
+        Vec::new()
+    }
+
+    #[cfg(feature = "lottie")]
+    fn get_all_lottie_data(&self) -> Vec<(&crate::Lottie, &str)> {
         Vec::new()
     }
 }
@@ -93,6 +102,8 @@ pub struct DynamicMediaProvider<'media> {
     pub subtitles: HashMap<String, media::Subtitles<'media>>,
     pub videos: HashMap<String, media::VideoMedia>,
     pub fontdata: Vec<RawFontData>,
+    #[cfg(feature = "lottie")]
+    pub lottie: HashMap<String, crate::Lottie>,
 }
 
 impl<'media> DynamicMediaProvider<'media> {
@@ -109,6 +120,8 @@ impl<'media> DynamicMediaProvider<'media> {
             subtitles,
             videos,
             fontdata: fonts_data,
+            #[cfg(feature = "lottie")]
+            lottie: HashMap::new(),
         }
     }
 }
@@ -128,6 +141,11 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
 
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia> {
         self.videos.get(name)
+    }
+
+    #[cfg(feature = "lottie")]
+    fn resolve_lottie(&'a self, name: &str) -> Option<&'a crate::Lottie> {
+        self.lottie.get(name)
     }
 
     fn populate_font_source(&'a self, font_source: &mut dyn FontSource) {
@@ -217,6 +235,13 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_video(name))
+    }
+
+    #[cfg(feature = "lottie")]
+    fn resolve_lottie(&'a self, name: &str) -> Option<&'a crate::Lottie> {
+        self.0
+            .iter()
+            .find_map(|provider| provider.resolve_lottie(name))
     }
 
     fn populate_font_source(&'a self, font_source: &mut dyn FontSource) {

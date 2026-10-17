@@ -111,6 +111,8 @@ mod duration;
 mod fframes_context;
 mod font_data;
 mod frame;
+#[cfg(feature = "lottie")]
+mod lottie;
 mod media_provider;
 mod named_range;
 mod scenes;
@@ -147,6 +149,8 @@ pub use duration::*;
 pub use fframes_context::*;
 pub use font_data::*;
 pub use frame::*;
+#[cfg(feature = "lottie")]
+pub use lottie::*;
 pub use media_provider::*;
 pub use named_range::*;
 pub use scenes::*;

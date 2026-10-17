@@ -29,6 +29,8 @@ var MusicIcon = {};
 
 var CaptionsIcon = {};
 
+var AnimationIcon = {};
+
 var FontIcon = {};
 
 var ListViewIcon = {};
@@ -56,6 +58,7 @@ export {
   PinIcon ,
   MusicIcon ,
   CaptionsIcon ,
+  AnimationIcon ,
   FontIcon ,
   ListViewIcon ,
   GridViewIcon ,

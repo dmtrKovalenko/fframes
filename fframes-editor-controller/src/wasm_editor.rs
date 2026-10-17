@@ -89,6 +89,22 @@ pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> 
 impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<TVideo, TMedia> {
     pub fn new(video: TVideo, static_media: &'static TMedia) -> Self {
         fframes::set_video_frame_resolver(resolve_video_frame);
+        #[cfg_attr(not(feature = "lottie"), allow(unused_mut))]
+        let mut media_provider = fframes::DynamicMediaProvider::new(
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            Vec::new(),
+        );
+        // `render_frame` reads media from this provider. The static animations go into it too.
+        #[cfg(feature = "lottie")]
+        for (lottie, name) in static_media.get_all_lottie_data() {
+            media_provider
+                .lottie
+                .insert(name.to_owned(), lottie.clone());
+        }
+
         Self {
             video_ctx: RefCell::new(VideoCtx::new(video)),
             static_media,
@@ -97,13 +113,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             fonts: Mutex::new(wasm_font_source::WasmFontSource::new()),
             scenes: Mutex::new(None),
             time_base: Mutex::new(None),
-            media_provider: Mutex::new(fframes::DynamicMediaProvider::new(
-                HashMap::new(),
-                HashMap::new(),
-                HashMap::new(),
-                HashMap::new(),
-                Vec::new(),
-            )),
+            media_provider: Mutex::new(media_provider),
             video_decoders: fframes::VideoDecodersWorker::default(),
         }
     }
@@ -188,6 +198,33 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             .insert(file, parsed_subtitle);
 
         phrases_count
+    }
+
+    /// Parses a Lottie file of the dynamic media folder and returns its length in seconds.
+    /// Returns `None` for an invalid file, or when the `lottie` feature is off.
+    pub fn add_lottie_source(&self, file: String, content: String) -> Option<f32> {
+        #[cfg(feature = "lottie")]
+        {
+            let lottie = fframes::Lottie::parse(content)
+                .map_err(|error| fframes::log!("{file} is not a Lottie file: {error}"))
+                .ok()?;
+            let seconds = lottie.seconds();
+            self.media_provider
+                .lock()
+                .unwrap()
+                .lottie
+                .insert(file, lottie);
+            Some(seconds)
+        }
+
+        #[cfg(not(feature = "lottie"))]
+        {
+            let _ = content;
+            fframes::log!(
+                "{file}: enable the `lottie` feature of fframes-editor-controller to load Lottie files"
+            );
+            None
+        }
     }
 
     pub fn add_image_source(

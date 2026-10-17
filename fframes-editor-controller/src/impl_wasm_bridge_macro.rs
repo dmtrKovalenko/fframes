@@ -66,6 +66,11 @@ macro_rules! internal_impl_wasm_bridge {
             }
 
             #[wasm_bindgen]
+            pub fn add_lottie_source(&self, file: String, content: String) -> Option<f32> {
+                self.0.add_lottie_source(file, content)
+            }
+
+            #[wasm_bindgen]
             pub fn add_image_source(
                 &self,
                 file: String,
