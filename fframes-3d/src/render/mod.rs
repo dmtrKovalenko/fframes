@@ -2,6 +2,7 @@
 //! (the CPU backend, the Skia backend, the wasm editor) and gives the same pixels on all
 //! of them.
 
+mod hybrid;
 mod post;
 pub(crate) mod prepare;
 mod raster;
@@ -14,6 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use glam::{Vec2, Vec4};
 use rayon::prelude::*;
 
+pub use hybrid::Hybrid;
 pub use post::{Bloom, ToneMapping};
 
 use crate::{Camera, Scene};
@@ -53,6 +55,8 @@ pub struct Renderer {
     pub bloom: Option<Bloom>,
     /// Render on the GPU when the `wgpu` feature of fframes is on, see [`Renderer::gpu`].
     pub gpu: bool,
+    /// Render some frames on the CPU while the GPU is busy, see [`Renderer::hybrid`].
+    pub hybrid: Option<Hybrid>,
 }
 
 /// Premultiplied sRGB RGBA8 pixels from [`Renderer::render_pixels`].
@@ -155,6 +159,7 @@ impl Renderer {
             tone_mapping: ToneMapping::Aces,
             bloom: None,
             gpu: cfg!(feature = "gpu"),
+            hybrid: None,
         }
     }
 
@@ -169,6 +174,17 @@ impl Renderer {
     /// Renders on the CPU, also with the `wgpu` feature.
     pub fn cpu(mut self) -> Self {
         self.gpu = false;
+        self
+    }
+
+    /// Lets the CPU rasterizer render frames of this renderer while other threads keep the
+    /// GPU busy, see [`Hybrid`]. Off by default.
+    ///
+    /// Turn it on for the shots whose CPU frames look like their GPU frames (compare them
+    /// with [`Renderer::cpu`]), and only for renders: which frames render on the CPU depends
+    /// on the timing.
+    pub fn hybrid(mut self, hybrid: Hybrid) -> Self {
+        self.hybrid = Some(hybrid);
         self
     }
 
@@ -263,16 +279,30 @@ impl Renderer {
     /// its GPU.
     fn image(&self, moments: &[(&Scene, &Camera)]) -> fframes_media::ImageData<'static> {
         #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
-        if self.gpu
-            && let Some(image) = crate::gpu::layer(self, moments)
-        {
-            return image;
+        if self.gpu {
+            if let Some(turn) = self.cpu_turn() {
+                return turn.install(|| self.cpu_pixels(moments)).into_image();
+            }
+            if let Some(image) = crate::gpu::layer(self, moments) {
+                return image;
+            }
         }
-        self.pixels(moments).into_image()
+        self.gpu_or_cpu_pixels(moments).into_image()
     }
 
     /// The average of the moments as pixels.
     fn pixels(&self, moments: &[(&Scene, &Camera)]) -> Pixels {
+        #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+        if self.gpu
+            && let Some(turn) = self.cpu_turn()
+        {
+            return turn.install(|| self.cpu_pixels(moments));
+        }
+        self.gpu_or_cpu_pixels(moments)
+    }
+
+    /// The average of the moments as pixels of the GPU, or of the CPU without a GPU.
+    fn gpu_or_cpu_pixels(&self, moments: &[(&Scene, &Camera)]) -> Pixels {
         #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
         if self.gpu
             && let Some(gpu) = crate::gpu::gpu()
@@ -280,6 +310,13 @@ impl Renderer {
             return gpu.render(self, moments);
         }
         self.cpu_pixels(moments)
+    }
+
+    /// The frame of a CPU run of [`Renderer::hybrid`], `None` for the GPU.
+    #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
+    fn cpu_turn(&self) -> Option<hybrid::CpuTurn> {
+        let gpu = crate::gpu::gpu()?;
+        hybrid::cpu_turn(self.hybrid.as_ref()?, &gpu)
     }
 
     /// The average of the moments as pixels of the CPU rasterizer. The moments render at
