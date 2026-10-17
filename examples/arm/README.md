@@ -25,7 +25,7 @@ cargo run --release -p arm-example --bin arm -- --readback render   # the 3D rea
 
 ## What it uses
 
-| fframes-3d | where |
+| `fframes::three_d` | where |
 | --- | --- |
 | scene graph, groups, `Scene::local_to_world` | the joints of the arm, the gas spring between two joints |
 | `rounded_box`, `cylinder`, `torus`, `sphere_partial`, `lathe`, `extrude`, `tube`, `ring`, `circle`, `text`, `merge` | the arm, the letters, the stencils |
@@ -40,11 +40,11 @@ cargo run --release -p arm-example --bin arm -- --readback render   # the 3D rea
 | `Bloom`, `ToneMapping::Neutral`, `exposure` | the glow of the lights and the sparks |
 | `Camera::project`, `Camera::pixel_size` | the SVG marker on the thrown letter |
 
-The 3D renders on the GPU with the `gpu` feature of `fframes-3d` (`Renderer::gpu()`). On Linux
-and Windows it uses the same Vulkan device as Skia (the `wgpu` feature of
-`fframes_skia_renderer`): the 3D of each frame is a GPU texture, Skia draws the console overlay
-on it and converts it to YUV for the encoder, and nothing is read back between these steps. On
-macOS Skia renders with Metal, and the 3D comes back as pixels.
+The 3D comes from `fframes = { features = ["3d", "wgpu"] }` and renders on the GPU
+(`Renderer::gpu()`). On Linux and Windows it uses the same Vulkan device as Skia (the `wgpu`
+feature of `fframes_skia_renderer`): the 3D of each frame is a GPU texture, Skia draws the
+console overlay on it and converts it to YUV for the encoder, and nothing is read back between
+these steps. On macOS Skia renders with Metal, and the 3D comes back as pixels.
 
 The polished concrete reflects the scene (`Scene::reflector`). The reflection renders mirrored
 at half resolution, and the roughness map of the floor blurs it. Specular antialiasing stops

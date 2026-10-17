@@ -152,7 +152,7 @@ fn layers_are_sampled_in_place_and_reused() {
 /// pixels that the renderer reads back.
 #[test]
 fn fframes_3d_frames_are_layers() {
-    use fframes_3d::{Background, Camera, Geometry, Material, Node, Renderer, Rgb, Scene};
+    use fframes::three_d::{Background, Camera, Geometry, Material, Node, Renderer, Rgb, Scene};
 
     let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {
         eprintln!("no Vulkan device, skipped");

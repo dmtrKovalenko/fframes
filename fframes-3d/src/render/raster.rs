@@ -7,8 +7,8 @@
 //! the samples from back to front, with a depth test against the opaque samples.
 
 use glam::{Mat4, Vec2, Vec3, Vec4};
+use rayon::prelude::*;
 
-use super::par::{self, SharedMut};
 use super::prepare::{Draw, Rect, ScreenSprite, ScreenTri, Streams};
 use super::shade::{ShadeContext, Surface, shade, uv_directions};
 use crate::Blending;
@@ -80,7 +80,7 @@ pub(crate) fn rasterize(frame: &Frame) -> (Vec<Vec4>, Vec<f32>) {
     let mut depth_out = vec![0.0f32; w * h];
     let target = SharedMut::new(&mut out);
     let depth_target = SharedMut::new(&mut depth_out);
-    par::for_each(tiles, |tile| {
+    (0..tiles).into_par_iter().for_each(|tile| {
         let (x0, y0) = (tile % tiles_x * TILE, tile / tiles_x * TILE);
         let rect = Rect {
             x0,
@@ -380,4 +380,25 @@ fn ray(frame: &Frame, x: f32, y: f32) -> Vec3 {
     let near = inverse.project_point3(Vec3::new(ndc_x, ndc_y, 0.0));
     let far = inverse.project_point3(Vec3::new(ndc_x, ndc_y, 1.0));
     (far - near).normalize_or(Vec3::NEG_Z)
+}
+
+/// A pointer into a buffer that several threads write at the same time. Each thread must
+/// write a different set of indices.
+#[derive(Clone, Copy)]
+pub(crate) struct SharedMut<T>(*mut T);
+
+unsafe impl<T: Send> Send for SharedMut<T> {}
+unsafe impl<T: Send> Sync for SharedMut<T> {}
+
+impl<T> SharedMut<T> {
+    pub(crate) fn new(data: &mut [T]) -> Self {
+        Self(data.as_mut_ptr())
+    }
+
+    /// # Safety
+    /// `index` must be in bounds. No other thread may access `index` at the same time.
+    #[inline]
+    pub(crate) unsafe fn write(self, index: usize, value: T) {
+        unsafe { self.0.add(index).write(value) }
+    }
 }

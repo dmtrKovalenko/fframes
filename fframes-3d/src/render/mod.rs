@@ -2,7 +2,6 @@
 //! (the CPU backend, the Skia backend, the wasm editor) and gives the same pixels on all
 //! of them.
 
-pub(crate) mod par;
 mod post;
 pub(crate) mod prepare;
 mod raster;
@@ -13,6 +12,7 @@ pub(crate) mod shadow;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use glam::{Vec2, Vec4};
+use rayon::prelude::*;
 
 pub use post::{Bloom, ToneMapping};
 
@@ -26,8 +26,8 @@ use shadow::ShadowMap;
 /// Renders [`Scene`]s into images for `svgr!`.
 ///
 /// Make it once, for example in the constructor of the video. It holds only settings.
-/// Then call [`Renderer::render`] in `render_frame`. With the `gpu` feature it renders on
-/// the GPU, see [`Renderer::gpu`].
+/// Then call [`Renderer::render`] in `render_frame`. With the `wgpu` feature of fframes it
+/// renders on the GPU, see [`Renderer::gpu`].
 ///
 /// ```rust,ignore
 /// let renderer = Renderer::new(1920, 1080).bloom(Bloom::default());
@@ -51,7 +51,7 @@ pub struct Renderer {
     pub tone_mapping: ToneMapping,
     /// The glow around bright pixels, `None` for no glow.
     pub bloom: Option<Bloom>,
-    /// Render on the GPU when the `gpu` feature is on, see [`Renderer::gpu`].
+    /// Render on the GPU when the `wgpu` feature of fframes is on, see [`Renderer::gpu`].
     pub gpu: bool,
 }
 
@@ -83,8 +83,8 @@ impl Pixels {
     }
 
     /// The image for an `<image href>` in `svgr!`.
-    pub fn into_image(self) -> fframes::media::ImageData<'static> {
-        use fframes::media::{ImageData, ImageMetadata};
+    pub fn into_image(self) -> fframes_media::ImageData<'static> {
+        use fframes_media::{ImageData, ImageMetadata};
 
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         // Each image gets a new id, so a cache with the id as key never gives an old frame.
@@ -94,7 +94,7 @@ impl Pixels {
 
         #[cfg(not(target_arch = "wasm32"))]
         return ImageData::new_from_raw_data(
-            std::sync::Arc::new(fframes::usvgr::PreloadedImageData {
+            std::sync::Arc::new(usvgr::PreloadedImageData {
                 data: std::borrow::Cow::Owned(self.rgba),
                 width,
                 height,
@@ -122,7 +122,7 @@ impl Pixels {
                 base64::engine::general_purpose::STANDARD.encode(&png_bytes)
             );
             ImageData::new_from_web_source(
-                fframes::media::OwnedSharedString::new_owned(url.as_str()),
+                fframes_media::OwnedSharedString::new_owned(url.as_str()),
                 url,
                 id,
                 metadata,
@@ -142,7 +142,7 @@ fn straight([r, g, b, a]: [u8; 4]) -> [u8; 4] {
 
 impl Renderer {
     /// A renderer for `width` x `height` images with antialiasing, ACES tone mapping and no
-    /// bloom. It renders on the GPU when the `gpu` feature is on. In the wasm editor the
+    /// bloom. It renders on the GPU with the `wgpu` feature of fframes. In the wasm editor the
     /// size is halved, so the previews stay interactive.
     pub fn new(width: u32, height: u32) -> Self {
         #[cfg(target_arch = "wasm32")]
@@ -158,20 +158,15 @@ impl Renderer {
         }
     }
 
-    /// A renderer with the size of a video: `Renderer::for_video::<MyVideo>()`.
-    pub fn for_video<V: fframes::Video>() -> Self {
-        Self::new(V::WIDTH as u32, V::HEIGHT as u32)
-    }
-
     /// Renders on the GPU (Vulkan, Metal or DX12 through wgpu). This is the default with
-    /// the `gpu` feature. Without the feature, or without a GPU that works, the CPU
-    /// renders. The shading is the same, and the pixels differ only by rounding.
+    /// the `wgpu` feature of fframes. Without the feature, or without a GPU that works, the
+    /// CPU renders. The shading is the same, and the pixels differ only by rounding.
     pub fn gpu(mut self) -> Self {
         self.gpu = true;
         self
     }
 
-    /// Renders on the CPU, also when the `gpu` feature is on.
+    /// Renders on the CPU, also with the `wgpu` feature.
     pub fn cpu(mut self) -> Self {
         self.gpu = false;
         self
@@ -224,7 +219,7 @@ impl Renderer {
     /// with its `wgpu` feature), the image is a texture on that GPU. The backend draws it
     /// there, so the frame does not go back to the CPU. In all other cases the image holds
     /// pixels.
-    pub fn render(&self, scene: &Scene, camera: &Camera) -> fframes::media::ImageData<'static> {
+    pub fn render(&self, scene: &Scene, camera: &Camera) -> fframes_media::ImageData<'static> {
         self.image(&[(scene, camera)])
     }
 
@@ -247,7 +242,7 @@ impl Renderer {
         &self,
         samples: usize,
         moment: impl FnMut(f32) -> (Scene, Camera),
-    ) -> fframes::media::ImageData<'static> {
+    ) -> fframes_media::ImageData<'static> {
         let moments: Vec<(Scene, Camera)> = shutter_offsets(samples).map(moment).collect();
         let moments: Vec<(&Scene, &Camera)> = moments.iter().map(|(s, c)| (s, c)).collect();
         self.image(&moments)
@@ -266,7 +261,7 @@ impl Renderer {
 
     /// The average of the moments as an image. It stays on the GPU when the backend shares
     /// its GPU.
-    fn image(&self, moments: &[(&Scene, &Camera)]) -> fframes::media::ImageData<'static> {
+    fn image(&self, moments: &[(&Scene, &Camera)]) -> fframes_media::ImageData<'static> {
         #[cfg(all(feature = "gpu", not(target_arch = "wasm32")))]
         if self.gpu
             && let Some(image) = crate::gpu::layer(self, moments)
@@ -290,7 +285,10 @@ impl Renderer {
     /// The average of the moments as pixels of the CPU rasterizer. The moments render at
     /// the same time.
     fn cpu_pixels(&self, moments: &[(&Scene, &Camera)]) -> Pixels {
-        let mut hdr = par::map(moments, |(scene, camera)| self.render_hdr(scene, camera))
+        let mut hdr = moments
+            .par_iter()
+            .map(|(scene, camera)| self.render_hdr(scene, camera))
+            .collect::<Vec<_>>()
             .into_iter()
             .reduce(|mut sum, hdr| {
                 sum.iter_mut().zip(&hdr).for_each(|(a, b)| *a += *b);

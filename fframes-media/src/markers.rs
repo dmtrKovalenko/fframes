@@ -8,20 +8,20 @@ use std::borrow::Cow;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
-use crate::media::{ImageData, ImageMetadata};
+use crate::{ImageData, ImageMetadata};
 
 static PIXEL: [u8; 4] = [0; 4];
 
 /// The markers of one kind of value: the live ones of the frames in flight, a few dozen at
 /// most, each with the image that stands for it.
-pub(crate) struct Markers<T> {
+pub struct Markers<T> {
     prefix: &'static str,
     next: AtomicU64,
     entries: Mutex<Vec<(Weak<usvgr::PreloadedImageData>, Arc<T>)>>,
 }
 
 impl<T> Markers<T> {
-    pub(crate) const fn new(prefix: &'static str) -> Self {
+    pub const fn new(prefix: &'static str) -> Self {
         Self {
             prefix,
             next: AtomicU64::new(0),
@@ -31,7 +31,7 @@ impl<T> Markers<T> {
 
     /// A marker that resolves to `value`. `width` and `height` are what the frame reports
     /// for the image.
-    pub(crate) fn create(&self, value: T, width: u32, height: u32) -> ImageData<'static> {
+    pub fn create(&self, value: T, width: u32, height: u32) -> ImageData<'static> {
         let image = self.image();
         let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
         // a value lives as long as its image: drop the ones whose frames are done
@@ -41,13 +41,12 @@ impl<T> Markers<T> {
     }
 
     /// A marker that resolves to nothing: an image that draws nothing.
-    #[cfg(feature = "wgpu")]
-    pub(crate) fn empty(&self, width: u32, height: u32) -> ImageData<'static> {
+    pub fn empty(&self, width: u32, height: u32) -> ImageData<'static> {
         Self::image_data(self.image(), width, height)
     }
 
     /// The value of `image` if it is one of these markers.
-    pub(crate) fn resolve(&self, image: &Arc<usvgr::PreloadedImageData>) -> Option<Arc<T>> {
+    pub fn resolve(&self, image: &Arc<usvgr::PreloadedImageData>) -> Option<Arc<T>> {
         if !image.id.starts_with(self.prefix) {
             return None;
         }
@@ -59,8 +58,7 @@ impl<T> Markers<T> {
     }
 
     /// Drops the values for which `keep` is false.
-    #[cfg(feature = "wgpu")]
-    pub(crate) fn retain(&self, keep: impl Fn(&T) -> bool) {
+    pub fn retain(&self, keep: impl Fn(&T) -> bool) {
         let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
         entries.retain(|(_, value)| keep(value));
     }

@@ -47,7 +47,7 @@ pub enum Shading {
 /// on the scene of the frame: `scene[id].material_mut().unwrap().emissive_intensity = glow`.
 ///
 /// ```rust
-/// use fframes_3d::{Material, Rgb};
+/// use fframes::three_d::{Material, Rgb};
 ///
 /// let steel = Material::metal(0xb8c0cc, 0.3);
 /// let paint = Material::standard(0xff5500).roughness(0.45).clearcoat(1.0);

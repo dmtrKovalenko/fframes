@@ -241,8 +241,8 @@ pub fn resolve_shader_draw(image: &Arc<usvgr::PreloadedImageData>) -> Option<Arc
 #[cfg(not(target_arch = "wasm32"))]
 mod registry {
     use super::ShaderDraw;
-    use crate::markers::Markers;
     use crate::media::ImageData;
+    use crate::media::markers::Markers;
 
     static MARKERS: Markers<ShaderDraw> = Markers::new("fframes-shader:");
 

@@ -7,7 +7,7 @@ use crate::math::deg;
 /// A camera is a plain value. Build a new one for each frame:
 ///
 /// ```rust
-/// use fframes_3d::{Camera, vec3};
+/// use fframes::three_d::{Camera, vec3};
 ///
 /// let t = 1.5;
 /// let camera = Camera::perspective(35.0).orbit(vec3(0.0, 1.0, 0.0), 6.0, 30.0 + t * 20.0, 12.0);

@@ -1,4 +1,5 @@
-//! 3D scenes for fframes, with an API after three.js.
+//! 3D scenes for fframes, with an API after three.js. fframes re-exports this crate as
+//! `fframes::three_d` with its `3d` feature: `fframes = { features = ["3d", "wgpu"] }`.
 //!
 //! A [`Scene`] holds [`Node`]s in a hierarchy: meshes, lights, particles and groups. A
 //! [`Camera`] looks at the scene. A [`Renderer`] makes an image of both for an `<image>`
@@ -11,12 +12,12 @@
 //! ACES tone mapping.
 //!
 //! The default renderer is a multithreaded software rasterizer. It runs on all backends:
-//! CPU, Skia and the wasm editor. The `gpu` feature renders with wgpu on Vulkan, Metal or
-//! DX12, see [`Renderer::gpu`]. The two paths use the same shading. On average, a GPU frame
-//! differs from the CPU frame by less than one 8-bit step. Without a usable GPU, the CPU
-//! renders.
+//! CPU, Skia and the wasm editor. The `wgpu` feature of fframes (the `gpu` feature of this
+//! crate) renders with wgpu on Vulkan, Metal or DX12, see [`Renderer::gpu`]. The two paths
+//! use the same shading. On average, a GPU frame differs from the CPU frame by less than
+//! one 8-bit step. Without a usable GPU, the CPU renders.
 //!
-//! A backend can share its GPU, see [`fframes::shared_gpu`]. The Skia Vulkan backend does
+//! A backend can share its GPU, see `fframes::shared_gpu`. The Skia Vulkan backend does
 //! this with its `wgpu` feature. [`Renderer::render`] then renders on that device into a
 //! texture that Skia draws. The 3D image stays on the GPU until the encoder.
 //!
@@ -25,8 +26,8 @@
 //! # Example
 //!
 //! ```rust,ignore
+//! use fframes::three_d::*;
 //! use fframes::{FFramesContext, Frame, Svgr, Video, svgr};
-//! use fframes_3d::*;
 //!
 //! struct Spin {
 //!     scene: Scene,

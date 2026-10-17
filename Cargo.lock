@@ -207,7 +207,6 @@ name = "arm-example"
 version = "1.2.0"
 dependencies = [
  "fframes",
- "fframes-3d",
  "fframes_native_player",
  "fframes_skia_renderer",
 ]
@@ -1181,6 +1180,7 @@ dependencies = [
  "clap",
  "colored",
  "criterion",
+ "fframes-3d",
  "fframes-media",
  "fframes-media-dir-macro",
  "futures",
@@ -1208,7 +1208,6 @@ dependencies = [
  "usvgr",
  "uuid",
  "wasm-bindgen",
- "wgpu",
 ]
 
 [[package]]
@@ -1217,13 +1216,15 @@ version = "1.2.0"
 dependencies = [
  "base64 0.22.1",
  "bytemuck",
- "fframes",
+ "fframes-media",
  "glam",
  "gltf",
  "image",
  "png 0.17.16",
  "pollster",
  "rayon",
+ "ttf-parser",
+ "usvgr",
  "wgpu",
 ]
 
@@ -1262,11 +1263,13 @@ dependencies = [
  "itoa",
  "kamadak-exif",
  "libc",
+ "log",
  "quote",
  "ttf-parser",
  "usvgr",
  "wasm-bindgen",
  "webvtt-parser",
+ "wgpu",
 ]
 
 [[package]]
@@ -1303,7 +1306,6 @@ dependencies = [
  "ash",
  "core-foundation 0.10.0",
  "fframes",
- "fframes-3d",
  "foreign-types-shared",
  "low-poly-art-example",
  "metal",

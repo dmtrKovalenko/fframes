@@ -4,8 +4,8 @@
 use std::sync::LazyLock;
 
 use glam::{Mat3, Vec2, Vec3, Vec4};
+use rayon::prelude::*;
 
-use super::par;
 use super::reflection::{MAX_LEVELS, level_count};
 use crate::color::linear_to_srgb;
 
@@ -90,7 +90,7 @@ impl Image {
         let height = (self.height / 2).max(1);
         let (du, dv) = (1.0 / self.width as f32, 1.0 / self.height as f32);
         let mut data = vec![Vec4::ZERO; width * height];
-        par::chunks_mut(&mut data, width, |y, row| {
+        data.par_chunks_mut(width).enumerate().for_each(|(y, row)| {
             let v = (y as f32 + 0.5) / height as f32;
             for (x, out) in row.iter_mut().enumerate() {
                 let u = (x as f32 + 0.5) / width as f32;
@@ -112,23 +112,26 @@ impl Image {
     fn add_upsampled(&mut self, coarse: &Image, weight: f32) {
         let (width, height) = (self.width, self.height);
         let (du, dv) = (1.0 / coarse.width as f32, 1.0 / coarse.height as f32);
-        par::chunks_mut(&mut self.data, width, |y, row| {
-            let v = (y as f32 + 0.5) / height as f32;
-            for (x, out) in row.iter_mut().enumerate() {
-                let u = (x as f32 + 0.5) / width as f32;
-                let mut sum = coarse.sample(u, v) * 4.0;
-                sum += (coarse.sample(u - du, v)
-                    + coarse.sample(u + du, v)
-                    + coarse.sample(u, v - dv)
-                    + coarse.sample(u, v + dv))
-                    * 2.0;
-                sum += coarse.sample(u - du, v - dv)
-                    + coarse.sample(u + du, v - dv)
-                    + coarse.sample(u - du, v + dv)
-                    + coarse.sample(u + du, v + dv);
-                *out += sum * (weight / 16.0);
-            }
-        });
+        self.data
+            .par_chunks_mut(width)
+            .enumerate()
+            .for_each(|(y, row)| {
+                let v = (y as f32 + 0.5) / height as f32;
+                for (x, out) in row.iter_mut().enumerate() {
+                    let u = (x as f32 + 0.5) / width as f32;
+                    let mut sum = coarse.sample(u, v) * 4.0;
+                    sum += (coarse.sample(u - du, v)
+                        + coarse.sample(u + du, v)
+                        + coarse.sample(u, v - dv)
+                        + coarse.sample(u, v + dv))
+                        * 2.0;
+                    sum += coarse.sample(u - du, v - dv)
+                        + coarse.sample(u + du, v - dv)
+                        + coarse.sample(u - du, v + dv)
+                        + coarse.sample(u + du, v + dv);
+                    *out += sum * (weight / 16.0);
+                }
+            });
     }
 }
 
@@ -143,7 +146,7 @@ pub(crate) fn bloom(hdr: &mut [Vec4], width: usize, height: usize, bloom: &Bloom
     let knee = threshold * 0.5 + 1e-4;
     let mut bright = vec![Vec4::ZERO; hw * hh];
     let source = &*hdr;
-    par::chunks_mut(&mut bright, hw, |y, row| {
+    bright.par_chunks_mut(hw).enumerate().for_each(|(y, row)| {
         for (x, out) in row.iter_mut().enumerate() {
             let mut sum = Vec3::ZERO;
             for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
@@ -178,7 +181,7 @@ pub(crate) fn bloom(hdr: &mut [Vec4], width: usize, height: usize, bloom: &Bloom
         finer.add_upsampled(&glow, (f + (1.2 - f - f) * bloom.radius).max(0.0));
         glow = finer;
     }
-    par::chunks_mut(hdr, width, |y, row| {
+    hdr.par_chunks_mut(width).enumerate().for_each(|(y, row)| {
         let v = (y as f32 + 0.5) / height as f32;
         for (x, px) in row.iter_mut().enumerate() {
             let u = (x as f32 + 0.5) / width as f32;
@@ -245,33 +248,35 @@ pub(crate) fn encode(
 ) -> Vec<u8> {
     let lut: &[u8] = &SRGB;
     let mut out = vec![0u8; width * height * 4];
-    par::chunks_mut(&mut out, width * 4, |y, row| {
-        for (x, out) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-            let px = hdr[y * width + x];
-            let rgb = px.truncate().max(Vec3::ZERO) * exposure;
-            // Light without coverage (glows, additive blending) becomes partly opaque light.
-            let alpha = px.w.max(rgb.max_element().min(1.0)).clamp(0.0, 1.0);
-            if alpha <= 0.0 {
-                continue;
+    out.par_chunks_mut(width * 4)
+        .enumerate()
+        .for_each(|(y, row)| {
+            for (x, out) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+                let px = hdr[y * width + x];
+                let rgb = px.truncate().max(Vec3::ZERO) * exposure;
+                // Light without coverage (glows, additive blending) becomes partly opaque light.
+                let alpha = px.w.max(rgb.max_element().min(1.0)).clamp(0.0, 1.0);
+                if alpha <= 0.0 {
+                    continue;
+                }
+                let straight = rgb / alpha;
+                let mapped = match tone_mapping {
+                    ToneMapping::Linear => straight.clamp(Vec3::ZERO, Vec3::ONE),
+                    ToneMapping::Aces => aces(straight),
+                    ToneMapping::Neutral => neutral(straight).clamp(Vec3::ZERO, Vec3::ONE),
+                };
+                let a8 = (alpha * 255.0 + 0.5) as u8;
+                let alpha = f32::from(a8) / 255.0;
+                // An ordered dither against banding in dark gradients.
+                let dither = (bayer(x, y) - 0.5) / 255.0;
+                let channel = |c: f32| {
+                    let i = ((c * (LUT_SIZE - 1) as f32) as usize).min(LUT_SIZE - 1);
+                    let srgb = f32::from(lut[i]) / 255.0;
+                    (((srgb + dither) * alpha).clamp(0.0, 1.0) * 255.0 + 0.5) as u8
+                };
+                *out = [channel(mapped.x), channel(mapped.y), channel(mapped.z), a8];
             }
-            let straight = rgb / alpha;
-            let mapped = match tone_mapping {
-                ToneMapping::Linear => straight.clamp(Vec3::ZERO, Vec3::ONE),
-                ToneMapping::Aces => aces(straight),
-                ToneMapping::Neutral => neutral(straight).clamp(Vec3::ZERO, Vec3::ONE),
-            };
-            let a8 = (alpha * 255.0 + 0.5) as u8;
-            let alpha = f32::from(a8) / 255.0;
-            // An ordered dither against banding in dark gradients.
-            let dither = (bayer(x, y) - 0.5) / 255.0;
-            let channel = |c: f32| {
-                let i = ((c * (LUT_SIZE - 1) as f32) as usize).min(LUT_SIZE - 1);
-                let srgb = f32::from(lut[i]) / 255.0;
-                (((srgb + dither) * alpha).clamp(0.0, 1.0) * 255.0 + 0.5) as u8
-            };
-            *out = [channel(mapped.x), channel(mapped.y), channel(mapped.z), a8];
-        }
-    });
+        });
     out
 }
 
@@ -336,7 +341,7 @@ pub(crate) fn depth_of_field(
     let source = hdr.to_vec();
     let (hw, hh) = (width.div_ceil(2), height.div_ceil(2));
     let mut half = vec![(Vec4::ZERO, 0.0f32); hw * hh];
-    par::chunks_mut(&mut half, hw, |hy, row| {
+    half.par_chunks_mut(hw).enumerate().for_each(|(hy, row)| {
         for (hx, out) in row.iter_mut().enumerate() {
             let mut color = Vec4::ZERO;
             let mut key = 0.0;
@@ -353,7 +358,7 @@ pub(crate) fn depth_of_field(
     });
     // The sample direction turns by the golden angle from sample to sample.
     let turn = Vec2::from_angle(2.399_963);
-    par::chunks_mut(hdr, width, |y, row| {
+    hdr.par_chunks_mut(width).enumerate().for_each(|(y, row)| {
         for (x, out) in row.iter_mut().enumerate() {
             let radius_max = near_max[(y / TILE) * tw + x / TILE];
             if radius_max < 0.5 {

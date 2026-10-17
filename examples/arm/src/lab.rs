@@ -4,8 +4,8 @@
 use std::f32::consts::TAU;
 use std::sync::Arc;
 
-use fframes_3d::math::smoothstep;
-use fframes_3d::*;
+use fframes::three_d::math::smoothstep;
+use fframes::three_d::*;
 
 use crate::effects::{self, hash};
 
@@ -72,7 +72,7 @@ fn floor_textures() -> (Texture, Texture, Texture) {
         let mut l = 0.52 + slab + (mottle - 0.5) * 0.1 + (fine - 0.5) * 0.04 - speck - scuff;
         l *= 1.0 - 0.35 * seam(u, v);
         let g = (l * 255.0).clamp(0.0, 255.0) as u8;
-        fframes::Color::rgb(
+        Rgb::srgb8(
             g,
             (f32::from(g) * 1.005).min(255.0) as u8,
             (f32::from(g) * 1.02).min(255.0) as u8,
@@ -106,9 +106,9 @@ fn floor_textures() -> (Texture, Texture, Texture) {
 fn hazard_texture() -> Texture {
     Texture::from_fn(64, 64, |u, v| {
         if (u + v).fract() < 0.5 {
-            fframes::Color::rgb(236, 180, 0)
+            Rgb::srgb8(236, 180, 0)
         } else {
-            fframes::Color::rgb(22, 22, 24)
+            Rgb::srgb8(22, 22, 24)
         }
     })
     .repeat(1.0 / 0.3, 1.0 / 0.3)
@@ -136,7 +136,7 @@ fn screen_texture() -> Texture {
         let trace = line(v - wave, 0.012);
         let bar = if u > 0.86 && v > 0.4 { 0.8 } else { 0.0 };
         let l = (0.1 * grid + trace).max(bar).min(1.0);
-        fframes::Color::rgb((40.0 * l) as u8, (190.0 * l) as u8, (255.0 * l) as u8)
+        Rgb::srgb8((40.0 * l) as u8, (190.0 * l) as u8, (255.0 * l) as u8)
     })
 }
 

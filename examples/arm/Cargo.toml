@@ -5,8 +5,8 @@ edition = "2024"
 publish = false
 
 [dependencies]
-fframes.workspace = true
-fframes-3d = { workspace = true, features = ["gpu"] }
+# `3d`: `fframes::three_d`; `wgpu`: the 3D renders on the GPU
+fframes = { workspace = true, features = ["3d", "wgpu"] }
 
 # Skia on Metal on macOS, on Vulkan everywhere else.
 # `preview`: real-time GPU window

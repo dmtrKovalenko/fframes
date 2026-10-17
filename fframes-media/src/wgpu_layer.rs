@@ -39,8 +39,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 
+use crate::ImageData;
 use crate::markers::Markers;
-use crate::media::ImageData;
 
 /// The texture format of a layer: premultiplied, sRGB encoded RGBA, like every other image
 /// of a frame.

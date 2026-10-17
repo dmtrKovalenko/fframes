@@ -9,7 +9,7 @@ use glam::Vec3;
 /// three.js uses the same color management, so `0xff8800` looks the same in both.
 ///
 /// ```rust
-/// use fframes_3d::Rgb;
+/// use fframes::three_d::Rgb;
 ///
 /// let orange = Rgb::hex(0xff8800);
 /// let also_orange: Rgb = "#ff8800".into();
@@ -101,15 +101,13 @@ impl Rgb {
         self.0.dot(Vec3::new(0.2126, 0.7152, 0.0722))
     }
 
-    /// Converts the color to an 8-bit sRGB [`fframes::Color`], clamped to `0..1`. Use it to
-    /// give SVG overlays the color of a material.
-    pub fn to_color(self) -> fframes::Color {
-        let [r, g, b] = self
-            .0
+    /// The 8-bit sRGB components, clamped to `0..1`. `fframes::Color::from(rgb)` gives SVG
+    /// overlays the color of a material.
+    pub fn to_srgb8(self) -> [u8; 3] {
+        self.0
             .clamp(Vec3::ZERO, Vec3::ONE)
             .to_array()
-            .map(|c| (linear_to_srgb(c) * 255.0 + 0.5) as u8);
-        fframes::Color::rgb(r, g, b)
+            .map(|c| (linear_to_srgb(c) * 255.0 + 0.5) as u8)
     }
 }
 
@@ -122,12 +120,6 @@ impl From<u32> for Rgb {
 impl From<&str> for Rgb {
     fn from(css: &str) -> Self {
         Rgb::parse(css)
-    }
-}
-
-impl From<fframes::Color> for Rgb {
-    fn from(color: fframes::Color) -> Self {
-        Rgb::srgb8(color.r, color.g, color.b)
     }
 }
 
@@ -205,8 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn round_trips_through_fframes_color() {
-        let color = Rgb::hex(0x3366cc).to_color();
-        assert_eq!((color.r, color.g, color.b), (0x33, 0x66, 0xcc));
+    fn round_trips_through_srgb8() {
+        assert_eq!(Rgb::hex(0x3366cc).to_srgb8(), [0x33, 0x66, 0xcc]);
     }
 }

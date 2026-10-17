@@ -523,18 +523,19 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
   draws nothing in their place, and the editor shows a placeholder.
 - Requires the `compile-time-svgtree` feature (the default `renderer` feature of the examples).
 
-### 7d. 3D scenes (`fframes-3d`)
+### 7d. 3D scenes (`fframes::three_d`)
 
-`fframes-3d` is a three.js style scene graph with its own renderer: 4x MSAA, metal/roughness
-PBR with clearcoat, a studio or HDR panorama environment, soft sun shadows, planar
-reflections, transparency, additive glows, particles, fog, depth of field, motion blur, bloom
-and ACES. It returns an image for `<image href>`. glTF and STL models load too. The crate
-docs (`fframes-3d/src/lib.rs`) map three.js classes to their fframes-3d names.
+`fframes = { features = ["3d"] }` adds `fframes::three_d` (the `fframes-3d` crate): a
+three.js style scene graph with its own renderer. It has 4x MSAA, metal/roughness PBR with
+clearcoat, a studio or HDR panorama environment, soft sun shadows, planar reflections,
+transparency, additive glows, particles, fog, depth of field, motion blur, bloom and ACES.
+It returns an image for `<image href>`. glTF and STL models load too. The crate docs
+(`fframes-3d/src/lib.rs`) map three.js classes to their fframes-3d names.
 
 Two renderers draw the same picture:
 
 - The CPU rasterizer runs everywhere, also in the editor (at half size there).
-- With `fframes-3d = { features = ["gpu"] }` the renderer uses wgpu (Vulkan, Metal, DX12).
+- With `fframes = { features = ["3d", "wgpu"] }` the renderer uses wgpu (Vulkan, Metal, DX12).
   A frame differs from the CPU frame by less than one 8-bit step on average. Without a GPU
   it falls back to the CPU. `Renderer::cpu()` forces the CPU.
 - With `fframes_skia_renderer = { features = ["vulkan", "wgpu"] }` as well, the 3D stays on
@@ -544,7 +545,7 @@ Two renderers draw the same picture:
 Without these features nothing of wgpu compiles.
 
 ```rust
-use fframes_3d::*;
+use fframes::three_d::*;
 
 // once, in the constructor: geometry is shared by `Arc`, keep the ids you animate
 let mut scene = Scene::new().environment(Environment::studio()).background(Background::Transparent);

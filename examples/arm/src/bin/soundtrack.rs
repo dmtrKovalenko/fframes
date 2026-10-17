@@ -8,7 +8,7 @@ use std::path::Path;
 
 use arm_example::Show;
 use arm_example::effects::hash;
-use fframes_3d::math::smoothstep;
+use fframes::three_d::math::smoothstep;
 
 /// Samples per second.
 const RATE: f32 = 48_000.0;

@@ -254,6 +254,23 @@ impl From<Color> for ColorF32 {
     }
 }
 
+/// The 3D color of an sRGB color, for materials and lights in [`crate::three_d`].
+#[cfg(feature = "3d")]
+impl From<Color> for fframes_3d::Rgb {
+    fn from(color: Color) -> Self {
+        fframes_3d::Rgb::srgb8(color.r, color.g, color.b)
+    }
+}
+
+/// The sRGB color of a 3D color, clamped to `0..1`: an SVG overlay in the color of a material.
+#[cfg(feature = "3d")]
+impl From<fframes_3d::Rgb> for Color {
+    fn from(color: fframes_3d::Rgb) -> Self {
+        let [r, g, b] = color.to_srgb8();
+        Color::rgb(r, g, b)
+    }
+}
+
 impl animation::Animatable for Color {
     fn apply_progress(&self, to: &Self, progress: f32) -> Self {
         let from = ColorF32::from(*self);

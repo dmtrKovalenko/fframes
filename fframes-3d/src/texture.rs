@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 use glam::{Vec2, Vec4};
 
+use crate::Rgb;
 use crate::color::{linear_to_srgb, srgb_to_linear};
 
 /// An RGBA8 image that materials sample. The image repeats outside `0..1`. Sampling is
@@ -75,7 +76,7 @@ impl Texture {
     /// screen in the scene plays it. Resize large frames first (`into_resized_image`), because
     /// the texture makes its mipmap levels on the CPU.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn from_image(image: &fframes::media::ImageData<'_>) -> Self {
+    pub fn from_image(image: &fframes_media::ImageData<'_>) -> Self {
         let source = &image.image;
         // fframes keeps premultiplied alpha; the texture keeps straight alpha
         let rgba: Vec<u8> = source
@@ -106,12 +107,12 @@ impl Texture {
         ))
     }
 
-    /// Makes a color texture from `f(u, v)`, which returns an sRGB color for `u` and `v` in
-    /// `0..1`.
-    pub fn from_fn(width: u32, height: u32, f: impl Fn(f32, f32) -> fframes::Color) -> Self {
+    /// Makes an opaque color texture from `f(u, v)`, which returns the color for `u` and `v`
+    /// in `0..1`. [`Self::from_fn_data`] makes one with alpha.
+    pub fn from_fn(width: u32, height: u32, f: impl Fn(f32, f32) -> Rgb) -> Self {
         Self::from_fn_data(width, height, true, |u, v| {
-            let c = f(u, v);
-            [c.r, c.g, c.b, c.a]
+            let [r, g, b] = f(u, v).to_srgb8();
+            [r, g, b, 255]
         })
     }
 
