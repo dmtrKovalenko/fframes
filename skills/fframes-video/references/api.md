@@ -93,7 +93,7 @@ fframes::svgr!(
         <rect x="160" y="240" width="600" height="120" rx="24"
             fill={frame.animate(fframes::timeline!(
                 at 0.0 => 1.0, animate Color::hex("#fff") => Color::hex("#0ea5e9"),
-                    Easing::CubicBezier(0.65, 0.0, 0.35, 1.0),
+                    Easing::EaseInOut,
             ))}
         />
     </g>
@@ -124,6 +124,7 @@ fframes::svgr!(
   does not clamp them. Use a custom curve only when the required motion is not represented
   by the available easings.
 - Easing: `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(x1, y1, x2, y2)`, `Spring {..}`.
+  Use the named ones and `Spring`; `design.md` says which fits where.
 - `Transform { translate_x, translate_y, scale: Scale { x, y }, rotate, .. }`,
   `Transform::translate(x, y)`. Scale around a point by translating by `p * (1 - s)`.
 

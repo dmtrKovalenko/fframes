@@ -29,9 +29,9 @@ const FONT: &str = "DM Sans";
 /// The only weight in `media/`; add font files for more.
 const WEIGHT: u16 = 500;
 
-/// Fast start, long settle: good for things sliding into place.
+/// Fast start, then it settles: good for things sliding into place.
 static EASE: LazyLock<AnimationRuntime> =
-    LazyLock::new(|| AnimationRuntime::new(0.8, &Easing::CubicBezier(0.16, 1.0, 0.3, 1.0)));
+    LazyLock::new(|| AnimationRuntime::new(0.8, &Easing::EaseOut));
 /// Springs stop at their own settle time, 3 s is only the upper bound.
 static SPRING: LazyLock<AnimationRuntime> = LazyLock::new(|| {
     AnimationRuntime::new(3.0, &Easing::Spring { mass: 1.0, stiffness: 180.0, damping: 20.0 })
