@@ -587,6 +587,8 @@ svgr!(<image href={image.href()} x="0" y="0" width="1920" height="1080" />)
   GPU caches meshes and textures by their `Arc`, so build geometry once. Only the sun
   (`Light::sun`) casts shadows. Set `.shadows(false, ..)` on floors and far scenery to keep
   the shadow map tight. `fframes-3d/tests/gpu.rs` compares both renderers.
+- `examples/arm` is a short film that uses most of the crate. Its `src/effects.rs` builds
+  camera shake, a light beam in hazy air, spark streaks and a printed grid from these blocks.
 
 ### 7e. Your own wgpu passes (`fframes::wgpu_layer`)
 
