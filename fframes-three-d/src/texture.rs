@@ -70,7 +70,8 @@ impl std::fmt::Debug for Texture {
             .field("width", &self.width)
             .field("height", &self.height)
             .field("srgb", &self.srgb)
-            .field("levels", &self.cpu_levels().len())
+            // `cpu_levels` reads a GPU texture back, so only show the levels that exist
+            .field("cpu_levels", &self.levels.cpu.get().map(Vec::len))
             .finish_non_exhaustive()
     }
 }
