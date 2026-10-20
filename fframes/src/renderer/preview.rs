@@ -949,23 +949,52 @@ mod batch_tests {
     /// Out of order, with a repeated frame.
     const FRAMES: [usize; 9] = [23, 5, 0, 12, 12, 19, 20, 3, 8];
 
-    fn one_by_one(
-        video: &Changing,
-        frames: &[usize],
-    ) -> (Vec<(RgbaFrame, String)>, Option<String>) {
+    /// The frames, with their reports without the missing font warnings.
+    type Rendered = (Vec<(RgbaFrame, (String, bool))>, Option<String>);
+
+    /// A report without its missing font warnings, and whether it had one. The converter
+    /// warns about a font when it lays out a text. With `compile-time-svgtree` it lays out
+    /// the same text once per cache, and each thread has its own cache.
+    fn without_fonts(mut report: FrameReport) -> (String, bool) {
+        let all = report.diagnostics.len();
+        report
+            .diagnostics
+            .retain(|d| !matches!(d.diagnostic, Diagnostic::MissingFont { .. }));
+        let font = report.diagnostics.len() != all;
+        (format!("{report:?}"), font)
+    }
+
+    /// Without the cache the threads warn about the font where one previewer does. With it
+    /// the first frame warns, and the threads warn at least where one previewer does.
+    fn assert_fonts(expected: &[bool], actual: &[bool]) {
+        assert_eq!(actual.len(), expected.len());
+        if cfg!(feature = "compile-time-svgtree") {
+            assert!(expected[0] && actual[0]);
+            assert!(
+                expected
+                    .iter()
+                    .zip(actual)
+                    .all(|(&one, &threads)| !one || threads)
+            );
+        } else {
+            assert_eq!(actual, expected);
+        }
+    }
+
+    fn one_by_one(video: &Changing, frames: &[usize]) -> Rendered {
         let mut previewer = Previewer::new(video, &RenderOptions::default()).unwrap();
         let mut renderer = CpuFrameRenderer::default();
         let mut rendered = Vec::new();
         for &frame in frames {
             match previewer.render_inspected(frame, &mut renderer) {
-                Ok((pixels, report)) => rendered.push((pixels, format!("{report:?}"))),
+                Ok((pixels, report)) => rendered.push((pixels, without_fonts(report))),
                 Err(err) => return (rendered, Some(err.to_string())),
             }
         }
         (rendered, None)
     }
 
-    fn batch(video: &Changing, frames: &[usize]) -> (Vec<(RgbaFrame, String)>, Option<String>) {
+    fn batch(video: &Changing, frames: &[usize]) -> Rendered {
         let mut previewer = Previewer::new(video, &RenderOptions::default()).unwrap();
         let mut rendered = Vec::new();
         let result = previewer.render_inspected_on(
@@ -973,22 +1002,28 @@ mod batch_tests {
             &mut CpuFrameRenderer::default(),
             4,
             |pixels, report| {
-                rendered.push((pixels, format!("{report:?}")));
+                rendered.push((pixels, without_fonts(report)));
                 Ok(())
             },
         );
         (rendered, result.err().map(|err| err.to_string()))
     }
 
-    fn assert_same(
-        (expected, expected_err): (Vec<(RgbaFrame, String)>, Option<String>),
-        (actual, actual_err): (Vec<(RgbaFrame, String)>, Option<String>),
-    ) {
+    fn assert_same((expected, expected_err): Rendered, (actual, actual_err): Rendered) {
         assert_eq!(actual.len(), expected.len());
-        for ((pixels, report), (expected_pixels, expected_report)) in actual.iter().zip(&expected) {
+        for ((pixels, (report, _)), (expected_pixels, (expected_report, _))) in
+            actual.iter().zip(&expected)
+        {
             assert_eq!(report, expected_report);
             assert_eq!(pixels.pixels, expected_pixels.pixels, "{report}");
         }
+        let fonts = |rendered: &[(RgbaFrame, (String, bool))]| {
+            rendered
+                .iter()
+                .map(|(_, (_, font))| *font)
+                .collect::<Vec<_>>()
+        };
+        assert_fonts(&fonts(&expected), &fonts(&actual));
         assert_eq!(actual_err, expected_err);
     }
 
@@ -997,14 +1032,9 @@ mod batch_tests {
         let video = Changing { panic_at: None };
         let expected = one_by_one(&video, &FRAMES);
         assert_eq!(expected.0.len(), FRAMES.len());
-        assert!(expected.0[0].1.contains("MissingMedia"));
+        assert!(expected.0[0].1.0.contains("MissingMedia"));
         // A warning of the converter, which goes through the logger of the thread.
-        assert!(
-            expected
-                .0
-                .iter()
-                .all(|(_, report)| report.contains("MissingFont"))
-        );
+        assert!(expected.0[0].1.1);
         assert_same(expected, batch(&video, &FRAMES));
 
         let mut previewer = Previewer::new(&video, &RenderOptions::default()).unwrap();
@@ -1043,21 +1073,23 @@ mod batch_tests {
     fn several_threads_inspect_like_one_by_one() {
         let video = Changing { panic_at: Some(12) };
         let mut previewer = Previewer::new(&video, &RenderOptions::default()).unwrap();
-        let expected: Vec<String> = FRAMES
+        let (expected, expected_fonts): (Vec<String>, Vec<bool>) = FRAMES
             .iter()
-            .map(|&frame| format!("{:?}", previewer.inspect(frame).unwrap()))
-            .collect();
+            .map(|&frame| without_fonts(previewer.inspect(frame).unwrap()))
+            .unzip();
         assert!(expected[3].contains("Panic"));
 
         let mut previewer = Previewer::new(&video, &RenderOptions::default()).unwrap();
         let mut reports = Vec::new();
         previewer
             .inspect_on(&FRAMES, 4, |report| {
-                reports.push(format!("{report:?}"));
+                reports.push(without_fonts(report));
                 Ok(())
             })
             .unwrap();
+        let (reports, fonts): (Vec<String>, Vec<bool>) = reports.into_iter().unzip();
         assert_eq!(reports, expected);
+        assert_fonts(&expected_fonts, &fonts);
     }
 
     #[test]
