@@ -111,7 +111,6 @@ wasm-bindgen = "0.2.100"
 kamadak-exif = "0.6.1"
 
 # fframes internal deps
-fframes_renderer = { path = "fframes-renderer", version = "1.0.0-beta.6.rc-3.2" }
 fframes-media = { path = "fframes-media", version = "1.2.0" }
 svgr-macro = { path = "svgr-macro", version = "1.2.0" }
 fframes-media-dir-macro = { path = "media-dir-macro", version = "1.2.0" }
