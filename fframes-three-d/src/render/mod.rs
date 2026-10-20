@@ -88,7 +88,10 @@ impl Pixels {
 
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         // Each image gets a new id, so a cache with the id as key never gives an old frame.
-        let id = format!("fframes-3d:{}", NEXT_ID.fetch_add(1, Ordering::Relaxed));
+        let id = format!(
+            "fframes_three_d:{}",
+            NEXT_ID.fetch_add(1, Ordering::Relaxed)
+        );
         let (width, height) = (self.width, self.height);
         let metadata = ImageMetadata { width, height };
 

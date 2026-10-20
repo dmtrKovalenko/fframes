@@ -3,7 +3,7 @@
 #![cfg(feature = "gpu")]
 #![allow(clippy::unreadable_literal)]
 
-use fframes_3d::*;
+use fframes_three_d::*;
 
 mod common;
 

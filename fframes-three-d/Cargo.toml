@@ -1,5 +1,5 @@
 [package]
-name = "fframes-3d"
+name = "fframes_three_d"
 version = "1.2.0"
 edition = "2024"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
@@ -8,7 +8,6 @@ description = "3D scenes for fframes: a three.js style scene graph, glTF and STL
 homepage = "https://fframes.studio"
 
 [lib]
-name = "fframes_3d"
 doctest = false
 
 [features]

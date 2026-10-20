@@ -233,7 +233,7 @@ cargo test -- --nocapture
 /fframes-editor            # Web editor UI (ReScript + React), published as @fframes/editor
 /fframes-editor-controller # WASM bridge between a Video impl and the editor
 /fframes-test-utils        # Snapshot helpers for svgr! trees
-/fframes-3d                # 3D: three.js style scene graph, glTF, CPU rasterizer or wgpu (GPU texture shared with Skia)
+/fframes-three-d           # 3D: three.js style scene graph, glTF, CPU rasterizer or wgpu (GPU texture shared with Skia)
 /svgr-macro                # The svgr! procedural macro (SVG DSL + static-subtree hashing)
 /media-dir-macro           # include_media_dir! (embeds a media folder into the binary)
 /webvtt-parser             # Subtitle format parser
@@ -525,12 +525,12 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
 
 ### 7d. 3D scenes (`fframes::three_d`)
 
-`fframes = { features = ["3d"] }` adds `fframes::three_d` (the `fframes-3d` crate): a
+`fframes = { features = ["3d"] }` adds `fframes::three_d` (the `fframes_three_d` crate): a
 three.js style scene graph with its own renderer. It has 4x MSAA, metal/roughness PBR with
 clearcoat, a studio or HDR panorama environment, soft sun shadows, planar reflections,
 transparency, additive glows, particles, fog, depth of field, motion blur, bloom and ACES.
 It returns an image for `<image href>`. glTF and STL models load too. The crate docs
-(`fframes-3d/src/lib.rs`) map three.js classes to their fframes-3d names.
+(`fframes-three-d/src/lib.rs`) map three.js classes to their fframes_three_d names.
 
 Two renderers draw the same picture:
 
@@ -587,14 +587,14 @@ svgr!(<image href={image.href()} x="0" y="0" width="1920" height="1080" />)
 - Cost of a 1080p frame: 60 to 150 ms on 28 CPU threads, 5 to 20 ms on an Intel iGPU. The
   GPU caches meshes and textures by their `Arc`, so build geometry once. Only the sun
   (`Light::sun`) casts shadows. Set `.shadows(false, ..)` on floors and far scenery to keep
-  the shadow map tight. `fframes-3d/tests/gpu.rs` compares both renderers.
+  the shadow map tight. `fframes-three-d/tests/gpu.rs` compares both renderers.
 - `examples/arm` is a short film that uses most of the crate. Its `src/effects.rs` builds
   camera shake, a light beam in hazy air, spark streaks and a printed grid from these blocks.
 
 ### 7e. Your own wgpu passes (`fframes::wgpu_layer`)
 
 With `fframes = { features = ["wgpu"] }` and the Skia Vulkan backend's `wgpu` feature,
-anything rendered with wgpu goes into a frame the way fframes-3d does:
+anything rendered with wgpu goes into a frame the way fframes_three_d does:
 
 ```rust
 use fframes::wgpu;
@@ -615,7 +615,7 @@ svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
 
 - Render into the texture again only after the returned image is dropped. The backend has
   submitted the frame that samples it by then. Keep a pool (see `LayerTarget` in
-  `fframes-3d/src/gpu/mod.rs`).
+  `fframes-three-d/src/gpu/mod.rs`).
 - Keep per-device state in `gpu.state(|gpu| ..)`. It is dropped with the device. The
   shared Vulkan device belongs to wgpu and goes with the last wgpu object, so wgpu objects
   may outlive the backend context (`SkiaVulkanCtx`); they hold the GPU memory until then.

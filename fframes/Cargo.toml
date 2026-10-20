@@ -39,7 +39,7 @@ svgr-macro.workspace = true
 fframes-media.workspace = true
 fframes-media-dir-macro.workspace = true
 kamadak-exif.workspace = true
-fframes-3d = { workspace = true, optional = true }
+fframes_three_d = { workspace = true, optional = true }
 
 # these are renderer/encoder specific dependnecies
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -73,11 +73,11 @@ exif = ["fframes-media/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 # `fframes::Lottie` and `frame.play_lottie`: Lottie `.json` files in the media folder
 lottie = ["dep:velato", "dep:kurbo", "dep:peniko", "dep:serde_json", "fframes-media-dir-macro/lottie"]
-# `fframes::three_d`: 3D scenes with the building blocks of three.js (the fframes-3d crate)
-3d = ["dep:fframes-3d"]
+# `fframes::three_d`: 3D scenes with the building blocks of three.js (the fframes_three_d crate)
+3d = ["dep:fframes_three_d"]
 # `fframes::wgpu_layer`: textures rendered with wgpu on the GPU of the rendering backend go
 # into frames without leaving the GPU. With `3d`, the 3D renders with wgpu.
-wgpu = ["fframes-media/wgpu", "fframes-3d?/gpu"]
+wgpu = ["fframes-media/wgpu", "fframes_three_d?/gpu"]
 
 # Keep FFmpeg source fallbacks portable, including compile-time media decoding.
 # Enable on native non-Windows targets; Windows uses a shared FFmpeg installation.

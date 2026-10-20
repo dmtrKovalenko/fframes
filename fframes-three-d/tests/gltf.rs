@@ -1,7 +1,7 @@
 #![allow(clippy::unreadable_literal)]
 
 use base64::Engine;
-use fframes_3d::*;
+use fframes_three_d::*;
 
 /// A `.gltf` without scenes: a root with a node of one primitive and a node of two
 /// primitives with a morph target, and an animation of the weights and of a translation.
@@ -130,7 +130,7 @@ fn renders_skinned_gltf() {
         .at(-5.0, 3.0, 10.0)
         .look_at(vec3(0.0, 2.0, 0.0));
 
-    let dir = std::env::temp_dir().join("fframes-3d");
+    let dir = std::env::temp_dir().join("fframes_three_d");
     std::fs::create_dir_all(&dir).unwrap();
     for (i, t) in [0.0, 0.4, 0.8].into_iter().enumerate() {
         let mut scene = stage.clone();

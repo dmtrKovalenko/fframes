@@ -73,7 +73,7 @@ direct3d11 = ["ffmpeg-sys-fframes/build-lib-d3d11va"]
 direct3d9 = ["ffmpeg-sys-fframes/build-lib-dxva2"]
 exif = ["kamadak-exif"]
 # `wgpu_layer`: textures rendered with wgpu on the GPU of the rendering backend go into
-# frames without leaving the GPU (fframes re-exports it, fframes-3d uses it)
+# frames without leaving the GPU (fframes re-exports it, fframes_three_d uses it)
 wgpu = ["dep:wgpu"]
 
 # licensing stuff

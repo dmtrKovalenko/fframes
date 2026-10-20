@@ -2,12 +2,14 @@
 #![allow(clippy::unreadable_literal)]
 use std::path::PathBuf;
 
-use fframes_3d::*;
+use fframes_three_d::*;
 
-/// Writes `name.png` to `$FFRAMES_3D_OUT`, or to `fframes-3d` in the temp directory.
+/// Writes `name.png` to `$FFRAMES_3D_OUT`, or to `fframes_three_d` in the temp directory.
 pub fn save(name: &str, pixels: &Pixels) {
-    let dir = std::env::var_os("FFRAMES_3D_OUT")
-        .map_or_else(|| std::env::temp_dir().join("fframes-3d"), PathBuf::from);
+    let dir = std::env::var_os("FFRAMES_3D_OUT").map_or_else(
+        || std::env::temp_dir().join("fframes_three_d"),
+        PathBuf::from,
+    );
     std::fs::create_dir_all(&dir).unwrap();
     image::save_buffer(
         dir.join(format!("{name}.png")),

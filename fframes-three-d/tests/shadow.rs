@@ -2,7 +2,7 @@
 //! shadow edges do not crawl when the box follows the camera.
 #![allow(clippy::unreadable_literal)]
 
-use fframes_3d::*;
+use fframes_three_d::*;
 
 #[allow(dead_code)]
 mod common;

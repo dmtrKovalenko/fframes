@@ -186,6 +186,6 @@ pub use usvgr;
 
 #[cfg(feature = "3d")]
 #[doc(inline)]
-pub use fframes_3d as three_d;
+pub use fframes_three_d as three_d;
 #[cfg(feature = "exif")]
 pub use media::exif;

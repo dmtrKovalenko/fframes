@@ -514,7 +514,7 @@ fn own_gpu() -> Option<Arc<Gpu>> {
         .get_or_init(|| match pollster::block_on(Gpu::new()) {
             Ok(gpu) => Some(Arc::new(gpu)),
             Err(e) => {
-                eprintln!("fframes-3d: no GPU available ({e}), rendering on the CPU");
+                eprintln!("fframes_three_d: no GPU available ({e}), rendering on the CPU");
                 None
             }
         })
@@ -593,7 +593,7 @@ impl Gpu {
             .map_err(|e| e.to_string())?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
-                label: Some("fframes-3d"),
+                label: Some("fframes_three_d"),
                 required_features: wgpu::Features::empty(),
                 required_limits: wgpu::Limits::default(),
                 ..Default::default()
@@ -1320,7 +1320,7 @@ impl Gpu {
             return (slot, layer.texture.clone(), layer.view.clone());
         }
         let texture = self.device.create_texture(&texture_desc(
-            "fframes-3d layer",
+            "fframes_three_d layer",
             width,
             height,
             wgpu_layer::WGPU_LAYER_FORMAT,

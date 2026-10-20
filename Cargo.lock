@@ -1186,9 +1186,9 @@ dependencies = [
  "clap",
  "colored",
  "criterion",
- "fframes-3d",
  "fframes-media",
  "fframes-media-dir-macro",
+ "fframes_three_d",
  "futures",
  "image",
  "indicatif",
@@ -1217,24 +1217,6 @@ dependencies = [
  "uuid",
  "velato",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "fframes-3d"
-version = "1.2.0"
-dependencies = [
- "base64 0.22.1",
- "bytemuck",
- "fframes-media",
- "glam",
- "gltf",
- "image",
- "png 0.17.16",
- "pollster",
- "rayon",
- "ttf-parser",
- "usvgr",
- "wgpu",
 ]
 
 [[package]]
@@ -1332,6 +1314,24 @@ version = "1.2.0"
 dependencies = [
  "fframes",
  "futures",
+]
+
+[[package]]
+name = "fframes_three_d"
+version = "1.2.0"
+dependencies = [
+ "base64 0.22.1",
+ "bytemuck",
+ "fframes-media",
+ "glam",
+ "gltf",
+ "image",
+ "png 0.17.16",
+ "pollster",
+ "rayon",
+ "ttf-parser",
+ "usvgr",
+ "wgpu",
 ]
 
 [[package]]

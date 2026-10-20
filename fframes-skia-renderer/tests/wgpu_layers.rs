@@ -148,10 +148,10 @@ fn layers_are_sampled_in_place_and_reused() {
     assert!(fframes::resolve_wgpu_layer(&layer.href()).is_none());
 }
 
-/// A fframes-3d frame on the shared GPU is a layer, and Skia draws the same picture as the
+/// A fframes_three_d frame on the shared GPU is a layer, and Skia draws the same picture as the
 /// pixels that the renderer reads back.
 #[test]
-fn fframes_3d_frames_are_layers() {
+fn fframes_three_d_frames_are_layers() {
     use fframes::three_d::{Background, Camera, Geometry, Material, Node, Renderer, Rgb, Scene};
 
     let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {

@@ -1,6 +1,6 @@
 #![allow(clippy::unreadable_literal)]
 
-use fframes_3d::*;
+use fframes_three_d::*;
 
 mod common;
 use common::{cubes, save, showcase, studs};
@@ -62,7 +62,7 @@ fn renders_depth_of_field() {
 }
 
 /// Renders an STL file into `stl.png` with the lighting of the showcase. Run it with
-/// `FFRAMES_3D_STL=model.stl cargo test -p fframes-3d --test render renders_an_stl -- --nocapture`.
+/// `FFRAMES_3D_STL=model.stl cargo test -p fframes_three_d --test render renders_an_stl -- --nocapture`.
 #[test]
 fn renders_an_stl() {
     let Ok(path) = std::env::var("FFRAMES_3D_STL") else {
