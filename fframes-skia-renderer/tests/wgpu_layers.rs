@@ -180,14 +180,15 @@ fn layers_are_sampled_in_place_and_reused() {
 /// The state of a type is made once, and its `init` can use the state of another type.
 #[test]
 fn state_is_made_once_and_can_use_other_state() {
+    struct Inner(u32);
+    struct Outer(u32);
+
     let _turn = take_turn();
     let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {
         eprintln!("no Vulkan device, skipped");
         return;
     };
     let gpu = ctx.shared_gpu().expect("wgpu opens the device").clone();
-    struct Inner(u32);
-    struct Outer(u32);
     let made = std::sync::atomic::AtomicUsize::new(0);
     let outers: Vec<_> = std::thread::scope(|scope| {
         let threads: Vec<_> = (0..8)
@@ -206,7 +207,7 @@ fn state_is_made_once_and_can_use_other_state() {
     assert!(outers.iter().all(|outer| outer.0 == 8));
 }
 
-/// A fframes_three_d frame on the shared GPU is a layer, and Skia draws the same picture as the
+/// A `fframes_three_d` frame on the shared GPU is a layer, and Skia draws the same picture as the
 /// pixels that the renderer reads back.
 #[test]
 fn fframes_three_d_frames_are_layers() {

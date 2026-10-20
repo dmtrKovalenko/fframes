@@ -59,7 +59,7 @@
 //!
 //! # Coming from three.js
 //!
-//! | three.js | fframes_three_d |
+//! | three.js | `fframes_three_d` |
 //! | --- | --- |
 //! | `new Mesh(new BoxGeometry(1, 2, 3), new MeshStandardMaterial({ color: 0xff0000 }))` | `Node::mesh(Geometry::cuboid(1.0, 2.0, 3.0), Material::standard(0xff0000))` |
 //! | `mesh.position.set(x, y, z)`, `mesh.rotation.set(x, y, z)` | `.at(x, y, z)`, `.euler(x, y, z)` or `scene[id].position = ...` |

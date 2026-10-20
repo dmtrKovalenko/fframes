@@ -1,4 +1,4 @@
-//! Effects that the film builds itself from the building blocks of fframes_three_d: random
+//! Effects that the film builds itself from the building blocks of `fframes_three_d`: random
 //! numbers, camera shake, a light beam in hazy air, sparks and a printed grid.
 
 use fframes::three_d::math::smoothstep;
