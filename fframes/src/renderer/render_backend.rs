@@ -18,8 +18,8 @@ pub trait FFramesRenderBackend {
         false
     }
 
-    /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip`, `onion` and
-    /// `snapshot`) the way this backend renders the video, so previews match the output.
+    /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip` and `onion`)
+    /// the way this backend renders the video, so previews match the output.
     /// `None` uses the built-in CPU renderer.
     fn frame_renderer(&self) -> Option<impl super::FrameRenderer + '_> {
         None::<std::convert::Infallible>

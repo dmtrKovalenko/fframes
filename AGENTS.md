@@ -276,7 +276,7 @@ my-video/
   Cargo.toml          # fframes with the `cli` and `compile-time-svgtree` features
   media/              # embedded by include_media_dir! (a DM Sans font to start with)
   src/lib.rs          # the Video from the template
-  src/main.rs         # fframes::cli (render, frame, strip, onion, svg, timeline, inspect, snapshot, audio)
+  src/main.rs         # fframes::cli (render, frame, strip, onion, svg, timeline, inspect, audio)
 ```
 
 For the web editor copy `examples/hello-world/editor` next to it and adapt step 9; gate the
@@ -639,7 +639,7 @@ The rest is optional and chains in any order:
 
 ```rust
 cli::new(&video, options)
-    // Render with Skia. Frame previews (frame, strip, onion, snapshot) use the backend's own
+    // Render with Skia. Frame previews (frame, strip, onion) use the backend's own
     // renderer, so they match the video; the CPU backend is the default.
     .backend(SkiaFFramesRenderer::new_metal(&gpu, SkiaPipelineConfig::default())?)
     // The `preview` command: a real-time window with audio (fframes_native_player).
@@ -677,7 +677,6 @@ See `examples/teej-podcast/src/main.rs`; `cargo fframes new` generates the same 
 | `svg TIME` | the frame as SVG after conversion |
 | `timeline` | size, fps, scenes with frame and second ranges, audio tracks |
 | `inspect [RANGE] [--every 0.25s] [--pops]` | missing media/fonts/glyphs, text cut by the canvas edge, NaN transforms, panics; exit code 2 on errors. `--pops` also renders every frame small and warns about pops: parts that change in one frame between still frames (an element appearing, vanishing or jumping in front of another) |
-| `snapshot TIMES [--update]` | compare frames with approved PNGs, writes `.actual.png` and `.diff.png` |
 | `audio render/analyze/at` | WAV of the mix, loudness report and waveform, tracks playing at a time |
 | `preview [TIME] [--paused] [--mute]` | real-time GPU window (`fframes_native_player`), blocks until closed |
 
@@ -762,11 +761,6 @@ $R audio analyze --waveform w.png   # levels, silence, cue positions
 $R render                           # final file
 just clippy && cargo fmt --all && just check-wasm my-video   # if it has an editor bridge
 ```
-
-Snapshot the compile-time tree against the runtime parser with
-`fframes_test_utils::assert_compile_time_svgr_eq_runtime(name, svgr)` (see
-`examples/marketing/src/tests.rs`); the first run writes `_svgr_snapshots/`, later runs diff.
-Pixel snapshots of frames: `fframes::snapshot::assert_frames(&mut previewer, &mut renderer, &["Intro@1s"], &Default::default())`.
 
 ## Important Notes
 

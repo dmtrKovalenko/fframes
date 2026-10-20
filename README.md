@@ -83,7 +83,6 @@ Every command runs as `cargo run --release -- <command>` inside the project:
 | `frame <scene>@end,<scene>@50%` | full-size PNGs in `frames/` |
 | `onion "<scene>@0..<scene>@1s" -n 6` | `onion.png`, the blended movement |
 | `audio analyze --waveform w.png` | the loudness report and a waveform with scene lines and cue ticks |
-| `snapshot` | a comparison with approved PNGs, `.diff.png` marks what changed |
 | `preview` | the real-time window, for a human |
 | `render [--draft]` | the video, or a part of it |
 

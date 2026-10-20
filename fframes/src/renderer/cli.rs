@@ -20,7 +20,7 @@ use super::{
     continuity::{PopDetector, PopKind},
     element_labels::{self, LabelledElement},
     fframes_logger::FFramesLoggerVariant,
-    sheet, snapshot,
+    sheet,
 };
 use crate::diagnostics::Severity;
 use crate::{AudioMixer, AudioTimelineSamples, AudioTimelineUnit, RenderOptions, Video};
@@ -110,8 +110,6 @@ pub enum Command {
     Timeline,
     /// Check frames for missing media and fonts, clipped text and panics without rendering.
     Inspect(InspectArgs),
-    /// Compare frames with approved PNG snapshots (visual regression).
-    Snapshot(SnapshotArgs),
     /// Render, measure and query the audio mix.
     #[command(subcommand)]
     Audio(AudioCommand),
@@ -285,6 +283,19 @@ fn check_render_size<V: Video>(scale: f64) -> CliResult<()> {
 }
 
 /// The pixels of `region` (video pixels) in a frame rendered at any scale.
+/// The file name of a time spec: `Intro@1.5s` -> `intro_1.5s`.
+fn file_name(spec: &str) -> String {
+    let name: String = spec
+        .chars()
+        .map(|c| match c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' => c.to_ascii_lowercase(),
+            '%' => 'p',
+            _ => '_',
+        })
+        .collect();
+    name.trim_matches('_').to_owned()
+}
+
 fn crop_frame<V: Video>(frame: &RgbaFrame, region: Region) -> RgbaFrame {
     let scale = f64::from(frame.width) / V::WIDTH as f64;
     frame.crop(
@@ -293,24 +304,6 @@ fn crop_frame<V: Video>(frame: &RgbaFrame, region: Region) -> RgbaFrame {
         (region.width * scale).round().max(1.) as u32,
         (region.height * scale).round().max(1.) as u32,
     )
-}
-
-#[derive(Debug, Clone, Args)]
-pub struct SnapshotArgs {
-    /// Frames to compare.
-    #[arg(required = true, value_delimiter = ',', num_args = 1..)]
-    pub at: Vec<String>,
-    #[arg(long, default_value = "_frame_snapshots")]
-    pub dir: PathBuf,
-    /// Accept the current frames as the new snapshots.
-    #[arg(long)]
-    pub update: bool,
-    /// Per channel difference (0-255) that still counts as equal.
-    #[arg(long, default_value_t = 16)]
-    pub threshold: u8,
-    /// Fraction of pixels allowed to differ.
-    #[arg(long, default_value_t = 0.001)]
-    pub max_diff: f64,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -579,9 +572,6 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
                         Command::Timeline => timeline(json, &previewer),
                         Command::Inspect(args) => {
                             inspect(json, &mut previewer, frame_renderer, args)
-                        }
-                        Command::Snapshot(args) => {
-                            snapshots(json, &mut previewer, frame_renderer, args)
                         }
                         Command::Audio(args) => audio(json, &previewer, args),
                         Command::Preview(args) => {
@@ -901,7 +891,7 @@ fn frame<'a, 'm: 'a, V: Video>(
         {
             pixels = crop_frame::<V>(&pixels, crop);
         }
-        let name = snapshot::snapshot_name(&spec);
+        let name = file_name(&spec);
         let path = args.output.join(format!("{name}.png"));
         let svg = if args.svg {
             let svg_path = args.output.join(format!("{name}.svg"));
@@ -1453,50 +1443,6 @@ fn inspect<'a, 'm: 'a, V: Video>(
     })
 }
 
-fn snapshots<'a, 'm: 'a, V: Video>(
-    json: bool,
-    previewer: &mut Previewer<'a, 'm, V>,
-    renderer: &mut dyn FrameRenderer,
-    args: SnapshotArgs,
-) -> CliResult {
-    let options = snapshot::SnapshotOptions {
-        directory: args.dir,
-        channel_threshold: args.threshold,
-        max_diff_ratio: args.max_diff,
-        update: args.update || snapshot::SnapshotOptions::default().update,
-    };
-    let specs: Vec<&str> = args.at.iter().flat_map(|s| s.split_whitespace()).collect();
-    let results = snapshot::check_frames(previewer, renderer, &specs, &options).map_err(err)?;
-    let failed = results
-        .iter()
-        .any(|r| r.status == snapshot::SnapshotStatus::Failed);
-
-    print(json, &results, || {
-        results
-            .iter()
-            .map(|r| {
-                let mut line = format!("{:?} {} (frame {})", r.status, r.spec, r.frame);
-                if r.status == snapshot::SnapshotStatus::Failed {
-                    let _ = write!(
-                        line,
-                        ": {:.3}% of pixels differ, actual {}, diff {}",
-                        r.diff_ratio * 100.,
-                        r.actual.as_deref().unwrap_or(Path::new("-")).display(),
-                        r.diff.as_deref().unwrap_or(Path::new("-")).display()
-                    );
-                }
-                line
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    });
-    Ok(if failed {
-        ExitCode::from(2)
-    } else {
-        ExitCode::SUCCESS
-    })
-}
-
 /// One time of `audio at`.
 #[derive(Serialize)]
 struct AudioAt {
@@ -1860,6 +1806,13 @@ fn waveform_image<'a, 'm: 'a, V: Video>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_names_are_safe() {
+        assert_eq!(file_name("Intro@1.5s"), "intro_1.5s");
+        assert_eq!(file_name("50%"), "50p");
+        assert_eq!(file_name("#3"), "3");
+    }
 
     #[test]
     fn spread_includes_both_ends() {

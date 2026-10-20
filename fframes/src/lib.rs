@@ -68,7 +68,7 @@
 //! fn main() -> std::process::ExitCode {
 //!     let media = Media::prepare().expect("embedded media");
 //!     let video = Hello { media: &media, title: "world" };
-//!     // `render`, `frame`, `strip`, `inspect`, `snapshot`, `audio` and more (feature `cli`).
+//!     // `render`, `frame`, `strip`, `inspect`, `audio` and more (feature `cli`).
 //!     fframes::cli::new(&video, RenderOptions { media: Some(&media), ..Default::default() }).run()
 //! }
 //! ```

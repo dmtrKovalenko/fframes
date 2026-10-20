@@ -220,7 +220,6 @@ times with commas.
 | `svg TIME` | read a frame's final SVG as text (positions, text, colors) |
 | `preview [TIME] [--paused] [--mute]` | real-time window with sound, for the user |
 | `render [RANGE] [-o out.mp4] [--draft]` | encode the video or a part of it (audio cut to match) |
-| `snapshot TIMES [--update]` | compare frames with approved PNGs, `.diff.png` marks changes |
 | `audio analyze [RANGE] [--waveform w.png]` | loudness (LUFS), true peak, clipping, silence, per scene |
 | `audio at TIMES` | which sounds play at a moment, where in their file and how loud |
 | `audio render [RANGE] -o a.wav` | the mix as a WAV file |
