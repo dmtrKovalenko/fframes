@@ -857,7 +857,14 @@ fn frame<'a, 'm: 'a, V: Video>(
     let frames: Vec<usize> = specs.iter().map(|(_, frame)| *frame).collect();
     let mut rendered = Vec::with_capacity(frames.len());
     previewer
-        .render_inspected_each(&frames, renderer, |pixels, report| {
+        .render_inspected_each(&frames, renderer, |mut pixels, report| {
+            // The labels of `--ids` need the whole frame. Without them only the crop stays in
+            // memory until all frames are done, which is small also at a large zoom.
+            if !args.ids
+                && let Some(crop) = args.crop
+            {
+                pixels = crop_frame::<V>(&pixels, crop);
+            }
             rendered.push((pixels, report));
             Ok(())
         })
@@ -889,7 +896,9 @@ fn frame<'a, 'm: 'a, V: Video>(
         } else {
             None
         };
-        if let Some(crop) = args.crop {
+        if args.ids
+            && let Some(crop) = args.crop
+        {
             pixels = crop_frame::<V>(&pixels, crop);
         }
         let name = snapshot::snapshot_name(&spec);
