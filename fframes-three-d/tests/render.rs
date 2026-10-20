@@ -228,3 +228,46 @@ fn camera_at_its_target_renders() {
     assert!(center[0] > 200 && center[0] == center[2], "{center:?}");
     assert!(corner[2] > corner[0], "{corner:?}");
 }
+
+/// An orthographic camera leaves out a particle behind it and blends transparent surfaces
+/// from back to front, like a perspective camera. Both renderers.
+#[test]
+fn orthographic_cameras_cull_and_order_like_perspective_ones() {
+    let mut scene = Scene::new().background(Background::Color(Rgb::hex(0x000000)));
+    // behind the camera: a big white glow that must not show
+    scene.add(Node::particles(
+        vec![Particle::new(Vec3::new(0.0, 0.0, 8.0), 3.0, Rgb::WHITE)],
+        Blending::Additive,
+    ));
+    // the near blue plane comes first in the scene, so the renderer has to sort
+    scene.add(
+        Node::mesh(
+            Geometry::plane(4.0, 4.0),
+            Material::unlit(0x0000ff).opacity(0.5),
+        )
+        .at(0.0, 0.0, 1.0),
+    );
+    scene.add(
+        Node::mesh(
+            Geometry::plane(4.0, 4.0),
+            Material::unlit(0xff0000).opacity(0.5),
+        )
+        .at(0.0, 0.0, -1.0),
+    );
+    let camera = Camera::orthographic(6.0).at(0.0, 0.0, 5.0);
+    let renderer = Renderer::new(64, 64).tone_mapping(ToneMapping::Linear);
+    for renderer in [renderer.clone(), renderer.cpu()] {
+        let pixels = renderer.render_pixels(&scene, &camera);
+        let [r, g, b, _] = pixels.get(32, 32);
+        assert!(
+            g < 8,
+            "gpu: {}, the particle shows: {r} {g} {b}",
+            renderer.uses_gpu()
+        );
+        assert!(
+            b > r,
+            "gpu: {}, red in front of blue: {r} {g} {b}",
+            renderer.uses_gpu()
+        );
+    }
+}

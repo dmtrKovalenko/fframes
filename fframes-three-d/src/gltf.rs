@@ -244,6 +244,11 @@ impl<'g> Loader<'_, 'g> {
     /// mesh primitive is the mesh. A node with several primitives is a group with one mesh
     /// child for each. A light is a child node.
     fn add_node(&mut self, gltf_node: &gltf::Node<'g>, parent: Option<NodeId>) {
+        // A node is in the tree once. A broken file whose node is its own descendant would
+        // recurse forever.
+        if self.node_ids.contains_key(&gltf_node.index()) {
+            return;
+        }
         let (t, r, s) = gltf_node.transform().decomposed();
         let meshes: Vec<Node> = gltf_node.mesh().map_or_else(Vec::new, |mesh| {
             // the node overrides the default weights of the mesh

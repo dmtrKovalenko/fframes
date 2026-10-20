@@ -683,8 +683,9 @@ struct ParticleOut {
 fn vs_particle(in: ParticleIn, @builtin(vertex_index) index: u32) -> ParticleOut {
     var out: ParticleOut;
     let c = frame.view_proj * vec4f(in.position.xyz, 1.0);
-    // A particle behind the near plane moves out of the view.
-    if (c.w <= frame.viewport.w) {
+    // A particle in front of the near plane moves out of the view. The depth is reversed:
+    // `z > w` is in front of the near plane, also for orthographic cameras.
+    if (c.w <= 0.0 || c.z > c.w) {
         out.clip = vec4f(2.0, 2.0, 2.0, 1.0);
         return out;
     }

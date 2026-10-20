@@ -16,10 +16,9 @@ use fframes::{
     include_media_dir, svgr,
 };
 
-use effects::{hash, noise, progress};
-
-use arm::{Arm, Expression, Joints, Palette};
-use story::{Phase, Sound, Story};
+use crate::arm::{Arm, Expression, Joints, Palette};
+use crate::effects::{hash, noise, progress};
+use crate::story::{Phase, Sound, Story};
 
 include_media_dir!(pub struct ArmMedia, "examples/arm/media");
 

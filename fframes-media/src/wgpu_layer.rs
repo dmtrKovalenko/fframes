@@ -32,7 +32,9 @@
 //!
 //! Render into the texture again only after the image from [`wgpu_layer`] is dropped. At
 //! that point the backend has submitted the frame that samples the texture, and the queue
-//! orders the next render after it.
+//! orders the next render after it. The GPU can still sample the texture then, so keep it
+//! alive: reuse it from a pool and drop it with the device. wgpu waits for its own
+//! submissions before it frees a texture, not for the frames of the backend.
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -65,8 +67,12 @@ struct SharedGpuInner {
     device: wgpu::Device,
     queue: wgpu::Queue,
     queue_lock: Arc<Mutex<()>>,
-    state: Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
+    /// A cell for each type of state, see [`SharedGpu::state`].
+    state: Mutex<HashMap<TypeId, Arc<StateCell>>>,
 }
+
+/// The state of one type on a [`SharedGpu`].
+type StateCell = OnceLock<Arc<dyn Any + Send + Sync>>;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 /// The ids of the pixels read back from layers.
@@ -124,16 +130,22 @@ impl SharedGpu {
     /// State of code that renders on this device: pipelines, caches, texture pools. `init`
     /// makes it on first use. It is dropped with the device, so it must not hold a
     /// `SharedGpu`; keep the `wgpu::Device` and `wgpu::Queue` instead.
+    ///
+    /// `init` runs once for each type. It can use the state of other types. Other threads
+    /// that want the same type wait for it.
     pub fn state<T: Any + Send + Sync>(&self, init: impl FnOnce(&SharedGpu) -> T) -> Arc<T> {
-        let mut state = self
-            .inner
-            .state
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        let entry = state
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| Arc::new(init(self)));
-        Arc::clone(entry)
+        // The map is locked only to find the cell. `init` runs on the cell.
+        let cell = Arc::clone(
+            self.inner
+                .state
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .entry(TypeId::of::<T>())
+                .or_default(),
+        );
+        let state: Arc<dyn Any + Send + Sync> =
+            Arc::clone(cell.get_or_init(|| Arc::new(init(self))));
+        state
             .downcast::<T>()
             .unwrap_or_else(|_| unreachable!("state is keyed by its type"))
     }
@@ -184,15 +196,26 @@ pub fn finish_wgpu_layer(encoder: &mut wgpu::CommandEncoder, texture: &wgpu::Tex
 /// A texture rendered on the [`SharedGpu`] as an image of the frame. Use it as
 /// `<image href={layer.href()} .../>` like any other image.
 ///
-/// The texture must have [`WGPU_LAYER_FORMAT`] and [`WGPU_LAYER_USAGE`]. Finish it with
-/// [`finish_wgpu_layer`] and submit it with [`SharedGpu::submit`] before the frame is
-/// returned. Render into it again only after the returned image is dropped.
+/// The texture must be a 2D texture with one layer and one sample, with
+/// [`WGPU_LAYER_FORMAT`] and [`WGPU_LAYER_USAGE`]. Finish it with [`finish_wgpu_layer`] and
+/// submit it with [`SharedGpu::submit`] before the frame is returned. Render into it again
+/// only after the returned image is dropped, and keep it alive, see the [module](self).
 pub fn wgpu_layer(gpu: &SharedGpu, texture: &wgpu::Texture) -> ImageData<'static> {
     let (width, height) = (texture.width(), texture.height());
-    if texture.format() != WGPU_LAYER_FORMAT || !texture.usage().contains(WGPU_LAYER_USAGE) {
+    // The backends wrap and read back one 2D image.
+    let single = texture.dimension() == wgpu::TextureDimension::D2
+        && texture.depth_or_array_layers() == 1
+        && texture.sample_count() == 1;
+    if !single
+        || texture.format() != WGPU_LAYER_FORMAT
+        || !texture.usage().contains(WGPU_LAYER_USAGE)
+    {
         log::warn!(
-            "fframes: a wgpu layer needs a {WGPU_LAYER_FORMAT:?} texture with {WGPU_LAYER_USAGE:?}, got {:?} with {:?}",
+            "fframes: a wgpu layer needs a 2D {WGPU_LAYER_FORMAT:?} texture with one layer, one sample and {WGPU_LAYER_USAGE:?}, got a {:?} {:?} texture with {} layers, {} samples and {:?}",
+            texture.dimension(),
             texture.format(),
+            texture.depth_or_array_layers(),
+            texture.sample_count(),
             texture.usage()
         );
         return LAYERS.empty(width, height);

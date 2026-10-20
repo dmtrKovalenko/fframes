@@ -147,3 +147,14 @@ fn renders_skinned_gltf() {
         .unwrap();
     }
 }
+
+/// A broken file whose node is its own descendant loads without recursing forever.
+#[test]
+fn a_node_cycle_loads() {
+    let json = r#"{"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],
+        "nodes":[{"name":"a","children":[1]},{"name":"b","children":[0]}]}"#;
+    if let Ok(model) = Model::from_gltf(json.as_bytes()) {
+        let mut scene = Scene::new();
+        model.add_to(&mut scene, None);
+    }
+}

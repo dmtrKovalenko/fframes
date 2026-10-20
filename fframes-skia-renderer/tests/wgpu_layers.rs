@@ -9,6 +9,16 @@ use skia_safe::{AlphaType, ColorType, ImageInfo};
 
 const SIZE: u32 = 64;
 
+/// `fframes::shared_gpu` is the GPU of the last Skia Vulkan context. The tests make one
+/// each, so they take turns.
+static SHARED_GPU: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn take_turn() -> std::sync::MutexGuard<'static, ()> {
+    SHARED_GPU
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// Clears the layer texture to `color` (premultiplied, as stored).
 fn fill(gpu: &fframes::SharedGpu, texture: &wgpu::Texture, color: [f64; 4]) {
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -90,6 +100,7 @@ fn assert_near(actual: [u8; 4], expected: [u8; 4]) {
 
 #[test]
 fn layers_are_sampled_in_place_and_reused() {
+    let _turn = take_turn();
     let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {
         eprintln!("no Vulkan device, skipped");
         return;
@@ -146,6 +157,53 @@ fn layers_are_sampled_in_place_and_reused() {
     });
     let layer = fframes::wgpu_layer(&gpu, &wrong);
     assert!(fframes::resolve_wgpu_layer(&layer.href()).is_none());
+
+    // the backends wrap and read back one 2D image: not a layer
+    let layered = gpu.device().create_texture(&wgpu::TextureDescriptor {
+        label: None,
+        size: wgpu::Extent3d {
+            width: SIZE,
+            height: SIZE,
+            depth_or_array_layers: 2,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: fframes::WGPU_LAYER_FORMAT,
+        usage: fframes::WGPU_LAYER_USAGE,
+        view_formats: &[],
+    });
+    let layer = fframes::wgpu_layer(&gpu, &layered);
+    assert!(fframes::resolve_wgpu_layer(&layer.href()).is_none());
+}
+
+/// The state of a type is made once, and its `init` can use the state of another type.
+#[test]
+fn state_is_made_once_and_can_use_other_state() {
+    let _turn = take_turn();
+    let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {
+        eprintln!("no Vulkan device, skipped");
+        return;
+    };
+    let gpu = ctx.shared_gpu().expect("wgpu opens the device").clone();
+    struct Inner(u32);
+    struct Outer(u32);
+    let made = std::sync::atomic::AtomicUsize::new(0);
+    let outers: Vec<_> = std::thread::scope(|scope| {
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                scope.spawn(|| {
+                    gpu.state(|gpu| {
+                        made.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        Outer(gpu.state(|_| Inner(7)).0 + 1)
+                    })
+                })
+            })
+            .collect();
+        threads.into_iter().map(|t| t.join().unwrap()).collect()
+    });
+    assert_eq!(made.into_inner(), 1);
+    assert!(outers.iter().all(|outer| outer.0 == 8));
 }
 
 /// A fframes_three_d frame on the shared GPU is a layer, and Skia draws the same picture as the
@@ -154,6 +212,7 @@ fn layers_are_sampled_in_place_and_reused() {
 fn fframes_three_d_frames_are_layers() {
     use fframes::three_d::{Background, Camera, Geometry, Material, Node, Renderer, Rgb, Scene};
 
+    let _turn = take_turn();
     let Ok(ctx) = SkiaVulkanCtx::new(SIZE as usize, SIZE as usize) else {
         eprintln!("no Vulkan device, skipped");
         return;

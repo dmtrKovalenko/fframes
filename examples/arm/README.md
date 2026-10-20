@@ -1,6 +1,6 @@
 # FFRAMES, ASSEMBLED
 
-A 37 second short film about a lab robot with a camera eye. The robot wakes up in the dark
+A 37-second short film about a lab robot with a camera eye. The robot wakes up in the dark
 lab, and its eye light searches the floor. The lab lights flicker on. The robot sees the
 camera, then spells `fframes` with letter pieces from a rack. It gets faster and too
 confident. In a spin it throws the "a" across the floor, and sparks fly. The music stops like
@@ -53,4 +53,4 @@ the sparkle on the chrome.
 The full film renders in about 42 seconds on an Intel UHD 770 iGPU: about 19 ms for each 1080p
 frame with depth of field, reflections and 4x MSAA. On average the 3D is within 0.4/255 of the
 CPU rasterizer. `--readback` reads the 3D back from the GPU and uploads it to Skia again, for
-comparison. With `--cpu` the film takes about six minutes on a 28 thread machine.
+comparison. With `--cpu` the film takes about six minutes on a 28-thread machine.

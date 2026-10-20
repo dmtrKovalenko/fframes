@@ -379,7 +379,7 @@ pub(crate) struct ScreenTri {
     /// weighted by the barycentrics has the sign of the distance.
     pub clip: Option<Vec3>,
     pub bounds: Rect,
-    /// The average view depth, for the order of blended triangles.
+    /// The average `view_depth` of the vertices, for the order of blended triangles.
     pub depth: f32,
 }
 
@@ -588,8 +588,15 @@ fn screen_tri(
         draw,
         clip: clip_plane,
         bounds,
-        depth: (clip[0].w + clip[1].w + clip[2].w) / 3.0,
+        depth: view_depth(vp, (clip[0] + clip[1] + clip[2]) / 3.0),
     })
+}
+
+/// A number that grows with the view distance of a clip space point, to order blended items
+/// from back to front. It is `w` for perspective cameras. For orthographic cameras `w` is 1
+/// and `z` grows with the distance.
+fn view_depth(vp: &Viewport, clip: Vec4) -> f32 {
+    if vp.ortho { clip.z } else { clip.w }
 }
 
 /// A particle projected to the screen: a round blob.
@@ -604,7 +611,7 @@ pub(crate) struct ScreenSprite {
     pub opacity: f32,
     pub additive: bool,
     pub bounds: Rect,
-    /// The view depth, for the order of blended particles.
+    /// The `view_depth`, for the order of blended particles.
     pub depth: f32,
 }
 
@@ -614,16 +621,17 @@ pub(crate) fn setup_sprites(
     camera: &Camera,
     vp: &Viewport,
 ) -> Vec<ScreenSprite> {
-    // The screen position, the depth key and `w`. `None` in front of the near plane or
-    // beyond the far plane, where the GPU clips the particle.
-    let project = |p: Vec3| -> Option<(Vec2, f32, f32)> {
+    // The screen position, the depth key and the clip space point. `None` in front of the
+    // near plane (`z < 0`, also for orthographic cameras) or beyond the far plane, where the
+    // GPU clips the particle.
+    let project = |p: Vec3| -> Option<(Vec2, f32, Vec4)> {
         let c = vp.view_proj * p.extend(1.0);
-        if c.w <= camera.near || c.z > c.w {
+        if c.w <= 0.0 || c.z < 0.0 || c.z > c.w {
             return None;
         }
         let screen = Vec2::new(c.x / c.w * 0.5 + 0.5, 0.5 - c.y / c.w * 0.5) * vp.size;
         let key = if vp.ortho { 1.0 - c.z / c.w } else { 1.0 / c.w };
-        Some((screen, key, c.w))
+        Some((screen, key, c))
     };
     // pixels per world unit, at a distance of 1 for perspective cameras
     let focal = match camera.ortho_height {
@@ -631,11 +639,11 @@ pub(crate) fn setup_sprites(
         None => vp.size.y / (2.0 * (camera.fov.to_radians() * 0.5).tan()),
     };
     let project_sprite = |s: &WorldSprite| {
-        let (center, z, w) = project(s.position)?;
+        let (center, z, clip) = project(s.position)?;
         let radius = if camera.ortho_height.is_some() {
             s.size * focal
         } else {
-            s.size * focal / w
+            s.size * focal / clip.w
         };
         // Sprites smaller than a pixel get a radius of 0.6 pixels and keep their energy.
         let drawn = radius.max(0.6);
@@ -652,7 +660,7 @@ pub(crate) fn setup_sprites(
             opacity,
             additive: s.additive,
             bounds: Rect::covering(center - drawn, center + drawn, vp.size)?,
-            depth: w,
+            depth: view_depth(vp, clip),
         })
     };
     sprites.iter().filter_map(project_sprite).collect()

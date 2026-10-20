@@ -235,13 +235,25 @@ impl Studio {
     /// matches [`Studio::radiance`] to within its texels.
     pub(crate) fn baked(&self) -> Arc<EnvironmentMap> {
         let key = self.bake_key();
-        let mut cache = BAKED.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some((_, map)) = cache.iter().find(|(k, _)| *k == key) {
-            return Arc::clone(map);
+        let cached = || {
+            let cache = BAKED.lock().unwrap_or_else(PoisonError::into_inner);
+            let map = cache
+                .iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, map)| Arc::clone(map));
+            (cache, map)
+        };
+        if let (_, Some(map)) = cached() {
+            return map;
         }
-        // The bake runs under the lock, because the other threads of a render need the same
-        // panorama.
+        // The bake runs without the lock. It runs on rayon, and while a thread waits for
+        // its part of the bake, rayon can give it another render that needs the panorama.
+        // Threads that start at the same time can bake the same studio, the first map stays.
         let map = Arc::new(self.bake());
+        let (mut cache, existing) = cached();
+        if let Some(existing) = existing {
+            return existing;
+        }
         if cache.len() >= 8 {
             cache.remove(0);
         }

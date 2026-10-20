@@ -615,7 +615,9 @@ svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
 
 - Render into the texture again only after the returned image is dropped. The backend has
   submitted the frame that samples it by then. Keep a pool (see `LayerTarget` in
-  `fframes-three-d/src/gpu/mod.rs`).
+  `fframes-three-d/src/gpu/mod.rs`) and drop its textures with the device: the GPU can still
+  sample a texture after its image is dropped, and wgpu waits only for its own submissions.
+- The texture is 2D with one layer and one sample. Other textures draw nothing.
 - Keep per-device state in `gpu.state(|gpu| ..)`. It is dropped with the device. The
   shared Vulkan device belongs to wgpu and goes with the last wgpu object, so wgpu objects
   may outlive the backend context (`SkiaVulkanCtx`); they hold the GPU memory until then.
