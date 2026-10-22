@@ -588,6 +588,8 @@ svgr!(<image href={image.href()} x="0" y="0" width="1920" height="1080" />)
   GPU caches meshes and textures by their `Arc`, so build geometry once. Only the sun
   (`Light::sun`) casts shadows. Set `.shadows(false, ..)` on floors and far scenery to keep
   the shadow map tight. `fframes-three-d/tests/gpu.rs` compares both renderers.
+- `.hybrid(Hybrid::default())` renders runs of frames on the CPU while the GPU is busy. It
+  only helps when the CPU is not much slower than the GPU, so measure the render with it.
 - `examples/arm` is a short film that uses most of the crate. Its `src/effects.rs` builds
   camera shake, a light beam in hazy air, spark streaks and a printed grid from these blocks.
 
