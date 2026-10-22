@@ -2199,24 +2199,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "motion-graphics-editor-bridge-example"
-version = "1.3.0"
-dependencies = [
- "fframes-editor-controller",
- "motion-graphics-example",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "motion-graphics-example"
-version = "1.3.0"
-dependencies = [
- "clap",
- "fframes",
- "fframes_skia_renderer",
-]
-
-[[package]]
 name = "mutate_once"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3396,7 +3378,6 @@ dependencies = [
  "hello-world-example",
  "low-poly-art-example",
  "marketing-example",
- "motion-graphics-example",
  "pixel-example",
  "png 0.17.16",
  "podcast-example",

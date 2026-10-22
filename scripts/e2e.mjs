@@ -45,7 +45,6 @@ const examples = [
   { dir: "lottie", pkg: "lottie", bin: "lottie", frames: "Code@2s,Code@3.5s,Code@3.7s,Code@3.9s" },
   { dir: "made-of-motion", pkg: "made-of-motion", bin: "made-of-motion", frames: "Portrait@50%,Orbit@50%,Fframes@50%", skia: true },
   { dir: "marketing", pkg: "marketing-example", bin: "marketing-example", frames: "3s,10s,18s" },
-  { dir: "motion-graphics", pkg: "motion-graphics-example", bin: "motion_graphics_example_bin", frames: "1s,3s" },
   { dir: "neon-triangle", pkg: "neon-triangle-example", bin: "neon_triangle_example_bin", frames: "2s,4s", skia: true },
   { dir: "pixel-memory", pkg: "pixel-example", bin: "pixel_memory_example_bin", frames: "StartScene@1.2s,ParallaxGridPhotos[0]@7s,SinglePhotoFloat[0]@50%,SpiralHeapGallery@50%", args: ["--song", "revenge.mp3", "--seed", "48"] },
   { dir: "podcast", pkg: "podcast-example", bin: "podcast_example_bin", frames: "10s,40s" },

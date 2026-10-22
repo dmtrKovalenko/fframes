@@ -171,11 +171,6 @@ Click a poster to watch the example. The README in each example folder has the v
       <b><a href="examples/signal-lab">signal-lab</a></b><br />
       <sub>a 24 second motion study: product UI, data storytelling and a technical explainer</sub>
     </td>
-    <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/3785a561-6c28-4cf5-a2f0-1cabd0aa73aa"><img alt="motion-graphics" src="examples/previews/motion-graphics.jpg" width="100%" /></a><br />
-      <b><a href="examples/motion-graphics">motion-graphics</a></b><br />
-      <sub>spring "punch in" motion and monospace text fitted to its box</sub>
-    </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">

@@ -51,8 +51,7 @@ problems already looks finished.
 - Weights: title 600-800, body 400-500. Letter-spacing: `-1` to `-3` for big titles,
   `+2` to `+6` for small caps labels.
 - Max ~8 words per line, ~3 lines per card. Measure with `frame.text_width` or wrap with
-  `frame.text_break_lines`; shrink to fit with a loop over sizes (as in the
-  [motion-graphics quote card](https://github.com/dmtrKovalenko/fframes/tree/main/examples/motion-graphics/src/quote_card.rs)) and memoize the result
+  `frame.text_break_lines`; shrink to fit with a loop over sizes and memoize the result
   in a `OnceLock`. Generated projects include a `FittedSizes` helper that does this.
 
 ## Color

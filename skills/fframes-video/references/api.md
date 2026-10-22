@@ -1,7 +1,6 @@
 # fframes API cheat sheet
 
-Examples in the fframes repository worth reading: [motion-graphics](https://github.com/dmtrKovalenko/fframes/tree/main/examples/motion-graphics)
-(springs, text fitting), [beta](https://github.com/dmtrKovalenko/fframes/tree/main/examples/beta) (scenes, images), [audio-announce](https://github.com/dmtrKovalenko/fframes/tree/main/examples/audio-announce)
+Examples in the fframes repository worth reading: [beta](https://github.com/dmtrKovalenko/fframes/tree/main/examples/beta) (scenes, images), [audio-announce](https://github.com/dmtrKovalenko/fframes/tree/main/examples/audio-announce)
 (audio visualisation, video sources), [teej-podcast](https://github.com/dmtrKovalenko/fframes/tree/main/examples/teej-podcast) (Skia backend, stereo
 media loaded at runtime), [shaders](https://github.com/dmtrKovalenko/fframes/tree/main/examples/shaders) and [neon-triangle](https://github.com/dmtrKovalenko/fframes/tree/main/examples/neon-triangle) (GPU
 shaders).

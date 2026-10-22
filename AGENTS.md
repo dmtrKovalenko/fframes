@@ -359,7 +359,7 @@ Rules for `render_frame`:
 
 - It runs once per frame on several threads. No panics, no I/O, no heavy allocation. Precompute
   in the constructor and read from `self`; memoise per-video data in a `std::sync::OnceLock`
-  field (only store a measurement once it succeeded, see `examples/motion-graphics`).
+  field (only store a measurement once it succeeded).
 - `svgr!` is SVG with Rust interpolation: attributes and text children accept `{expr}` where
   `expr` is a string, number, `Color`, `Transform`, another `Svgr`, or an iterator of `Svgr`
   (`.collect::<Vec<_>>()`). Comments are `// ...` lines inside the markup.
