@@ -2050,7 +2050,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "lottie-launch"
+name = "lottie"
 version = "1.3.0"
 dependencies = [
  "fframes",

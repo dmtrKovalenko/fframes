@@ -18,7 +18,7 @@ use fframes::{
 
 use beat::*;
 
-include_media_dir!(pub struct LaunchMedia, "examples/lottie-launch/media");
+include_media_dir!(pub struct LaunchMedia, "examples/lottie/media");
 
 pub const WIDTH: usize = 1080;
 pub const HEIGHT: usize = 1920;

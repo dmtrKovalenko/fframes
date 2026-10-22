@@ -1,11 +1,11 @@
-# lottie-launch
+# lottie
 
 An 18 second vertical launch video for Lottie support: every animation is a Lottie file and the music is synthesized in Rust.
 
 https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff
 
-From the repository root, `just run lottie-launch` opens it in the editor with live reload and
-`just render lottie-launch` writes the full video to a file.
+From the repository root, `just run lottie` opens it in the editor with live reload and
+`just render lottie` writes the full video to a file.
 
 ## Credits
 

@@ -690,7 +690,7 @@ With `fframes = { features = ["lottie"] }`, a Lottie `.json` file is media like 
 into the `include_media_dir!` folder or a `MediaDirectory` folder and play it by name.
 [velato](https://github.com/linebender/velato) reads and evaluates the file. fframes draws each
 frame as `svgr!` vector graphics, on every backend and in the editor. See
-`examples/lottie-launch`.
+`examples/lottie`.
 
 ```rust
 use fframes::LottieOptions;

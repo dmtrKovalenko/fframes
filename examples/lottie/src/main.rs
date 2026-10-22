@@ -5,7 +5,7 @@ use fframes::{
     LimiterOptions, MediaProvider, RenderOptions, cli,
 };
 use fframes_skia_renderer::cli::SkiaRenderers;
-use lottie_launch::{LaunchMedia, LaunchVideo, soundtrack};
+use lottie::{LaunchMedia, LaunchVideo, soundtrack};
 
 fn main() -> ExitCode {
     let media = LaunchMedia::new().expect("media");

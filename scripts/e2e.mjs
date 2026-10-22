@@ -42,7 +42,7 @@ const examples = [
   { dir: "hello-world", pkg: "hello-world-example", bin: "hello_world_example_bin", frames: "5s,20s" },
   { dir: "low-poly-art", pkg: "low-poly-art-example", bin: "low_poly_art_example_bin", frames: "Owl@3s,Owl@8s" },
   // tiger.json at four points of its loop: crouching, the take-off, in the air, landing
-  { dir: "lottie-launch", pkg: "lottie-launch", bin: "lottie-launch", frames: "Code@2s,Code@3.5s,Code@3.7s,Code@3.9s" },
+  { dir: "lottie", pkg: "lottie", bin: "lottie", frames: "Code@2s,Code@3.5s,Code@3.7s,Code@3.9s" },
   { dir: "made-of-motion", pkg: "made-of-motion", bin: "made-of-motion", frames: "Portrait@50%,Orbit@50%,Fframes@50%", skia: true },
   { dir: "marketing", pkg: "marketing-example", bin: "marketing-example", frames: "3s,10s,18s" },
   { dir: "motion-graphics", pkg: "motion-graphics-example", bin: "motion_graphics_example_bin", frames: "1s,3s" },

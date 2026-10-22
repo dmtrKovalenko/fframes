@@ -254,8 +254,8 @@ Click a poster to watch the example. The README in each example folder has the v
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff"><img alt="lottie-launch" src="examples/previews/lottie-launch.jpg" width="56%" /></a><br />
-      <b><a href="examples/lottie-launch">lottie-launch</a></b><br />
+      <a href="https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff"><img alt="lottie" src="examples/previews/lottie.jpg" width="56%" /></a><br />
+      <b><a href="examples/lottie">lottie</a></b><br />
       <sub>an 18 second vertical launch video for Lottie support: every animation is a Lottie file and the music is synthesized in Rust</sub>
     </td>
     <td width="33%" align="center" valign="top">

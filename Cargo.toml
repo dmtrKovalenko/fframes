@@ -52,7 +52,7 @@ members = [
     "examples/fframes-intro",
     "examples/made-of-motion",
     "examples/shader-mode",
-    "examples/lottie-launch",
+    "examples/lottie",
     "examples/svg-in-3d",
 ]
 
