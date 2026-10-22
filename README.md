@@ -162,99 +162,99 @@ Click a poster to watch the example. The README in each example folder has the v
 <table>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5"><img alt="fframes-intro" src="examples/previews/fframes-intro.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5"><img alt="fframes-intro" src="examples/_previews/fframes-intro.jpg" width="100%" /></a><br />
       <b><a href="examples/fframes-intro">fframes-intro</a></b><br />
       <sub>the 128 second <a href="https://x.com/neogoose_btw/status/2104432561200279774">launch video</a>, everything placed on the beat grid of its soundtrack</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/d03e5fe7-4782-4a67-9571-e435ed367477"><img alt="signal-lab" src="examples/previews/signal-lab.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/d03e5fe7-4782-4a67-9571-e435ed367477"><img alt="signal-lab" src="examples/_previews/signal-lab.jpg" width="100%" /></a><br />
       <b><a href="examples/signal-lab">signal-lab</a></b><br />
       <sub>a 24 second motion study: product UI, data storytelling and a technical explainer</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/2a97f8d0-abb9-4b24-9149-cde560b1efcb"><img alt="shaders" src="examples/previews/shaders.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/2a97f8d0-abb9-4b24-9149-cde560b1efcb"><img alt="shaders" src="examples/_previews/shaders.jpg" width="100%" /></a><br />
       <b><a href="examples/shaders">shaders</a></b><br />
       <sub>GPU shader layers composed with SVG: an SkSL background and a Shadertoy raymarcher clipped into a card</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/53bed61f-6478-471b-81c1-125a3054ee18"><img alt="shader-mode" src="examples/previews/shader-mode.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/53bed61f-6478-471b-81c1-125a3054ee18"><img alt="shader-mode" src="examples/_previews/shader-mode.jpg" width="100%" /></a><br />
       <b><a href="examples/shader-mode">shader-mode</a></b><br />
       <sub>a 31-second shader promo with reference audio, a moving panel wall, native preview footage and 18 GPU shader programs, rendered with Skia on Metal or Vulkan.<br />The preview is silent: its soundtrack is not in the repository.</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/8f15791f-0dc4-4589-bec4-c63e4ec0f912"><img alt="neon-triangle" src="examples/previews/neon-triangle.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/8f15791f-0dc4-4589-bec4-c63e4ec0f912"><img alt="neon-triangle" src="examples/_previews/neon-triangle.jpg" width="100%" /></a><br />
       <b><a href="examples/neon-triangle">neon-triangle</a></b><br />
       <sub>a minimal shader clip built to make banding and motion artifacts easy to spot</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/4731c533-c120-44d0-8022-e09600d0c52f"><img alt="hello-world" src="examples/previews/hello-world.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/4731c533-c120-44d0-8022-e09600d0c52f"><img alt="hello-world" src="examples/_previews/hello-world.jpg" width="100%" /></a><br />
       <b><a href="examples/hello-world">hello-world</a></b><br />
       <sub>a simple "hello world" video</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/fee736cc-e6e4-4ad6-b2a8-ca2ad287ab53"><img alt="beta" src="examples/previews/beta.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/fee736cc-e6e4-4ad6-b2a8-ca2ad287ab53"><img alt="beta" src="examples/_previews/beta.jpg" width="100%" /></a><br />
       <b><a href="examples/beta">beta</a></b><br />
       <sub>a complicated multi-scene example (our beta announce video)</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/963e7f80-e13a-44a2-95de-63684e175006"><img alt="marketing" src="examples/previews/marketing.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/963e7f80-e13a-44a2-95de-63684e175006"><img alt="marketing" src="examples/_previews/marketing.jpg" width="100%" /></a><br />
       <b><a href="examples/marketing">marketing</a></b><br />
       <sub>our marketing video</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/2b6706b8-562d-41fe-97aa-cc8198980001"><img alt="audio-announce" src="examples/previews/audio-announce.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/2b6706b8-562d-41fe-97aa-cc8198980001"><img alt="audio-announce" src="examples/_previews/audio-announce.jpg" width="100%" /></a><br />
       <b><a href="examples/audio-announce">audio-announce</a></b><br />
       <sub>an automated workflow to create audio visualisation with automated subtitles</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/602f32c6-4c4c-4d07-b5e9-da5e9dfe80ad"><img alt="podcast" src="examples/previews/podcast.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/602f32c6-4c4c-4d07-b5e9-da5e9dfe80ad"><img alt="podcast" src="examples/_previews/podcast.jpg" width="100%" /></a><br />
       <b><a href="examples/podcast">podcast</a></b><br />
       <sub>an audio visualization for a podcast placeholder video</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/fb57ae04-f908-4787-9ef0-bd440d36b1a4"><img alt="teej-podcast" src="examples/previews/teej-podcast.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/fb57ae04-f908-4787-9ef0-bd440d36b1a4"><img alt="teej-podcast" src="examples/_previews/teej-podcast.jpg" width="100%" /></a><br />
       <b><a href="examples/teej-podcast">teej-podcast</a></b><br />
       <sub>teej's podcast with video and chapters visualization</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/20dda3c9-8c44-4ea9-9663-860527d635be"><img alt="tiktok" src="examples/previews/tiktok.jpg" width="56%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/20dda3c9-8c44-4ea9-9663-860527d635be"><img alt="tiktok" src="examples/_previews/tiktok.jpg" width="56%" /></a><br />
       <b><a href="examples/tiktok">tiktok</a></b><br />
       <sub>a TikTok-like vertical video</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/4b92a7f7-fd4c-4049-8c7f-cd969405fef7"><img alt="conference-splash-screen" src="examples/previews/conference-splash-screen.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/4b92a7f7-fd4c-4049-8c7f-cd969405fef7"><img alt="conference-splash-screen" src="examples/_previews/conference-splash-screen.jpg" width="100%" /></a><br />
       <b><a href="examples/conference-splash-screen">conference-splash-screen</a></b><br />
       <sub>one splash screen per conference talk, rendered in batch</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/71f0b506-e37b-4e56-8064-b9bbc57cdfad"><img alt="low-poly-art" src="examples/previews/low-poly-art.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/71f0b506-e37b-4e56-8064-b9bbc57cdfad"><img alt="low-poly-art" src="examples/_previews/low-poly-art.jpg" width="100%" /></a><br />
       <b><a href="examples/low-poly-art">low-poly-art</a></b><br />
       <sub>a renderer stress test: animal art with a lot of polygons</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/fdddfc5e-72f2-4e5f-8ebe-892b9025ee1f"><img alt="pixel-memory" src="examples/previews/pixel-memory.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/fdddfc5e-72f2-4e5f-8ebe-892b9025ee1f"><img alt="pixel-memory" src="examples/_previews/pixel-memory.jpg" width="100%" /></a><br />
       <b><a href="examples/pixel-memory">pixel-memory</a></b><br />
       <sub>my dog's memorial video generator (totally randomized)</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff"><img alt="lottie" src="examples/previews/lottie.jpg" width="56%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff"><img alt="lottie" src="examples/_previews/lottie.jpg" width="56%" /></a><br />
       <b><a href="examples/lottie">lottie</a></b><br />
       <sub>an 18 second vertical launch video for Lottie support: every animation is a Lottie file and the music is synthesized in Rust</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/3c51ccae-3541-4c79-817c-f544cf83e415"><img alt="made-of-motion" src="examples/previews/made-of-motion.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/3c51ccae-3541-4c79-817c-f544cf83e415"><img alt="made-of-motion" src="examples/_previews/made-of-motion.jpg" width="100%" /></a><br />
       <b><a href="examples/made-of-motion">made-of-motion</a></b><br />
       <sub>a 20 second promo with pixel objects, a perspective carousel, thermal shaders and per-exposure vector ink, an adaptation of a reference film</sub>
     </td>
