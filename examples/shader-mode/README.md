@@ -4,6 +4,12 @@ A 932-frame, 1920×1080 Skia GPU example with 18 shaders, a 3D panel wall,
 native preview footage and an animated fframes wordmark. Preview and rendering
 run at 30 fps, using Metal on macOS and Vulkan elsewhere.
 
+<a href="https://github.com/dmtrKovalenko/fframes/raw/main/examples/previews/shader-mode.mp4"><img alt="shader-mode preview" src="https://github.com/dmtrKovalenko/fframes/raw/main/examples/previews/shader-mode.jpg" width="640" /></a>
+
+Preview (640x360): https://github.com/dmtrKovalenko/fframes/raw/main/examples/previews/shader-mode.mp4
+
+The preview is silent: the soundtrack is not in the repository.
+
 ## Run
 
 Place the soundtrack at `dynamic_media/reference-audio.wav`. To show the recorded
