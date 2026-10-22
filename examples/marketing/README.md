@@ -1,6 +1,6 @@
 # marketing
 
-Our marketing video.
+Our very first announcement video from 2021
 
 https://github.com/user-attachments/assets/963e7f80-e13a-44a2-95de-63684e175006
 
