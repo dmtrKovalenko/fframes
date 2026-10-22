@@ -1,7 +1,7 @@
 [files]
 # Keep the upstream minified player unchanged; its identifiers are not prose.
 # The Lottie files are third-party animations: their layer names are not prose either.
-extend-exclude = ["*.snapshot.txt", "sessions.json", "examples/the-why/landing/vendor/hls.min.js", "landing/vendor/hls.min.js", "examples/lottie-launch/media/*.json"]
+extend-exclude = ["*.snapshot.txt", "sessions.json", "landing/the-why/vendor/hls.min.js", "landing/vendor/hls.min.js", "examples/lottie-launch/media/*.json"]
 [default.extend-words]
 hd = "hd"
 # "PNGs" is split into "PN" + "Gs"

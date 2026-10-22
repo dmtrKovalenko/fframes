@@ -1,9 +1,10 @@
 THE WHY — landing page
 
 Run locally:
-  cd landing
+  cd landing/the-why
   npm run dev
-Then visit http://127.0.0.1:4173.
+Then visit http://127.0.0.1:4173/the-why/. The server serves the whole
+landing directory because index.html has <base href="/the-why/">.
 No dependency installation or build step is required.
 
 Deploy index.html, style.css, app.js, _headers, vendor/ and assets/ to a
@@ -70,10 +71,8 @@ the still and returns focus. Only one player plays at a time. Closing either
 player releases its HLS buffers and network activity.
 
 Production route: https://fframes.studio/the-why
-Run npm run build:landing from the repository root to stage this page and its
-assets in landing/the-why. That generated directory is ignored by Git; keep
-this source directory and its HLS media in the repository for deployment.
-The build injects /the-why/ as the base URL so both route forms resolve assets.
+This directory is deployed as is with the rest of landing/. index.html sets
+/the-why/ as the base URL so both route forms resolve assets.
 Root landing/_headers supplies the production HLS content types.
 Run npm run preview:landing from the repository root for the combined site
 at http://127.0.0.1:4174, including the homepage premiere link.
