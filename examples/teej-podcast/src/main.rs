@@ -40,11 +40,7 @@ fn main() -> ExitCode {
             qcompress: 0.6,
             max_qdiff: 4,
             gop_size: 24,
-            codec_params: Some(&[
-                ("crf", "23"),
-                ("preset", "slow"),
-                ("bframes", "3"),
-            ]),
+            codec_params: Some(&[("crf", "23"), ("preset", "slow"), ("bframes", "3")]),
             ..Default::default()
         },
         ..Default::default()
