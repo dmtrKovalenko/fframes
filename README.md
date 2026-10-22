@@ -258,6 +258,16 @@ Click a poster to watch the example. The README in each example folder has the v
       <b><a href="examples/made-of-motion">made-of-motion</a></b><br />
       <sub>a 20 second promo with pixel objects, a perspective carousel, thermal shaders and per-exposure vector ink, an adaptation of a reference film</sub>
     </td>
+    <td width="33%" align="center" valign="top">
+      <a href="https://github.com/user-attachments/assets/f752ebc6-6d7c-4304-abb6-27becc64801c"><img alt="arm" src="examples/_previews/arm.jpg" width="100%" /></a><br />
+      <b><a href="examples/arm">arm</a></b><br />
+      <sub>a 37 second 3D short: a lab robot with a camera eye spells fframes, drops a letter and picks it up again, rendered with fframes-3d on the GPU</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="https://github.com/user-attachments/assets/09432a37-4bd9-42ac-b068-ce92f59695af"><img alt="svg-in-3d" src="examples/_previews/svg-in-3d.jpg" width="100%" /></a><br />
+      <b><a href="examples/svg-in-3d">svg-in-3d</a></b><br />
+      <sub>an svgr UI on the screen of a turning 3D monitor, showing a 3D cube with the svgr logo: four nested levels of SVG and 3D that never leave the GPU</sub>
+    </td>
   </tr>
 </table>
 
