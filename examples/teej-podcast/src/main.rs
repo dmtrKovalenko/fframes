@@ -43,7 +43,6 @@ fn main() -> ExitCode {
             codec_params: Some(&[
                 ("crf", "23"),
                 ("preset", "slow"),
-                ("tune", "film"),
                 ("bframes", "3"),
             ]),
             ..Default::default()

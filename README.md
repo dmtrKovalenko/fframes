@@ -165,24 +165,103 @@ The full API reference is on [docs.rs/fframes](https://docs.rs/fframes).
 
 ## Examples
 
-| example | what it shows |
-| --- | --- |
-| [fframes-intro](examples/fframes-intro) | the 128 second [launch video](https://x.com/neogoose_btw/status/2104432561200279774), everything placed on the beat grid of its soundtrack |
-| [signal-lab](examples/signal-lab) | a 24 second motion study: product UI, data storytelling and a technical explainer |
-| [motion-graphics](examples/motion-graphics) | spring "punch in" motion and monospace text fitted to its box |
-| [shaders](examples/shaders) | GPU shader layers composed with SVG: an SkSL background and a Shadertoy raymarcher clipped into a card |
-| [shader-mode](examples/shader-mode) | a 31-second shader promo with reference audio, a moving panel wall, native preview footage and 18 GPU shader programs, rendered with Skia on Metal or Vulkan |
-| [neon-triangle](examples/neon-triangle) | a minimal shader clip built to make banding and motion artifacts easy to spot |
-| [hello-world](examples/hello-world) | a simple "hello world" video |
-| [beta](examples/beta) | a complicated multi-scene example (our beta announce video) |
-| [marketing](examples/marketing) | our marketing video |
-| [audio-announce](examples/audio-announce) | an automated workflow to create audio visualisation with automated subtitles |
-| [podcast](examples/podcast) | an audio visualization for a podcast placeholder video |
-| [teej-podcast](examples/teej-podcast) | teej's podcast with video and chapters visualization |
-| [tiktok](examples/tiktok) | a TikTok-like vertical video |
-| [conference-splash-screen](examples/conference-splash-screen) | one splash screen per conference talk, rendered in batch |
-| [low-poly-art](examples/low-poly-art) | a renderer stress test: animal art with a lot of polygons |
-| [pixel-memory](examples/pixel-memory) | my dog's memorial video generator (totally randomized) |
+Click a poster to watch the example. The previews are rendered at a third of the size (640x360) to keep the
+repository small; `just render <example>` renders the full one.
+
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/fframes-intro.mp4"><img alt="fframes-intro" src="examples/previews/fframes-intro.jpg" width="100%" /></a><br />
+      <b><a href="examples/fframes-intro">fframes-intro</a></b><br />
+      <sub>the 128 second <a href="https://x.com/neogoose_btw/status/2104432561200279774">launch video</a>, everything placed on the beat grid of its soundtrack</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/signal-lab.mp4"><img alt="signal-lab" src="examples/previews/signal-lab.jpg" width="100%" /></a><br />
+      <b><a href="examples/signal-lab">signal-lab</a></b><br />
+      <sub>a 24 second motion study: product UI, data storytelling and a technical explainer</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/motion-graphics.mp4"><img alt="motion-graphics" src="examples/previews/motion-graphics.jpg" width="100%" /></a><br />
+      <b><a href="examples/motion-graphics">motion-graphics</a></b><br />
+      <sub>spring "punch in" motion and monospace text fitted to its box</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/shaders.mp4"><img alt="shaders" src="examples/previews/shaders.jpg" width="100%" /></a><br />
+      <b><a href="examples/shaders">shaders</a></b><br />
+      <sub>GPU shader layers composed with SVG: an SkSL background and a Shadertoy raymarcher clipped into a card</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/shader-mode.mp4"><img alt="shader-mode" src="examples/previews/shader-mode.jpg" width="100%" /></a><br />
+      <b><a href="examples/shader-mode">shader-mode</a></b><br />
+      <sub>a 31-second shader promo with reference audio, a moving panel wall, native preview footage and 18 GPU shader programs, rendered with Skia on Metal or Vulkan.<br />The preview is silent: its soundtrack is not in the repository.</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/neon-triangle.mp4"><img alt="neon-triangle" src="examples/previews/neon-triangle.jpg" width="100%" /></a><br />
+      <b><a href="examples/neon-triangle">neon-triangle</a></b><br />
+      <sub>a minimal shader clip built to make banding and motion artifacts easy to spot</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/hello-world.mp4"><img alt="hello-world" src="examples/previews/hello-world.jpg" width="100%" /></a><br />
+      <b><a href="examples/hello-world">hello-world</a></b><br />
+      <sub>a simple "hello world" video</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/beta.mp4"><img alt="beta" src="examples/previews/beta.jpg" width="100%" /></a><br />
+      <b><a href="examples/beta">beta</a></b><br />
+      <sub>a complicated multi-scene example (our beta announce video)</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/marketing.mp4"><img alt="marketing" src="examples/previews/marketing.jpg" width="100%" /></a><br />
+      <b><a href="examples/marketing">marketing</a></b><br />
+      <sub>our marketing video</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/audio-announce.mp4"><img alt="audio-announce" src="examples/previews/audio-announce.jpg" width="100%" /></a><br />
+      <b><a href="examples/audio-announce">audio-announce</a></b><br />
+      <sub>an automated workflow to create audio visualisation with automated subtitles</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/podcast.mp4"><img alt="podcast" src="examples/previews/podcast.jpg" width="100%" /></a><br />
+      <b><a href="examples/podcast">podcast</a></b><br />
+      <sub>an audio visualization for a podcast placeholder video</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/teej-podcast.mp4"><img alt="teej-podcast" src="examples/previews/teej-podcast.jpg" width="100%" /></a><br />
+      <b><a href="examples/teej-podcast">teej-podcast</a></b><br />
+      <sub>teej's podcast with video and chapters visualization</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/tiktok.mp4"><img alt="tiktok" src="examples/previews/tiktok.jpg" width="56%" /></a><br />
+      <b><a href="examples/tiktok">tiktok</a></b><br />
+      <sub>a TikTok-like vertical video</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/conference-splash-screen.mp4"><img alt="conference-splash-screen" src="examples/previews/conference-splash-screen.jpg" width="100%" /></a><br />
+      <b><a href="examples/conference-splash-screen">conference-splash-screen</a></b><br />
+      <sub>one splash screen per conference talk, rendered in batch</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/low-poly-art.mp4"><img alt="low-poly-art" src="examples/previews/low-poly-art.jpg" width="100%" /></a><br />
+      <b><a href="examples/low-poly-art">low-poly-art</a></b><br />
+      <sub>a renderer stress test: animal art with a lot of polygons</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="examples/previews/pixel-memory.mp4"><img alt="pixel-memory" src="examples/previews/pixel-memory.jpg" width="100%" /></a><br />
+      <b><a href="examples/pixel-memory">pixel-memory</a></b><br />
+      <sub>my dog's memorial video generator (totally randomized)</sub>
+    </td>
+  </tr>
+</table>
 
 From the repository root, `just run podcast` opens an example in the editor with live reload and `just render podcast`
 writes it to a file.
