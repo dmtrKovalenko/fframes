@@ -261,6 +261,13 @@ inline. `just render <example>` renders the full one.
       <sub>my dog's memorial video generator (totally randomized)</sub>
     </td>
   </tr>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff"><img alt="lottie-launch" src="examples/previews/lottie-launch.jpg" width="56%" /></a><br />
+      <b><a href="examples/lottie-launch">lottie-launch</a></b><br />
+      <sub>an 18 second vertical launch video for Lottie support: every animation is a Lottie file and the music is synthesized in Rust</sub>
+    </td>
+  </tr>
 </table>
 
 From the repository root, `just run podcast` opens an example in the editor with live reload and `just render podcast`
