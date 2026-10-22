@@ -17,9 +17,7 @@
   <a href="https://x.com/fframes_rust"><img alt="@fframes_rust on X" src="https://img.shields.io/badge/X-@fframes__rust-black.svg" /></a>
 </p>
 
-<p align="center">
-  <a href="https://fframes.studio"><img alt="The fframes launch video, made with fframes" src="landing/poster.jpg" width="720" /></a>
-</p>
+https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5
 
 <p align="center">
   <sub>This 128 second video was <a href="https://x.com/neogoose_btw/status/2104432561200279774">vibed in 48 minutes and rendered in 36 seconds</a>.<br />
@@ -36,17 +34,16 @@ fframes ships a skill for coding agents. Add it once:
 npx skills add https://fframes.studio
 ```
 
-Then describe the video you want, the way you would brief a motion designer. The skill takes your agent from an empty
-folder to a rendered `.mp4`: it installs fframes, creates a project, designs the motion, places the sound, and checks
-the result before handing it to you.
+Then tell the agent what video you want. The skill walks it from an empty folder to a rendered `.mp4`: install
+fframes, create a project, design the motion, place the sound, check the result.
 
-The fframes API is explicit and verbose, and that is [why it stayed unreleased for years](https://x.com/neogoose_btw/status/2104432563146444994).
-Writing explicit, verbose code is exactly what an agent with the right skill is good at.
+The fframes API is explicit and verbose, which is [why it stayed unreleased for years](https://x.com/neogoose_btw/status/2104432563146444994).
+An agent with a good skill file writes that kind of code without complaint.
 
-## Built for an author that cannot watch
+## Your agent cannot watch the video
 
-A coding agent cannot watch a video or hear a soundtrack. Every generated project comes with a command line that turns
-a video into things an agent can read: PNGs, text and numbers.
+A coding agent cannot play a video or listen to a soundtrack, so every generated project comes with a command line
+that turns the video into PNGs and text.
 
 <table>
   <tr>
@@ -55,20 +52,14 @@ a video into things an agent can read: PNGs, text and numbers.
   </tr>
   <tr>
     <td valign="top">
-      <b>Checks every frame without rendering pixels.</b><br />
-      <code>inspect</code> reports missing fonts or images, text cut off by the canvas, invalid SVG and panics, each with its time and scene.<br /><br />
-      <b>Looks at the motion.</b><br />
-      <code>strip</code> lays evenly spaced frames out on one contact sheet, <code>onion</code> blends frames to show a movement's path and easing, <code>frame</code> writes full-size PNGs.<br /><br />
-      <b>Measures the sound.</b><br />
-      <code>audio analyze</code> reports loudness (LUFS), true peak, clipping and silence, per scene.
+      <code>inspect</code> checks every frame without rendering pixels. It reports missing fonts or images, text cut off by the canvas, invalid SVG and panics, each with its time and scene.<br /><br />
+      <code>strip</code> lays evenly spaced frames out on one contact sheet, <code>onion</code> blends frames to show the path and easing of a movement, <code>frame</code> writes full-size PNGs.<br /><br />
+      <code>audio analyze</code> reports loudness (LUFS), true peak, clipping and silence per scene.
     </td>
     <td valign="top">
-      <b>Watch it in real time, with sound.</b><br />
-      <code>preview</code> opens a GPU window to play, pause, seek and step through frame by frame.<br /><br />
-      <b>Scrub it in the browser.</b><br />
-      The editor runs the video compiled to WebAssembly, with a timeline.<br /><br />
-      <b>Ship it.</b><br />
-      <code>render</code> writes the final file; <code>render --draft</code> encodes one scene at half size in about a second.
+      <code>preview</code> opens a GPU window with sound to play, pause, seek and step frame by frame.<br /><br />
+      The editor runs the video compiled to WebAssembly in the browser, with a timeline to scrub.<br /><br />
+      <code>render</code> writes the final file. <code>render --draft</code> encodes one scene at half size in about a second.
     </td>
   </tr>
 </table>
@@ -91,10 +82,10 @@ ranges like `<scene>@0..<scene>@1s`. Add `--json` to parse the output.
 
 ## Why it is fast
 
-- **The GPU draws.** The Skia backend renders on Metal (macOS) or Vulkan (Linux, Windows), about 10x faster than the built-in CPU backend.
-- **Static markup is cached.** Parts of a frame without `{expressions}` are hashed at compile time and reused by the renderers.
-- **ffmpeg encodes.** fframes links ffmpeg's libav libraries instead of shelling out to a separate tool.
-- **Shaders when SVG is not enough.** Run SkSL or pasted Shadertoy GLSL as a layer of any frame.
+- The Skia backend draws on the GPU, Metal on macOS and Vulkan on Linux and Windows, about 10x faster than the built-in CPU backend.
+- Parts of a frame without `{expressions}` are hashed at compile time, so the renderers draw them once and reuse them.
+- fframes links ffmpeg's libav libraries instead of piping frames to a separate process.
+- When SVG is not enough, SkSL or pasted Shadertoy GLSL runs as a layer of any frame.
 
 ## What your agent writes
 
@@ -158,20 +149,20 @@ impl Video for HelloWorldVideo<'_> {
 
 </details>
 
-The skill's guides are plain Markdown and worth reading as a human too:
+The skill's guides are plain Markdown, so you can read them too:
 [the workflow](skills/fframes-video/SKILL.md), [the API cheat sheet](skills/fframes-video/references/api.md),
 [design](skills/fframes-video/references/design.md) and [sound](skills/fframes-video/references/audio.md).
 The full API reference is on [docs.rs/fframes](https://docs.rs/fframes).
 
 ## Examples
 
-Click a poster to watch the example, rendered at 640x360. Every example folder has a README with the video
-inline. `just render <example>` renders the full one.
+Click a poster to watch the example. The README in each example folder has the video inline, and
+`just render <example>` renders the full one.
 
 <table>
   <tr>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/76c1d3ae-6c97-4b7a-bc87-8e2cb4bfdd22"><img alt="fframes-intro" src="examples/previews/fframes-intro.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5"><img alt="fframes-intro" src="examples/previews/fframes-intro.jpg" width="100%" /></a><br />
       <b><a href="examples/fframes-intro">fframes-intro</a></b><br />
       <sub>the 128 second <a href="https://x.com/neogoose_btw/status/2104432561200279774">launch video</a>, everything placed on the beat grid of its soundtrack</sub>
     </td>
@@ -266,6 +257,11 @@ inline. `just render <example>` renders the full one.
       <a href="https://github.com/user-attachments/assets/3736d334-624b-42b5-870d-0afd39cfe3ff"><img alt="lottie-launch" src="examples/previews/lottie-launch.jpg" width="56%" /></a><br />
       <b><a href="examples/lottie-launch">lottie-launch</a></b><br />
       <sub>an 18 second vertical launch video for Lottie support: every animation is a Lottie file and the music is synthesized in Rust</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="https://github.com/user-attachments/assets/3c51ccae-3541-4c79-817c-f544cf83e415"><img alt="made-of-motion" src="examples/previews/made-of-motion.jpg" width="100%" /></a><br />
+      <b><a href="examples/made-of-motion">made-of-motion</a></b><br />
+      <sub>a 20 second promo with pixel objects, a perspective carousel, thermal shaders and per-exposure vector ink, an adaptation of a reference film</sub>
     </td>
   </tr>
 </table>
