@@ -1,0 +1,6 @@
+# Development files of the-why that the old copy step never deployed
+the-why/_headers
+the-why/README.txt
+the-why/encode-hls.sh
+the-why/package.json
+the-why/serve.mjs
