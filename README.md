@@ -230,7 +230,7 @@ Click a poster to watch the example. The README in each example folder has the v
       <sub>a TikTok-like vertical video</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <a href="https://github.com/user-attachments/assets/4b92a7f7-fd4c-4049-8c7f-cd969405fef7"><img alt="conference-splash-screen" src="examples/_previews/conference-splash-screen.jpg" width="100%" /></a><br />
+      <a href="https://github.com/user-attachments/assets/066d349e-aad6-4d03-b76b-25ad8ccdf8eb"><img alt="conference-splash-screen" src="examples/_previews/conference-splash-screen.jpg" width="100%" /></a><br />
       <b><a href="examples/conference-splash-screen">conference-splash-screen</a></b><br />
       <sub>one splash screen per conference talk, rendered in batch</sub>
     </td>
