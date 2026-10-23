@@ -94,7 +94,7 @@ impl<'a, 'o, 'm> SegmentWriter<'a, 'o, 'm> {
         self.submit_with(claim, |_| Ok(frame))
     }
 
-    /// Encodes the RGBA pixels of a claimed frame, converting them on the CPU.
+    /// Encodes the premultiplied RGBA pixels of a claimed frame, converting them on the CPU.
     pub fn submit(&self, claim: FrameClaim, rgba: &[u8]) -> RenderEncodingResult<()> {
         self.submit_with(claim, |segment| self.convert(segment, rgba))
     }

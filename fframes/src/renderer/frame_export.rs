@@ -570,12 +570,14 @@ impl Drop for FramePool {
     }
 }
 
-/// Converts RGBA8 pixels into frames of a software pixel format on the CPU: the built-in
-/// SIMD converter for yuv420p, swscale for every other format.
+/// Converts premultiplied RGBA8 pixels into frames of a software pixel format on the CPU:
+/// the built-in SIMD converter for yuv420p, swscale for every other format. Alpha formats
+/// receive straight colors; formats without alpha keep the colors composited over black.
 pub struct RgbaFrameConverter {
     pool: FramePool,
     sws: *mut SwsContext,
     matrix: YuvMatrix,
+    straight_rgba: Option<Vec<u8>>,
 }
 
 unsafe impl Send for RgbaFrameConverter {}
@@ -629,7 +631,13 @@ impl RgbaFrameConverter {
             sws
         };
 
-        Ok(Self { pool, sws, matrix })
+        Ok(Self {
+            pool,
+            sws,
+            matrix,
+            straight_rgba: (pixel_format_flags(format) & AV_PIX_FMT_FLAG_ALPHA as u64 != 0)
+                .then(Vec::new),
+        })
     }
 
     /// For the frames `input` asks for.
@@ -637,15 +645,42 @@ impl RgbaFrameConverter {
         Self::with_matrix(input.pixel_format, input.color_matrix, width, height)
     }
 
-    /// `rgba` is `width * height * 4` bytes without line padding.
+    /// `rgba` is premultiplied, with `width * height * 4` bytes without line padding.
     pub fn convert(&mut self, rgba: &[u8]) -> RenderEncodingResult<VideoFrame> {
+        self.convert_pixels(rgba, true)
+    }
+
+    fn convert_pixels(
+        &mut self,
+        rgba: &[u8],
+        premultiplied: bool,
+    ) -> RenderEncodingResult<VideoFrame> {
         let (width, height) = (self.pool.width, self.pool.height);
-        if rgba.len() < width as usize * height as usize * 4 {
+        let byte_len = width as usize * height as usize * 4;
+        if rgba.len() < byte_len {
             return Err(RenderEncodingError::Internal(format!(
                 "{} bytes of RGBA do not make a {width}x{height} frame",
                 rgba.len()
             )));
         }
+
+        // swscale reads RGBA as straight colors. Only undo premultiplication when the
+        // destination retains alpha, using scratch storage so the caller's pixels survive.
+        let rgba = if premultiplied && let Some(straight) = &mut self.straight_rgba {
+            straight.clear();
+            straight.extend_from_slice(&rgba[..byte_len]);
+            for pixel in straight.as_chunks_mut::<4>().0 {
+                let alpha = u32::from(pixel[3]);
+                if alpha != 0 && alpha != 255 {
+                    for channel in &mut pixel[..3] {
+                        *channel = ((u32::from(*channel) * 255 + alpha / 2) / alpha).min(255) as u8;
+                    }
+                }
+            }
+            straight.as_slice()
+        } else {
+            rgba
+        };
 
         let frame = self.pool.get()?;
         unsafe {
@@ -791,7 +826,8 @@ impl<R: FrameRenderer> EncoderFrameRenderer for RgbaEncoderFrameRenderer<R> {
             .render_tree(tree, background, self.width, self.height)?;
 
         self.converter
-            .convert(&frame.pixels)
+            // FrameRenderer already returns straight RGBA, unlike the native rasterizers.
+            .convert_pixels(&frame.pixels, false)
             .map_err(|err| FFramesRendererError::from_chunk(0, err))
     }
 }
