@@ -1,4 +1,5 @@
-mod alpha_conversion_tests;
+#[cfg(feature = "cpu_renderer")]
+mod alpha_render_tests;
 mod preview_tests;
 #[cfg(feature = "cpu_renderer")]
 mod svgr_image_tests;
