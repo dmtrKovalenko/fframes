@@ -63,6 +63,27 @@ pub trait FFramesSyncedVideoFrame<'media> {
     fn height(&self) -> u32;
     /// Get the native size of the frame
     fn width(&self) -> u32;
+    /// Get the width players show the frame at once non-square pixels are accounted for.
+    ///
+    /// The image from `into_image` keeps the native pixel grid. To show anamorphic
+    /// video undistorted, draw it at both display dimensions:
+    ///
+    /// ```rust,ignore
+    /// let image = video_frame.into_image();
+    /// svgr!(<image href={image.href()}
+    ///     width={video_frame.display_width()} height={video_frame.display_height()}
+    ///     preserveAspectRatio="none" />)
+    /// ```
+    ///
+    /// Defaults to `width()` for implementations whose size is already corrected.
+    fn display_width(&self) -> u32 {
+        self.width()
+    }
+    /// Get the height players show the frame at once non-square pixels are accounted for.
+    /// See `display_width`.
+    fn display_height(&self) -> u32 {
+        self.height()
+    }
     /// Get the frame index of the origin video
     fn timestamp_seconds(&self) -> f32;
     /// Returns the native frame timestamp in the decoders' timebase
@@ -177,6 +198,14 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     /// Returns the original stream video height
     fn height(&self) -> u32 {
         self.get_stream_height()
+    }
+
+    fn display_width(&self) -> u32 {
+        self.get_display_size().0
+    }
+
+    fn display_height(&self) -> u32 {
+        self.get_display_size().1
     }
 
     fn timestamp_seconds(&self) -> f32 {

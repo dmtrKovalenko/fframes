@@ -88,6 +88,10 @@ pub fn decode_video_resource(s: &str) -> Option<(&str, i64)> {
     Some((resource, pts_str.parse().ok()?))
 }
 
+fn known_aspect(ratio: AVRational) -> Option<f64> {
+    (ratio.num > 0 && ratio.den > 0).then(|| f64::from(ratio.num) / f64::from(ratio.den))
+}
+
 #[derive(Debug, Clone, Copy)]
 struct VideoStreamInfo {
     hw_pix_fmt: Option<AVPixelFormat>,
@@ -95,6 +99,7 @@ struct VideoStreamInfo {
     codec_ctx: *mut AVCodecContext,
     width: i32,
     height: i32,
+    sample_aspect_ratio: AVRational,
     pixel_format: AVPixelFormat,
     color_space: AVColorSpace,
     color_range: AVColorRange,
@@ -509,6 +514,26 @@ impl FFmpegFrameBuf {
             .height as u32
     }
 
+    /// Returns the size players show the latest decoded frame at, as `(width, height)`.
+    ///
+    /// Non-square pixels widen or heighten the native size, never shrink it, so
+    /// no decoded pixel is dropped; the stretched side is rounded to the nearest
+    /// pixel. The container's sample aspect ratio wins over the frame's, as in
+    /// `av_guess_sample_aspect_ratio`. Unknown sample aspect ratio keeps the
+    /// native size. Rotation from display matrices is not applied.
+    pub fn get_display_size(&self) -> (u32, u32) {
+        let (width, height) = (self.get_stream_width(), self.get_stream_height());
+        let Some(ratio) = known_aspect(self.video_stream_info.sample_aspect_ratio)
+            .or_else(|| known_aspect(unsafe { (*self.latest_av_frame).sample_aspect_ratio }))
+        else {
+            return (width, height);
+        };
+        (
+            (f64::from(width) * ratio.max(1.0)).round() as u32,
+            (f64::from(height) / ratio.min(1.0)).round() as u32,
+        )
+    }
+
     pub fn get_width(&self) -> u32 {
         unsafe { self.sws_scaler.get().as_ref() }
             .expect("Critical mememroy error: SWS scale is not allocated")
@@ -791,6 +816,7 @@ impl FFmpegDecoder {
                 codec_ctx: video_dec_ctx,
                 width: (*video_dec_ctx).width,
                 height: (*video_dec_ctx).height,
+                sample_aspect_ratio: (*stream).sample_aspect_ratio,
                 pixel_format: (*video_dec_ctx).pix_fmt,
                 color_space: (*video_dec_ctx).colorspace,
                 color_range: (*video_dec_ctx).color_range,
@@ -1211,6 +1237,7 @@ mod color_tests {
             codec_ctx: ptr::null_mut(),
             width: WIDTH,
             height: HEIGHT,
+            sample_aspect_ratio: AVRational { num: 0, den: 1 },
             pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
             color_space: space,
             color_range: range,
