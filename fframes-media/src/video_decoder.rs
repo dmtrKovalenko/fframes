@@ -127,6 +127,7 @@ impl Drop for SwsScaler {
 }
 
 const PIX_FMT_SIZE: usize = size_of::<i32>();
+const MAX_PIXEL_STRETCH: i64 = 4;
 
 /// Bytes `sws_scale` may write past the end of an RGBA image whose rows are `width * 4` bytes
 /// apart. The x86 YUV to RGB converter of `FFmpeg` (`yuv2rgb_fn` in
@@ -795,7 +796,11 @@ impl FFmpegDecoder {
             ]
             .into_iter()
             .find(|ratio| {
-                ratio.num > 0 && av_image_check_sar(width as u32, height as u32, *ratio) == 0
+                let (num, den) = (i64::from(ratio.num), i64::from(ratio.den));
+                num > 0
+                    && den > 0
+                    && num <= MAX_PIXEL_STRETCH * den
+                    && den <= MAX_PIXEL_STRETCH * num
             }) {
                 Some(AVRational { num, den }) => {
                     let ratio = f64::from(num) / f64::from(den);
