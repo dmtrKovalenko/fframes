@@ -23,7 +23,7 @@ impl Video for AnamorphicVideo {
             .get_synced_video_frame(ctx, "anamorphic.mp4", &SyncVideoFrameInput::default())
             .map_or_else(Svgr::empty, |video| {
                 let height = Self::HEIGHT as f32;
-                let width = video.display_width() as f32 * height / video.display_height() as f32;
+                let width = video.width() as f32 * height / video.height() as f32;
                 let image = video.into_image();
                 fframes::svgr!(
                     <image
@@ -31,7 +31,6 @@ impl Video for AnamorphicVideo {
                         x={(Self::WIDTH as f32 - width) / 2.}
                         width={width}
                         height={height}
-                        preserveAspectRatio="none"
                     />
                 )
             });

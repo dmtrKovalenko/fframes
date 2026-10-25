@@ -246,15 +246,18 @@ impl SwsScaler {
     }
 
     fn new(video_stream_info: VideoStreamInfo) -> Self {
-        let frame_data_len =
-            video_stream_info.width as usize * video_stream_info.height as usize * PIX_FMT_SIZE;
+        let (width, height) = (
+            video_stream_info.display_width,
+            video_stream_info.display_height,
+        );
+        let frame_data_len = width as usize * height as usize * PIX_FMT_SIZE;
 
-        let linesize: [i32; 7] = Self::calculate_linesize(video_stream_info.width);
+        let linesize: [i32; 7] = Self::calculate_linesize(width);
         SwsScaler {
             linesize,
             frame_data_len,
-            height: video_stream_info.height,
-            width: video_stream_info.width,
+            height,
+            width,
             sws_ctx: std::ptr::null_mut(),
             options: None,
             source_format: None,
@@ -269,8 +272,12 @@ impl SwsScaler {
         source_color: (AVColorSpace, AVColorRange),
         options: Option<FrameConvertOptions>,
     ) -> Result<()> {
-        let new_width = options.map_or(self.video_stream_info.width, |o| o.resize.width as i32);
-        let new_height = options.map_or(self.video_stream_info.height, |o| o.resize.height as i32);
+        let new_width = options.map_or(self.video_stream_info.display_width, |o| {
+            o.resize.width as i32
+        });
+        let new_height = options.map_or(self.video_stream_info.display_height, |o| {
+            o.resize.height as i32
+        });
 
         let ctx = Self::init_sws_context(
             &self.video_stream_info,
@@ -498,24 +505,11 @@ impl FFmpegFrameBuf {
     }
 
     pub fn get_stream_width(&self) -> u32 {
-        unsafe { self.sws_scaler.get().as_ref() }
-            .expect("Critical mememroy error: SWS scale is not allocated")
-            .video_stream_info
-            .width as u32
+        self.video_stream_info.display_width as u32
     }
 
     pub fn get_stream_height(&self) -> u32 {
-        unsafe { self.sws_scaler.get().as_ref() }
-            .expect("Critical mememroy error: SWS scale is not allocated")
-            .video_stream_info
-            .height as u32
-    }
-
-    /// The frame size with non-square pixels stretched to square ones.
-    #[doc(hidden)]
-    pub fn get_stream_display_size(&self) -> (u32, u32) {
-        let info = self.video_stream_info;
-        (info.display_width as u32, info.display_height as u32)
+        self.video_stream_info.display_height as u32
     }
 
     pub fn get_width(&self) -> u32 {

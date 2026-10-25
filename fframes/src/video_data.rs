@@ -44,8 +44,8 @@ pub fn set_video_frame_resolver(resolver: VideoFrameResolver) {
 
 pub trait FFramesSyncedVideoFrame<'media> {
     /// Gets the original image from the frame
-    /// This will perform color space conversion but will preserve the original frame
-    /// size. If you need to render the video frame in the smaller size, use `into_resized_image`.
+    /// This will perform color space conversion and return the frame at `width()` by
+    /// `height()`. If you need to render the video frame in the smaller size, use `into_resized_image`.
     ///
     /// This method take self to reuse frame data allocations, but you should not
     /// call this method more than once per the render function
@@ -59,31 +59,10 @@ pub trait FFramesSyncedVideoFrame<'media> {
     /// call this method more than once per the render function
     #[allow(clippy::wrong_self_convention)]
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>>;
-    /// Get the native height of the frame
+    /// Get the height of the frame with non-square pixels stretched to square ones
     fn height(&self) -> u32;
-    /// Get the native size of the frame
+    /// Get the width of the frame with non-square pixels stretched to square ones
     fn width(&self) -> u32;
-    /// Get the width players show the frame at once non-square pixels are accounted for.
-    ///
-    /// The image from `into_image` keeps the native pixel grid. To show anamorphic
-    /// video undistorted, draw it at both display dimensions:
-    ///
-    /// ```rust,ignore
-    /// let image = video_frame.into_image();
-    /// svgr!(<image href={image.href()}
-    ///     width={video_frame.display_width()} height={video_frame.display_height()}
-    ///     preserveAspectRatio="none" />)
-    /// ```
-    ///
-    /// Defaults to `width()` for implementations whose size is already corrected.
-    fn display_width(&self) -> u32 {
-        self.width()
-    }
-    /// Get the height players show the frame at once non-square pixels are accounted for.
-    /// See `display_width`.
-    fn display_height(&self) -> u32 {
-        self.height()
-    }
     /// Get the frame index of the origin video
     fn timestamp_seconds(&self) -> f32;
     /// Returns the native frame timestamp in the decoders' timebase
@@ -190,22 +169,12 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
         ))
     }
 
-    /// Returns the original stream video width
     fn width(&self) -> u32 {
         self.get_stream_width()
     }
 
-    /// Returns the original stream video height
     fn height(&self) -> u32 {
         self.get_stream_height()
-    }
-
-    fn display_width(&self) -> u32 {
-        self.get_stream_display_size().0
-    }
-
-    fn display_height(&self) -> u32 {
-        self.get_stream_display_size().1
     }
 
     fn timestamp_seconds(&self) -> f32 {
