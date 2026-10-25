@@ -35,6 +35,7 @@ const out = join(target, "e2e", renderer);
 // media is kept outside Git.
 // prettier-ignore
 const examples = [
+  { dir: "anamorphic-video", pkg: "anamorphic-video", bin: "anamorphic-video", frames: "50%" },
   { dir: "audio-announce", pkg: "audio-announce-example", bin: "audio_announce_example_bin", frames: "5s,30s" },
   { dir: "beta", pkg: "beta-example", bin: "beta_example_bin", frames: "CodeDemoScene@50%,IphoneScene@50%,BetaExamples@50%" },
   { dir: "conference-splash-screen", pkg: "conference-splash-screen-example", bin: "conference_splash_screen_bin", frames: "SponsorScene@50%,SpeakerScene@50%" },

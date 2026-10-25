@@ -52,6 +52,7 @@ members = [
     "examples/shader-mode",
     "examples/lottie",
     "examples/svg-in-3d",
+    "examples/anamorphic-video",
 ]
 
 [workspace.lints.rust]

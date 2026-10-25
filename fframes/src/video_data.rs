@@ -201,11 +201,11 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     }
 
     fn display_width(&self) -> u32 {
-        self.get_display_size().0
+        self.get_stream_display_size().0
     }
 
     fn display_height(&self) -> u32 {
-        self.get_display_size().1
+        self.get_stream_display_size().1
     }
 
     fn timestamp_seconds(&self) -> f32 {

@@ -88,11 +88,6 @@ pub fn decode_video_resource(s: &str) -> Option<(&str, i64)> {
     Some((resource, pts_str.parse().ok()?))
 }
 
-fn known_aspect(ratio: AVRational, width: u32, height: u32) -> Option<f64> {
-    let valid = ratio.num > 0 && unsafe { av_image_check_sar(width, height, ratio) } == 0;
-    valid.then(|| f64::from(ratio.num) / f64::from(ratio.den))
-}
-
 #[derive(Debug, Clone, Copy)]
 struct VideoStreamInfo {
     hw_pix_fmt: Option<AVPixelFormat>,
@@ -100,7 +95,8 @@ struct VideoStreamInfo {
     codec_ctx: *mut AVCodecContext,
     width: i32,
     height: i32,
-    sample_aspect_ratio: AVRational,
+    display_width: i32,
+    display_height: i32,
     pixel_format: AVPixelFormat,
     color_space: AVColorSpace,
     color_range: AVColorRange,
@@ -515,27 +511,11 @@ impl FFmpegFrameBuf {
             .height as u32
     }
 
-    /// Returns the size players show the latest decoded frame at, as `(width, height)`.
-    ///
-    /// Non-square pixels widen or heighten the native size, never shrink it, so
-    /// no decoded pixel is dropped; the stretched side is rounded to the nearest
-    /// pixel. The container's sample aspect ratio wins over the frame's, as in
-    /// `av_guess_sample_aspect_ratio`. A ratio is skipped when unknown or when
-    /// `av_image_check_sar` rejects it; with none left the native size is kept.
-    /// Rotation from display matrices is not applied.
-    pub fn get_display_size(&self) -> (u32, u32) {
-        let (width, height) = (self.get_stream_width(), self.get_stream_height());
-        let frame = unsafe { (*self.latest_av_frame).sample_aspect_ratio };
-        let container = self.video_stream_info.sample_aspect_ratio;
-        let Some(ratio) =
-            known_aspect(container, width, height).or_else(|| known_aspect(frame, width, height))
-        else {
-            return (width, height);
-        };
-        (
-            (f64::from(width) * ratio.max(1.0)).round() as u32,
-            (f64::from(height) / ratio.min(1.0)).round() as u32,
-        )
+    /// The frame size with non-square pixels stretched to square ones.
+    #[doc(hidden)]
+    pub fn get_stream_display_size(&self) -> (u32, u32) {
+        let info = self.video_stream_info;
+        (info.display_width as u32, info.display_height as u32)
     }
 
     pub fn get_width(&self) -> u32 {
@@ -814,13 +794,32 @@ impl FFmpegDecoder {
                 )));
             }
 
+            let (width, height) = ((*video_dec_ctx).width, (*video_dec_ctx).height);
+            let (display_width, display_height) = match [
+                (*stream).sample_aspect_ratio,
+                (*video_dec_ctx).sample_aspect_ratio,
+            ]
+            .into_iter()
+            .find(|ratio| {
+                ratio.num > 0 && av_image_check_sar(width as u32, height as u32, *ratio) == 0
+            }) {
+                Some(AVRational { num, den }) => {
+                    let ratio = f64::from(num) / f64::from(den);
+                    (
+                        (f64::from(width) * ratio.max(1.0)).round() as i32,
+                        (f64::from(height) / ratio.min(1.0)).round() as i32,
+                    )
+                }
+                None => (width, height),
+            };
             Ok(VideoStreamInfo {
                 hw_pix_fmt,
                 stream_index: video_stream_idx,
                 codec_ctx: video_dec_ctx,
-                width: (*video_dec_ctx).width,
-                height: (*video_dec_ctx).height,
-                sample_aspect_ratio: (*stream).sample_aspect_ratio,
+                width,
+                height,
+                display_width,
+                display_height,
                 pixel_format: (*video_dec_ctx).pix_fmt,
                 color_space: (*video_dec_ctx).colorspace,
                 color_range: (*video_dec_ctx).color_range,
@@ -1241,7 +1240,8 @@ mod color_tests {
             codec_ctx: ptr::null_mut(),
             width: WIDTH,
             height: HEIGHT,
-            sample_aspect_ratio: AVRational { num: 0, den: 1 },
+            display_width: WIDTH,
+            display_height: HEIGHT,
             pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
             color_space: space,
             color_range: range,
