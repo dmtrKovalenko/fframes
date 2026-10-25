@@ -120,3 +120,22 @@ fn the_container_sample_aspect_wins_over_the_frames() {
     let frame = decoder.get_raw_frame();
     assert_eq!((frame.display_width(), frame.display_height()), (64, 32));
 }
+
+fn set_mp4_sample_aspect(clip: &Path, (horizontal, vertical): (u32, u32)) {
+    let mut bytes = std::fs::read(clip).unwrap();
+    let pasp = bytes.windows(4).position(|tag| tag == b"pasp").unwrap() + 4;
+    bytes[pasp..pasp + 4].copy_from_slice(&horizontal.to_be_bytes());
+    bytes[pasp + 4..pasp + 8].copy_from_slice(&vertical.to_be_bytes());
+    std::fs::write(clip, bytes).unwrap();
+}
+
+#[test]
+fn a_container_sample_aspect_that_collapses_the_image_falls_back_to_the_frames() {
+    let dir = TempDir::new("invalid-container-aspect");
+    let clip = clip(&dir.0, &["10/11"], "mp4", &[]);
+    set_mp4_sample_aspect(&clip, (1, 30_000));
+    let mut decoder = unsafe { FFmpegDecoder::new(&clip, FPS, 1) }.unwrap();
+    assert!(unsafe { decoder.decode_up_to(0) }.unwrap());
+    let frame = decoder.get_raw_frame();
+    assert_eq!((frame.display_width(), frame.display_height()), (64, 35));
+}

@@ -88,8 +88,9 @@ pub fn decode_video_resource(s: &str) -> Option<(&str, i64)> {
     Some((resource, pts_str.parse().ok()?))
 }
 
-fn known_aspect(ratio: AVRational) -> Option<f64> {
-    (ratio.num > 0 && ratio.den > 0).then(|| f64::from(ratio.num) / f64::from(ratio.den))
+fn known_aspect(ratio: AVRational, width: u32, height: u32) -> Option<f64> {
+    let valid = ratio.num > 0 && unsafe { av_image_check_sar(width, height, ratio) } == 0;
+    valid.then(|| f64::from(ratio.num) / f64::from(ratio.den))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -519,12 +520,15 @@ impl FFmpegFrameBuf {
     /// Non-square pixels widen or heighten the native size, never shrink it, so
     /// no decoded pixel is dropped; the stretched side is rounded to the nearest
     /// pixel. The container's sample aspect ratio wins over the frame's, as in
-    /// `av_guess_sample_aspect_ratio`. Unknown sample aspect ratio keeps the
-    /// native size. Rotation from display matrices is not applied.
+    /// `av_guess_sample_aspect_ratio`. A ratio is skipped when unknown or when
+    /// `av_image_check_sar` rejects it; with none left the native size is kept.
+    /// Rotation from display matrices is not applied.
     pub fn get_display_size(&self) -> (u32, u32) {
         let (width, height) = (self.get_stream_width(), self.get_stream_height());
-        let Some(ratio) = known_aspect(self.video_stream_info.sample_aspect_ratio)
-            .or_else(|| known_aspect(unsafe { (*self.latest_av_frame).sample_aspect_ratio }))
+        let frame = unsafe { (*self.latest_av_frame).sample_aspect_ratio };
+        let container = self.video_stream_info.sample_aspect_ratio;
+        let Some(ratio) =
+            known_aspect(container, width, height).or_else(|| known_aspect(frame, width, height))
         else {
             return (width, height);
         };
