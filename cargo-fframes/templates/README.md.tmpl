@@ -11,6 +11,13 @@ rendered with the {{backend_label}} backend.
 
 ## Work on it
 
+Standalone projects enable incremental compilation for release builds. Use `--release`
+throughout editing so CPU rendering, scene code and GPU preparation keep release optimization.
+The first build warms the cache; subsequent edits reuse it. Keep Cargo features and the target
+directory consistent between checks. The profile uses 16 codegen units, the usual release
+count, instead of the larger incremental default. Existing workspace projects configure
+profiles in their workspace-root `Cargo.toml`.
+
 ```sh
 {{run}} timeline                      # scenes, duration, audio tracks
 {{run}} frame 1s,50%,end              # PNGs into frames/ and the problems found in them

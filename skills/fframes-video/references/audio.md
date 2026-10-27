@@ -56,11 +56,11 @@ fn audio(&self) -> AudioMap<'_> {
 ## Checking without listening
 
 ```bash
-$R timeline                         # every track with its seconds, gain, fades, voice/ducked
-$R audio at 3.1s,6.2s               # what plays at an event, position in the file, level, ducking
-$R audio analyze                    # loudness report, per scene
-$R audio analyze --waveform w.png   # read the image: waveform, loudness curve, scene lines, cue ticks
-$R audio render Intro -o intro.wav  # the mix of one scene, if the user wants to listen
+R timeline                         # every track with its seconds, gain, fades, voice/ducked
+R audio at 3.1s,6.2s               # what plays at an event, position in the file, level, ducking
+R audio analyze                    # loudness report, per scene
+R audio analyze --waveform w.png   # read the image: waveform, loudness curve, scene lines, cue ticks
+R audio render Intro -o intro.wav  # the mix of one scene, if the user wants to listen
 ```
 
 Targets for the report:

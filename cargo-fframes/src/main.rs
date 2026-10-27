@@ -460,9 +460,9 @@ fn new(args: NewArgs) -> Result<(), String> {
                     format!("fframes = {{ {fframes_source}, {fframes_features} }}"),
                     skia_deps(&skia_source, &player_source),
                     "media".to_owned(),
-                    // Its own workspace, and dependencies optimized in dev builds so that
-                    // `cargo run` without --release still renders quickly.
-                    "\n[workspace]\n\n[profile.dev]\nopt-level = 1\n\n[profile.dev.package.\"*\"]\nopt-level = 3\n"
+                    // Cache repeated release builds while keeping optimization level 3.
+                    // Keep 16 codegen units; incremental otherwise defaults to 256.
+                    "\n[workspace]\n\n[profile.dev]\nopt-level = 1\n\n[profile.dev.package.\"*\"]\nopt-level = 3\n\n[profile.release]\nincremental = true\ncodegen-units = 16\n"
                         .to_owned(),
                     "cargo run --release --".to_owned(),
                 )
