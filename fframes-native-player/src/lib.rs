@@ -20,8 +20,11 @@
 //! - `h`/`l` or `←`/`→`: seek one second back/forward
 //! - `j`/`k` or `↓`/`↑` (also `,`/`.`): step one frame back/forward, pauses
 //! - `g`/`G` or `Home`/`End`: first/last frame, `0`-`9`: jump to 0-90%
-//! - the control bar (shown while paused or when the pointer moves): back, play/pause,
-//!   forward, a seek slider, looping and full screen, `b` hides it
+//! - Studio keeps playback controls above the timeline. Focus mode shows a floating
+//!   dock with a seek slider while paused or on pointer activity; `b` hides the dock.
+//! - click a scene to jump to its start, or drag across the timeline to scrub
+//! - `[` / `]`: previous/next scene start, `t`: switch between the studio and video-only views
+//! - scroll the audio lanes to browse overlapping clips
 //! - `r`: toggle looping, `f`: full screen, `q`/`Esc`: quit
 //!
 //! [`play`] must be called from the main thread and only once per process (a winit
@@ -36,6 +39,7 @@ mod icons;
 mod options;
 mod presenter;
 mod scheduler;
+mod studio;
 
 pub use error::*;
 pub use options::*;
@@ -125,25 +129,44 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
     // The window owns the Skia context, so the trees of `render_svgr` render on the CPU.
     let svgr_images = fframes::SvgrImages::new(Some(Box::new(fframes::cpu::CpuSvgrRasterizer)));
 
+    let window_size = initial_window_size::<TVideo>(options);
+    let aspect = TVideo::WIDTH as f32 / TVideo::HEIGHT.max(1) as f32;
+    let tiles = if aspect < 1. {
+        window_size.height as f32 / 60.
+    } else {
+        window_size.width as f32 / (60. * aspect)
+    };
+    let thumbnail_count = (tiles.ceil() as usize)
+        .clamp(1, 32)
+        .min(timeline.duration_in_frames);
     let scheduler = Scheduler::new(
         timeline.duration_in_frames,
         options.prefetch_frames,
         options.looping,
+        thumbnail_count,
     );
     let proxy = Mutex::new(event_loop.create_proxy());
-    let notify_frame_ready = || {
+    let notify_frame_ready = |event| {
         let _ = proxy
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .send_event(FrameReady);
+            .send_event(event);
     };
 
     let mut app = App::new(
         AppConfig {
             title: options.title,
-            window_size: initial_window_size::<TVideo>(options),
+            window_size,
+            fit_portrait_to_screen: aspect < 1. && options.window_size.is_none(),
             backend: options.backend,
             vsync: options.vsync,
+            studio: studio::Studio::new(
+                time_base,
+                &timeline,
+                options.media,
+                thumbnail_count,
+                aspect,
+            ),
             fps: TVideo::FPS,
             duration_in_frames: timeline.duration_in_frames,
             background: TVideo::BACKGROUND_COLOR,
@@ -266,6 +289,15 @@ fn initial_window_size<TVideo: Video>(options: &PlayerOptions) -> LogicalSize<u3
     }
 
     let (width, height) = (TVideo::WIDTH as f64, TVideo::HEIGHT as f64);
-    let scale = (1280. / width).min(720. / height).min(1.);
-    LogicalSize::new((width * scale) as u32, (height * scale) as u32)
+    let max_height = if width < height { 960. } else { 720. };
+    let scale = (1280. / width).min(max_height / height).min(1.);
+    let sidebar = if width < height {
+        studio::PORTRAIT_SIDEBAR_WIDTH
+    } else {
+        0.
+    };
+    LogicalSize::new(
+        (width * scale + f64::from(sidebar)) as u32,
+        (height * scale) as u32,
+    )
 }

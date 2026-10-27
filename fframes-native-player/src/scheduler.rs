@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
+use crate::{app::FrameReady, studio::thumbnail};
 use fframes::{FFramesContext, TextCache, Video, VideoDecodersWorker, usvgr};
 
 pub(crate) struct Scheduler {
@@ -14,6 +15,7 @@ pub(crate) struct Scheduler {
     workers_wakeup: Condvar,
     duration: u64,
     lookahead: u64,
+    thumbnails: usize,
 }
 
 struct State {
@@ -28,16 +30,26 @@ struct State {
     looping: bool,
     ready: BTreeMap<u64, usvgr::Tree>,
     shutdown: bool,
+    next_thumbnail: usize,
 }
 
 struct Job {
-    position: u64,
-    epoch: u64,
     frame: usize,
+    kind: JobKind,
+}
+
+enum JobKind {
+    Playback { position: u64, epoch: u64 },
+    Thumbnail(usize),
 }
 
 impl Scheduler {
-    pub(crate) fn new(duration_in_frames: usize, lookahead: usize, looping: bool) -> Self {
+    pub(crate) fn new(
+        duration_in_frames: usize,
+        lookahead: usize,
+        looping: bool,
+        thumbnails: usize,
+    ) -> Self {
         Self {
             state: Mutex::new(State {
                 epoch: 0,
@@ -47,10 +59,12 @@ impl Scheduler {
                 looping,
                 ready: BTreeMap::new(),
                 shutdown: false,
+                next_thumbnail: 0,
             }),
             workers_wakeup: Condvar::new(),
             duration: duration_in_frames.max(1) as u64,
             lookahead: lookahead.max(1) as u64,
+            thumbnails,
         }
     }
 
@@ -126,9 +140,23 @@ impl Scheduler {
                 state.next += 1;
 
                 return Some(Job {
-                    position,
-                    epoch: state.epoch,
                     frame: self.frame_of(position, state.looping),
+                    kind: JobKind::Playback {
+                        position,
+                        epoch: state.epoch,
+                    },
+                });
+            }
+
+            // Sample the overview once, only after all due playback jobs have been assigned.
+            if state.next_thumbnail < self.thumbnails {
+                let slot = state.next_thumbnail;
+                state.next_thumbnail += 1;
+                let frame = ((2 * slot + 1) as u128 * u128::from(self.duration)
+                    / (2 * self.thumbnails) as u128) as usize;
+                return Some(Job {
+                    frame,
+                    kind: JobKind::Thumbnail(slot),
                 });
             }
 
@@ -139,15 +167,15 @@ impl Scheduler {
         }
     }
 
-    fn complete(&self, job: &Job, tree: usvgr::Tree) -> bool {
+    fn complete(&self, position: u64, epoch: u64, tree: usvgr::Tree) -> bool {
         let mut state = self.lock();
-        let is_stale = state.epoch != job.epoch
+        let is_stale = state.epoch != epoch
             || state
                 .displayed
-                .is_some_and(|displayed| job.position <= displayed);
+                .is_some_and(|displayed| position <= displayed);
 
         if !is_stale {
-            state.ready.insert(job.position, tree);
+            state.ready.insert(position, tree);
         }
 
         !is_stale
@@ -162,7 +190,7 @@ impl Scheduler {
         usvg_options: &usvgr::Options<'_>,
         font_db: &usvgr::fontdb::Database,
         video_decoders: VideoDecodersWorker,
-        on_frame_ready: &(dyn Fn() + Sync),
+        on_frame_ready: &(dyn Fn(FrameReady) + Sync),
     ) {
         // Text caches are `Rc` based and therefore owned by the worker.
         let text_cache = TextCache::new(100);
@@ -184,13 +212,18 @@ impl Scheduler {
                     Ok(svgr.into_svg_tree(usvg_options, &mut converter_cache, font_db)?)
                 });
 
-            match tree {
-                Ok(tree) => {
-                    if self.complete(&job, tree) {
-                        on_frame_ready();
+            match (tree, job.kind) {
+                (Ok(tree), JobKind::Thumbnail(slot)) => {
+                    if let Some(image) = thumbnail(&tree, TVideo::BACKGROUND_COLOR) {
+                        on_frame_ready(FrameReady::Thumbnail(slot, image));
                     }
                 }
-                Err(err) => eprintln!(
+                (Ok(tree), JobKind::Playback { position, epoch }) => {
+                    if self.complete(position, epoch, tree) {
+                        on_frame_ready(FrameReady::Playback);
+                    }
+                }
+                (Err(err), _) => eprintln!(
                     "fframes player: failed to render frame {}: {err}",
                     job.frame
                 ),

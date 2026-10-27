@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use fframes::usvgr;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
-use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
+use winit::event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::{CursorIcon, Fullscreen, Window, WindowId};
@@ -15,13 +15,17 @@ use crate::error::PlayerError;
 use crate::options::PlayerBackend;
 use crate::presenter::Presenter;
 use crate::scheduler::Scheduler;
+use crate::studio::{Studio, StudioLayout, StudioScroll};
+use fframes_skia_renderer::skia_safe::Point;
 
 /// The control bar hides after this long without pointer movement while playing.
 const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
 
 /// Sent by the frame workers whenever a frame becomes available.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct FrameReady;
+pub(crate) enum FrameReady {
+    Playback,
+    Thumbnail(usize, fframes_skia_renderer::skia_safe::Image),
+}
 
 /// Playback clock in player positions (see `scheduler`), driven by wall time.
 struct Clock {
@@ -61,8 +65,10 @@ impl Clock {
 }
 
 pub(crate) struct AppConfig<'a> {
+    pub studio: Studio,
     pub title: &'a str,
     pub window_size: LogicalSize<u32>,
+    pub fit_portrait_to_screen: bool,
     pub backend: PlayerBackend,
     pub vsync: bool,
     pub fps: usize,
@@ -95,7 +101,12 @@ pub(crate) struct App<'s> {
     cursor_inside: bool,
     last_pointer_activity: Instant,
     hovered: Option<Control>,
-    seeking_with_mouse: bool,
+    drag: Option<Control>,
+    scene_press_axis: f32,
+    /// The newest destination under the pointer while a native frame is being prepared.
+    scrub_target: Option<usize>,
+    studio_open: bool,
+    scroll: StudioScroll,
 
     stats_since: Instant,
     /// New frames drawn into the window since `stats_since`. Frames taken from the
@@ -137,7 +148,11 @@ impl<'s> App<'s> {
             cursor_inside: false,
             last_pointer_activity: now,
             hovered: None,
-            seeking_with_mouse: false,
+            drag: None,
+            scene_press_axis: 0.,
+            scrub_target: None,
+            studio_open: true,
+            scroll: StudioScroll::default(),
             stats_since: now,
             frames_shown: 0,
             presented: None,
@@ -166,6 +181,7 @@ impl<'s> App<'s> {
 
     /// Restarts playback at `position`, all the prepared frames are discarded.
     fn seek_to(&mut self, position: u64, playing: bool) {
+        self.scrub_target = None;
         self.clock.set(position, playing);
         self.scheduler.seek(position, self.looping);
 
@@ -175,13 +191,17 @@ impl<'s> App<'s> {
         }
     }
 
+    fn playhead(&self) -> usize {
+        self.scrub_target.unwrap_or_else(|| self.current_frame())
+    }
+
     fn seek_to_frame(&mut self, frame: i64) {
         let frame = frame.clamp(0, self.last_frame() as i64) as u64;
         self.seek_to(frame, self.clock.is_playing());
     }
 
     fn toggle_play(&mut self) {
-        let frame = self.current_frame();
+        let frame = self.playhead();
         if self.clock.is_playing() {
             self.seek_to(frame as u64, false);
         } else if !self.looping && frame >= self.last_frame() {
@@ -203,8 +223,15 @@ impl<'s> App<'s> {
         }
 
         if let Some(frame) = self.scheduler.take(position) {
+            let next_frame = self.scheduler.frame_of(frame.0, self.looping);
             self.current = Some(frame);
             self.needs_redraw = true;
+            if let Some(target) = self.scrub_target.take()
+                && target != next_frame
+            {
+                self.seek_to(target as u64, false);
+                self.scrub_target = Some(target);
+            }
         }
 
         let controls_visible = self.controls_should_be_visible();
@@ -269,7 +296,7 @@ impl<'s> App<'s> {
             return;
         }
 
-        let frame = self.current_frame() as i64;
+        let frame = self.playhead() as i64;
         let second = self.config.fps as i64;
         match event.logical_key.as_ref() {
             Key::Named(NamedKey::Space) => self.toggle_play(),
@@ -295,6 +322,13 @@ impl<'s> App<'s> {
                 self.controls_enabled = !self.controls_enabled;
                 self.needs_redraw = true;
             }
+            Key::Character("t") => self.toggle_studio(),
+            Key::Character("[" | "]") => {
+                let next = event.logical_key == Key::Character("]".into());
+                if let Some(target) = self.config.studio.adjacent_scene(frame as usize, next) {
+                    self.seek_to_frame(target as i64);
+                }
+            }
             Key::Character("f") => self.toggle_fullscreen(),
             Key::Character(digit) if digit.len() == 1 && digit.as_bytes()[0].is_ascii_digit() => {
                 let tenth = i64::from(digit.as_bytes()[0] - b'0');
@@ -308,6 +342,24 @@ impl<'s> App<'s> {
     fn step(&mut self, frame: i64) {
         let frame = frame.clamp(0, self.last_frame() as i64) as u64;
         self.seek_to(frame, false);
+    }
+
+    fn studio_layout(&self) -> Option<&StudioLayout> {
+        self.presenter.as_ref()?.studio_layout.as_ref()
+    }
+
+    fn pointer(&self) -> Point {
+        let scale = self.window.as_ref().map_or(1., |w| w.scale_factor());
+        let pos = self.cursor.to_logical::<f32>(scale);
+        Point::new(pos.x, pos.y)
+    }
+
+    fn toggle_studio(&mut self) {
+        self.studio_open = !self.studio_open;
+        self.drag = None;
+        self.hovered = None;
+        self.last_pointer_activity = Instant::now();
+        self.needs_redraw = true;
     }
 
     fn toggle_fullscreen(&mut self) {
@@ -329,27 +381,54 @@ impl<'s> App<'s> {
     fn controls_should_be_visible(&self) -> bool {
         self.controls_enabled
             && (!self.clock.is_playing()
-                || self.seeking_with_mouse
+                || self.drag.is_some()
                 || (self.cursor_inside && self.hovered.is_some())
                 || self.last_pointer_activity.elapsed() < CONTROLS_IDLE_TIMEOUT)
     }
 
     fn control_under_cursor(&self) -> Option<Control> {
-        if !self.controls_visible {
-            return None;
+        let point = self.pointer();
+        if self.studio_open {
+            return self.studio_layout()?.hit(point, &self.config.studio);
         }
-
-        self.presenter.as_ref().and_then(|presenter| {
-            presenter
+        if self.controls_visible
+            && let Some(control) = self
+                .presenter
+                .as_ref()?
                 .controls_layout()
                 .hit(self.cursor.x as f32, self.cursor.y as f32)
-        })
+        {
+            return Some(control);
+        }
+        let layout = self.studio_layout()?;
+        (self.controls_visible && layout.focus_hit(point)).then_some(Control::Focus)
     }
 
     fn seek_to_cursor(&mut self) {
         let Some(presenter) = &self.presenter else {
             return;
         };
+        if self.drag == Some(Control::Timeline) {
+            if let Some(ui) = self.studio_layout() {
+                let frame =
+                    ui.frame_at(ui.time_axis(self.pointer()), self.config.duration_in_frames);
+                // Finish the in-flight frame before requesting the newest pointer
+                // position. Starting a fresh generation on every move can starve it.
+                if self.scrub_target.is_none() {
+                    if !self.clock.is_playing()
+                        && self.current.is_some()
+                        && frame == self.current_frame()
+                        && self.clock.position() == frame as u64
+                    {
+                        return;
+                    }
+                    self.seek_to(frame as u64, false);
+                }
+                self.scrub_target = Some(frame);
+                self.needs_redraw = true;
+            }
+            return;
+        }
         let progress = f64::from(
             presenter
                 .controls_layout()
@@ -364,7 +443,14 @@ impl<'s> App<'s> {
         self.cursor_inside = true;
         self.last_pointer_activity = Instant::now();
 
-        if self.seeking_with_mouse {
+        if matches!(self.drag, Some(Control::Scene(_)))
+            && self.studio_layout().is_some_and(|ui| {
+                (ui.time_axis(self.pointer()) - self.scene_press_axis).abs() >= 3.
+            })
+        {
+            self.drag = Some(Control::Timeline);
+        }
+        if matches!(self.drag, Some(Control::Seek | Control::Timeline)) {
             self.seek_to_cursor();
         }
 
@@ -376,6 +462,12 @@ impl<'s> App<'s> {
             if let Some(window) = &self.window {
                 window.set_cursor(match hovered {
                     None | Some(Control::Bar) => CursorIcon::Default,
+                    Some(Control::Timeline)
+                        if self.studio_layout().is_some_and(|ui| ui.portrait) =>
+                    {
+                        CursorIcon::NsResize
+                    }
+                    Some(Control::Timeline) => CursorIcon::EwResize,
                     Some(_) => CursorIcon::Pointer,
                 });
             }
@@ -394,16 +486,23 @@ impl<'s> App<'s> {
     }
 
     fn on_pointer_pressed(&mut self) {
-        let frame = self.current_frame() as i64;
+        let frame = self.playhead() as i64;
         let second = self.config.fps as i64;
 
         match self.control_under_cursor() {
             Some(Control::Back) => self.seek_to_frame(frame - second),
             Some(Control::Forward) => self.seek_to_frame(frame + second),
-            Some(Control::Seek) => {
-                self.seeking_with_mouse = true;
+            Some(control @ (Control::Seek | Control::Timeline)) => {
+                self.drag = Some(control);
                 self.seek_to_cursor();
             }
+            Some(control @ Control::Scene(_)) => {
+                if let Some(ui) = self.studio_layout() {
+                    self.scene_press_axis = ui.time_axis(self.pointer());
+                }
+                self.drag = Some(control);
+            }
+            Some(Control::Focus) => self.toggle_studio(),
             Some(Control::Loop) => {
                 self.looping = !self.looping;
                 let playing = self.clock.is_playing();
@@ -417,10 +516,18 @@ impl<'s> App<'s> {
         self.needs_redraw = true;
     }
 
+    fn on_pointer_released(&mut self) {
+        if let Some(control @ Control::Scene(start)) = self.drag.take()
+            && self.control_under_cursor() == Some(control)
+        {
+            self.step(start as i64);
+        }
+    }
+
     fn redraw(&mut self) -> Result<(), PlayerError> {
         let controls = ControlsState {
             visible: self.controls_visible,
-            frame: self.current_frame(),
+            frame: self.playhead(),
             duration_in_frames: self.config.duration_in_frames,
             fps: self.config.fps,
             playing: self.clock.is_playing(),
@@ -430,7 +537,13 @@ impl<'s> App<'s> {
         };
 
         if let Some(presenter) = self.presenter.as_mut() {
-            presenter.present(self.current.as_ref().map(|(_, tree)| tree), &controls)?;
+            presenter.present(
+                self.current.as_ref().map(|(_, tree)| tree),
+                &controls,
+                &self.config.studio,
+                &self.scroll,
+                self.studio_open,
+            )?;
 
             let position = self.current.as_ref().map(|(position, _)| *position);
             if position.is_some() && position != self.presented {
@@ -454,6 +567,24 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             return;
         }
 
+        if self.config.fit_portrait_to_screen
+            && let Some(monitor) = event_loop
+                .primary_monitor()
+                .or_else(|| event_loop.available_monitors().next())
+        {
+            let screen = monitor.size().to_logical::<f64>(monitor.scale_factor());
+            // Leave room for the window decorations and desktop controls.
+            let height = f64::from(self.config.window_size.height)
+                .min(screen.height - 72.)
+                .max(1.);
+            let width = height * f64::from(self.config.studio.video_aspect)
+                + f64::from(crate::studio::PORTRAIT_SIDEBAR_WIDTH);
+            self.config.window_size = LogicalSize::new(
+                width.min(screen.width - 24.).max(1.).round() as u32,
+                height.round() as u32,
+            );
+        }
+
         let attributes = Window::default_attributes()
             .with_title(self.config.title)
             .with_inner_size(self.config.window_size);
@@ -470,6 +601,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             self.config.vsync,
             self.config.background,
             duration_label,
+            &self.config.studio,
         ) {
             Ok(presenter) => self.presenter = Some(presenter),
             Err(err) => return self.fail(event_loop, err),
@@ -479,7 +611,11 @@ impl ApplicationHandler<FrameReady> for App<'_> {
         self.needs_redraw = true;
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: FrameReady) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: FrameReady) {
+        if let FrameReady::Thumbnail(slot, image) = event {
+            self.config.studio.thumbnails[slot] = Some(image);
+            self.needs_redraw = true;
+        }
         self.tick();
     }
 
@@ -499,6 +635,28 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             }
             WindowEvent::KeyboardInput { event, .. } => self.handle_key(event_loop, event),
             WindowEvent::CursorMoved { position, .. } => self.on_pointer_moved(position),
+            WindowEvent::MouseWheel { delta, .. } if self.studio_open && self.cursor_inside => {
+                let point = self.pointer();
+                let dy = match delta {
+                    MouseScrollDelta::LineDelta(_, dy) => f64::from(dy),
+                    MouseScrollDelta::PixelDelta(delta) => delta.y,
+                };
+                if let Some(ui) = self
+                    .presenter
+                    .as_ref()
+                    .and_then(|p| p.studio_layout.as_ref())
+                {
+                    ui.scroll(
+                        &self.config.studio,
+                        &mut self.scroll,
+                        point,
+                        isize::from(dy < 0.) - isize::from(dy > 0.),
+                    );
+                    self.hovered = self.control_under_cursor();
+                    self.needs_redraw = true;
+                }
+            }
+            WindowEvent::Focused(false) => self.drag = None,
             WindowEvent::CursorLeft { .. } => {
                 self.cursor_inside = false;
                 if self.hovered.take().is_some() {
@@ -511,7 +669,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
                 ..
             } => match state {
                 ElementState::Pressed => self.on_pointer_pressed(),
-                ElementState::Released => self.seeking_with_mouse = false,
+                ElementState::Released => self.on_pointer_released(),
             },
             _ => {}
         }

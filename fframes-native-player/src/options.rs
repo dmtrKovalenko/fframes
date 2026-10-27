@@ -25,8 +25,9 @@ pub struct PlayerOptions<'a, 'media> {
     pub default_font: &'a str,
     /// Window title, defaults to "fframes".
     pub title: &'a str,
-    /// Initial window size in logical pixels. Defaults to the video size, scaled down to
-    /// fit 1280x720.
+    /// Initial window size in logical pixels. Landscape defaults fit within 1280×720.
+    /// Portrait defaults fit up to 960 pixels tall with a timeline on the left, subject
+    /// to the size of the display.
     pub window_size: Option<(u32, u32)>,
     pub backend: PlayerBackend,
     /// Wait for the display refresh to show a frame. With `false` a frame is shown as soon

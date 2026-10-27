@@ -18,6 +18,7 @@ use winit::window::Window;
 use crate::controls::{Controls, ControlsLayout, ControlsState};
 use crate::error::PlayerResult;
 use crate::options::PlayerBackend;
+use crate::studio::{Studio, StudioLayout, StudioScroll};
 
 /// The images of the window that Skia draws into.
 trait WindowTarget {
@@ -49,6 +50,9 @@ pub(crate) struct Presenter {
     layout: ControlsLayout,
     /// The longest time label, sizes the time slots of the control bar.
     duration_label: String,
+    pub studio_layout: Option<StudioLayout>,
+    audio_rows: usize,
+    video_aspect: f32,
 }
 
 impl Presenter {
@@ -58,6 +62,7 @@ impl Presenter {
         vsync: bool,
         background: fframes::Color,
         duration_label: String,
+        model: &Studio,
     ) -> PlayerResult<Self> {
         let target = create_target(&window, backend, vsync)?;
         let controls = Controls::new();
@@ -78,6 +83,9 @@ impl Presenter {
             controls,
             layout,
             duration_label,
+            studio_layout: None,
+            audio_rows: model.audio_rows(),
+            video_aspect: model.video_aspect,
         };
 
         presenter.resize()?;
@@ -102,6 +110,13 @@ impl Presenter {
         }
 
         self.target.resize(size.width, size.height)?;
+        let logical = size.to_logical::<f32>(self.window.scale_factor());
+        self.studio_layout = StudioLayout::new(
+            logical.width,
+            logical.height,
+            self.audio_rows,
+            self.video_aspect,
+        );
         self.layout = ControlsLayout::new(
             &self.controls,
             &self.duration_label,
@@ -118,26 +133,53 @@ impl Presenter {
         &mut self,
         tree: Option<&usvgr::Tree>,
         controls: &ControlsState,
+        model: &Studio,
+        scroll: &StudioScroll,
+        studio_open: bool,
     ) -> PlayerResult<()> {
+        let pixel_scale = self.window.scale_factor() as f32;
         let Self {
             render_cache,
             target,
             background,
             controls: bar,
             layout,
+            studio_layout,
             ..
         } = self;
 
         target.present(&mut |canvas| {
             let size = canvas.base_layer_size();
             let (width, height) = (size.width as f32, size.height as f32);
-            canvas.clear(Color::BLACK);
+            let view = studio_layout.as_ref().filter(|_| studio_open);
+            let viewport = view.map_or_else(
+                || Rect::from_wh(width, height),
+                |ui| {
+                    let stage = ui.stage;
+                    Rect::from_ltrb(
+                        stage.left * pixel_scale,
+                        stage.top * pixel_scale,
+                        stage.right * pixel_scale,
+                        stage.bottom * pixel_scale,
+                    )
+                },
+            );
+            canvas.clear(if view.is_some() {
+                Color::from_rgb(14, 14, 14)
+            } else {
+                Color::BLACK
+            });
 
             if let Some(tree) = tree {
                 let video = tree.size();
-                let scale = (width / video.width()).min(height / video.height());
-                let offset_x = (width - video.width() * scale) / 2.;
-                let offset_y = (height - video.height() * scale) / 2.;
+                let scale =
+                    (viewport.width() / video.width()).min(viewport.height() / video.height());
+                let offset_x = viewport.center_x() - video.width() * scale / 2.;
+                let offset_y = if view.is_some_and(|ui| ui.portrait) {
+                    viewport.top
+                } else {
+                    viewport.center_y() - video.height() * scale / 2.
+                };
 
                 canvas.save();
                 canvas.translate((offset_x, offset_y));
@@ -152,7 +194,23 @@ impl Presenter {
                 canvas.restore();
             }
 
-            bar.draw(canvas, layout, controls);
+            if let Some(ui) = studio_layout.as_ref() {
+                canvas.save();
+                canvas.scale((pixel_scale, pixel_scale));
+                if studio_open {
+                    ui.draw(canvas, bar, controls, model, scroll);
+                } else if controls.visible {
+                    ui.draw_restore(
+                        canvas,
+                        bar,
+                        controls.hovered == Some(crate::controls::Control::Focus),
+                    );
+                }
+                canvas.restore();
+            }
+            if !studio_open {
+                bar.draw(canvas, layout, controls);
+            }
         })
     }
 }
