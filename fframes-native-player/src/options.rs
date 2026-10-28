@@ -45,7 +45,10 @@ pub struct PlayerOptions<'a, 'media> {
     /// Defaults to one worker for video sources so the decoder reads frames in order.
     /// Other projects use half the available cores, up to eight workers.
     pub render_threads: Option<usize>,
-    /// How many frames ahead of the playhead may be prepared.
+    /// Maximum number of future frames to prepare. The default (`usize::MAX`) uses
+    /// two seconds at the video's frame rate. Zero disables preparation ahead of time.
+    /// The automatic setting also limits finished frames to an estimated 512 MiB.
+    /// An explicit frame count takes precedence over that limit.
     pub prefetch_frames: usize,
     /// Master bus of the audio mix, see `RenderOptions::audio_mix`.
     pub audio_mix: fframes::AudioMixOptions,
@@ -66,13 +69,21 @@ impl Default for PlayerOptions<'_, '_> {
             start_frame: 0,
             audio: true,
             render_threads: None,
-            prefetch_frames: 12,
+            prefetch_frames: usize::MAX,
             audio_mix: fframes::AudioMixOptions::default(),
         }
     }
 }
 
 impl PlayerOptions<'_, '_> {
+    pub(crate) fn lookahead(&self, fps: usize) -> usize {
+        if self.prefetch_frames == usize::MAX {
+            fps.saturating_mul(2)
+        } else {
+            self.prefetch_frames
+        }
+    }
+
     pub(crate) fn render_threads(&self) -> usize {
         if let Some(count) = self.render_threads {
             return count.max(1);
@@ -87,6 +98,17 @@ impl PlayerOptions<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_lookahead_tracks_the_video_frame_rate() {
+        let mut options = PlayerOptions::default();
+        assert_eq!(options.lookahead(24), 48);
+        assert_eq!(options.lookahead(60), 120);
+        options.prefetch_frames = 8;
+        assert_eq!(options.lookahead(24), 8);
+        options.prefetch_frames = 0;
+        assert_eq!(options.lookahead(60), 0);
+    }
 
     #[test]
     fn video_sources_default_to_one_worker() {

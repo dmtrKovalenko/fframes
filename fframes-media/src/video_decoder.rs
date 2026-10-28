@@ -92,7 +92,6 @@ pub fn decode_video_resource(s: &str) -> Option<(&str, i64)> {
 struct VideoStreamInfo {
     hw_pix_fmt: Option<AVPixelFormat>,
     stream_index: i32,
-    codec_ctx: *mut AVCodecContext,
     width: i32,
     height: i32,
     display_width: i32,
@@ -118,6 +117,9 @@ struct SwsScaler {
     video_stream_info: VideoStreamInfo,
     linesize: [i32; 4],
 }
+
+// The scaler exclusively owns its SwsContext. All conversions use it under one mutex.
+unsafe impl Send for SwsScaler {}
 
 impl Drop for SwsScaler {
     fn drop(&mut self) {
@@ -375,6 +377,7 @@ pub struct FFmpegDecoder {
     frame_buf: Arc<FFmpegFrameBuf>,
     fmt_ctx: *mut AVFormatContext,
     video_stream_info: VideoStreamInfo,
+    codec_ctx: *mut AVCodecContext,
     pkt: *mut AVPacket,
     custom_time_base: AVRational,
     duration_in_frames: i64,
@@ -404,10 +407,10 @@ struct ConvertedFrames {
 
 #[derive(Debug)]
 pub struct FFmpegFrameBuf {
-    resource_name: String,
+    resource_name: Arc<str>,
     latest_av_frame: *mut AVFrame,
     video_stream_info: VideoStreamInfo,
-    converted: Mutex<ConvertedFrames>,
+    converted: Arc<Mutex<ConvertedFrames>>,
 }
 
 impl Drop for FFmpegFrameBuf {
@@ -446,11 +449,11 @@ impl FFmpegFrameBuf {
             Ok(FFmpegFrameBuf {
                 video_stream_info,
                 latest_av_frame: av_frame,
-                resource_name,
-                converted: Mutex::new(ConvertedFrames {
+                resource_name: resource_name.into(),
+                converted: Arc::new(Mutex::new(ConvertedFrames {
                     scaler: sws_ctx,
                     images: VecDeque::with_capacity(buf_size.max(1)),
-                }),
+                })),
             })
         }
     }
@@ -558,6 +561,22 @@ impl FFmpegDecoder {
         Arc::clone(&self.frame_buf)
     }
 
+    /// Retains the decoded planes so this frame can be read after the decoder advances
+    /// or seeks. `FFmpeg` clones the frame header and reference-counts the pixel buffers.
+    pub fn retained_frame(&self) -> Result<Arc<FFmpegFrameBuf>> {
+        let frame = &self.frame_buf;
+        let latest_av_frame = unsafe { av_frame_clone(frame.latest_av_frame) };
+        if latest_av_frame.is_null() {
+            return Err(FFramesMediaError::LibAVAllocationError("frame"));
+        }
+        Ok(Arc::new(FFmpegFrameBuf {
+            latest_av_frame,
+            resource_name: Arc::clone(&frame.resource_name),
+            video_stream_info: self.video_stream_info,
+            converted: Arc::clone(&frame.converted),
+        }))
+    }
+
     pub fn get_decoded_image_in_buf(&self, pts: i64) -> Option<Arc<PreloadedImageData>> {
         self.frame_buf
             .converted
@@ -609,7 +628,7 @@ impl FFmpegDecoder {
                 )));
             }
 
-            let video_stream_info = Self::open_codec_context(fmt_ctx)?;
+            let (codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx)?;
             let pkt = av_packet_alloc();
             if pkt.is_null() {
                 avformat_close_input(&raw mut fmt_ctx);
@@ -650,6 +669,7 @@ impl FFmpegDecoder {
             );
 
             Ok(FFmpegDecoder {
+                codec_ctx,
                 pkt,
                 fmt_ctx,
                 hw_frame,
@@ -670,7 +690,9 @@ impl FFmpegDecoder {
         }
     }
 
-    unsafe fn open_codec_context(fmt_ctx: *mut AVFormatContext) -> Result<VideoStreamInfo> {
+    unsafe fn open_codec_context(
+        fmt_ctx: *mut AVFormatContext,
+    ) -> Result<(*mut AVCodecContext, VideoStreamInfo)> {
         unsafe {
             let ret = av_find_best_stream(
                 fmt_ctx,
@@ -748,21 +770,23 @@ impl FFmpegDecoder {
                 }
                 None => (width, height),
             };
-            Ok(VideoStreamInfo {
-                hw_pix_fmt,
-                stream_index: video_stream_idx,
-                codec_ctx: video_dec_ctx,
-                width,
-                height,
-                display_width,
-                display_height,
-                pixel_format: (*video_dec_ctx).pix_fmt,
-                color_space: (*video_dec_ctx).colorspace,
-                color_range: (*video_dec_ctx).color_range,
-                time_base: (*stream).time_base,
-                duration: stream_duration(fmt_ctx, stream),
-                frame_rate: (*stream).r_frame_rate,
-            })
+            Ok((
+                video_dec_ctx,
+                VideoStreamInfo {
+                    hw_pix_fmt,
+                    stream_index: video_stream_idx,
+                    width,
+                    height,
+                    display_width,
+                    display_height,
+                    pixel_format: (*video_dec_ctx).pix_fmt,
+                    color_space: (*video_dec_ctx).colorspace,
+                    color_range: (*video_dec_ctx).color_range,
+                    time_base: (*stream).time_base,
+                    duration: stream_duration(fmt_ctx, stream),
+                    frame_rate: (*stream).r_frame_rate,
+                },
+            ))
         }
     }
 
@@ -792,7 +816,7 @@ impl FFmpegDecoder {
             }
 
             (*self.frame_buf.latest_av_frame).pts = -1;
-            avcodec_flush_buffers(self.video_stream_info.codec_ctx);
+            avcodec_flush_buffers(self.codec_ctx);
             self.draining = false;
             self.has_decoded_frame = false;
             av_packet_unref(self.pkt);
@@ -829,6 +853,11 @@ impl FFmpegDecoder {
     unsafe fn transfer_hardware_surface_data(&self, target_frame: *mut AVFrame) -> Result<()> {
         match self.video_stream_info.hw_pix_fmt {
             Some(hw_pix_fmt) if hw_pix_fmt as i32 == (*target_frame).format => {
+                // A retained frame can still own the last transfer's software planes.
+                let output = self.frame_buf.latest_av_frame;
+                if !(*output).buf[0].is_null() && av_frame_is_writable(output) == 0 {
+                    av_frame_unref(output);
+                }
                 if (*self.frame_buf.latest_av_frame).format
                     == (AVPixelFormat::AV_PIX_FMT_NONE as i32)
                 {
@@ -907,7 +936,7 @@ impl FFmpegDecoder {
             loop {
                 // A previous call may have returned with more decoded frames queued.
                 // Consume them before sending another packet (which could return EAGAIN).
-                let ret = avcodec_receive_frame(self.video_stream_info.codec_ctx, self.recv_frame);
+                let ret = avcodec_receive_frame(self.codec_ctx, self.recv_frame);
                 match ret {
                     0 => {
                         av_frame_unref(target_frame);
@@ -961,7 +990,7 @@ impl FFmpegDecoder {
                 } else {
                     self.pkt.cast_const()
                 };
-                let ret = avcodec_send_packet(self.video_stream_info.codec_ctx, packet);
+                let ret = avcodec_send_packet(self.codec_ctx, packet);
                 av_packet_unref(self.pkt);
                 if ret < 0 {
                     return Err(FFramesMediaError::LibAVAudioDecodingError((
@@ -980,7 +1009,7 @@ impl Drop for FFmpegDecoder {
         unsafe {
             av_frame_free(&raw mut self.recv_frame);
             av_frame_free(&raw mut self.hw_frame);
-            avcodec_free_context(&raw mut self.video_stream_info.codec_ctx);
+            avcodec_free_context(&raw mut self.codec_ctx);
             avformat_close_input(&raw mut self.fmt_ctx);
             av_packet_free(&raw mut self.pkt);
         }
@@ -1186,7 +1215,6 @@ mod color_tests {
         SwsScaler::new(VideoStreamInfo {
             hw_pix_fmt: None,
             stream_index: 0,
-            codec_ctx: ptr::null_mut(),
             width: WIDTH,
             height: HEIGHT,
             display_width: WIDTH,

@@ -8,7 +8,10 @@ use crate::error::Result;
 use fframes_media::ImageMetadata;
 pub use fframes_media::{FrameConvertOptions, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Mutex, RwLock},
+};
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
@@ -177,17 +180,21 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+type DecoderMap = RwLock<HashMap<String, Arc<Mutex<fframes_media::FFmpegDecoder>>>>;
+
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct VideoDecodersWorker {
     buffer_size: usize,
     #[cfg(not(target_arch = "wasm32"))]
-    map: Arc<std::sync::RwLock<HashMap<String, fframes_media::FFmpegDecoder>>>,
+    map: Arc<DecoderMap>,
 }
 
 impl std::fmt::Debug for VideoDecodersWorker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkerLocalDecoders").finish()
+        f.debug_struct("VideoDecodersWorker")
+            .finish_non_exhaustive()
     }
 }
 
@@ -202,7 +209,7 @@ impl VideoDecodersWorker {
         VideoDecodersWorker {
             buffer_size,
             #[cfg(not(target_arch = "wasm32"))]
-            map: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            map: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -273,14 +280,10 @@ impl VideoDecodersWorker {
         pts: i64,
         filename: &str,
     ) -> Result<Option<Arc<usvgr::PreloadedImageData>>> {
-        let frame = self
-            .map
-            .read()
-            .unwrap()
-            .get(filename)
-            .and_then(|decoder| decoder.get_decoded_image_in_buf(pts));
-
-        Ok(frame)
+        let Some(decoder) = self.map.read()?.get(filename).cloned() else {
+            return Ok(None);
+        };
+        Ok(decoder.lock()?.get_decoded_image_in_buf(pts))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -299,51 +302,50 @@ impl VideoDecodersWorker {
             .ok_or_else(|| FFramesError::MediaError(FFramesMediaError::MediaDirectoryProvided))?
             .to_string_lossy();
 
-        // It is important to lock it for the whole duration of he function to
-        // avoid any parallel encoder creation.
-        let mut map_guard = self.map.write()?;
-        let needs_new_decoder = !map_guard.contains_key(resource_name.as_ref());
-
-        // Create new decoder if needed
-        if needs_new_decoder {
-            let decoder = unsafe {
-                let mut decoder =
-                    fframes_media::FFmpegDecoder::new(path, ctx.time_base.fps, self.buffer_size)?;
-
-                if offset > 0 {
-                    decoder.seek_to_offset(offset)?;
+        // Each source has one mutable decode cursor. Different sources can decode
+        // concurrently, and callers retain their frame after releasing this lock.
+        let existing = self.map.read()?.get(resource_name.as_ref()).cloned();
+        let decoder = if let Some(decoder) = existing {
+            decoder
+        } else {
+            use std::collections::hash_map::Entry;
+            match self.map.write()?.entry(resource_name.into_owned()) {
+                Entry::Occupied(entry) => Arc::clone(entry.get()),
+                Entry::Vacant(entry) => {
+                    let mut decoder = unsafe {
+                        fframes_media::FFmpegDecoder::new(
+                            path,
+                            ctx.time_base.fps,
+                            self.buffer_size,
+                        )?
+                    };
+                    if offset > 0 {
+                        unsafe { decoder.seek_to_offset(offset)? };
+                    }
+                    Arc::clone(entry.insert(Arc::new(Mutex::new(decoder))))
                 }
-
-                decoder
-            };
-
-            map_guard.insert(resource_name.to_string(), decoder);
-        }
-
+            }
+        };
+        let mut decoder = decoder.lock()?;
         unsafe {
-            // Use write lock for modifying decoder state
-            let decoder = map_guard.get_mut(resource_name.as_ref()).unwrap();
-
             if options.looping {
                 offset = decoder.adjust_offset_for_looping(offset)?;
             }
 
             let has_frame = decoder.decode_up_to(offset)?;
             if has_frame {
-                Ok(Some(decoder.get_raw_frame()))
+                Ok(Some(decoder.retained_frame()?))
             } else if options.looping {
                 decoder.seek_to_offset(0)?;
                 let has_first_frame = decoder.decode_up_to(0)?;
 
                 decoder.current_loop += 1;
-                Ok(has_first_frame.then_some(decoder.get_raw_frame()))
+                Ok(has_first_frame
+                    .then(|| decoder.retained_frame())
+                    .transpose()?)
             } else {
                 Ok(None)
             }
         }
     }
 }
-
-// These implementations are already thread-safe due to RwLock
-unsafe impl Send for VideoDecodersWorker {}
-unsafe impl Sync for VideoDecodersWorker {}
