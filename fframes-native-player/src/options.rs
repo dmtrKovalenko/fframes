@@ -42,7 +42,8 @@ pub struct PlayerOptions<'a, 'media> {
     /// Play the video's audio map on the default output device.
     pub audio: bool,
     /// Threads building frame trees (`Video::render_frame`) in parallel.
-    /// Defaults to half of the available cores, at most 8.
+    /// Defaults to one worker for video sources so the decoder reads frames in order.
+    /// Other projects use half the available cores, up to eight workers.
     pub render_threads: Option<usize>,
     /// How many frames ahead of the playhead may be prepared.
     pub prefetch_frames: usize,
@@ -73,8 +74,44 @@ impl Default for PlayerOptions<'_, '_> {
 
 impl PlayerOptions<'_, '_> {
     pub(crate) fn render_threads(&self) -> usize {
-        self.render_threads
-            .unwrap_or_else(|| (fframes::get_thread_count() / 2).clamp(1, 8))
-            .max(1)
+        if let Some(count) = self.render_threads {
+            return count.max(1);
+        }
+        if self.media.is_some_and(MediaProvider::has_video_sources) {
+            return 1;
+        }
+        (fframes::get_thread_count() / 2).clamp(1, 8)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn video_sources_default_to_one_worker() {
+        let media = fframes::DynamicMediaProvider::default().with_video(
+            "clip.mp4",
+            fframes::media::VideoMedia {
+                path: "clip.mp4".into(),
+                metadata: None,
+            },
+        );
+        let media = fframes::CombinedMediaProvider::from([&() as &dyn MediaProvider, &media]);
+        let mut options = PlayerOptions {
+            media: Some(&media),
+            ..Default::default()
+        };
+        assert_eq!(options.render_threads(), 1);
+        options.render_threads = Some(4);
+        assert_eq!(options.render_threads(), 4);
+        options.render_threads = Some(0);
+        assert_eq!(options.render_threads(), 1);
+        options.render_threads = None;
+        options.media = None;
+        assert_eq!(
+            options.render_threads(),
+            (fframes::get_thread_count() / 2).clamp(1, 8)
+        );
     }
 }

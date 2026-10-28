@@ -43,6 +43,12 @@ enum JobKind {
     Thumbnail(usize),
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum WorkerKind {
+    Playback,
+    Thumbnails,
+}
+
 impl Scheduler {
     pub(crate) fn new(
         duration_in_frames: usize,
@@ -101,17 +107,26 @@ impl Scheduler {
     /// frame rate instead of freezing.
     pub(crate) fn take(&self, playhead: u64) -> Option<(u64, usvgr::Tree)> {
         let mut state = self.lock();
+        let advanced = state.playhead != playhead;
+        let first_frame = state.displayed.is_none();
         state.playhead = playhead;
 
-        let newer = state.ready.split_off(&(playhead + 1));
-        let due = std::mem::replace(&mut state.ready, newer);
-        let taken = due.into_iter().next_back();
+        let mut taken = None;
+        while state
+            .ready
+            .first_key_value()
+            .is_some_and(|(&position, _)| position <= playhead)
+        {
+            taken = state.ready.pop_first();
+        }
         if let Some((position, _)) = &taken {
             state.displayed = Some(*position);
         }
         drop(state);
 
-        self.workers_wakeup.notify_all();
+        if advanced || (first_frame && taken.is_some()) {
+            self.workers_wakeup.notify_all();
+        }
         taken
     }
 
@@ -148,23 +163,38 @@ impl Scheduler {
                 });
             }
 
-            // Sample the overview once, only after all due playback jobs have been assigned.
-            if state.next_thumbnail < self.thumbnails {
-                let slot = state.next_thumbnail;
-                state.next_thumbnail += 1;
-                let frame = ((2 * slot + 1) as u128 * u128::from(self.duration)
-                    / (2 * self.thumbnails) as u128) as usize;
-                return Some(Job {
-                    frame,
-                    kind: JobKind::Thumbnail(slot),
-                });
-            }
-
             state = self
                 .workers_wakeup
                 .wait(state)
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
         }
+    }
+
+    // The filmstrip seeks across the video with its own decoder.
+    fn next_thumbnail_job(&self) -> Option<Job> {
+        let mut state = self.lock();
+        while !state.shutdown && state.displayed.is_none() {
+            state = self
+                .workers_wakeup
+                .wait(state)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        if state.shutdown || state.next_thumbnail >= self.thumbnails {
+            return None;
+        }
+        let slot = state.next_thumbnail;
+        state.next_thumbnail += 1;
+        let frame = ((2 * slot + 1) as u128 * u128::from(self.duration)
+            / (2 * self.thumbnails) as u128) as usize;
+        Some(Job {
+            frame,
+            kind: JobKind::Thumbnail(slot),
+        })
+    }
+
+    pub(crate) fn is_current_seek(&self, position: u64, epoch: u64) -> bool {
+        let state = self.lock();
+        state.playhead == position && state.epoch == epoch
     }
 
     fn complete(&self, position: u64, epoch: u64, tree: usvgr::Tree) -> bool {
@@ -181,22 +211,25 @@ impl Scheduler {
         !is_stale
     }
 
-    /// Runs on a worker thread until `shutdown` is called. `on_frame_ready` is invoked
-    /// after every frame that was added to the queue (used to wake the event loop).
     pub(crate) fn run_worker<'a, 'media: 'a, TVideo: Video + Sync>(
         &self,
         video: &'a TVideo,
         ctx: &FFramesContext<'a, 'media>,
         usvg_options: &usvgr::Options<'_>,
         font_db: &usvgr::fontdb::Database,
-        video_decoders: VideoDecodersWorker,
+        kind: WorkerKind,
         on_frame_ready: &(dyn Fn(FrameReady) + Sync),
     ) {
         // Text caches are `Rc` based and therefore owned by the worker.
         let text_cache = TextCache::new(100);
         let mut converter_cache = usvgr::Cache::new_with_text_cache(100);
+        // Queued trees own their pixels. The decoder only needs its last conversion.
+        let video_decoders = VideoDecodersWorker::default();
 
-        while let Some(job) = self.next_job() {
+        while let Some(job) = match kind {
+            WorkerKind::Playback => self.next_job(),
+            WorkerKind::Thumbnails => self.next_thumbnail_job(),
+        } {
             let frame = fframes::Frame::__internal_make_for_renderer(
                 job.frame,
                 job.frame,
@@ -223,11 +256,68 @@ impl Scheduler {
                         on_frame_ready(FrameReady::Playback);
                     }
                 }
-                (Err(err), _) => eprintln!(
-                    "fframes player: failed to render frame {}: {err}",
-                    job.frame
-                ),
+                (Err(err), kind) => {
+                    eprintln!(
+                        "fframes player: failed to render frame {}: {err}",
+                        job.frame
+                    );
+                    if let JobKind::Playback { position, epoch } = kind {
+                        on_frame_ready(FrameReady::Failed { position, epoch });
+                    }
+                }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tree() -> usvgr::Tree {
+        usvgr::Tree::from_str(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>"#,
+            &usvgr::Options::default(),
+            &usvgr::fontdb::Database::new(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn taking_out_of_order_frames_preserves_future_frames_and_rejects_stale_jobs() {
+        let scheduler = Scheduler::new(100, 3, false, 2);
+        for index in 0..3 {
+            assert_eq!(scheduler.next_job().unwrap().frame, index);
+        }
+        for index in [2, 0, 1] {
+            assert!(scheduler.complete(index, 0, tree()));
+        }
+        assert_eq!(scheduler.take(1).unwrap().0, 1);
+        assert!(scheduler.take(1).is_none());
+        assert!(!scheduler.complete(0, 0, tree()));
+        assert_eq!(scheduler.take(2).unwrap().0, 2);
+        scheduler.seek(50, false);
+        assert!(!scheduler.complete(3, 0, tree()));
+        assert_eq!(scheduler.next_job().unwrap().frame, 50);
+        assert!(scheduler.complete(50, 1, tree()));
+        assert_eq!(scheduler.take(50).unwrap().0, 50);
+        scheduler.shutdown();
+        assert!(scheduler.next_job().is_none());
+    }
+
+    #[test]
+    fn thumbnails_do_not_consume_playback_jobs_and_stop_when_finished() {
+        let scheduler = Scheduler::new(100, 3, false, 2);
+        assert_eq!(scheduler.next_job().unwrap().frame, 0);
+        scheduler.complete(0, 0, tree());
+        scheduler.take(0).unwrap();
+        assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 25);
+        assert_eq!(scheduler.next_job().unwrap().frame, 1);
+        assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 75);
+        assert!(scheduler.next_thumbnail_job().is_none());
+        assert_eq!(scheduler.next_job().unwrap().frame, 2);
+        let stopped = Scheduler::new(100, 3, false, 2);
+        stopped.shutdown();
+        assert!(stopped.next_thumbnail_job().is_none());
     }
 }

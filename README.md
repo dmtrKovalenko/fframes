@@ -339,10 +339,10 @@ cargo fframes new my-video
 cd my-video && cargo run --release -- preview
 ```
 
-The native preview places the timeline below landscape and square videos and to the left of portrait
-videos. Drag the filmstrip to scrub, or click a colored scene marker to pause at its first frame.
-Use `[` and `]` to jump between scene starts, `,` and `.` to step one frame, and `Space` to play or pause.
-The dock shows the elapsed time, total duration, and frame number. Press `T` to switch to Focus mode.
+The preview timeline sits below landscape and square videos and to the left of portrait videos.
+Drag the filmstrip to scrub, or click a scene marker to pause on its first frame. Use `[` and `]`
+to jump between scenes and `,` and `.` to step one frame. Press `Space` to play or pause, or `T`
+to hide the timeline and expand the video.
 
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
 `--title` and `--backend`. On macOS and Linux (arm64, x86_64) the first build downloads prebuilt Skia and ffmpeg

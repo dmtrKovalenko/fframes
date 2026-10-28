@@ -21,9 +21,10 @@ use fframes_skia_renderer::skia_safe::Point;
 /// The control bar hides after this long without pointer movement while playing.
 const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
 
-/// Sent by the frame workers whenever a frame becomes available.
+/// A frame worker finished a playback or filmstrip job.
 pub(crate) enum FrameReady {
     Playback,
+    Failed { position: u64, epoch: u64 },
     Thumbnail(usize, fframes_skia_renderer::skia_safe::Image),
 }
 
@@ -226,12 +227,7 @@ impl<'s> App<'s> {
             let next_frame = self.scheduler.frame_of(frame.0, self.looping);
             self.current = Some(frame);
             self.needs_redraw = true;
-            if let Some(target) = self.scrub_target.take()
-                && target != next_frame
-            {
-                self.seek_to(target as u64, false);
-                self.scrub_target = Some(target);
-            }
+            self.finish_scrub(next_frame);
         }
 
         let controls_visible = self.controls_should_be_visible();
@@ -248,6 +244,31 @@ impl<'s> App<'s> {
         }
 
         self.update_title();
+    }
+
+    fn finish_scrub(&mut self, frame: usize) {
+        if let Some(target) = self.scrub_target.take() {
+            if target != frame {
+                self.seek_to(target as u64, false);
+                self.scrub_target = Some(target);
+            }
+            self.needs_redraw = true;
+        }
+    }
+
+    fn frame_ready(&mut self, event: FrameReady) {
+        match event {
+            FrameReady::Thumbnail(slot, image) => {
+                self.config.studio.set_thumbnail(slot, image);
+                self.needs_redraw = true;
+            }
+            FrameReady::Failed { position, epoch }
+                if self.scheduler.is_current_seek(position, epoch) =>
+            {
+                self.finish_scrub(self.scheduler.frame_of(position, self.looping));
+            }
+            FrameReady::Playback | FrameReady::Failed { .. } => {}
+        }
     }
 
     fn update_title(&mut self) {
@@ -388,8 +409,10 @@ impl<'s> App<'s> {
 
     fn control_under_cursor(&self) -> Option<Control> {
         let point = self.pointer();
-        if self.studio_open {
-            return self.studio_layout()?.hit(point, &self.config.studio);
+        if self.studio_open
+            && let Some(layout) = self.studio_layout()
+        {
+            return layout.hit(point, &self.config.studio);
         }
         if self.controls_visible
             && let Some(control) = self
@@ -612,10 +635,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: FrameReady) {
-        if let FrameReady::Thumbnail(slot, image) = event {
-            self.config.studio.thumbnails[slot] = Some(image);
-            self.needs_redraw = true;
-        }
+        self.frame_ready(event);
         self.tick();
     }
 
@@ -683,5 +703,64 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             // Paused: sleep until input or a worker delivers the requested frame.
             None => ControlFlow::Wait,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_scrub_continues_at_the_latest_pointer_position() {
+        let timeline = fframes::ResolvedRenderingTimeline {
+            audio_map: None,
+            scenes: None,
+            duration_in_frames: 100,
+        };
+        let time = fframes::TimeBase {
+            fps: 30,
+            sample_rate: 44100,
+        };
+        let scheduler = Scheduler::new(100, 3, false, 0);
+        let mut app = App::new(
+            AppConfig {
+                studio: Studio::new(time, &timeline, None, 0, 1.),
+                title: "scrub",
+                window_size: LogicalSize::new(640, 480),
+                fit_portrait_to_screen: false,
+                backend: PlayerBackend::Cpu,
+                vsync: false,
+                fps: time.fps,
+                duration_in_frames: timeline.duration_in_frames,
+                background: fframes::Color::BLACK,
+                looping: false,
+                autoplay: false,
+                start_frame: 0,
+            },
+            &scheduler,
+            #[cfg(feature = "audio")]
+            None,
+        );
+        app.seek_to(10, false);
+        app.scrub_target = Some(20);
+        // A stale completion (even at the same position) and a failed lookahead
+        // frame must not advance the pending scrub.
+        for (position, epoch) in [(10, 1), (11, 2)] {
+            app.frame_ready(FrameReady::Failed { position, epoch });
+            assert_eq!(app.clock.position(), 10);
+            assert_eq!(app.scrub_target, Some(20));
+        }
+        app.frame_ready(FrameReady::Failed {
+            position: 10,
+            epoch: 2,
+        });
+        assert_eq!(app.clock.position(), 20);
+        assert_eq!(app.scrub_target, Some(20));
+        app.frame_ready(FrameReady::Failed {
+            position: 20,
+            epoch: 3,
+        });
+        assert_eq!(app.scrub_target, None);
+        assert!(scheduler.is_current_seek(20, 3));
     }
 }
