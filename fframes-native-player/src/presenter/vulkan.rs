@@ -369,6 +369,15 @@ impl VulkanTarget {
 }
 
 impl WindowTarget for VulkanTarget {
+    fn gpu_context(
+        &mut self,
+    ) -> Option<(
+        &mut DirectContext,
+        Option<&fframes_skia_renderer::QueueLock>,
+    )> {
+        Some((&mut self.gpu, Some(&self.queue_lock)))
+    }
+
     fn is_gpu(&self) -> bool {
         true
     }

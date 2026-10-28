@@ -12,17 +12,23 @@ use std::rc::Rc;
 
 use fframes::usvgr;
 use fframes_skia_renderer::render::RenderCache;
-use fframes_skia_renderer::skia_safe::{Canvas, Color, Rect};
+use fframes_skia_renderer::skia_safe::{Canvas, Color, Image, ImageInfo, Rect, gpu, surfaces};
+use fframes_skia_renderer::{QueueLock, lock_queue};
 use winit::window::Window;
 
 use crate::controls::{Controls, ControlsLayout, ControlsState};
 use crate::error::PlayerResult;
 use crate::options::PlayerBackend;
+use crate::scheduler::PlaybackFrame;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
 
 /// The images of the window that Skia draws into.
 trait WindowTarget {
     fn is_gpu(&self) -> bool;
+
+    fn gpu_context(&mut self) -> Option<(&mut gpu::DirectContext, Option<&QueueLock>)> {
+        None
+    }
 
     /// An empty cache for the canvas of this target. A target on a GPU that the backend
     /// shares with wgpu samples the wgpu layers of the frames in place.
@@ -128,10 +134,47 @@ impl Presenter {
         Ok(())
     }
 
-    /// Renders `tree` letterboxed into the window with the controls on top and presents it.
+    /// Draws just the scene. Controls and the timeline are composited when it is shown.
+    pub(crate) fn snapshot(&mut self, tree: &usvgr::Tree, studio_open: bool) -> Option<Image> {
+        let size = self.window.inner_size();
+        let info = ImageInfo::new_n32_premul((size.width as i32, size.height as i32), None);
+        let mut context = self.target.gpu_context();
+        let mut surface = match context.as_mut() {
+            Some((gpu, queue)) => {
+                let _lock = lock_queue(*queue);
+                gpu::surfaces::render_target(
+                    gpu,
+                    gpu::Budgeted::Yes,
+                    &info,
+                    None,
+                    gpu::SurfaceOrigin::TopLeft,
+                    None,
+                    false,
+                    None,
+                )
+            }
+            None => surfaces::raster(&info, None, None),
+        }?;
+        draw_scene(
+            surface.canvas(),
+            Some(tree),
+            self.studio_layout.as_ref().filter(|_| studio_open),
+            self.window.scale_factor() as f32,
+            self.background,
+            &mut self.render_cache,
+        );
+        let image = surface.image_snapshot();
+        if let Some((gpu, queue)) = context {
+            let _lock = lock_queue(queue);
+            gpu.flush_and_submit_surface(&mut surface, gpu::SyncCpu::Yes);
+        }
+        Some(image)
+    }
+
+    /// Draws the current frame and overlays the controls before presenting the window.
     pub(crate) fn present(
         &mut self,
-        tree: Option<&usvgr::Tree>,
+        frame: Option<&PlaybackFrame>,
         controls: &ControlsState,
         model: &Studio,
         scroll: &StudioScroll,
@@ -149,49 +192,20 @@ impl Presenter {
         } = self;
 
         target.present(&mut |canvas| {
-            let size = canvas.base_layer_size();
-            let (width, height) = (size.width as f32, size.height as f32);
             let view = studio_layout.as_ref().filter(|_| studio_open);
-            let viewport = view.map_or_else(
-                || Rect::from_wh(width, height),
-                |ui| {
-                    let stage = ui.stage;
-                    Rect::from_ltrb(
-                        stage.left * pixel_scale,
-                        stage.top * pixel_scale,
-                        stage.right * pixel_scale,
-                        stage.bottom * pixel_scale,
-                    )
-                },
-            );
-            canvas.clear(if view.is_some() {
-                Color::from_rgb(14, 14, 14)
-            } else {
-                Color::BLACK
-            });
-
-            if let Some(tree) = tree {
-                let video = tree.size();
-                let scale =
-                    (viewport.width() / video.width()).min(viewport.height() / video.height());
-                let offset_x = viewport.center_x() - video.width() * scale / 2.;
-                let offset_y = if view.is_some_and(|ui| ui.portrait) {
-                    viewport.top
-                } else {
-                    viewport.center_y() - video.height() * scale / 2.
-                };
-
-                canvas.save();
-                canvas.translate((offset_x, offset_y));
-                canvas.scale((scale, scale));
-                canvas.clip_rect(
-                    Rect::from_wh(video.width(), video.height()),
-                    None,
-                    Some(true),
-                );
-                canvas.draw_color(*background, None);
-                fframes_skia_renderer::render::render_tree(tree, canvas, render_cache);
-                canvas.restore();
+            match frame {
+                Some(PlaybackFrame::Image(image)) => {
+                    canvas.draw_image(image, (0, 0), None);
+                }
+                Some(PlaybackFrame::Tree(tree)) => draw_scene(
+                    canvas,
+                    Some(tree),
+                    view,
+                    pixel_scale,
+                    *background,
+                    render_cache,
+                ),
+                None => draw_scene(canvas, None, view, pixel_scale, *background, render_cache),
             }
 
             let show_bar = view.is_none();
@@ -213,6 +227,58 @@ impl Presenter {
                 bar.draw(canvas, layout, controls);
             }
         })
+    }
+}
+
+fn draw_scene(
+    canvas: &Canvas,
+    tree: Option<&usvgr::Tree>,
+    view: Option<&StudioLayout>,
+    pixel_scale: f32,
+    background: Color,
+    render_cache: &mut RenderCache,
+) {
+    let size = canvas.base_layer_size();
+    let (width, height) = (size.width as f32, size.height as f32);
+    let viewport = view.map_or_else(
+        || Rect::from_wh(width, height),
+        |ui| {
+            let stage = ui.stage;
+            Rect::from_ltrb(
+                stage.left * pixel_scale,
+                stage.top * pixel_scale,
+                stage.right * pixel_scale,
+                stage.bottom * pixel_scale,
+            )
+        },
+    );
+    canvas.clear(if view.is_some() {
+        Color::from_rgb(14, 14, 14)
+    } else {
+        Color::BLACK
+    });
+
+    if let Some(tree) = tree {
+        let video = tree.size();
+        let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
+        let offset_x = viewport.center_x() - video.width() * scale / 2.;
+        let offset_y = if view.is_some_and(|ui| ui.portrait) {
+            viewport.top
+        } else {
+            viewport.center_y() - video.height() * scale / 2.
+        };
+
+        canvas.save();
+        canvas.translate((offset_x, offset_y));
+        canvas.scale((scale, scale));
+        canvas.clip_rect(
+            Rect::from_wh(video.width(), video.height()),
+            None,
+            Some(true),
+        );
+        canvas.draw_color(background, None);
+        fframes_skia_renderer::render::render_tree(tree, canvas, render_cache);
+        canvas.restore();
     }
 }
 

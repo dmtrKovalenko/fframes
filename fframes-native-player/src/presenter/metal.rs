@@ -57,6 +57,15 @@ impl MetalTarget {
 }
 
 impl WindowTarget for MetalTarget {
+    fn gpu_context(
+        &mut self,
+    ) -> Option<(
+        &mut DirectContext,
+        Option<&fframes_skia_renderer::QueueLock>,
+    )> {
+        Some((&mut self.gpu, None))
+    }
+
     fn is_gpu(&self) -> bool {
         true
     }

@@ -99,6 +99,36 @@ fn assert_frame(decoder: &mut FFmpegDecoder, index: i64) {
 }
 
 #[test]
+fn retained_frame_keeps_its_pixels_and_timestamp_across_decode_and_seek() {
+    let video = VideoFixture::new(3);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    unsafe {
+        assert!(decoder.decode_up_to(3).unwrap());
+        let held = decoder.retained_frame().unwrap();
+        let pts = held.get_pts();
+        let expected = held
+            .convert_last_decoded_frame_into_svg_image(None)
+            .unwrap();
+
+        std::thread::scope(|scope| {
+            let decode = scope.spawn(move || {
+                assert_frame(&mut decoder, 5);
+                decoder.seek_to_offset(0).unwrap();
+                assert_frame(&mut decoder, 0);
+            });
+            assert_eq!(held.get_pts(), pts);
+            decode.join().unwrap();
+        });
+
+        assert_eq!(held.get_pts(), pts);
+        let actual = held
+            .convert_last_decoded_frame_into_svg_image(None)
+            .unwrap();
+        assert_eq!(actual.data, expected.data);
+    }
+}
+
+#[test]
 fn b_frames_are_drained_and_decoding_can_restart_after_eof() {
     let video = VideoFixture::new(3);
     let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();

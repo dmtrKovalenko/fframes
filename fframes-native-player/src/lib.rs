@@ -139,7 +139,7 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         .min(timeline.duration_in_frames);
     let scheduler = Scheduler::new(
         timeline.duration_in_frames,
-        options.prefetch_frames,
+        options.lookahead(TVideo::FPS),
         options.looping,
         thumbnail_count,
     );
@@ -171,6 +171,7 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
             looping: options.looping,
             autoplay: options.autoplay,
             start_frame: options.start_frame,
+            limit_prefetch_memory: options.prefetch_frames == usize::MAX,
         },
         &scheduler,
         #[cfg(feature = "audio")]
