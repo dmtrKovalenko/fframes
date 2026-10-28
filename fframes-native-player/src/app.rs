@@ -183,9 +183,12 @@ impl<'s> App<'s> {
     /// Restarts playback at `position`, all the prepared frames are discarded.
     fn seek_to(&mut self, position: u64, playing: bool) {
         self.scrub_target = None;
-        self.clock.set(position, playing);
         self.scheduler.seek(position, self.looping);
+        self.set_playback(position, playing);
+    }
 
+    fn set_playback(&mut self, position: u64, playing: bool) {
+        self.clock.set(position, playing);
         #[cfg(feature = "audio")]
         if let Some(audio) = self.audio {
             audio.reset(position, self.config.fps, playing, self.looping);
@@ -203,12 +206,17 @@ impl<'s> App<'s> {
 
     fn toggle_play(&mut self) {
         let frame = self.playhead();
-        if self.clock.is_playing() {
-            self.seek_to(frame as u64, false);
-        } else if !self.looping && frame >= self.last_frame() {
+        let playing = !self.clock.is_playing();
+        let position = self.clock.position();
+        if playing && !self.looping && frame >= self.last_frame() {
             self.seek_to(0, true);
+        } else if self.scrub_target.is_none()
+            && self.scheduler.frame_of(position, self.looping) == frame
+        {
+            // The workers have already prepared frames ahead of this position.
+            self.set_playback(position, playing);
         } else {
-            self.seek_to(frame as u64, true);
+            self.seek_to(frame as u64, playing);
         }
     }
 
@@ -710,8 +718,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn failed_scrub_continues_at_the_latest_pointer_position() {
+    fn paused_app(scheduler: &Scheduler) -> App<'_> {
         let timeline = fframes::ResolvedRenderingTimeline {
             audio_map: None,
             scenes: None,
@@ -721,11 +728,10 @@ mod tests {
             fps: 30,
             sample_rate: 44100,
         };
-        let scheduler = Scheduler::new(100, 3, false, 0);
-        let mut app = App::new(
+        App::new(
             AppConfig {
                 studio: Studio::new(time, &timeline, None, 0, 1.),
-                title: "scrub",
+                title: "test",
                 window_size: LogicalSize::new(640, 480),
                 fit_portrait_to_screen: false,
                 backend: PlayerBackend::Cpu,
@@ -737,10 +743,30 @@ mod tests {
                 autoplay: false,
                 start_frame: 0,
             },
-            &scheduler,
+            scheduler,
             #[cfg(feature = "audio")]
             None,
-        );
+        )
+    }
+
+    #[test]
+    fn resuming_keeps_prefetched_frames_unless_playback_restarts() {
+        let scheduler = Scheduler::new(100, 3, false, 0);
+        let mut app = paused_app(&scheduler);
+        app.seek_to(10, false);
+        app.toggle_play();
+        assert!(app.clock.is_playing());
+        assert!(scheduler.is_current_seek(10, 2));
+
+        app.seek_to(99, false);
+        app.toggle_play();
+        assert!(scheduler.is_current_seek(0, 4));
+    }
+
+    #[test]
+    fn failed_scrub_continues_at_the_latest_pointer_position() {
+        let scheduler = Scheduler::new(100, 3, false, 0);
+        let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.scrub_target = Some(20);
         // A stale completion (even at the same position) and a failed lookahead
