@@ -47,14 +47,12 @@ pub use options::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use fframes::{
-    FFramesContext, FFramesRendererRuntime, TimeBase, Video, VideoDecodersWorker, VideoSize, usvgr,
-};
+use fframes::{FFramesContext, FFramesRendererRuntime, TimeBase, Video, VideoSize, usvgr};
 use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 
 use crate::app::{App, AppConfig, FrameReady};
-use crate::scheduler::Scheduler;
+use crate::scheduler::{Scheduler, WorkerKind};
 
 /// Opens a window and plays `video` in real time until the window is closed.
 ///
@@ -179,24 +177,17 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         audio.as_ref(),
     );
 
+    let run_worker = |kind| {
+        let db = font_source.as_db_ref();
+        svgr_images.enter(&usvg_options, db, || {
+            scheduler.run_worker(video, &ctx, &usvg_options, db, kind, &notify_frame_ready);
+        });
+    };
     let result = std::thread::scope(|scope| {
         for _ in 0..options.render_threads() {
-            scope.spawn(|| {
-                let db = font_source.as_db_ref();
-                svgr_images.enter(&usvg_options, db, || {
-                    scheduler.run_worker(
-                        video,
-                        &ctx,
-                        &usvg_options,
-                        db,
-                        // Decoders hand out their current frame buffer, which is recycled by
-                        // the next decode, so they must not be shared between threads.
-                        VideoDecodersWorker::new(options.prefetch_frames.max(1) * 2),
-                        &notify_frame_ready,
-                    );
-                });
-            });
+            scope.spawn(|| run_worker(WorkerKind::Playback));
         }
+        scope.spawn(|| run_worker(WorkerKind::Thumbnails));
 
         #[cfg(feature = "audio")]
         if let (Some(audio), Some(audio_map)) = (audio.as_ref(), timeline.audio_map.as_ref()) {

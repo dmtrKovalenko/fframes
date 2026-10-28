@@ -8,8 +8,8 @@ use fframes::{
     TimeBase, TimelineIndex, media::PreloadedAudioData,
 };
 use fframes_skia_renderer::skia_safe::{
-    Canvas, Color, Contains, FilterMode, Font, Image, Paint, Path, PathBuilder, Point, RRect, Rect,
-    SamplingOptions, surfaces,
+    Canvas, Color, Contains, FilterMode, Font, IRect, Image, ImageInfo, Paint, Path, PathBuilder,
+    Point, RRect, Rect, RoundOut, SamplingOptions, surfaces,
 };
 
 use crate::controls::{Control, Controls, ControlsState, draw_tabular, format_time, tabular_width};
@@ -18,7 +18,8 @@ pub(crate) struct Studio {
     pub index: TimelineIndex,
     pub video_aspect: f32,
     audio: Vec<Vec<Clip>>,
-    pub thumbnails: Vec<Option<Image>>,
+    thumbnails: Vec<Option<Image>>,
+    thumbnail_revision: u64,
 }
 
 struct Clip {
@@ -66,7 +67,13 @@ impl Studio {
             video_aspect,
             audio: pack_clips(clips),
             thumbnails: vec![None; thumbnail_count],
+            thumbnail_revision: 0,
         }
+    }
+
+    pub fn set_thumbnail(&mut self, slot: usize, image: Image) {
+        self.thumbnails[slot] = Some(image);
+        self.thumbnail_revision += 1;
     }
 
     pub fn adjacent_scene(&self, frame: usize, next: bool) -> Option<usize> {
@@ -186,6 +193,16 @@ pub(crate) struct StudioLayout {
     pub portrait: bool,
     audio_slots: usize,
     film_height: f32,
+    timeline_cache: Option<TimelineCache>,
+}
+
+struct TimelineCache {
+    image: Image,
+    bounds: IRect,
+    frames: Range<usize>,
+    thumbnail_revision: u64,
+    audio_scroll: usize,
+    scale: (f32, f32),
 }
 
 impl StudioLayout {
@@ -212,6 +229,7 @@ impl StudioLayout {
                 portrait: true,
                 audio_slots: audio_rows.min(if panel >= 260. { 3 } else { 1 }),
                 film_height: 0.,
+                timeline_cache: None,
             });
         }
         let audio_slots = audio_rows.min(if height >= 600. {
@@ -241,6 +259,7 @@ impl StudioLayout {
             portrait: false,
             audio_slots,
             film_height,
+            timeline_cache: None,
         })
     }
 
@@ -401,12 +420,6 @@ impl StudioLayout {
                 }
             }
         }
-        let y = at(state.frame);
-        ui.fill(
-            Rect::from_ltrb(film.left - 2., y - 1., track.right, y + 1.),
-            ORANGE,
-        );
-        ui.round(Rect::from_xywh(film.left - 4., y - 4., 7., 8.), ORANGE, 2.);
     }
 
     fn buttons(&self) -> [(Control, Rect); 6] {
@@ -493,11 +506,7 @@ impl StudioLayout {
     }
 
     pub fn draw_restore(&self, canvas: &Canvas, controls: &Controls, hovered: bool) {
-        let ui = Ink {
-            canvas,
-            font: controls.font(false, 1.),
-            medium: controls.font(true, 1.),
-        };
+        let ui = Ink::new(canvas, controls);
         ui.round(self.restore, if hovered { LINE } else { SURFACE }, 7.);
         ui.text(
             "Studio  ·  T",
@@ -510,19 +519,21 @@ impl StudioLayout {
     }
 
     pub fn draw(
-        &self,
+        &mut self,
         canvas: &Canvas,
         controls: &Controls,
         state: &ControlsState,
         model: &Studio,
         scroll: &StudioScroll,
     ) {
-        let ui = Ink {
-            canvas,
-            font: controls.font(false, 1.),
-            medium: controls.font(true, 1.),
-        };
-        ui.fill(self.timeline, SURFACE);
+        let ui = Ink::new(canvas, controls);
+        self.draw_cached_timeline(&ui, state, model, scroll);
+        self.draw_transport(&ui, controls, state);
+        self.draw_playhead(&ui, state);
+    }
+
+    fn draw_transport(&self, ui: &Ink<'_>, controls: &Controls, state: &ControlsState) {
+        let canvas = ui.canvas;
         ui.fill(self.transport, SURFACE);
         ui.fill(
             Rect::from_xywh(0., self.transport.top, self.transport.width(), 1.),
@@ -615,9 +626,90 @@ impl StudioLayout {
             Rect::from_xywh(0., self.transport.bottom - 1., self.transport.width(), 1.),
             LINE,
         );
+    }
+
+    fn draw_cached_timeline(
+        &mut self,
+        ui: &Ink<'_>,
+        state: &ControlsState,
+        model: &Studio,
+        scroll: &StudioScroll,
+    ) {
+        let canvas = ui.canvas;
+        let matrix = canvas.local_to_device_as_3x3();
+        let scale = (matrix.scale_x(), matrix.scale_y());
+        let valid = self.timeline_cache.as_ref().is_some_and(|cache| {
+            cache.frames.contains(&state.frame)
+                && cache.thumbnail_revision == model.thumbnail_revision
+                && cache.audio_scroll == scroll.audio
+                && cache.scale == scale
+        });
+        if !valid {
+            // Align the panel to device pixels so its labels stay sharp at fractional DPI.
+            let bounds: IRect = matrix.map_rect(self.timeline).0.round_out();
+            let info = ImageInfo::new_n32_premul(bounds.size(), None);
+            self.timeline_cache = canvas.new_surface(&info, None).map(|mut surface| {
+                let target = surface.canvas();
+                target.clear(Color::TRANSPARENT);
+                target.translate((-bounds.left as f32, -bounds.top as f32));
+                target.concat(&matrix);
+                self.draw_tracks(
+                    &Ink {
+                        canvas: target,
+                        ..ui.clone()
+                    },
+                    state,
+                    model,
+                    scroll,
+                );
+
+                // Scene labels change color at either end of an overlapping scene.
+                let mut frames = 0..usize::MAX;
+                for scene in &model.index.scenes {
+                    for boundary in [scene.frames.start, scene.frames.end] {
+                        if boundary <= state.frame {
+                            frames.start = frames.start.max(boundary);
+                        } else {
+                            frames.end = frames.end.min(boundary);
+                        }
+                    }
+                }
+                TimelineCache {
+                    image: surface.image_snapshot(),
+                    bounds,
+                    frames,
+                    thumbnail_revision: model.thumbnail_revision,
+                    audio_scroll: scroll.audio,
+                    scale,
+                }
+            });
+        }
+        if let Some(cache) = &self.timeline_cache {
+            canvas.save();
+            canvas.reset_matrix();
+            canvas.draw_image(
+                &cache.image,
+                (cache.bounds.left as f32, cache.bounds.top as f32),
+                None,
+            );
+            canvas.restore();
+        } else {
+            self.draw_tracks(ui, state, model, scroll);
+        }
+    }
+
+    fn draw_tracks(
+        &self,
+        ui: &Ink<'_>,
+        state: &ControlsState,
+        model: &Studio,
+        scroll: &StudioScroll,
+    ) {
+        let canvas = ui.canvas;
+        ui.fill(self.timeline, SURFACE);
         let track = self.tracks();
         if self.portrait {
-            return self.draw_portrait_tracks(&ui, state, model, scroll);
+            return self.draw_portrait_tracks(ui, state, model, scroll);
         }
         let scene_top = track.top + RULER;
         let duration = state.duration_in_frames;
@@ -745,7 +837,21 @@ impl StudioLayout {
                 }
             }
         }
-        let x = self.frame_position(state.frame, duration);
+    }
+
+    fn draw_playhead(&self, ui: &Ink<'_>, state: &ControlsState) {
+        let track = self.tracks();
+        if self.portrait {
+            let film = self.portrait_columns().0;
+            let y = self.frame_position(state.frame, state.duration_in_frames);
+            ui.fill(
+                Rect::from_ltrb(film.left - 2., y - 1., track.right, y + 1.),
+                ORANGE,
+            );
+            ui.round(Rect::from_xywh(film.left - 4., y - 4., 7., 8.), ORANGE, 2.);
+            return;
+        }
+        let x = self.frame_position(state.frame, state.duration_in_frames);
         ui.fill(
             Rect::from_ltrb(x - 1., track.top, x + 1., track.bottom),
             ORANGE,
@@ -768,13 +874,22 @@ fn tick_step(duration: usize, fps: usize, span: f32, spacing: f32) -> usize {
         .saturating_mul(unit)
 }
 
+#[derive(Clone)]
 struct Ink<'a> {
     canvas: &'a Canvas,
     font: Font,
     medium: Font,
 }
 
-impl Ink<'_> {
+impl<'a> Ink<'a> {
+    fn new(canvas: &'a Canvas, controls: &Controls) -> Self {
+        Self {
+            canvas,
+            font: controls.font(false, 1.),
+            medium: controls.font(true, 1.),
+        }
+    }
+
     fn paint(color: Color) -> Paint {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
@@ -862,6 +977,7 @@ mod tests {
             },
             audio: vec![],
             thumbnails: vec![],
+            thumbnail_revision: 0,
         }
     }
 
@@ -873,6 +989,92 @@ mod tests {
         assert_eq!(studio.adjacent_scene(51, false), Some(50));
         assert_eq!(studio.adjacent_scene(50, true), None);
         assert_eq!(studio.adjacent_scene(0, false), None);
+    }
+
+    #[test]
+    fn cached_timeline_matches_fresh_draws_after_scene_scroll_thumbnail_and_scale_changes() {
+        let controls = Controls::new();
+        let mut model = studio();
+        model.thumbnails = vec![None];
+        model.audio = (0..4)
+            .map(|i| {
+                vec![Clip {
+                    name: format!("Audio {i}"),
+                    frames: i * 10..100,
+                    waveform: None,
+                }]
+            })
+            .collect();
+        let mut scroll = StudioScroll::default();
+        let mut state = ControlsState {
+            visible: true,
+            frame: 0,
+            duration_in_frames: 100,
+            fps: 30,
+            playing: true,
+            looping: true,
+            fullscreen: false,
+            hovered: None,
+        };
+        let draw = |layout: &mut StudioLayout,
+                    state: &ControlsState,
+                    model: &Studio,
+                    scroll: &StudioScroll,
+                    scale: f32,
+                    cached: bool| {
+            let size = (800. * scale) as i32;
+            let info = ImageInfo::new_n32_premul((size, size), None);
+            let mut surface = surfaces::raster(&info, None, None).unwrap();
+            let canvas = surface.canvas();
+            canvas.clear(Color::BLACK);
+            canvas.scale((scale, scale));
+            if cached {
+                layout.draw(canvas, &controls, state, model, scroll);
+            } else {
+                let ui = Ink::new(canvas, &controls);
+                layout.draw_tracks(&ui, state, model, scroll);
+                layout.draw_transport(&ui, &controls, state);
+                layout.draw_playhead(&ui, state);
+            }
+            let mut pixels = vec![0; (size * size * 4) as usize];
+            assert!(surface.read_pixels(&info, &mut pixels, size as usize * 4, (0, 0)));
+            pixels
+        };
+        for aspect in [16. / 9., 9. / 16.] {
+            let mut layout = StudioLayout::new(800., 800., 4, aspect).unwrap();
+            for scale in [1., 1.25, 2.] {
+                let mut first_id = None;
+                for frame in [0, 1, 49, 50, 59, 60, 99, 0] {
+                    state.frame = frame;
+                    assert!(
+                        draw(&mut layout, &state, &model, &scroll, scale, true)
+                            == draw(&mut layout, &state, &model, &scroll, scale, false),
+                        "aspect={aspect}, frame={frame}, scale={scale}"
+                    );
+                    let id = layout.timeline_cache.as_ref().unwrap().image.unique_id();
+                    if frame == 0 {
+                        first_id = Some(id);
+                    } else if frame == 1 {
+                        assert_eq!(first_id, Some(id));
+                    }
+                }
+            }
+            scroll.audio = 1;
+            let mut thumbnail = surfaces::raster_n32_premul((20, 10)).unwrap();
+            thumbnail.canvas().clear(Color::RED);
+            for updated_thumbnail in [false, true] {
+                if updated_thumbnail {
+                    model.set_thumbnail(0, thumbnail.image_snapshot());
+                }
+                assert!(
+                    draw(&mut layout, &state, &model, &scroll, 2., true)
+                        == draw(&mut layout, &state, &model, &scroll, 2., false),
+                    "aspect={aspect}, updated_thumbnail={updated_thumbnail}"
+                );
+            }
+            scroll.audio = 0;
+            model.thumbnails[0] = None;
+        }
     }
 
     #[test]

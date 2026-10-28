@@ -42,6 +42,7 @@ trait WindowTarget {
 // Fields drop in declaration order: the cached Skia objects before the target that owns
 // the context and the device.
 pub(crate) struct Presenter {
+    pub studio_layout: Option<StudioLayout>,
     render_cache: RenderCache,
     target: Box<dyn WindowTarget>,
     window: Rc<Window>,
@@ -50,7 +51,6 @@ pub(crate) struct Presenter {
     layout: ControlsLayout,
     /// The longest time label, sizes the time slots of the control bar.
     duration_label: String,
-    pub studio_layout: Option<StudioLayout>,
     audio_rows: usize,
     video_aspect: f32,
 }
@@ -194,7 +194,8 @@ impl Presenter {
                 canvas.restore();
             }
 
-            if let Some(ui) = studio_layout.as_ref() {
+            let show_bar = view.is_none();
+            if let Some(ui) = studio_layout.as_mut() {
                 canvas.save();
                 canvas.scale((pixel_scale, pixel_scale));
                 if studio_open {
@@ -208,7 +209,7 @@ impl Presenter {
                 }
                 canvas.restore();
             }
-            if !studio_open {
+            if show_bar {
                 bar.draw(canvas, layout, controls);
             }
         })
