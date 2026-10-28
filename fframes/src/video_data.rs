@@ -43,20 +43,11 @@ pub fn set_video_frame_resolver(resolver: VideoFrameResolver) {
 }
 
 pub trait FFramesSyncedVideoFrame<'media> {
-    /// Gets the original image from the frame
-    /// This will perform color space conversion and return the frame at `width()` by
-    /// `height()`. If you need to render the video frame in the smaller size, use `into_resized_image`.
-    ///
-    /// This method take self to reuse frame data allocations, but you should not
-    /// call this method more than once per the render function
+    /// Converts the frame to RGBA at its display dimensions.
+    /// Native renderers share the pixels between consecutive requests at the same size.
     #[allow(clippy::wrong_self_convention)]
     fn into_image(&self) -> ImageData<'media>;
-    /// Performs color space conversion and resizes the image to the specified size.
-    /// Recommended to use this method if you render image in the smaller size than the original
-    /// video e.g. as a pattern of some other shape or as a filler of standalone image.
-    ///
-    /// This method take self to reuse frame data allocations, but you should not
-    /// call this method more than once per the render function
+    /// Converts the frame to RGBA at the requested size.
     #[allow(clippy::wrong_self_convention)]
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>>;
     /// Get the height of the frame with non-square pixels stretched to square ones
@@ -152,22 +143,22 @@ impl<'media> FFramesSyncedVideoFrame<'media> for WasmEditorVideoFrameFallback<'m
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn decoded_image<'media>(pixels: Arc<usvgr::PreloadedImageData>) -> ImageData<'media> {
+    let metadata = ImageMetadata {
+        width: pixels.width,
+        height: pixels.height,
+    };
+    let id = pixels.id.clone();
+    ImageData::new_from_raw_data(pixels, id, metadata)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     fn into_image(&self) -> ImageData<'media> {
         let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(None) }
-            // we unwrap here because we guarantee that the sws scaler would work correctly
-            // unless the wrong dimensions are provided
             .expect("Failed to convert frame to image");
 
-        let filename = image_data.id.clone();
-        ImageData::new_from_raw_data(
-            image_data,
-            filename,
-            ImageMetadata {
-                width: self.get_width(),
-                height: self.get_height(),
-            },
-        )
+        decoded_image(image_data)
     }
 
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>> {
@@ -177,15 +168,7 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
             })
             .ok()?;
 
-        let filename = image_data.id.clone();
-        Some(ImageData::new_from_raw_data(
-            image_data,
-            filename,
-            ImageMetadata {
-                width: self.get_width(),
-                height: self.get_height(),
-            },
-        ))
+        Some(decoded_image(image_data))
     }
 
     fn width(&self) -> u32 {

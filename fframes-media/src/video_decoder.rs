@@ -3,13 +3,13 @@ use crate::error::Result;
 use crate::video_types::{FrameConvertOptions, PlaybackSpeed};
 use ffmpeg_sys_fframes::SwsFlags::{SWS_BICUBIC, SWS_BILINEAR};
 use ffmpeg_sys_fframes::*;
-use std::cell::UnsafeCell;
+use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::ffi::{CStr, CString, c_void};
 use std::mem::size_of;
 use std::path::Path;
 use std::ptr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use usvgr::PreloadedImageData;
 
 /// The video stream's duration in its own time base. Matroska and `WebM` leave the stream
@@ -112,10 +112,11 @@ struct SwsScaler {
     sws_ctx: *mut SwsContext,
     options: Option<FrameConvertOptions>,
     source_format: Option<AVPixelFormat>,
+    source_has_alpha: bool,
     source_color: Option<(AVColorSpace, AVColorRange)>,
     frame_data_len: usize,
     video_stream_info: VideoStreamInfo,
-    linesize: [i32; 7],
+    linesize: [i32; 4],
 }
 
 impl Drop for SwsScaler {
@@ -240,8 +241,8 @@ impl SwsScaler {
         }
     }
 
-    fn calculate_linesize(width: i32) -> [i32; 7] {
-        let mut linesize = [0; 7];
+    fn calculate_linesize(width: i32) -> [i32; 4] {
+        let mut linesize = [0; 4];
         linesize[0] = width * PIX_FMT_SIZE as i32;
         linesize
     }
@@ -253,7 +254,7 @@ impl SwsScaler {
         );
         let frame_data_len = width as usize * height as usize * PIX_FMT_SIZE;
 
-        let linesize: [i32; 7] = Self::calculate_linesize(width);
+        let linesize: [i32; 4] = Self::calculate_linesize(width);
         SwsScaler {
             linesize,
             frame_data_len,
@@ -262,6 +263,7 @@ impl SwsScaler {
             sws_ctx: std::ptr::null_mut(),
             options: None,
             source_format: None,
+            source_has_alpha: false,
             source_color: None,
             video_stream_info,
         }
@@ -290,6 +292,9 @@ impl SwsScaler {
         sws_freeContext(self.sws_ctx);
         self.sws_ctx = ctx;
         self.source_format = Some(pix_fmt);
+        let desc = unsafe { av_pix_fmt_desc_get(pix_fmt) };
+        self.source_has_alpha =
+            !desc.is_null() && unsafe { (*desc).flags } & AV_PIX_FMT_FLAG_ALPHA as u64 != 0;
         self.source_color = Some(source_color);
         self.width = new_width;
         self.height = new_height;
@@ -326,29 +331,35 @@ impl SwsScaler {
             self.reinit_sws_context(source_pix_fmt, source_color, options)?;
         }
 
-        // A reused buffer may still have the length of another output size. This
-        // reallocates only when the output grows and does nothing when the size is
-        // unchanged. `sws_scale` can write past the image, see `SWS_DST_PADDING`.
+        // Reserve the SIMD tail without zeroing a full frame before swscale fills it.
         let capacity = self.frame_data_len + SWS_DST_PADDING;
         rgba_dst.reserve(capacity.saturating_sub(rgba_dst.len()));
-        rgba_dst.resize(self.frame_data_len, 0);
 
+        // sws_scale reads four plane pointers even for packed RGBA.
+        let mut planes = [ptr::null_mut(); 4];
+        planes[0] = rgba_dst.as_mut_ptr();
         let ret = sws_scale(
             self.sws_ctx,
             (*source_frame).data.as_ptr().cast::<*const u8>(),
             (*source_frame).linesize.as_ptr(),
             0,
             self.video_stream_info.height,
-            &rgba_dst.as_mut_ptr(),
+            planes.as_ptr(),
             self.linesize.as_ptr(),
         );
 
-        if ret < 0 {
+        if ret != self.height {
             return Err(FFramesMediaError::LibAVAudioDecodingError((
                 ret,
-                "Error while converting/scaling frame".to_string(),
+                format!(
+                    "Expected {} output rows from sws_scale, got {ret}",
+                    self.height
+                ),
             )));
         }
+        // SAFETY: sws_scale initialized every RGBA row with width * 4 stride.
+        // The tail padding lies inside the allocation but outside the image.
+        unsafe { rgba_dst.set_len(self.frame_data_len) };
 
         Ok(())
     }
@@ -379,9 +390,17 @@ pub struct FFmpegDecoder {
 unsafe impl Send for FFmpegDecoder {}
 unsafe impl Sync for FFmpegDecoder {}
 
+#[derive(Debug)]
 struct ScaledFrameImage {
     pts: i64,
-    data: Vec<u8>,
+    options: Option<FrameConvertOptions>,
+    image: Arc<PreloadedImageData>,
+}
+
+#[derive(Debug)]
+struct ConvertedFrames {
+    scaler: SwsScaler,
+    images: VecDeque<ScaledFrameImage>,
 }
 
 #[derive(Debug)]
@@ -389,66 +408,26 @@ pub struct FFmpegFrameBuf {
     resource_name: String,
     latest_av_frame: *mut AVFrame,
     video_stream_info: VideoStreamInfo,
-    // This is not a safe operation but it gives a dramatic performance improvement
-    // for the updating the underlying datavec. So we are relying on the constraint that
-    // the decoder can operate (thus write the datavec) only within the frame, but
-    // the frame can be sent and read outside the dnecoder
-    data_buf: Arc<UnsafeCell<VecDeque<ScaledFrameImage>>>,
-    sws_scaler: UnsafeCell<SwsScaler>,
+    converted: Mutex<ConvertedFrames>,
 }
 
 impl Drop for FFmpegFrameBuf {
     fn drop(&mut self) {
-        unsafe {
-            if !self.latest_av_frame.is_null() {
-                av_frame_unref(self.latest_av_frame);
-                av_frame_free(&raw mut self.latest_av_frame);
-            }
+        unsafe { av_frame_free(&raw mut self.latest_av_frame) };
+    }
+}
 
-            if let Some(queue) = self.data_buf.get().as_mut() {
-                queue.clear();
-            }
+fn premultiply_alpha(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let alpha = u16::from(pixel[3]);
+        for channel in &mut pixel[..3] {
+            *channel = ((u16::from(*channel) * alpha + 127) / 255) as u8;
         }
     }
 }
 
-/// Creates svgr preloaded image data with correctly blended color.
-///
-/// `rgba_data` borrows a slot of the decoder's ring buffer (with a fabricated
-/// `'static` lifetime) that is recycled by later decodes, so the returned
-/// image always owns a copy of the pixels.
-fn create_preloaded_image(
-    source_fmt: AVPixelFormat,
-    resource_name: String,
-    width: u32,
-    height: u32,
-    rgba_data: &'static [u8],
-) -> Arc<PreloadedImageData> {
-    let has_alpha_channel = unsafe {
-        let desc = av_pix_fmt_desc_get(source_fmt);
-
-        !desc.is_null() && (*desc).flags & AV_PIX_FMT_FLAG_ALPHA as u64 != 0
-    };
-
-    if has_alpha_channel {
-        // Pre-multiplies alpha and returns an owned copy.
-        Arc::new(PreloadedImageData::new(
-            resource_name,
-            width,
-            height,
-            rgba_data,
-        ))
-    } else {
-        // Opaque pixels are already final; only the copy is needed.
-        Arc::new(PreloadedImageData {
-            id: resource_name,
-            data: std::borrow::Cow::Owned(rgba_data.to_vec()),
-            width,
-            height,
-        })
-    }
-}
-
+// The decoder owns writes to the AVFrame. Its unsafe readers require that it
+// stays unchanged while they run. The conversion ring and scaler share a lock.
 unsafe impl Send for FFmpegFrameBuf {}
 unsafe impl Sync for FFmpegFrameBuf {}
 
@@ -469,40 +448,11 @@ impl FFmpegFrameBuf {
                 video_stream_info,
                 latest_av_frame: av_frame,
                 resource_name,
-                #[allow(clippy::arc_with_non_send_sync)]
-                data_buf: Arc::new(UnsafeCell::new(VecDeque::with_capacity(buf_size))),
-                sws_scaler: UnsafeCell::new(sws_ctx),
+                converted: Mutex::new(ConvertedFrames {
+                    scaler: sws_ctx,
+                    images: VecDeque::with_capacity(buf_size.max(1)),
+                }),
             })
-        }
-    }
-
-    unsafe fn write_new_frame(&self) -> Option<&'static mut ScaledFrameImage> {
-        unsafe {
-            let queue = self.data_buf.get().as_mut()?;
-            let latest_pts = (*self.latest_av_frame).pts;
-
-            // fast path for the cpu renderer which will always have capacity 1
-            if queue.capacity() == 1 && queue.len() == 1 {
-                // the pts identifies the image (and its renderer cache entries), it has to
-                // follow the pixels
-                let image = queue.get_mut(0)?;
-                image.pts = latest_pts;
-                return Some(image);
-            }
-
-            // `SwsScaler::convert` sizes the buffer once it knows the requested output size
-            if queue.len() == queue.capacity() {
-                let mut last_buffer = queue.pop_front()?;
-                last_buffer.pts = latest_pts;
-                queue.push_back(last_buffer);
-            } else {
-                queue.push_back(ScaledFrameImage {
-                    pts: latest_pts,
-                    data: Vec::new(),
-                });
-            }
-
-            queue.get_mut(queue.len() - 1)
         }
     }
 
@@ -515,67 +465,55 @@ impl FFmpegFrameBuf {
     }
 
     pub fn get_width(&self) -> u32 {
-        unsafe { self.sws_scaler.get().as_ref() }
-            .expect("Critical mememroy error: SWS scale is not allocated")
-            .width as u32
+        self.converted.lock().unwrap().scaler.width as u32
     }
 
     pub fn get_height(&self) -> u32 {
-        unsafe { self.sws_scaler.get().as_ref() }
-            .expect("Critical mememroy error: SWS scale is not allocated")
-            .height as u32
+        self.converted.lock().unwrap().scaler.height as u32
     }
 
-    /// Returns fframe image constructed from the underlying ffmpeg's frame
+    /// Converts the current frame to an immutable, premultiplied RGBA image.
     /// # Safety
-    /// This is a libav based function which involves C ffi cals
-    /// In addition it is manually transmutes the pointer owned by the decoder to the fframes
-    /// images so it should not be used outside of the rendering worker.
+    /// The decoder must not replace the underlying `AVFrame` during conversion.
     pub unsafe fn convert_last_decoded_frame_into_svg_image(
         &self,
         options: Option<&FrameConvertOptions>,
     ) -> Result<Arc<PreloadedImageData>> {
-        unsafe {
-            let scaler = self.sws_scaler.get().as_mut().unwrap();
-            // fast path if we have the image already decoded and converted last time with the
-            // same options (the scaler keeps them), e.g. the same video frame is requested at
-            // the same size from multiple scenes
-            match self.data_buf.get().as_ref().and_then(|q| q.back()) {
-                Some(image)
-                    if image.pts == (*self.latest_av_frame).pts
-                        && scaler.options == options.copied() =>
-                {
-                    return Ok(create_preloaded_image(
-                        scaler.video_stream_info.pixel_format,
-                        encode_video_resource(&self.resource_name, image.pts),
-                        self.get_width(),
-                        self.get_height(),
-                        &image.data,
-                    ));
-                }
-                _ => {}
-            }
-
-            let image = self.write_new_frame().unwrap();
-            if let Err(err) =
-                scaler.convert(options.copied(), self.latest_av_frame, &mut image.data)
-            {
-                // the buffer already has this frame's pts but not its pixels (a reused buffer
-                // still holds an older frame), so drop it instead of returning it for this pts
-                if let Some(queue) = self.data_buf.get().as_mut() {
-                    queue.pop_back();
-                }
-                return Err(err);
-            }
-
-            Ok(create_preloaded_image(
-                scaler.video_stream_info.pixel_format,
-                encode_video_resource(&self.resource_name, image.pts),
-                scaler.width as u32,
-                scaler.height as u32,
-                &image.data,
-            ))
+        let pts = unsafe { (*self.latest_av_frame).pts };
+        let options = options.copied();
+        let mut converted = self.converted.lock().unwrap();
+        let ConvertedFrames { scaler, images } = &mut *converted;
+        if let Some(last) = images.back()
+            && last.pts == pts
+            && last.options == options
+        {
+            return Ok(Arc::clone(&last.image));
         }
+
+        // A queued frame may still own the evicted image.
+        let mut pixels = if images.len() == images.capacity() {
+            Arc::try_unwrap(images.pop_front().unwrap().image)
+                .map(|image| image.data.into_owned())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        unsafe { scaler.convert(options, self.latest_av_frame, &mut pixels)? };
+        if scaler.source_has_alpha {
+            premultiply_alpha(&mut pixels);
+        }
+        let image = Arc::new(PreloadedImageData {
+            id: encode_video_resource(&self.resource_name, pts),
+            width: scaler.width as u32,
+            height: scaler.height as u32,
+            data: Cow::Owned(pixels),
+        });
+        images.push_back(ScaledFrameImage {
+            pts,
+            options,
+            image: Arc::clone(&image),
+        });
+        Ok(image)
     }
 
     /// Returns the timestamp of the frame in the native frame timebase
@@ -622,16 +560,15 @@ impl FFmpegDecoder {
     }
 
     pub fn get_decoded_image_in_buf(&self, pts: i64) -> Option<Arc<PreloadedImageData>> {
-        let buf = unsafe { self.frame_buf.data_buf.get().as_ref() }?;
-        let image = buf.iter().find(|i| i.pts == pts)?;
-
-        Some(create_preloaded_image(
-            self.frame_buf.video_stream_info.pixel_format,
-            encode_video_resource(&self.frame_buf.resource_name, image.pts),
-            self.frame_buf.get_width(),
-            self.frame_buf.get_height(),
-            &image.data,
-        ))
+        self.frame_buf
+            .converted
+            .lock()
+            .unwrap()
+            .images
+            .iter()
+            .rev()
+            .find(|slot| slot.pts == pts)
+            .map(|slot| Arc::clone(&slot.image))
     }
 
     /// Plays the stream `speed` times faster: offset `n` shows the frame at
@@ -1225,6 +1162,19 @@ mod color_tests {
 
     const WIDTH: i32 = 32;
     const HEIGHT: i32 = 16;
+
+    #[test]
+    fn in_place_alpha_matches_the_renderer_for_every_channel_and_alpha() {
+        let mut pixels = Vec::new();
+        for alpha in 0..=255u8 {
+            for color in 0..=255u8 {
+                pixels.extend_from_slice(&[color, 255 - color, color, alpha]);
+            }
+        }
+        let expected = PreloadedImageData::blend_rgba_slice(&pixels);
+        premultiply_alpha(&mut pixels);
+        assert_eq!(pixels, expected);
+    }
 
     struct TestFrame(*mut AVFrame);
 

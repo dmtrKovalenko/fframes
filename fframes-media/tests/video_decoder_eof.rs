@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use fframes_media::{FFmpegDecoder, FrameConvertOptions, PlaybackSpeed, ResizeVideoFrame};
@@ -174,6 +175,28 @@ fn videos_without_b_frames_stop_at_eof() {
 }
 
 #[test]
+fn converted_images_survive_single_buffer_reuse_and_decoder_drop() {
+    let video = VideoFixture::new(3);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    let mut images = Vec::new();
+    for index in [0, 17, 2, 90, 299] {
+        assert!(unsafe { decoder.decode_up_to(index) }.unwrap());
+        let image = unsafe {
+            decoder
+                .get_raw_frame()
+                .convert_last_decoded_frame_into_svg_image(None)
+        }
+        .unwrap();
+        let expected = image.data.to_vec();
+        images.push((image, expected));
+    }
+    drop(decoder);
+    for (image, expected) in images {
+        assert_eq!(image.data.as_ref(), expected);
+    }
+}
+
+#[test]
 fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
     let video = VideoFixture::new(0);
     let thumbnail = FrameConvertOptions {
@@ -201,22 +224,33 @@ fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
                 .convert_last_decoded_frame_into_svg_image(None)
                 .unwrap();
             assert_eq!((image.width, image.height), (32, 32));
-            // The second thumbnail request is served from the cache
-            for _ in 0..2 {
-                let image = frame
-                    .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
-                    .unwrap();
-                assert_eq!(
-                    (image.width, image.height),
-                    (16, 16),
-                    "buffer size {buffer_size}"
-                );
-                // A buffer last sized for a larger output can be longer than the image
-                assert!(
-                    image.data[..thumbnail_len] == expected.data[..thumbnail_len],
-                    "the thumbnail differs from a decoder that only converts to 16x16 \
-                     (buffer size {buffer_size})"
-                );
+            let thumb = frame
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+            assert_eq!((thumb.width, thumb.height), (16, 16));
+            assert_eq!(thumb.data.len(), thumbnail_len);
+            assert_eq!(thumb.data, expected.data);
+            let again = frame
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+            assert!(Arc::ptr_eq(&thumb, &again));
+            let pts = frame.get_pts();
+            assert!(Arc::ptr_eq(
+                &thumb,
+                &decoder.get_decoded_image_in_buf(pts).unwrap()
+            ));
+            assert!(decoder.decode_up_to(6).unwrap());
+            let _full_size = frame
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            if buffer_size == 1 {
+                assert!(decoder.get_decoded_image_in_buf(pts).is_none());
+            } else {
+                // The cached thumbnail retains its own dimensions after a full-size conversion.
+                assert!(Arc::ptr_eq(
+                    &thumb,
+                    &decoder.get_decoded_image_in_buf(pts).unwrap()
+                ));
             }
         }
     }
