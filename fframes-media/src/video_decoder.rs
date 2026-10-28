@@ -1,6 +1,6 @@
 use crate::FFramesMediaError;
 use crate::error::Result;
-use crate::video_types::{FrameConvertOptions, PlaybackSpeed};
+use crate::video_types::FrameConvertOptions;
 use ffmpeg_sys_fframes::SwsFlags::{SWS_BICUBIC, SWS_BILINEAR};
 use ffmpeg_sys_fframes::*;
 use std::borrow::Cow;
@@ -96,7 +96,6 @@ struct VideoStreamInfo {
     height: i32,
     display_width: i32,
     display_height: i32,
-    pixel_format: AVPixelFormat,
     color_space: AVColorSpace,
     color_range: AVColorRange,
     time_base: AVRational,
@@ -379,11 +378,10 @@ pub struct FFmpegDecoder {
     video_stream_info: VideoStreamInfo,
     codec_ctx: *mut AVCodecContext,
     pkt: *mut AVPacket,
-    /// Offsets are counted in this time base: `speed / target_fps` seconds per offset.
     custom_time_base: AVRational,
-    target_fps: i32,
-    /// The stream position of the previous decode or seek, in the stream's time base.
-    last_pts: Option<i64>,
+    duration_in_frames: i64,
+    /// The offset of the previous `decode_up_to` call, in `custom_time_base` units.
+    last_offset: Option<i64>,
     /// A null packet has been sent; receive delayed frames until decoder EOF.
     draining: bool,
     /// The target frame holds a frame decoded since the last seek.
@@ -590,35 +588,6 @@ impl FFmpegDecoder {
             .map(|slot| Arc::clone(&slot.image))
     }
 
-    /// Plays the stream `speed` times faster: offset `n` shows the frame at
-    /// `n * speed / target_fps` seconds of the stream.
-    pub fn with_playback_speed(mut self, speed: PlaybackSpeed) -> Self {
-        self.custom_time_base = AVRational {
-            num: speed.thousandths(),
-            den: self.target_fps * PlaybackSpeed::SCALE,
-        };
-        self.last_pts = None;
-        self.current_loop = 0;
-        self
-    }
-
-    /// The stream position of the offset, in the stream's time base.
-    fn offset_pts(&self, offset: i64) -> i64 {
-        unsafe {
-            av_rescale_q(
-                offset,
-                self.custom_time_base,
-                self.video_stream_info.time_base,
-            )
-        }
-    }
-
-    /// The exact stream duration, in the stream's time base. `None` if it is unknown.
-    fn stream_duration(&self) -> Option<i64> {
-        let duration = self.video_stream_info.duration;
-        (duration > 0).then_some(duration)
-    }
-
     /// Creates a new decoder for the video file at the specified path
     /// # Safety
     /// Generally safe but uses libav functions
@@ -658,59 +627,60 @@ impl FFmpegDecoder {
                 )));
             }
 
-            let (codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx)?;
-            let pkt = av_packet_alloc();
-            if pkt.is_null() {
+            let (mut codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx)
+                .inspect_err(|_| avformat_close_input(&raw mut fmt_ctx))?;
+            let frame_buf = FFmpegFrameBuf::new(
+                filename.to_string_lossy().into_owned(),
+                video_stream_info,
+                buffer_size,
+            )
+            .inspect_err(|_| {
+                avcodec_free_context(&raw mut codec_ctx);
                 avformat_close_input(&raw mut fmt_ctx);
-                return Err(FFramesMediaError::LibAVAllocationError("packet"));
-            }
-
-            let hw_frame = if video_stream_info.hw_pix_fmt.is_some() {
-                let hw_frame = av_frame_alloc();
-                if hw_frame.is_null() {
-                    avformat_close_input(&raw mut fmt_ctx);
-                    return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
-                }
-
-                (*hw_frame).width = video_stream_info.width;
-                (*hw_frame).height = video_stream_info.height;
-                (*hw_frame).format = video_stream_info.pixel_format as i32;
-
-                hw_frame
-            } else {
-                ptr::null_mut()
-            };
-
-            let recv_frame = av_frame_alloc();
-            if recv_frame.is_null() {
-                avformat_close_input(&raw mut fmt_ctx);
-                return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
-            }
+            })?;
 
             let custom_time_base = AVRational {
                 num: 1,
                 den: target_fps as i32,
             };
 
-            Ok(FFmpegDecoder {
+            let duration_in_frames = av_rescale_q(
+                video_stream_info.duration,
+                video_stream_info.time_base,
+                custom_time_base,
+            );
+
+            let mut decoder = Self {
                 codec_ctx,
-                pkt,
                 fmt_ctx,
-                hw_frame,
-                recv_frame,
-                frame_buf: Arc::new(FFmpegFrameBuf::new(
-                    filename.to_string_lossy().to_string(),
-                    video_stream_info,
-                    buffer_size,
-                )?),
+                pkt: ptr::null_mut(),
+                hw_frame: ptr::null_mut(),
+                recv_frame: ptr::null_mut(),
+                frame_buf: Arc::new(frame_buf),
                 video_stream_info,
                 custom_time_base,
-                target_fps: target_fps as i32,
+                duration_in_frames,
                 current_loop: 0,
-                last_pts: None,
+                last_offset: None,
                 draining: false,
                 has_decoded_frame: false,
-            })
+            };
+
+            decoder.pkt = av_packet_alloc();
+            if decoder.pkt.is_null() {
+                return Err(FFramesMediaError::LibAVAllocationError("packet"));
+            }
+            decoder.recv_frame = av_frame_alloc();
+            if decoder.recv_frame.is_null() {
+                return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
+            }
+            if video_stream_info.hw_pix_fmt.is_some() {
+                decoder.hw_frame = av_frame_alloc();
+                if decoder.hw_frame.is_null() {
+                    return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
+                }
+            }
+            Ok(decoder)
         }
     }
 
@@ -737,35 +707,37 @@ impl FFmpegDecoder {
             let stream = *(*fmt_ctx).streams.offset(video_stream_idx as isize);
             let dec = avcodec_find_decoder((*(*stream).codecpar).codec_id);
 
-            let mut hw_device_ctx: *mut AVBufferRef = ptr::null_mut();
-            let hw_pix_fmt = find_hw_accelleleration_for_codec(&mut hw_device_ctx, dec);
-
             if dec.is_null() {
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
-                    ret,
+                    AVERROR_DECODER_NOT_FOUND,
                     "Could not find decoder".to_string(),
                 )));
             }
 
-            let video_dec_ctx = avcodec_alloc_context3(dec);
+            let mut video_dec_ctx = avcodec_alloc_context3(dec);
             if video_dec_ctx.is_null() {
-                return Err(FFramesMediaError::LibAVAllocationError("avcocdec_context"));
+                return Err(FFramesMediaError::LibAVAllocationError("avcodec_context"));
             }
 
-            if let Some(hw_pix_fmt) = hw_pix_fmt {
-                (*video_dec_ctx).opaque = hw_pix_fmt as i32 as *mut c_void;
-                (*video_dec_ctx).get_format = Some(get_hw_format);
-                (*video_dec_ctx).hw_device_ctx = av_buffer_ref(hw_device_ctx);
-            }
-
-            if avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar) < 0 {
+            let ret = avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar);
+            if ret < 0 {
+                avcodec_free_context(&raw mut video_dec_ctx);
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
                     "Failed to copy video codec parameters to decoder context".to_string(),
                 )));
             }
 
-            if avcodec_open2(video_dec_ctx, dec, ptr::null_mut()) < 0 {
+            let hw_pix_fmt =
+                find_hw_acceleration_for_codec(&mut (*video_dec_ctx).hw_device_ctx, dec);
+            if let Some(hw_pix_fmt) = hw_pix_fmt {
+                (*video_dec_ctx).opaque = hw_pix_fmt as i32 as *mut c_void;
+                (*video_dec_ctx).get_format = Some(get_hw_format);
+            }
+
+            let ret = avcodec_open2(video_dec_ctx, dec, ptr::null_mut());
+            if ret < 0 {
+                avcodec_free_context(&raw mut video_dec_ctx);
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
                     "Failed to open video codec".to_string(),
@@ -803,7 +775,6 @@ impl FFmpegDecoder {
                     height,
                     display_width,
                     display_height,
-                    pixel_format: (*video_dec_ctx).pix_fmt,
                     color_space: (*video_dec_ctx).colorspace,
                     color_range: (*video_dec_ctx).color_range,
                     time_base: (*stream).time_base,
@@ -818,11 +789,13 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn seek_to_offset(&mut self, offset: i64) -> Result<()> {
-        unsafe { self.seek_to_pts(self.offset_pts(offset)) }
-    }
-
-    unsafe fn seek_to_pts(&mut self, timestamp: i64) -> Result<()> {
         unsafe {
+            let timestamp = av_rescale_q(
+                offset,
+                self.custom_time_base,
+                self.video_stream_info.time_base,
+            );
+
             let ret = av_seek_frame(
                 self.fmt_ctx,
                 self.video_stream_info.stream_index,
@@ -841,42 +814,33 @@ impl FFmpegDecoder {
             avcodec_flush_buffers(self.codec_ctx);
             self.draining = false;
             self.has_decoded_frame = false;
-            self.last_pts = Some(timestamp);
             av_packet_unref(self.pkt);
 
             Ok(())
         }
     }
 
-    /// Decodes the frame at the offset of the video played in a loop. The position in
-    /// the loop comes from the exact stream duration, so loops at a fractional speed
-    /// do not drift and do not end early.
+    /// Moves offset to the start of the video if need to loop
     /// # Safety
     /// Generally safe but uses libav functions
-    pub unsafe fn decode_looping(&mut self, offset: i64) -> Result<bool> {
-        unsafe {
-            let pts = self.offset_pts(offset);
-            // An unknown duration can't be looped over (and would divide by zero below).
-            let Some(duration) = self.stream_duration() else {
-                return self.decode_up_to_pts(pts);
-            };
-
-            let loop_index = pts.div_euclid(duration);
-            let pts = pts.rem_euclid(duration);
-            if loop_index != self.current_loop {
-                self.current_loop = loop_index;
-                self.seek_to_pts(pts)?;
-            }
-
-            if self.decode_up_to_pts(pts)? {
-                return Ok(true);
-            }
-
-            // The frames end before the stream's duration: start the next loop.
-            self.current_loop += 1;
-            self.seek_to_pts(0)?;
-            self.decode_up_to_pts(0)
+    pub unsafe fn adjust_offset_for_looping(&mut self, offset: i64) -> Result<i64> {
+        // An unknown or empty duration can't be looped over (and would divide by zero below).
+        if self.duration_in_frames <= 0 || offset < self.duration_in_frames {
+            return Ok(offset);
         }
+
+        let new_loop_index = offset / self.duration_in_frames;
+        let new_offset = offset % self.duration_in_frames;
+        if new_loop_index == self.current_loop {
+            return Ok(new_offset);
+        }
+
+        self.current_loop = new_loop_index;
+        unsafe {
+            self.seek_to_offset(new_offset)?;
+        }
+
+        Ok(new_offset)
     }
 
     /// If we are actually using hardware accelerated frames it is required to correctly
@@ -934,25 +898,25 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
-        unsafe { self.decode_up_to_pts(self.offset_pts(offset)) }
-    }
-
-    unsafe fn decode_up_to_pts(&mut self, target_pts: i64) -> Result<bool> {
         unsafe {
             // Going back needs a seek, otherwise the newer frame that was already decoded
-            // would be returned. Far jumps forward (more than 2 seconds of the stream) seek
-            // to the closest keyframe instead of decoding every frame in between (frames can
-            // be requested out of order by parallel renderers). A new decoder is at the start.
-            let seek_ahead = av_rescale_q(
-                2,
-                AVRational { num: 1, den: 1 },
+            // would be returned. Far jumps forward seek to the closest keyframe instead of
+            // decoding every frame in between (frames can be requested out of order by
+            // parallel renderers).
+            let seek_ahead_frames = 2 * i64::from(self.custom_time_base.den.max(1));
+            let needs_seek = self.last_offset.is_some_and(|last_offset| {
+                offset < last_offset || offset - last_offset > seek_ahead_frames
+            });
+            self.last_offset = Some(offset);
+            if needs_seek {
+                self.seek_to_offset(offset)?;
+            }
+
+            let target_pts = av_rescale_q(
+                offset,
+                self.custom_time_base,
                 self.video_stream_info.time_base,
             );
-            let last_pts = self.last_pts.unwrap_or(0);
-            if target_pts < last_pts || target_pts - last_pts > seek_ahead {
-                self.seek_to_pts(target_pts)?;
-            }
-            self.last_pts = Some(target_pts);
 
             if (*self.frame_buf.latest_av_frame).pts >= target_pts {
                 return Ok(true);
@@ -983,10 +947,8 @@ impl FFmpegDecoder {
                         // The target lies after the last frame's timestamp but before the end of
                         // the stream (e.g. a 24 fps clip sampled at 30 fps): the last frame is
                         // still the one on screen, so return it instead of reporting the end.
-                        let shows_last_frame = self.has_decoded_frame
-                            && self
-                                .stream_duration()
-                                .is_some_and(|duration| target_pts < duration);
+                        let shows_last_frame =
+                            self.has_decoded_frame && offset < self.duration_in_frames;
                         if shows_last_frame {
                             self.transfer_hardware_surface_data(target_frame)?;
                         }
@@ -1049,7 +1011,7 @@ impl Drop for FFmpegDecoder {
     }
 }
 
-unsafe fn find_hw_accelleleration_for_codec(
+unsafe fn find_hw_acceleration_for_codec(
     hw_device_ctx: &mut *mut AVBufferRef,
     codec: *const AVCodec,
 ) -> Option<AVPixelFormat> {
@@ -1074,18 +1036,10 @@ unsafe fn find_hw_accelleleration_for_codec(
         ];
 
         for &hw_type in &hw_types {
-            let create_result =
-                av_hwdevice_ctx_create(hw_device_ctx, hw_type, ptr::null(), ptr::null_mut(), 0);
-
-            if create_result < 0 {
-                continue;
-            }
-
             let mut hw_pix_fmt = AVPixelFormat::AV_PIX_FMT_NONE;
 
             let mut i = 0;
             loop {
-                // Check if decoder supports this hardware if yes we return the available pix fmt
                 let config = avcodec_get_hw_config(codec, i);
                 if config.is_null() {
                     break;
@@ -1101,11 +1055,13 @@ unsafe fn find_hw_accelleleration_for_codec(
                 i += 1;
             }
 
-            if hw_pix_fmt != AVPixelFormat::AV_PIX_FMT_NONE {
+            // The codec context owns the reference returned on success.
+            if hw_pix_fmt != AVPixelFormat::AV_PIX_FMT_NONE
+                && av_hwdevice_ctx_create(hw_device_ctx, hw_type, ptr::null(), ptr::null_mut(), 0)
+                    >= 0
+            {
                 return Some(hw_pix_fmt);
             }
-
-            av_buffer_unref(hw_device_ctx);
         }
     }
 
@@ -1252,7 +1208,6 @@ mod color_tests {
             height: HEIGHT,
             display_width: WIDTH,
             display_height: HEIGHT,
-            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
             color_space: space,
             color_range: range,
             time_base: AVRational { num: 1, den: 30 },
