@@ -105,7 +105,30 @@ impl<'a, 'media: 'a> FFramesRendererRuntime<'a> {
         scenes: &Scenes<'a>,
         media: Option<&'media dyn MediaProvider<'media>>,
     ) -> FFramesRendererResult<Self> {
-        let timeline = crate::resolve_timeline(
+        let timeline = Self::resolve_video_timeline(time_base, video, scenes, media)?;
+
+        let mut font_source = RendererFontSource {
+            fontdb: fontdb::Database::new(),
+        };
+
+        if let Some(media) = media {
+            media.populate_font_source(&mut font_source);
+        }
+
+        Ok(Self {
+            time_base,
+            timeline,
+            font_source,
+        })
+    }
+
+    pub(super) fn resolve_video_timeline<TVideo: Video>(
+        time_base: TimeBase,
+        video: &'a TVideo,
+        scenes: &Scenes<'a>,
+        media: Option<&'media dyn MediaProvider<'media>>,
+    ) -> FFramesRendererResult<ResolvedRenderingTimeline<'a, AudioTimelineSamples>> {
+        Ok(crate::resolve_timeline(
             &video.duration(),
             &ScenesWithAudio::new(scenes),
             &time_base,
@@ -137,21 +160,7 @@ impl<'a, 'media: 'a> FFramesRendererRuntime<'a> {
                         crate::error::FFramesError::CanNotProcessAudioDuration(name.to_owned())
                     })
             },
-        )?;
-
-        let mut font_source = RendererFontSource {
-            fontdb: fontdb::Database::new(),
-        };
-
-        if let Some(media) = media {
-            media.populate_font_source(&mut font_source);
-        }
-
-        Ok(Self {
-            time_base,
-            timeline,
-            font_source,
-        })
+        )?)
     }
 }
 

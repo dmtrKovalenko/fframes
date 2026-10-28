@@ -41,8 +41,9 @@ pub struct PlayerOptions<'a, 'media> {
     pub start_frame: usize,
     /// Play the video's audio map on the default output device.
     pub audio: bool,
-    /// Threads building frame trees (`Video::render_frame`) in parallel.
+    /// Maximum number of threads building frame trees (`Video::render_frame`) in parallel.
     /// Defaults to one worker for video sources so the decoder reads frames in order.
+    /// Video sources allow up to four staged trees and one worker for a newly due frame.
     /// Other projects use half the available cores, up to eight workers.
     pub render_threads: Option<usize>,
     /// Maximum number of future frames to prepare. The default (`usize::MAX`) uses
@@ -85,13 +86,15 @@ impl PlayerOptions<'_, '_> {
     }
 
     pub(crate) fn render_threads(&self) -> usize {
-        if let Some(count) = self.render_threads {
-            return count.max(1);
-        }
         if self.media.is_some_and(MediaProvider::has_video_sources) {
-            return 1;
+            return self
+                .render_threads
+                .unwrap_or(1)
+                .clamp(1, crate::scheduler::MAX_STAGED_TREES + 1);
         }
-        (fframes::get_thread_count() / 2).clamp(1, 8)
+        self.render_threads
+            .unwrap_or_else(|| (fframes::get_thread_count() / 2).clamp(1, 8))
+            .max(1)
     }
 }
 
@@ -127,10 +130,14 @@ mod tests {
         assert_eq!(options.render_threads(), 1);
         options.render_threads = Some(4);
         assert_eq!(options.render_threads(), 4);
+        options.render_threads = Some(16);
+        assert_eq!(options.render_threads(), 5);
         options.render_threads = Some(0);
         assert_eq!(options.render_threads(), 1);
-        options.render_threads = None;
         options.media = None;
+        options.render_threads = Some(16);
+        assert_eq!(options.render_threads(), 16);
+        options.render_threads = None;
         assert_eq!(
             options.render_threads(),
             (fframes::get_thread_count() / 2).clamp(1, 8)

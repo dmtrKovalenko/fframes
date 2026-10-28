@@ -12,7 +12,9 @@ use std::rc::Rc;
 
 use fframes::usvgr;
 use fframes_skia_renderer::render::RenderCache;
-use fframes_skia_renderer::skia_safe::{Canvas, Color, Image, ImageInfo, Rect, gpu, surfaces};
+use fframes_skia_renderer::skia_safe::{
+    Canvas, Color, IPoint, IRect, Image, ImageInfo, Point, Rect, RoundOut, Surface, gpu, surfaces,
+};
 use fframes_skia_renderer::{QueueLock, lock_queue};
 use winit::window::Window;
 
@@ -21,6 +23,12 @@ use crate::error::PlayerResult;
 use crate::options::PlayerBackend;
 use crate::scheduler::PlaybackFrame;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
+
+/// Only the video occupies this image. Its origin is in window pixels.
+pub(crate) struct BufferedFrame {
+    pub(crate) origin: IPoint,
+    pub(crate) image: Image,
+}
 
 /// The images of the window that Skia draws into.
 trait WindowTarget {
@@ -50,6 +58,7 @@ trait WindowTarget {
 pub(crate) struct Presenter {
     pub studio_layout: Option<StudioLayout>,
     render_cache: RenderCache,
+    snapshot_surface: Option<Surface>,
     target: Box<dyn WindowTarget>,
     window: Rc<Window>,
     background: Color,
@@ -83,6 +92,7 @@ impl Presenter {
 
         let mut presenter = Self {
             render_cache: target.render_cache(),
+            snapshot_surface: None,
             target,
             window,
             background: Color::from_argb(background.a, background.r, background.g, background.b),
@@ -115,6 +125,7 @@ impl Presenter {
             return Ok(());
         }
 
+        self.snapshot_surface = None;
         self.target.resize(size.width, size.height)?;
         let logical = size.to_logical::<f32>(self.window.scale_factor());
         self.studio_layout = StudioLayout::new(
@@ -135,40 +146,59 @@ impl Presenter {
     }
 
     /// Draws just the scene. Controls and the timeline are composited when it is shown.
-    pub(crate) fn snapshot(&mut self, tree: &usvgr::Tree, studio_open: bool) -> Option<Image> {
-        let size = self.window.inner_size();
-        let info = ImageInfo::new_n32_premul((size.width as i32, size.height as i32), None);
+    pub(crate) fn snapshot(
+        &mut self,
+        tree: &usvgr::Tree,
+        studio_open: bool,
+    ) -> Option<BufferedFrame> {
+        let view = self.studio_layout.as_ref().filter(|_| studio_open);
         let mut context = self.target.gpu_context();
-        let mut surface = match context.as_mut() {
-            Some((gpu, queue)) => {
-                let _lock = lock_queue(*queue);
-                gpu::surfaces::render_target(
-                    gpu,
-                    gpu::Budgeted::Yes,
-                    &info,
-                    None,
-                    gpu::SurfaceOrigin::TopLeft,
-                    None,
-                    false,
-                    None,
-                )
-            }
-            None => surfaces::raster(&info, None, None),
-        }?;
-        draw_scene(
-            surface.canvas(),
-            Some(tree),
-            self.studio_layout.as_ref().filter(|_| studio_open),
+        // Keep window coordinates while rendering filters and shaders. Only the
+        // video rectangle is retained in each finished frame.
+        if self.snapshot_surface.is_none() {
+            let size = self.window.inner_size();
+            let info = ImageInfo::new_n32_premul((size.width as i32, size.height as i32), None);
+            self.snapshot_surface = match context.as_mut() {
+                Some((gpu, queue)) => {
+                    let _lock = lock_queue(*queue);
+                    gpu::surfaces::render_target(
+                        gpu,
+                        gpu::Budgeted::Yes,
+                        &info,
+                        None,
+                        gpu::SurfaceOrigin::TopLeft,
+                        None,
+                        false,
+                        None,
+                    )
+                }
+                None => surfaces::raster(&info, None, None),
+            };
+        }
+        let surface = self.snapshot_surface.as_mut()?;
+        let canvas = surface.canvas();
+        canvas.clear(matte(view));
+        let rect = draw_video(
+            canvas,
+            tree,
+            view,
             self.window.scale_factor() as f32,
             self.background,
             &mut self.render_cache,
         );
-        let image = surface.image_snapshot();
+        let bounds = IRect::intersect(
+            &rect.round_out(),
+            &IRect::from_size(canvas.base_layer_size()),
+        )?;
+        let image = surface.image_snapshot_with_bounds(bounds)?;
         if let Some((gpu, queue)) = context {
             let _lock = lock_queue(queue);
-            gpu.flush_and_submit_surface(&mut surface, gpu::SyncCpu::Yes);
+            gpu.flush_and_submit_surface(surface, gpu::SyncCpu::Yes);
         }
-        Some(image)
+        Some(BufferedFrame {
+            origin: IPoint::new(bounds.left, bounds.top),
+            image,
+        })
     }
 
     /// Draws the current frame and overlays the controls before presenting the window.
@@ -193,19 +223,15 @@ impl Presenter {
 
         target.present(&mut |canvas| {
             let view = studio_layout.as_ref().filter(|_| studio_open);
+            canvas.clear(matte(view));
             match frame {
-                Some(PlaybackFrame::Image(image)) => {
-                    canvas.draw_image(image, (0, 0), None);
+                Some(PlaybackFrame::Image(frame)) => {
+                    canvas.draw_image(&frame.image, Point::from(frame.origin), None);
                 }
-                Some(PlaybackFrame::Tree(tree)) => draw_scene(
-                    canvas,
-                    Some(tree),
-                    view,
-                    pixel_scale,
-                    *background,
-                    render_cache,
-                ),
-                None => draw_scene(canvas, None, view, pixel_scale, *background, render_cache),
+                Some(PlaybackFrame::Tree(tree)) => {
+                    draw_video(canvas, tree, view, pixel_scale, *background, render_cache);
+                }
+                None => {}
             }
 
             let show_bar = view.is_none();
@@ -230,18 +256,25 @@ impl Presenter {
     }
 }
 
-fn draw_scene(
+fn matte(view: Option<&StudioLayout>) -> Color {
+    if view.is_some() {
+        Color::from_rgb(14, 14, 14)
+    } else {
+        Color::BLACK
+    }
+}
+
+fn draw_video(
     canvas: &Canvas,
-    tree: Option<&usvgr::Tree>,
+    tree: &usvgr::Tree,
     view: Option<&StudioLayout>,
     pixel_scale: f32,
     background: Color,
-    render_cache: &mut RenderCache,
-) {
+    cache: &mut RenderCache,
+) -> Rect {
     let size = canvas.base_layer_size();
-    let (width, height) = (size.width as f32, size.height as f32);
     let viewport = view.map_or_else(
-        || Rect::from_wh(width, height),
+        || Rect::from_iwh(size.width, size.height),
         |ui| {
             let stage = ui.stage;
             Rect::from_ltrb(
@@ -252,34 +285,29 @@ fn draw_scene(
             )
         },
     );
-    canvas.clear(if view.is_some() {
-        Color::from_rgb(14, 14, 14)
+    let video = tree.size();
+    let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
+    let width = video.width() * scale;
+    let height = video.height() * scale;
+    let x = viewport.center_x() - width / 2.;
+    let y = if view.is_some_and(|ui| ui.portrait) {
+        viewport.top
     } else {
-        Color::BLACK
-    });
+        viewport.center_y() - height / 2.
+    };
 
-    if let Some(tree) = tree {
-        let video = tree.size();
-        let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
-        let offset_x = viewport.center_x() - video.width() * scale / 2.;
-        let offset_y = if view.is_some_and(|ui| ui.portrait) {
-            viewport.top
-        } else {
-            viewport.center_y() - video.height() * scale / 2.
-        };
-
-        canvas.save();
-        canvas.translate((offset_x, offset_y));
-        canvas.scale((scale, scale));
-        canvas.clip_rect(
-            Rect::from_wh(video.width(), video.height()),
-            None,
-            Some(true),
-        );
-        canvas.draw_color(background, None);
-        fframes_skia_renderer::render::render_tree(tree, canvas, render_cache);
-        canvas.restore();
-    }
+    canvas.save();
+    canvas.translate((x, y));
+    canvas.scale((scale, scale));
+    canvas.clip_rect(
+        Rect::from_wh(video.width(), video.height()),
+        None,
+        Some(true),
+    );
+    canvas.draw_color(background, None);
+    fframes_skia_renderer::render::render_tree(tree, canvas, cache);
+    canvas.restore();
+    Rect::from_xywh(x, y, width, height)
 }
 
 fn create_target(

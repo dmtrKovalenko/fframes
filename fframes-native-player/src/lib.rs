@@ -142,6 +142,9 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         options.lookahead(TVideo::FPS),
         options.looping,
         thumbnail_count,
+        options
+            .media
+            .is_some_and(fframes::MediaProvider::has_video_sources),
     );
     let proxy = Mutex::new(event_loop.create_proxy());
     let notify_frame_ready = |event| {

@@ -7,19 +7,20 @@
 use std::collections::BTreeMap;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
-use crate::{app::FrameReady, studio::thumbnail};
+use crate::{app::FrameReady, presenter::BufferedFrame, studio::thumbnail};
 use fframes::{FFramesContext, TextCache, Video, VideoDecodersWorker, usvgr};
-use fframes_skia_renderer::skia_safe::Image;
+
+pub(crate) const MAX_STAGED_TREES: usize = 4;
 
 /// A tree can go straight to the window when its frame is due. Images were already
-/// drawn at the window size and stay on the thread that owns the Skia context.
+/// drawn at the window scale and stay on the thread that owns the Skia context.
 #[expect(
     clippy::large_enum_variant,
     reason = "The window holds one current frame. Keeping its tree inline avoids a per-frame allocation."
 )]
 pub(crate) enum PlaybackFrame {
     Tree(usvgr::Tree),
-    Image(Image),
+    Image(BufferedFrame),
 }
 
 pub(crate) struct Scheduler {
@@ -29,6 +30,7 @@ pub(crate) struct Scheduler {
     lookahead: u64,
     thumbnails: usize,
     playback_decoders: VideoDecodersWorker,
+    video_sources: bool,
 }
 
 struct State {
@@ -42,6 +44,7 @@ struct State {
     displayed: Option<u64>,
     looping: bool,
     ready: BTreeMap<u64, usvgr::Tree>,
+    in_flight: usize,
     shutdown: bool,
     next_thumbnail: usize,
 }
@@ -68,6 +71,7 @@ impl Scheduler {
         lookahead: usize,
         looping: bool,
         thumbnails: usize,
+        video_sources: bool,
     ) -> Self {
         Self {
             state: Mutex::new(State {
@@ -77,6 +81,7 @@ impl Scheduler {
                 displayed: None,
                 looping,
                 ready: BTreeMap::new(),
+                in_flight: 0,
                 shutdown: false,
                 next_thumbnail: 0,
             }),
@@ -85,6 +90,7 @@ impl Scheduler {
             lookahead: lookahead.min(duration_in_frames) as u64,
             thumbnails,
             playback_decoders: VideoDecodersWorker::default(),
+            video_sources,
         }
     }
 
@@ -121,7 +127,7 @@ impl Scheduler {
         &self,
         position: u64,
         looping: bool,
-        images: &mut BTreeMap<u64, Image>,
+        images: &mut BTreeMap<u64, BufferedFrame>,
     ) -> bool {
         let mut state = self.lock();
         if state.looping != looping || position < state.playhead || !images.contains_key(&position)
@@ -142,7 +148,7 @@ impl Scheduler {
     pub(crate) fn take(
         &self,
         playhead: u64,
-        images: &mut BTreeMap<u64, Image>,
+        images: &mut BTreeMap<u64, BufferedFrame>,
     ) -> Option<(u64, PlaybackFrame)> {
         let image = take_due(images, playhead).map(|(p, image)| (p, PlaybackFrame::Image(image)));
         let mut state = self.lock();
@@ -206,15 +212,23 @@ impl Scheduler {
 
     fn claim_playback(&self, state: &mut State) -> Option<Job> {
         let position = state.next.max(state.playhead);
+        // Decoding workers can each hold full-size source frames before they return a tree.
+        let staged = state.ready.len()
+            + if self.video_sources {
+                state.in_flight
+            } else {
+                0
+            };
         if position > state.playhead.saturating_add(self.lookahead)
             || (!state.looping && position >= self.duration)
-            || (position > state.playhead && state.ready.len() >= 4)
+            || (position > state.playhead && staged >= MAX_STAGED_TREES)
         {
             return None;
         }
         // Keep only a few decoded trees waiting for the window. A new live position
         // can bypass that limit if the clock jumped ahead of all assigned work.
         state.next = position + 1;
+        state.in_flight += 1;
         Some(Job {
             frame: self.frame_of(position, state.looping),
             kind: JobKind::Playback {
@@ -251,18 +265,21 @@ impl Scheduler {
         state.playhead == position && state.epoch == epoch
     }
 
-    fn complete(&self, position: u64, epoch: u64, tree: usvgr::Tree) -> bool {
+    fn complete(&self, position: u64, epoch: u64, tree: Option<usvgr::Tree>) -> bool {
         let mut state = self.lock();
+        state.in_flight -= 1;
         let is_stale = state.epoch != epoch
             || state
                 .displayed
                 .is_some_and(|displayed| position <= displayed);
 
-        if !is_stale {
+        if !is_stale && let Some(tree) = tree {
             state.ready.insert(position, tree);
+            return true;
         }
-
-        !is_stale
+        drop(state);
+        self.workers_wakeup.notify_one();
+        false
     }
 
     pub(crate) fn run_worker<'a, 'media: 'a, TVideo: Video + Sync>(
@@ -308,7 +325,7 @@ impl Scheduler {
                     }
                 }
                 (Ok(tree), JobKind::Playback { position, epoch }) => {
-                    if self.complete(position, epoch, tree) {
+                    if self.complete(position, epoch, Some(tree)) {
                         on_frame_ready(FrameReady::Playback);
                     }
                 }
@@ -318,6 +335,7 @@ impl Scheduler {
                         job.frame
                     );
                     if let JobKind::Playback { position, epoch } = kind {
+                        self.complete(position, epoch, None);
                         on_frame_ready(FrameReady::Failed { position, epoch });
                     }
                 }
@@ -349,21 +367,21 @@ mod tests {
 
     #[test]
     fn taking_out_of_order_frames_preserves_future_frames_and_rejects_stale_jobs() {
-        let scheduler = Scheduler::new(100, 3, false, 2);
-        for index in 0..3 {
+        let scheduler = Scheduler::new(100, 3, false, 2, false);
+        for index in 0..=3 {
             assert_eq!(scheduler.next_job().unwrap().frame, index);
         }
-        for index in [2, 0, 1] {
-            assert!(scheduler.complete(index, 0, tree()));
+        for index in [2, 1] {
+            assert!(scheduler.complete(index, 0, Some(tree())));
         }
         assert_eq!(scheduler.take(1, &mut BTreeMap::new()).unwrap().0, 1);
         assert!(scheduler.take(1, &mut BTreeMap::new()).is_none());
-        assert!(!scheduler.complete(0, 0, tree()));
+        assert!(!scheduler.complete(0, 0, Some(tree())));
         assert_eq!(scheduler.take(2, &mut BTreeMap::new()).unwrap().0, 2);
         scheduler.seek(50, false);
-        assert!(!scheduler.complete(3, 0, tree()));
+        assert!(!scheduler.complete(3, 0, Some(tree())));
         assert_eq!(scheduler.next_job().unwrap().frame, 50);
-        assert!(scheduler.complete(50, 1, tree()));
+        assert!(scheduler.complete(50, 1, Some(tree())));
         assert_eq!(scheduler.take(50, &mut BTreeMap::new()).unwrap().0, 50);
         scheduler.shutdown();
         assert!(scheduler.next_job().is_none());
@@ -371,13 +389,13 @@ mod tests {
 
     #[test]
     fn finished_frames_fill_the_window_and_a_seek_reuses_its_target() {
-        let scheduler = Scheduler::new(100, 48, false, 0);
+        let scheduler = Scheduler::new(100, 48, false, 0, false);
         let mut images = BTreeMap::new();
         let image = fframes_skia_renderer::skia_safe::surfaces::raster_n32_premul((8, 8))
             .unwrap()
             .image_snapshot();
         assert_eq!(scheduler.next_job().unwrap().frame, 0);
-        scheduler.complete(0, 0, tree());
+        scheduler.complete(0, 0, Some(tree()));
         assert!(scheduler.next_to_draw().is_none());
         assert!(matches!(
             scheduler.take(0, &mut images),
@@ -386,9 +404,15 @@ mod tests {
 
         for p in 1..=48 {
             assert_eq!(scheduler.next_job().unwrap().frame as u64, p);
-            scheduler.complete(p, 0, tree());
+            scheduler.complete(p, 0, Some(tree()));
             assert_eq!(scheduler.next_to_draw().unwrap().0, p);
-            images.insert(p, image.clone());
+            images.insert(
+                p,
+                BufferedFrame {
+                    image: image.clone(),
+                    origin: fframes_skia_renderer::skia_safe::IPoint::default(),
+                },
+            );
         }
         assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
         assert_eq!(images.len(), 48);
@@ -405,11 +429,11 @@ mod tests {
 
     #[test]
     fn live_frames_take_priority_over_queued_trees() {
-        let scheduler = Scheduler::new(100, 48, false, 0);
+        let scheduler = Scheduler::new(100, 48, false, 0, false);
         let mut images = BTreeMap::new();
         for p in 0..4 {
             assert_eq!(scheduler.next_job().unwrap().frame as u64, p);
-            scheduler.complete(p, 0, tree());
+            scheduler.complete(p, 0, Some(tree()));
         }
         assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
         assert!(matches!(
@@ -417,7 +441,7 @@ mod tests {
             Some((3, PlaybackFrame::Tree(_)))
         ));
         assert_eq!(scheduler.next_job().unwrap().frame, 30);
-        scheduler.complete(30, 0, tree());
+        scheduler.complete(30, 0, Some(tree()));
         assert!(scheduler.next_to_draw().is_none());
         assert!(matches!(
             scheduler.take(30, &mut images),
@@ -426,17 +450,33 @@ mod tests {
     }
 
     #[test]
+    fn video_workers_bound_in_flight_frames_and_release_failed_jobs() {
+        let scheduler = Scheduler::new(100, 48, false, 0, true);
+        for p in 0..4 {
+            assert_eq!(scheduler.next_job().unwrap().frame, p);
+        }
+        assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
+        scheduler.complete(2, 0, None);
+        assert_eq!(scheduler.next_job().unwrap().frame, 4);
+        scheduler.take(30, &mut BTreeMap::new());
+        assert_eq!(scheduler.next_job().unwrap().frame, 30);
+        scheduler.seek(60, false);
+        assert!(!scheduler.complete(1, 0, Some(tree())));
+        assert_eq!(scheduler.next_job().unwrap().frame, 60);
+    }
+
+    #[test]
     fn thumbnails_do_not_consume_playback_jobs_and_stop_when_finished() {
-        let scheduler = Scheduler::new(100, 3, false, 2);
+        let scheduler = Scheduler::new(100, 3, false, 2, false);
         assert_eq!(scheduler.next_job().unwrap().frame, 0);
-        scheduler.complete(0, 0, tree());
+        scheduler.complete(0, 0, Some(tree()));
         scheduler.take(0, &mut BTreeMap::new()).unwrap();
         assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 25);
         assert_eq!(scheduler.next_job().unwrap().frame, 1);
         assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 75);
         assert!(scheduler.next_thumbnail_job().is_none());
         assert_eq!(scheduler.next_job().unwrap().frame, 2);
-        let stopped = Scheduler::new(100, 3, false, 2);
+        let stopped = Scheduler::new(100, 3, false, 2, false);
         stopped.shutdown();
         assert!(stopped.next_thumbnail_job().is_none());
     }
