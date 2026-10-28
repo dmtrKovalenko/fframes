@@ -538,14 +538,15 @@ impl StudioLayout {
         let frame_size = (size * 0.74).min(if compact { 11. } else { 12. });
         let mut font = ui.medium.with_size(size).unwrap();
         let mut frame_font = ui.font.with_size(frame_size).unwrap();
-        let bounds = controls.frame_mark.bounds();
+        let mark_size = controls.frame_mark.root().intrinsic_size();
+        let mark_aspect = mark_size.width / mark_size.height;
+        let mark_height_ratio = 1.5;
         let inline_gap = if compact { 6. } else { 10. };
         let mut room = buttons[0].1.left - left - 6.;
         let mut readout_width = tabular_width(&font, &format!("{total} / {total}"));
         if !self.portrait {
             room -= inline_gap + 2.;
-            let mark_width =
-                frame_font.metrics().1.cap_height * 1.2 * bounds.width() / bounds.height();
+            let mark_width = frame_font.metrics().1.cap_height * mark_height_ratio * mark_aspect;
             let last_frame = state.duration_in_frames.saturating_sub(1);
             readout_width += mark_width + tabular_width(&frame_font, &last_frame.to_string());
         }
@@ -578,18 +579,17 @@ impl StudioLayout {
             after_clock + inline_gap
         };
         let frame_baseline = baseline + second_row;
-        let mark_height = frame_height * 1.2;
-        let scale = mark_height / bounds.height();
+        let mark_height = frame_height * mark_height_ratio;
+        let scale = mark_height / mark_size.height;
         canvas.save();
-        canvas.translate((frame_left, frame_baseline + 1. - mark_height));
+        canvas.translate((frame_left, frame_baseline - mark_height * 0.85));
         canvas.scale((scale, scale));
-        canvas.translate((-bounds.left, -bounds.top));
-        canvas.draw_path(&controls.frame_mark, &Ink::paint(ORANGE));
+        controls.frame_mark.render(canvas);
         canvas.restore();
         draw_tabular(
             canvas,
             &state.frame.to_string(),
-            Point::new(frame_left + bounds.width() * scale + 2., frame_baseline),
+            Point::new(frame_left + mark_height * mark_aspect + 2., frame_baseline),
             &frame_font,
             &Ink::paint(QUIET),
         );

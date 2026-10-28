@@ -89,7 +89,7 @@ pub(crate) struct Controls {
     regular: Typeface,
     medium: Typeface,
     icons: IconPaths,
-    pub(crate) frame_mark: Path,
+    pub(crate) frame_mark: skia_safe::svg::Dom,
 }
 
 struct IconPaths {
@@ -227,14 +227,9 @@ impl Controls {
             }
         };
 
-        let svg = fframes::roxmltree::Document::parse(include_str!("frame-f.svg"))
-            .expect("valid frame mark SVG");
-        let frame_mark = svg
-            .root_element()
-            .first_element_child()
-            .and_then(|path| path.attribute("d"))
-            .and_then(Path::from_svg)
-            .expect("valid frame mark path");
+        let frame_mark =
+            skia_safe::svg::Dom::from_str(include_str!("frame-f.svg"), FontMgr::empty())
+                .expect("valid fframes mark SVG");
 
         Self {
             regular: typeface(font_style::Weight::NORMAL),
