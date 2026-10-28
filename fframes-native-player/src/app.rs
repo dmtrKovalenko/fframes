@@ -13,14 +13,14 @@ use winit::window::{CursorIcon, Fullscreen, Window, WindowId};
 use crate::controls::{Control, ControlsState, format_time};
 use crate::error::PlayerError;
 use crate::options::PlayerBackend;
-use crate::presenter::Presenter;
+use crate::presenter::{BufferedFrame, Presenter};
 use crate::scheduler::{PlaybackFrame, Scheduler};
 use crate::studio::{Studio, StudioLayout, StudioScroll};
-use fframes_skia_renderer::skia_safe::{Image, Point};
+use fframes_skia_renderer::skia_safe::Point;
 
 /// The control bar hides after this long without pointer movement while playing.
 const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
-/// Estimated RGBA storage for the current and buffered window-size images.
+/// Conservative RGBA budget using the whole window as an upper bound per image.
 const BUFFER_BYTES: u64 = 512 << 20;
 
 /// A frame worker finished a playback or filmstrip job.
@@ -92,7 +92,7 @@ pub(crate) struct App<'s> {
     window: Option<Rc<Window>>,
     // Drop texture-backed images before the presenter and its Skia context.
     current: Option<(u64, PlaybackFrame)>,
-    buffered: BTreeMap<u64, Image>,
+    buffered: BTreeMap<u64, BufferedFrame>,
     presenter: Option<Presenter>,
     redraw_pending: bool,
     draw_time: Duration,
@@ -842,7 +842,7 @@ mod tests {
 
     #[test]
     fn resuming_keeps_prefetched_frames_unless_playback_restarts() {
-        let scheduler = Scheduler::new(100, 3, false, 0);
+        let scheduler = Scheduler::new(100, 3, false, 0, false);
         let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.toggle_play();
@@ -856,7 +856,7 @@ mod tests {
 
     #[test]
     fn failed_scrub_continues_at_the_latest_pointer_position() {
-        let scheduler = Scheduler::new(100, 3, false, 0);
+        let scheduler = Scheduler::new(100, 3, false, 0, false);
         let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.scrub_target = Some(20);

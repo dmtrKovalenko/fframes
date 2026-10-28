@@ -975,6 +975,38 @@ mod batch_tests {
         }
     }
 
+    #[cfg(feature = "cli")]
+    #[test]
+    fn native_preview_resolves_the_start_without_an_export_backend() {
+        use crate::cli::{self, clap::Parser};
+
+        let video = Changing { panic_at: None };
+        let args = cli::Cli::<cli::NoArgs>::parse_from([
+            "video",
+            "--renderer",
+            "gpu",
+            "preview",
+            "1s",
+            "--backend",
+            "cpu",
+            "--paused",
+            "--mute",
+        ]);
+        let mut opened = false;
+        let result = cli::new(&video, RenderOptions::default())
+            .args(args)
+            .preview(|_, _, request| {
+                assert_eq!(request.start_frame, 10);
+                assert_eq!(request.backend, "cpu");
+                assert!(!request.autoplay && !request.audio);
+                opened = true;
+                Ok(())
+            })
+            .run();
+        assert_eq!(result, std::process::ExitCode::SUCCESS);
+        assert!(opened);
+    }
+
     /// Out of order, with a repeated frame.
     const FRAMES: [usize; 9] = [23, 5, 0, 12, 12, 19, 20, 3, 8];
 
