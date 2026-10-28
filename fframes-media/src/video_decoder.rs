@@ -96,7 +96,6 @@ struct VideoStreamInfo {
     height: i32,
     display_width: i32,
     display_height: i32,
-    pixel_format: AVPixelFormat,
     color_space: AVColorSpace,
     color_range: AVColorRange,
     time_base: AVRational,
@@ -628,34 +627,17 @@ impl FFmpegDecoder {
                 )));
             }
 
-            let (codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx)?;
-            let pkt = av_packet_alloc();
-            if pkt.is_null() {
+            let (mut codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx)
+                .inspect_err(|_| avformat_close_input(&raw mut fmt_ctx))?;
+            let frame_buf = FFmpegFrameBuf::new(
+                filename.to_string_lossy().into_owned(),
+                video_stream_info,
+                buffer_size,
+            )
+            .inspect_err(|_| {
+                avcodec_free_context(&raw mut codec_ctx);
                 avformat_close_input(&raw mut fmt_ctx);
-                return Err(FFramesMediaError::LibAVAllocationError("packet"));
-            }
-
-            let hw_frame = if video_stream_info.hw_pix_fmt.is_some() {
-                let hw_frame = av_frame_alloc();
-                if hw_frame.is_null() {
-                    avformat_close_input(&raw mut fmt_ctx);
-                    return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
-                }
-
-                (*hw_frame).width = video_stream_info.width;
-                (*hw_frame).height = video_stream_info.height;
-                (*hw_frame).format = video_stream_info.pixel_format as i32;
-
-                hw_frame
-            } else {
-                ptr::null_mut()
-            };
-
-            let recv_frame = av_frame_alloc();
-            if recv_frame.is_null() {
-                avformat_close_input(&raw mut fmt_ctx);
-                return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
-            }
+            })?;
 
             let custom_time_base = AVRational {
                 num: 1,
@@ -668,17 +650,13 @@ impl FFmpegDecoder {
                 custom_time_base,
             );
 
-            Ok(FFmpegDecoder {
+            let mut decoder = Self {
                 codec_ctx,
-                pkt,
                 fmt_ctx,
-                hw_frame,
-                recv_frame,
-                frame_buf: Arc::new(FFmpegFrameBuf::new(
-                    filename.to_string_lossy().to_string(),
-                    video_stream_info,
-                    buffer_size,
-                )?),
+                pkt: ptr::null_mut(),
+                hw_frame: ptr::null_mut(),
+                recv_frame: ptr::null_mut(),
+                frame_buf: Arc::new(frame_buf),
                 video_stream_info,
                 custom_time_base,
                 duration_in_frames,
@@ -686,7 +664,23 @@ impl FFmpegDecoder {
                 last_offset: None,
                 draining: false,
                 has_decoded_frame: false,
-            })
+            };
+
+            decoder.pkt = av_packet_alloc();
+            if decoder.pkt.is_null() {
+                return Err(FFramesMediaError::LibAVAllocationError("packet"));
+            }
+            decoder.recv_frame = av_frame_alloc();
+            if decoder.recv_frame.is_null() {
+                return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
+            }
+            if video_stream_info.hw_pix_fmt.is_some() {
+                decoder.hw_frame = av_frame_alloc();
+                if decoder.hw_frame.is_null() {
+                    return Err(FFramesMediaError::LibAVAllocationError("av_frame"));
+                }
+            }
+            Ok(decoder)
         }
     }
 
@@ -713,35 +707,37 @@ impl FFmpegDecoder {
             let stream = *(*fmt_ctx).streams.offset(video_stream_idx as isize);
             let dec = avcodec_find_decoder((*(*stream).codecpar).codec_id);
 
-            let mut hw_device_ctx: *mut AVBufferRef = ptr::null_mut();
-            let hw_pix_fmt = find_hw_accelleleration_for_codec(&mut hw_device_ctx, dec);
-
             if dec.is_null() {
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
-                    ret,
+                    AVERROR_DECODER_NOT_FOUND,
                     "Could not find decoder".to_string(),
                 )));
             }
 
-            let video_dec_ctx = avcodec_alloc_context3(dec);
+            let mut video_dec_ctx = avcodec_alloc_context3(dec);
             if video_dec_ctx.is_null() {
-                return Err(FFramesMediaError::LibAVAllocationError("avcocdec_context"));
+                return Err(FFramesMediaError::LibAVAllocationError("avcodec_context"));
             }
 
-            if let Some(hw_pix_fmt) = hw_pix_fmt {
-                (*video_dec_ctx).opaque = hw_pix_fmt as i32 as *mut c_void;
-                (*video_dec_ctx).get_format = Some(get_hw_format);
-                (*video_dec_ctx).hw_device_ctx = av_buffer_ref(hw_device_ctx);
-            }
-
-            if avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar) < 0 {
+            let ret = avcodec_parameters_to_context(video_dec_ctx, (*stream).codecpar);
+            if ret < 0 {
+                avcodec_free_context(&raw mut video_dec_ctx);
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
                     "Failed to copy video codec parameters to decoder context".to_string(),
                 )));
             }
 
-            if avcodec_open2(video_dec_ctx, dec, ptr::null_mut()) < 0 {
+            let hw_pix_fmt =
+                find_hw_acceleration_for_codec(&mut (*video_dec_ctx).hw_device_ctx, dec);
+            if let Some(hw_pix_fmt) = hw_pix_fmt {
+                (*video_dec_ctx).opaque = hw_pix_fmt as i32 as *mut c_void;
+                (*video_dec_ctx).get_format = Some(get_hw_format);
+            }
+
+            let ret = avcodec_open2(video_dec_ctx, dec, ptr::null_mut());
+            if ret < 0 {
+                avcodec_free_context(&raw mut video_dec_ctx);
                 return Err(FFramesMediaError::LibAVAudioDecodingError((
                     ret,
                     "Failed to open video codec".to_string(),
@@ -779,7 +775,6 @@ impl FFmpegDecoder {
                     height,
                     display_width,
                     display_height,
-                    pixel_format: (*video_dec_ctx).pix_fmt,
                     color_space: (*video_dec_ctx).colorspace,
                     color_range: (*video_dec_ctx).color_range,
                     time_base: (*stream).time_base,
@@ -1016,7 +1011,7 @@ impl Drop for FFmpegDecoder {
     }
 }
 
-unsafe fn find_hw_accelleleration_for_codec(
+unsafe fn find_hw_acceleration_for_codec(
     hw_device_ctx: &mut *mut AVBufferRef,
     codec: *const AVCodec,
 ) -> Option<AVPixelFormat> {
@@ -1041,18 +1036,10 @@ unsafe fn find_hw_accelleleration_for_codec(
         ];
 
         for &hw_type in &hw_types {
-            let create_result =
-                av_hwdevice_ctx_create(hw_device_ctx, hw_type, ptr::null(), ptr::null_mut(), 0);
-
-            if create_result < 0 {
-                continue;
-            }
-
             let mut hw_pix_fmt = AVPixelFormat::AV_PIX_FMT_NONE;
 
             let mut i = 0;
             loop {
-                // Check if decoder supports this hardware if yes we return the available pix fmt
                 let config = avcodec_get_hw_config(codec, i);
                 if config.is_null() {
                     break;
@@ -1068,11 +1055,13 @@ unsafe fn find_hw_accelleleration_for_codec(
                 i += 1;
             }
 
-            if hw_pix_fmt != AVPixelFormat::AV_PIX_FMT_NONE {
+            // The codec context owns the reference returned on success.
+            if hw_pix_fmt != AVPixelFormat::AV_PIX_FMT_NONE
+                && av_hwdevice_ctx_create(hw_device_ctx, hw_type, ptr::null(), ptr::null_mut(), 0)
+                    >= 0
+            {
                 return Some(hw_pix_fmt);
             }
-
-            av_buffer_unref(hw_device_ctx);
         }
     }
 
@@ -1219,7 +1208,6 @@ mod color_tests {
             height: HEIGHT,
             display_width: WIDTH,
             display_height: HEIGHT,
-            pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
             color_space: space,
             color_range: range,
             time_base: AVRational { num: 1, den: 30 },
