@@ -65,32 +65,33 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
     let event_loop = EventLoop::<FrameReady>::with_user_event().build()?;
 
     #[cfg(feature = "audio")]
-    let audio = options
-        .audio
-        .then(|| {
-            crate::audio::AudioOutput::new()
+    let mut audio = None;
+    let audio_sample_rate = || {
+        #[cfg(feature = "audio")]
+        if options.audio {
+            audio = crate::audio::AudioOutput::new()
                 .inspect_err(|err| eprintln!("fframes player: audio disabled ({err})"))
-                .ok()
-        })
-        .flatten();
-    #[cfg(feature = "audio")]
-    let sample_rate = audio.as_ref().map_or(44100, |audio| audio.sample_rate);
-    #[cfg(not(feature = "audio"))]
-    let sample_rate = 44100;
-
+                .ok();
+            if let Some(output) = &audio {
+                return output.sample_rate;
+            }
+        }
+        44100
+    };
     let scenes = video.define_scenes();
     let FFramesRendererRuntime {
         time_base,
         timeline,
         mut font_source,
-    } = FFramesRendererRuntime::new(
+    } = FFramesRendererRuntime::with_audio_sample_rate(
         TimeBase {
             fps: TVideo::FPS,
-            sample_rate,
+            sample_rate: 44100,
         },
         video,
         &scenes,
         options.media,
+        audio_sample_rate,
     )?;
 
     if options.load_system_fonts {

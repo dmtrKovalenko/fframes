@@ -730,15 +730,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             Err(err) => return self.fail(event_loop, err.into()),
         };
 
-        let duration_label = format_time(self.config.duration_in_frames, self.config.fps);
-        match Presenter::new(
-            window.clone(),
-            self.config.backend,
-            self.config.vsync,
-            self.config.background,
-            duration_label,
-            &self.config.studio,
-        ) {
+        match Presenter::new(window.clone(), &self.config, self.scheduler.video_sources) {
             Ok(presenter) => self.presenter = Some(presenter),
             Err(err) => return self.fail(event_loop, err),
         }

@@ -34,6 +34,9 @@ pub(crate) struct BufferedFrame {
 trait WindowTarget {
     fn is_gpu(&self) -> bool;
 
+    /// Allow an automatic target to switch to GPU rendering before drawing this frame.
+    fn prepare_frame(&mut self, _frame: Option<&PlaybackFrame>) {}
+
     fn gpu_context(&mut self) -> Option<(&mut gpu::DirectContext, Option<&QueueLock>)> {
         None
     }
@@ -73,13 +76,14 @@ pub(crate) struct Presenter {
 impl Presenter {
     pub(crate) fn new(
         window: Rc<Window>,
-        backend: PlayerBackend,
-        vsync: bool,
-        background: fframes::Color,
-        duration_label: String,
-        model: &Studio,
+        config: &crate::app::AppConfig<'_>,
+        video_sources: bool,
     ) -> PlayerResult<Self> {
-        let target = create_target(&window, backend, vsync)?;
+        let raster_fps = (config.limit_prefetch_memory && !video_sources).then_some(config.fps);
+        let target = create_target(&window, config.backend, config.vsync, raster_fps)?;
+        let duration_label = crate::controls::format_time(config.duration_in_frames, config.fps);
+        let background = config.background;
+        let model = &config.studio;
         let controls = Controls::new();
         let size = window.inner_size();
         let layout = ControlsLayout::new(
@@ -221,6 +225,7 @@ impl Presenter {
             ..
         } = self;
 
+        target.prepare_frame(frame);
         target.present(&mut |canvas| {
             let view = studio_layout.as_ref().filter(|_| studio_open);
             canvas.clear(matte(view));
@@ -314,26 +319,29 @@ fn create_target(
     window: &Rc<Window>,
     backend: PlayerBackend,
     vsync: bool,
+    raster_fps: Option<usize>,
 ) -> PlayerResult<Box<dyn WindowTarget>> {
+    #[cfg(not(feature = "metal"))]
+    let _ = raster_fps;
     match backend {
         PlayerBackend::Auto => {
             #[cfg(feature = "metal")]
-            match create_target(window, PlayerBackend::Metal, vsync) {
-                Ok(target) => return Ok(target),
+            match metal::MetalTarget::new(window, vsync, raster_fps) {
+                Ok(target) => return Ok(Box::new(target)),
                 Err(err) => eprintln!("fframes player: metal is not available ({err})"),
             }
 
             #[cfg(feature = "vulkan")]
-            match create_target(window, PlayerBackend::Vulkan, vsync) {
+            match create_target(window, PlayerBackend::Vulkan, vsync, None) {
                 Ok(target) => return Ok(target),
                 Err(err) => eprintln!("fframes player: vulkan is not available ({err})"),
             }
 
             eprintln!("fframes player: falling back to the Skia CPU renderer");
-            create_target(window, PlayerBackend::Cpu, vsync)
+            create_target(window, PlayerBackend::Cpu, vsync, None)
         }
         #[cfg(feature = "metal")]
-        PlayerBackend::Metal => Ok(Box::new(metal::MetalTarget::new(window, vsync)?)),
+        PlayerBackend::Metal => Ok(Box::new(metal::MetalTarget::new(window, vsync, None)?)),
         #[cfg(feature = "vulkan")]
         PlayerBackend::Vulkan => Ok(Box::new(vulkan::VulkanTarget::new(window.clone(), vsync)?)),
         PlayerBackend::Cpu => Ok(Box::new(cpu::CpuTarget::new(window.clone())?)),
