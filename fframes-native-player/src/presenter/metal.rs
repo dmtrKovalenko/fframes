@@ -24,10 +24,13 @@ use super::WindowTarget;
 use crate::error::{PlayerError, PlayerResult};
 use crate::scheduler::PlaybackFrame;
 
+const GPU_CACHE_IDLE: Duration = Duration::from_secs(1);
+
 /// Skia draws into the drawables of a `CAMetalLayer` of the window.
 pub(super) struct MetalTarget {
     raster: Option<RasterPreview>,
     gpu: DirectContext,
+    last_cache_cleanup: Instant,
     layer: MetalLayer,
     backend: SkiaMetalCtx,
 }
@@ -67,6 +70,7 @@ impl MetalTarget {
         Ok(Self {
             raster,
             gpu,
+            last_cache_cleanup: Instant::now(),
             layer,
             backend,
         })
@@ -125,6 +129,12 @@ impl WindowTarget for MetalTarget {
                 }
                 // Some devices expose private drawable textures. Draw this frame on the GPU.
                 self.raster = None;
+            }
+
+            // Release unlocked Skia resources from earlier scenes while retaining active frames.
+            if self.last_cache_cleanup.elapsed() >= GPU_CACHE_IDLE {
+                self.gpu.perform_deferred_cleanup(GPU_CACHE_IDLE, None);
+                self.last_cache_cleanup = Instant::now();
             }
 
             // SAFETY: the texture lives as long as the drawable, which outlives the surface.
