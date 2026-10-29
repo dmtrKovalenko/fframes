@@ -19,6 +19,9 @@ count, instead of the larger incremental default. Existing workspace projects co
 profiles in their workspace-root `Cargo.toml`.
 
 On macOS and Linux with a dynamic C runtime, the default `dynamic-linking` feature lets
+Release builds keep source locations. If a frame panics, rerun the command with
+`RUST_BACKTRACE=1` to see the file and line of each available Rust stack frame.
+
 Cargo reuse the linked fframes engine after a scene edit. For an executable you can move
 away from the build directory and Rust toolchain, build with
 `cargo build --release --no-default-features` to link the Rust libraries into the executable.
