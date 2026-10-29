@@ -173,12 +173,15 @@ pub async fn prepare_video_with_audio<
     static_media: &'static TStaticMedia,
     scenes: &Scenes<'static>,
     resolve_video_duration: impl Fn(&str) -> Option<f32>,
-) -> (
-    usize,
-    Option<ResolvedScenesTimeline<'static>>,
-    Option<ResolvedAudioMap<AudioTimelineFrames>>,
-    Vec<TimelineMarker>,
-) {
+) -> Result<
+    (
+        usize,
+        Option<ResolvedScenesTimeline<'static>>,
+        Option<ResolvedAudioMap<AudioTimelineFrames>>,
+        Vec<TimelineMarker>,
+    ),
+    FFramesError,
+> {
     let video_duration = video.duration();
 
     let audio_map = video.audio();
@@ -215,8 +218,7 @@ pub async fn prepare_video_with_audio<
         &audio_map,
         &markers,
         resolve_audio_duration_in_frames,
-    )
-    .unwrap();
+    )?;
 
-    (duration, scenes, audio_map, markers)
+    Ok((duration, scenes, audio_map, markers))
 }

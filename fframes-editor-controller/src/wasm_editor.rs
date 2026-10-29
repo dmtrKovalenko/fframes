@@ -147,7 +147,8 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     .map(|metadata| metadata.duration)
             },
         )
-        .await;
+        .await
+        .map_err(|err| JsValue::from_str(&err.to_string()))?;
 
         let mut duration_mutex_ref = self.duration_in_frames.lock().unwrap();
         *duration_mutex_ref = duration;
