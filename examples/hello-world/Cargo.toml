@@ -2,6 +2,7 @@
 name = "hello-world-example"
 version = "1.3.0"
 edition = "2024"
+build = "../../cargo-fframes/templates/build.rs"
 
 [dependencies]
 fframes.workspace = true

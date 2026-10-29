@@ -1,4 +1,5 @@
 #[cfg(all(
+    not(test),
     feature = "dynamic-linking",
     {{dylib_target}},
 ))]

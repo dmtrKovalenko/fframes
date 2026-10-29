@@ -537,19 +537,14 @@ fn new(args: NewArgs) -> Result<(), String> {
     } else {
         MAIN_SKIA
     };
-    let mut files = vec![
+    let files = [
         ("Cargo.toml", render(CARGO_TOML, &vars)),
+        ("build.rs", include_str!("../templates/build.rs").to_owned()),
         ("src/lib.rs", render(project.template.lib(), &vars)),
         ("src/main.rs", render(main, &vars)),
         ("README.md", render(README, &vars)),
         (".gitignore", render(GITIGNORE, &vars)),
     ];
-    if workspace.is_none() {
-        files.push((
-            ".cargo/config.toml",
-            include_str!("../templates/cargo-config.toml.tmpl").to_owned(),
-        ));
-    }
 
     for (path, content) in &files {
         let path = dir.join(path);
@@ -621,12 +616,12 @@ mod tests {
             new(args).unwrap();
             let manifest = std::fs::read_to_string(project.join("Cargo.toml")).unwrap();
             assert!(manifest.contains("default = [\"dynamic-linking\"]"));
-            assert!(manifest.contains("\ndebug = \"line-tables-only\"\n"));
             assert!(manifest.contains(&format!(
                 "fframes-dylib = {{ version = \"={}\", optional = true }}",
                 env!("CARGO_PKG_VERSION")
             )));
             assert!(manifest.contains("[profile.release]\nincremental = true\ncodegen-units = 16"));
+            assert!(manifest.contains("\ndebug = \"line-tables-only\"\n"));
             let main = std::fs::read_to_string(project.join("src/main.rs")).unwrap();
             assert!(main.contains("use fframes_dylib as _;"));
         }

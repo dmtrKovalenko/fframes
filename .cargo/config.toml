@@ -6,7 +6,3 @@ rustflags = ["-C", "link-arg=-lc++", "-C", "link-arg=-Wl,-ld_classic"]
 
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-lc++", "-C", "link-arg=-Wl,-ld_classic"]
-
-# Let the example binaries also find the Rust libraries when launched outside Cargo.
-[target.'cfg(all(target_os = "linux", not(target_feature = "crt-static")))']
-rustflags = ["-C", "rpath"]
