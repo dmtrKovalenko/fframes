@@ -109,31 +109,6 @@ Templates:
 The template content is placeholder code that shows the API. Replace its layout, colors,
 fonts and decorations with a design made for the video the user asked for.
 
-**Use release builds for CPU and GPU work, including frame checks.** Giving dependencies
-`opt-level = 3` in a dev profile does not give scene code and renderer generics compiled into
-the video crate release optimization, and dev assertions/overflow checks remain enabled.
-
-The generated project reuses a shared fframes library on macOS and Linux with a dynamic C
-runtime. Use the usual `cargo run --release` commands. To distribute a generated executable
-independently of its Rust build directory, run `cargo build --release --no-default-features`.
-
-For fast rebuilds, generated standalone projects enable incremental release compilation.
-For existing projects or ones that added fframes manually, merge these settings into the
-**workspace-root `Cargo.toml`**, preserving the other profile settings:
-
-```toml
-[profile.release]
-incremental = true
-codegen-units = 16
-```
-
-Profile settings in a dependency or workspace member manifest do not configure the consumer.
-The explicit codegen-unit count keeps the usual release count; incremental compilation would
-otherwise default to 256. Keep release optimization at level 3. Incremental builds can still
-affect optimization, so measure both rebuild time and rendering time before tuning further.
-The first build warms the cache. Keep the profile, features and target directory consistent
-across edits; do not run `cargo clean` between checks.
-
 **Use the Skia GPU backend (the default).** `cargo fframes new` picks Skia on Metal (macOS) or
 Vulkan (Linux, Windows). It renders about 10x faster than the CPU backend and gives you the
 real-time `preview` window. On macOS and Linux the first build downloads prebuilt Skia and ffmpeg
@@ -157,8 +132,9 @@ my-video/
   README.md         # the commands below
 ```
 
-Every command below is `cargo run --release -- <command>`. Define a short shell function (a
-variable like `R="cargo run --release --"` does not split into words in zsh, the macOS shell):
+Use `cargo run --release -- <command>` for CPU and GPU work, including frame checks.
+The generated project already configures fast release rebuilds. For repeated commands, use
+a shell function that also works in zsh.
 
 ```bash
 R() { cargo run --release -- "$@"; }
