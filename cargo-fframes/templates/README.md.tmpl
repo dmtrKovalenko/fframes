@@ -18,6 +18,11 @@ directory consistent between checks. The profile uses 16 codegen units, the usua
 count, instead of the larger incremental default. Existing workspace projects configure
 profiles in their workspace-root `Cargo.toml`.
 
+On macOS and Linux with a dynamic C runtime, the default `dynamic-linking` feature lets
+Cargo reuse the linked fframes engine after a scene edit. For an executable you can move
+away from the build directory and Rust toolchain, build with
+`cargo build --release --no-default-features` to link the Rust libraries into the executable.
+
 ```sh
 {{run}} timeline                      # scenes, duration, audio tracks
 {{run}} frame 1s,50%,end              # PNGs into frames/ and the problems found in them

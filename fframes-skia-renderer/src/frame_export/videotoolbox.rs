@@ -5,7 +5,7 @@ use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
 use core_foundation::number::CFNumber;
 use core_foundation::string::{CFString, CFStringRef};
-use fframes::ffmpeg_sys_fframes::{AVHWDeviceType, AVPixelFormat, av_buffer_create};
+use fframes::ffmpeg_sys_fframes::{AVHWDeviceType, AVPixelFormat};
 use fframes::{
     AvBuffer, EncoderInput, FFramesRendererError, FFramesRendererResult, VideoEncoderInfo,
     VideoFrame, YuvMatrix,
@@ -290,20 +290,15 @@ impl VideoToolboxFrameTarget {
 
             // What libav's own VideoToolbox frames look like: the pixel buffer in
             // `data[3]`, kept alive by `buf[0]`.
-            let buffer = av_buffer_create(
-                pixel_buffer.cast(),
-                1,
-                Some(release_pixel_buffer),
-                std::ptr::null_mut(),
-                0,
-            );
-            if buffer.is_null() {
+            let Some(buffer) =
+                AvBuffer::from_external(pixel_buffer.cast(), 1, release_pixel_buffer)
+            else {
                 CVPixelBufferRelease(pixel_buffer);
                 return Err(skia_error("can not allocate a frame buffer"));
-            }
+            };
 
             let raw = &mut *frame.as_ptr();
-            raw.buf[0] = buffer;
+            raw.buf[0] = buffer.into_raw();
             raw.data[3] = pixel_buffer.cast();
             raw.format = AVPixelFormat::AV_PIX_FMT_VIDEOTOOLBOX as i32;
             raw.width = self.width;

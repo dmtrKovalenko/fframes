@@ -1,3 +1,8 @@
+#[cfg(all(
+    feature = "dynamic-linking",
+    {{dylib_target}},
+))]
+use fframes_dylib as _;
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
 use {{lib_name}}::{ {{Struct}}Media, {{Struct}}Video };
 use fframes::cli::clap; // the derive below expands to `clap::...`
