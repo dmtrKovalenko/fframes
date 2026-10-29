@@ -7,6 +7,7 @@ rendered with the {{backend_label}} backend.
 | --- | --- |
 | `src/lib.rs` | the video: scenes, animation, audio map |
 | `src/main.rs` | the command line (`fframes::cli`) |
+| `build.rs` | lets the executable find the shared engine and Rust runtime |
 | `media/` | fonts, images and audio embedded into the binary |
 
 ## Work on it
@@ -18,10 +19,10 @@ directory consistent between checks. The profile uses 16 codegen units, the usua
 count, instead of the larger incremental default. Existing workspace projects configure
 profiles in their workspace-root `Cargo.toml`.
 
-On macOS and Linux with a dynamic C runtime, the default `dynamic-linking` feature lets
 Release builds keep source locations. If a frame panics, rerun the command with
 `RUST_BACKTRACE=1` to see the file and line of each available Rust stack frame.
 
+On macOS and Linux with a dynamic C runtime, the default `dynamic-linking` feature lets
 Cargo reuse the linked fframes engine after a scene edit. For an executable you can move
 away from the build directory and Rust toolchain, build with
 `cargo build --release --no-default-features` to link the Rust libraries into the executable.

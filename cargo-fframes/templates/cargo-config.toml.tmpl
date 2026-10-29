@@ -1,3 +1,0 @@
-# Find the shared engine and Rust standard library when starting the binary outside Cargo.
-[target.'cfg(all(target_os = "linux", not(target_feature = "crt-static")))']
-rustflags = ["-C", "rpath"]
