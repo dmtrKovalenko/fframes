@@ -30,6 +30,8 @@ pub struct PlayerOptions<'a, 'media> {
     /// to the size of the display.
     pub window_size: Option<(u32, u32)>,
     pub backend: PlayerBackend,
+    /// Decode source videos in software even when a hardware decoder is available.
+    pub software_decode: bool,
     /// Wait for the display refresh to show a frame. With `false` a frame is shown as soon
     /// as it is drawn, up to the frame rate of the video: the picture can tear and the GPU
     /// stays busy. Only the GPU backends wait for the display.
@@ -48,7 +50,8 @@ pub struct PlayerOptions<'a, 'media> {
     pub render_threads: Option<usize>,
     /// Maximum number of future frames to prepare. The default (`usize::MAX`) uses
     /// two seconds at the video's frame rate. Zero disables preparation ahead of time.
-    /// The automatic setting also limits finished frames to an estimated 512 MiB.
+    /// On automatic, the CPU prepares frame trees and draws directly into the window.
+    /// GPU pre-rendering for slow scenes or source videos budgets 96 MiB of finished frames.
     /// An explicit frame count takes precedence over that limit.
     pub prefetch_frames: usize,
     /// Master bus of the audio mix, see `RenderOptions::audio_mix`.
@@ -64,6 +67,7 @@ impl Default for PlayerOptions<'_, '_> {
             title: "fframes",
             window_size: None,
             backend: PlayerBackend::Auto,
+            software_decode: false,
             vsync: true,
             autoplay: true,
             looping: true,

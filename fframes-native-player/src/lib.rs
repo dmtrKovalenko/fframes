@@ -145,6 +145,7 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         options
             .media
             .is_some_and(fframes::MediaProvider::has_video_sources),
+        options.software_decode,
     );
     let proxy = Mutex::new(event_loop.create_proxy());
     let notify_frame_ready = |event| {
@@ -271,6 +272,7 @@ pub fn cli_preview<'a, 'media: 'a, TVideo: Video + Sync>(
             looping: request.looping,
             start_frame: request.start_frame,
             audio: request.audio,
+            software_decode: request.software_decode,
             audio_mix: options.audio_mix,
             ..Default::default()
         },

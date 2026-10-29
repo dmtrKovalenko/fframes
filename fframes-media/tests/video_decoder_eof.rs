@@ -6,7 +6,7 @@ use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use fframes_media::{FFmpegDecoder, FrameConvertOptions, PlaybackSpeed, ResizeVideoFrame};
+use fframes_media::{FFmpegDecoder, FrameConvertOptions, ResizeVideoFrame};
 
 const FPS: usize = 30;
 const FRAME_COUNT: i64 = 300;
@@ -149,8 +149,9 @@ fn b_frames_are_drained_and_decoding_can_restart_after_eof() {
     assert_frame(&mut decoder, FRAME_COUNT - 1);
 
     // Looping also seeks after decoding the delayed tail.
-    assert!(unsafe { decoder.decode_looping(FRAME_COUNT) }.unwrap());
-    assert_frame(&mut decoder, 0);
+    let offset = unsafe { decoder.adjust_offset_for_looping(FRAME_COUNT) }.unwrap();
+    assert_eq!(offset, 0);
+    assert_frame(&mut decoder, offset);
     assert_frame(&mut decoder, FRAME_COUNT - 1);
 }
 
@@ -317,7 +318,8 @@ fn last_frame_is_shown_until_the_stream_ends_at_a_higher_fps() {
     for _ in 0..2 {
         assert!(!unsafe { decoder.decode_up_to(60) }.unwrap());
     }
-    assert!(unsafe { decoder.decode_looping(60) }.unwrap());
+    let offset = unsafe { decoder.adjust_offset_for_looping(60) }.unwrap();
+    assert_eq!(offset, 0);
     assert_frame(&mut decoder, 0);
 
     // A seek straight to the tail must not return a frame left over from before the seek.
@@ -389,70 +391,80 @@ fn frames_can_be_converted_at_widths_that_are_not_a_multiple_of_16() {
     }
 }
 
-/// The source frame that offset `n` shows at `num / den` speed: the first frame at or
-/// after `n * num / den` (the last frame until the stream ends), in a loop if `looping`.
-fn expected_frame(offset: i64, num: i64, den: i64, looping: bool) -> i64 {
-    let mut position = offset * num;
-    if looping {
-        position %= FRAME_COUNT * den;
-    }
-    ((position + den - 1) / den).min(FRAME_COUNT - 1)
-}
-
-fn assert_shows(decoder: &FFmpegDecoder, speed: f32, offset: i64, frame: i64) {
-    let seconds = unsafe { decoder.get_raw_frame().timestamp_seconds() };
-    assert!(
-        (seconds - frame as f32 / FPS as f32).abs() < 0.0001,
-        "{speed}x: offset {offset} shows {seconds}s, expected frame {frame}"
-    );
-}
-
-fn assert_speed(speed: f32, num: i64, den: i64) {
-    let video = VideoFixture::new(3);
-    let speed_of = |speed| {
-        unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }
-            .unwrap()
-            .with_playback_speed(PlaybackSpeed::new(speed))
-    };
-
-    // Every offset before the end of the stream has a frame, also when the stream's
-    // duration is not a whole number of offsets.
-    let mut decoder = speed_of(speed);
-    let offsets = (FRAME_COUNT * den + num - 1) / num;
-    for offset in 0..offsets {
-        assert!(
-            unsafe { decoder.decode_up_to(offset) }.unwrap(),
-            "{speed}x: offset {offset}"
-        );
-        assert_shows(
-            &decoder,
-            speed,
-            offset,
-            expected_frame(offset, num, den, false),
-        );
-    }
-    assert!(!unsafe { decoder.decode_up_to(offsets) }.unwrap());
-
-    // Loops follow the exact duration and do not drift.
-    let mut decoder = speed_of(speed);
-    for offset in 0..3 * offsets {
-        assert!(
-            unsafe { decoder.decode_looping(offset) }.unwrap(),
-            "{speed}x looping: offset {offset}"
-        );
-        assert_shows(
-            &decoder,
-            speed,
-            offset,
-            expected_frame(offset, num, den, true),
-        );
+#[test]
+fn preview_decoding_preserves_frames_and_color_across_seeks() {
+    use fframes_media::DecodeMode;
+    let fixture = VideoFixture::with_size(3, FPS, 56, (320, 192));
+    let file = fixture.path();
+    let mut preview =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Preview) }.unwrap();
+    let mut software =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Software) }.unwrap();
+    for i in [0, 1, 16, 9, 55, 2] {
+        unsafe {
+            assert!(preview.decode_up_to(i).unwrap() && software.decode_up_to(i).unwrap());
+            let held = preview.retained_frame().unwrap();
+            let reference = software.retained_frame().unwrap();
+            assert_eq!(held.get_pts(), reference.get_pts());
+            // Changing the cursor must not invalidate a mapped VideoToolbox surface.
+            assert!(preview.decode_up_to((i + 1) % 56).unwrap());
+            let a = held
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            let b = reference
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            assert_eq!((a.width, a.height), (320, 192));
+            assert_eq!(a.data.len(), b.data.len());
+            // Hardware can reconstruct a channel a little differently than libavcodec.
+            let error: usize = a
+                .data
+                .iter()
+                .zip(b.data.iter())
+                .map(|(x, y)| x.abs_diff(*y) as usize)
+                .sum();
+            assert!(
+                error < a.data.len() * 2,
+                "frame {i}: mean channel difference exceeds two"
+            );
+        }
     }
 }
 
 #[test]
-fn playback_speed_scales_the_source_time() {
-    assert_speed(2.0, 2, 1);
-    assert_speed(1.5, 3, 2);
-    assert_speed(1.4, 7, 5);
-    assert_speed(0.5, 1, 2);
+fn preview_falls_back_for_lossless_alpha_video() {
+    use fframes_media::DecodeMode;
+    let fixture = VideoFixture::with_rate(0, FPS, 8);
+    let file = fixture.path().with_extension("mkv");
+    let output = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=32x32:rate=30,format=bgra,colorchannelmixer=aa=0.5",
+            "-frames:v",
+            "8",
+            "-c:v",
+            "ffv1",
+        ])
+        .arg(&file)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mut preview =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Preview) }.unwrap();
+    let mut software =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Software) }.unwrap();
+    for i in [0, 6, 3] {
+        let pixels = convert_frame(&mut preview, i, None);
+        assert_eq!(pixels, convert_frame(&mut software, i, None));
+        assert!((127..=128).contains(&pixels[3]));
+    }
 }

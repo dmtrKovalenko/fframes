@@ -21,7 +21,7 @@ use fframes_skia_renderer::skia_safe::Point;
 /// The control bar hides after this long without pointer movement while playing.
 const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
 /// Conservative RGBA budget using the whole window as an upper bound per image.
-const BUFFER_BYTES: u64 = 512 << 20;
+const BUFFER_BYTES: u64 = 96 << 20;
 
 /// A frame worker finished a playback or filmstrip job.
 pub(crate) enum FrameReady {
@@ -81,6 +81,18 @@ pub(crate) struct AppConfig<'a> {
     pub autoplay: bool,
     pub start_frame: usize,
     pub limit_prefetch_memory: bool,
+}
+
+impl AppConfig<'_> {
+    fn should_snapshot(&self, gpu: bool, video_sources: bool, draw_time: Duration) -> bool {
+        if !self.limit_prefetch_memory {
+            return true;
+        }
+        // Rasterizing ahead competes with presentation on the same CPU. Cheap GPU
+        // scenes also fit their deadline without retaining extra surfaces.
+        let frame_interval = Duration::from_secs_f64(1. / self.fps.max(1) as f64);
+        gpu && (video_sources || draw_time >= frame_interval / 2)
+    }
 }
 
 pub(crate) struct App<'s> {
@@ -598,6 +610,16 @@ impl<'s> App<'s> {
         {
             return false;
         }
+        let Some(presenter) = self.presenter.as_mut() else {
+            return false;
+        };
+        if !self.config.should_snapshot(
+            presenter.is_gpu(),
+            self.scheduler.video_sources,
+            self.draw_time,
+        ) {
+            return false;
+        }
         if let Some(deadline) = self.clock.next_frame_at()
             && deadline.saturating_duration_since(Instant::now())
                 <= self.draw_time + Duration::from_millis(2)
@@ -616,9 +638,6 @@ impl<'s> App<'s> {
         {
             return false;
         }
-        let Some(presenter) = &mut self.presenter else {
-            return false;
-        };
         let Some((position, tree)) = self.scheduler.next_to_draw() else {
             return false;
         };
@@ -841,8 +860,23 @@ mod tests {
     }
 
     #[test]
+    fn automatic_buffer_reserves_surfaces_for_gpu_work_that_needs_them() {
+        let scheduler = Scheduler::new(100, 3, false, 0, false, false);
+        let mut app = paused_app(&scheduler);
+        let config = &mut app.config;
+        let fast = Duration::from_millis(1);
+        let slow = Duration::from_millis(25);
+        assert!(!config.should_snapshot(false, true, slow));
+        assert!(!config.should_snapshot(true, false, fast));
+        assert!(config.should_snapshot(true, true, fast));
+        assert!(config.should_snapshot(true, false, slow));
+        config.limit_prefetch_memory = false;
+        assert!(config.should_snapshot(false, false, fast));
+    }
+
+    #[test]
     fn resuming_keeps_prefetched_frames_unless_playback_restarts() {
-        let scheduler = Scheduler::new(100, 3, false, 0, false);
+        let scheduler = Scheduler::new(100, 3, false, 0, false, false);
         let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.toggle_play();
@@ -856,7 +890,7 @@ mod tests {
 
     #[test]
     fn failed_scrub_continues_at_the_latest_pointer_position() {
-        let scheduler = Scheduler::new(100, 3, false, 0, false);
+        let scheduler = Scheduler::new(100, 3, false, 0, false, false);
         let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.scrub_target = Some(20);
