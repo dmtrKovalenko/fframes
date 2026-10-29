@@ -49,6 +49,7 @@ export type fontInfo = {
 export type processedMedia = 
     { tag: "Font"; value: fontInfo }
   | { tag: "Subtitles"; value: number }
+  | { tag: "Lottie"; value: number }
   | { tag: "Image"; value: imageInfo }
   | { tag: "Audio"; value: audioInfo };
 
@@ -79,9 +80,11 @@ export const resolveMedia: (name:string, media:processedMedia) => forceTsReturnR
     ? {TAG: 0, _0:Arg2.value} as any
     : Arg2.tag==="Subtitles"
     ? {TAG: 1, _0:Arg2.value} as any
-    : Arg2.tag==="Image"
+    : Arg2.tag==="Lottie"
     ? {TAG: 2, _0:Arg2.value} as any
-    : {TAG: 3, _0:Arg2.value} as any);
+    : Arg2.tag==="Image"
+    ? {TAG: 3, _0:Arg2.value} as any
+    : {TAG: 4, _0:Arg2.value} as any);
   return "MediaResolved"
 };
 

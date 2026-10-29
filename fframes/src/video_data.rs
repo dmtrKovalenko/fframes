@@ -44,8 +44,8 @@ pub fn set_video_frame_resolver(resolver: VideoFrameResolver) {
 
 pub trait FFramesSyncedVideoFrame<'media> {
     /// Gets the original image from the frame
-    /// This will perform color space conversion but will preserve the original frame
-    /// size. If you need to render the video frame in the smaller size, use `into_resized_image`.
+    /// This will perform color space conversion and return the frame at `width()` by
+    /// `height()`. If you need to render the video frame in the smaller size, use `into_resized_image`.
     ///
     /// This method take self to reuse frame data allocations, but you should not
     /// call this method more than once per the render function
@@ -59,9 +59,9 @@ pub trait FFramesSyncedVideoFrame<'media> {
     /// call this method more than once per the render function
     #[allow(clippy::wrong_self_convention)]
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>>;
-    /// Get the native height of the frame
+    /// Get the height of the frame with non-square pixels stretched to square ones
     fn height(&self) -> u32;
-    /// Get the native size of the frame
+    /// Get the width of the frame with non-square pixels stretched to square ones
     fn width(&self) -> u32;
     /// Get the frame index of the origin video
     fn timestamp_seconds(&self) -> f32;
@@ -169,12 +169,10 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
         ))
     }
 
-    /// Returns the original stream video width
     fn width(&self) -> u32 {
         self.get_stream_width()
     }
 
-    /// Returns the original stream video height
     fn height(&self) -> u32 {
         self.get_stream_height()
     }

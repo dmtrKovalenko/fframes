@@ -123,22 +123,6 @@ importers:
         specifier: ^5.4.2
         version: 5.4.15(@types/node@22.13.14)(lightningcss@1.29.2)(terser@5.39.0)
 
-  examples/motion-graphics/editor:
-    dependencies:
-      '@fframes/editor':
-        specifier: workspace:*
-        version: link:../../../fframes-editor
-    devDependencies:
-      '@vitejs/plugin-react':
-        specifier: ^4.3.1
-        version: 4.3.4(vite@5.4.15(@types/node@22.13.14)(lightningcss@1.29.2)(terser@5.39.0))
-      typescript:
-        specifier: ^4.3.2
-        version: 4.9.5
-      vite:
-        specifier: ^5.4.2
-        version: 5.4.15(@types/node@22.13.14)(lightningcss@1.29.2)(terser@5.39.0)
-
   examples/neon-triangle/editor:
     dependencies:
       '@fframes/editor':

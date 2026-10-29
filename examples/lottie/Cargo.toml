@@ -1,0 +1,32 @@
+[package]
+name = "lottie"
+version = "1.3.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fframes = { workspace = true, features = ["lottie", "compile-time-svgtree", "cli"] }
+
+# `--renderer cpu|skia-cpu|gpu`: Skia on Metal on macOS, on Vulkan everywhere else
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["metal", "cli"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+fframes_skia_renderer = { workspace = true, features = ["vulkan", "cli"] }
+
+# FFmpeg codecs, portable so cached source builds work across CI runner CPUs. Windows
+# links a prebuilt FFmpeg instead (see README).
+[target.'cfg(not(windows))'.dependencies]
+fframes = { workspace = true, features = ["h264", "h265", "vpx", "libav-agree-gpl", "build-portable"] }
+
+[lib]
+name = "lottie"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "lottie"
+path = "src/main.rs"
+
+[lints]
+workspace = true

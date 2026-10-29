@@ -51,8 +51,7 @@ problems already looks finished.
 - Weights: title 600-800, body 400-500. Letter-spacing: `-1` to `-3` for big titles,
   `+2` to `+6` for small caps labels.
 - Max ~8 words per line, ~3 lines per card. Measure with `frame.text_width` or wrap with
-  `frame.text_break_lines`; shrink to fit with a loop over sizes (as in the
-  [motion-graphics quote card](https://github.com/dmtrKovalenko/fframes/tree/main/examples/motion-graphics/src/quote_card.rs)) and memoize the result
+  `frame.text_break_lines`; shrink to fit with a loop over sizes and memoize the result
   in a `OnceLock`. Generated projects include a `FittedSizes` helper that does this.
 
 ## Color
@@ -67,18 +66,22 @@ problems already looks finished.
 
 Use **`frame.animate(fframes::timeline!(...))` directly in `svgr!` attributes** as the default
 for motion with fixed values. `svgr!` lifts these inline timelines into cached statics, so
-their easing runtimes are initialized once, not rebuilt every frame. Write easings such as
-`Easing::Spring { ... }` or `Easing::CubicBezier(...)` directly inside the `timeline!` block.
-Named easing constants are optional when reusing a preset.
+their easing runtimes are initialized once, not rebuilt every frame. Write the easing directly
+inside the `timeline!` block.
 
-Easing presets that look good (`use fframes::animation::Easing`); the values can be inlined:
+Use the easings fframes already has (`use fframes::animation::Easing`). Do not write your
+own curves with `Easing::CubicBezier`:
+
+- `Easing::EaseOut`: entrances, slides, counters (fast, then it settles).
+- `Easing::EaseIn`: exits.
+- `Easing::EaseInOut`: camera moves, morphs, bars that grow.
+- `Easing::Spring { mass, stiffness, damping }` when the movement should overshoot a little.
+  Good values, inline or as constants:
 
 ```rust
 const SPRING_SNAPPY: Easing = Easing::Spring { mass: 1.0, stiffness: 300.0, damping: 26.0 }; // UI-like, tiny overshoot
 const SPRING_SOFT: Easing = Easing::Spring { mass: 1.0, stiffness: 150.0, damping: 18.0 };   // noticeable, friendly
 const SPRING_BOUNCY: Easing = Easing::Spring { mass: 1.0, stiffness: 220.0, damping: 12.0 }; // playful, use rarely
-const EASE_OUT_EXPO: Easing = Easing::CubicBezier(0.16, 1.0, 0.3, 1.0);  // fast then settles, great for slides
-const EASE_IN_OUT: Easing = Easing::CubicBezier(0.65, 0.0, 0.35, 1.0);  // camera moves, morphs
 ```
 
 Not set in stone rules, but a good start for a dynamic animation:
@@ -139,12 +142,12 @@ Word-by-word title reveal: split into words, lay them out with `frame.text_width
 (or `text-anchor="start"` with measured offsets), stagger each word 40-60 ms with a small
 upward spring.
 
-Counter ("0 -> 12,480"): animate an `f32` with `EASE_OUT_EXPO` over 1.2-1.8 s and format with
+Counter ("0 -> 12,480"): animate an `f32` with `Easing::EaseOut` over 1.2-1.8 s and format with
 thousands separators; use a font with tabular figures (or a monospace font) so digits do not
 jiggle, and right-align it with `text-anchor="end"`.
 
 Growing bar (charts, highlights): animate a `<rect>` width from a hairline (`0.5`, never `0`, SVG
-rejects zero sized rects) to its target with `EASE_IN_OUT`.
+rejects zero sized rects) to its target with `Easing::EaseInOut`.
 
 Underline or stroke draw-on: `stroke-dasharray={len}` and animate `stroke-dashoffset` from
 `len` to `0`.
@@ -153,7 +156,7 @@ Scene transitions: `fn overlap(&self) -> Overlap { Overlap::Previous(0.4) }` plu
 scenes fading (outgoing 1 -> 0, incoming 0 -> 1) is a clean cross-fade; a "push" moves the
 outgoing scene -80 px while the incoming comes from +80 px.
 
-Lower third: a bar slides in from the left (`EASE_OUT_EXPO`, 0.5 s), the name fades up 0.15 s
+Lower third: a bar slides in from the left (`Easing::EaseOut`, 0.5 s), the name fades up 0.15 s
 later, the role 0.1 s after that, holds, then everything exits together in 0.25 s.
 
 ## Review checklist

@@ -272,7 +272,7 @@ impl<'b> SkiaEncoderFrameRenderer<'b> {
 
         Ok(Self {
             target: Some(target),
-            render_cache: crate::render::RenderCache::new(),
+            render_cache: crate::render::RenderCache::new().for_backend(backend),
             converter: None,
             input: input.clone(),
             width,
@@ -285,7 +285,7 @@ impl<'b> SkiaEncoderFrameRenderer<'b> {
 
     /// Uses these cache limits and clears previously cached render resources.
     pub fn with_cache_config(mut self, config: crate::SkiaCacheConfig) -> Self {
-        self.render_cache = crate::render::RenderCache::with_config(config);
+        self.render_cache = self.render_cache.cleared(config);
         self
     }
 
@@ -361,10 +361,11 @@ impl Drop for SkiaEncoderFrameRenderer<'_> {
             (Some(Target::Hardware(target)), Some(gpu)) => target.retire(gpu),
             (target, gpu) => {
                 drop(target);
-                self.queue.reader = None;
                 // destroying a context waits for its queue
                 let _queue = lock_queue(self.queue.lock.as_ref());
                 drop(gpu);
+                // A failed readback may still have a copy using the reader's resources.
+                self.queue.reader = None;
             }
         }
     }

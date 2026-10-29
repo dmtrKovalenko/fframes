@@ -29,6 +29,10 @@ pub struct PlayerOptions<'a, 'media> {
     /// fit 1280x720.
     pub window_size: Option<(u32, u32)>,
     pub backend: PlayerBackend,
+    /// Wait for the display refresh to show a frame. With `false` a frame is shown as soon
+    /// as it is drawn, up to the frame rate of the video: the picture can tear and the GPU
+    /// stays busy. Only the GPU backends wait for the display.
+    pub vsync: bool,
     /// Start playing right away instead of paused on `start_frame`.
     pub autoplay: bool,
     /// Restart from the first frame after the last one (toggle with `r`).
@@ -54,6 +58,7 @@ impl Default for PlayerOptions<'_, '_> {
             title: "fframes",
             window_size: None,
             backend: PlayerBackend::Auto,
+            vsync: true,
             autoplay: true,
             looping: true,
             start_frame: 0,

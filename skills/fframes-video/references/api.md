@@ -1,7 +1,6 @@
 # fframes API cheat sheet
 
-Examples in the fframes repository worth reading: [motion-graphics](https://github.com/dmtrKovalenko/fframes/tree/main/examples/motion-graphics)
-(springs, text fitting), [beta](https://github.com/dmtrKovalenko/fframes/tree/main/examples/beta) (scenes, images), [audio-announce](https://github.com/dmtrKovalenko/fframes/tree/main/examples/audio-announce)
+Examples in the fframes repository worth reading: [beta](https://github.com/dmtrKovalenko/fframes/tree/main/examples/beta) (scenes, images), [audio-announce](https://github.com/dmtrKovalenko/fframes/tree/main/examples/audio-announce)
 (audio visualisation, video sources), [teej-podcast](https://github.com/dmtrKovalenko/fframes/tree/main/examples/teej-podcast) (Skia backend, stereo
 media loaded at runtime), [shaders](https://github.com/dmtrKovalenko/fframes/tree/main/examples/shaders) and [neon-triangle](https://github.com/dmtrKovalenko/fframes/tree/main/examples/neon-triangle) (GPU
 shaders).
@@ -93,7 +92,7 @@ fframes::svgr!(
         <rect x="160" y="240" width="600" height="120" rx="24"
             fill={frame.animate(fframes::timeline!(
                 at 0.0 => 1.0, animate Color::hex("#fff") => Color::hex("#0ea5e9"),
-                    Easing::CubicBezier(0.65, 0.0, 0.35, 1.0),
+                    Easing::EaseInOut,
             ))}
         />
     </g>
@@ -124,6 +123,7 @@ fframes::svgr!(
   does not clamp them. Use a custom curve only when the required motion is not represented
   by the available easings.
 - Easing: `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(x1, y1, x2, y2)`, `Spring {..}`.
+  Use the named ones and `Spring`; `design.md` says which fits where.
 - `Transform { translate_x, translate_y, scale: Scale { x, y }, rotate, .. }`,
   `Transform::translate(x, y)`. Scale around a point by translating by `p * (1 - s)`.
 
@@ -168,13 +168,37 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
 
 - `include_media_dir!(pub struct MyMedia, "media")` embeds a folder; the path is relative to
   the Cargo workspace root, which in a generated project is the project folder. Call
-  `MyMedia::prepare()` in `main.rs`. Fonts register by family name, audio decodes to mono.
+  `MyMedia::prepare()` in `main.rs`. Fonts register by family name, audio decodes to mono;
+  `include_media_dir!(pub struct MyMedia, "media", stereo)` keeps stereo files stereo.
 - Large or stereo files: `let dir = MediaDirectory::read_folder("assets")?; let media = dir.process_media_source()?;`
   and combine providers with `CombinedMediaProvider::from([&static_media as &dyn MediaProvider, &media])`.
 - Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, editor_fallback_image })`
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
 - Subtitles: `ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s))`.
 - Audio spectrum: `frame.visualize_audio_frame(VisualizeFrameInput { audio, sample_size: SampleSize::S256, smooth_level: 4, window: Some(WindowFunction::Hann) })`.
+
+## Lottie animations
+
+To play a Lottie `.json` file, enable the `lottie` feature
+(`fframes = { features = ["lottie"] }`) and put the file into the media folder, like an image.
+
+```rust
+use fframes::LottieOptions;
+
+let confetti = frame.play_lottie(ctx, "confetti.json", LottieOptions {
+    start: 1.5,          // second of the video or scene, nothing is drawn before it
+    looping: true,       // without it the last frame stays
+    x: 660.0,
+    y: 240.0,
+    width: Some(600.0),  // the height follows; give both to fit the file into a box
+    ..Default::default()
+});
+fframes::svgr!(<svg ...>{confetti}</svg>)
+```
+
+`media.confetti_json.duration()` (a field of the `include_media_dir!` struct) gives the length
+for `Video::duration`. Text layers, image layers, time remapping, blend modes and effects are
+not drawn.
 
 ## GPU shaders (Skia backend)
 
@@ -289,8 +313,9 @@ fframes::cli::new(&video, options)
 - Zero width/height rects and zero radius circles are invalid SVG and are skipped (inspect
   reports them): animate from `0.5`, not `0`.
 - A panic in `render_frame` stops the render; the error names frame, second and scene.
-- `font-weight` must be numeric (`600`) or `normal`/`bold`. Unknown families fall back
-  silently in the renderer, `inspect` reports "No match for ... font-family".
+- `font-weight` is a number from 1 to 1000 (`600`, `{weight}`) or `normal`/`bold`; a number
+  outside that range is ignored. Unknown families fall back silently in the renderer,
+  `inspect` reports "No match for ... font-family".
 - `Color::TRANSPARENT` backgrounds need an alpha capable encoder and pixel format.
 - Heavy filters (`feGaussianBlur`, `feDropShadow`) on animated subtrees are slow on the CPU
   backend: keep them static or use Skia.

@@ -4,6 +4,8 @@ pub mod metal;
 pub mod vulkan;
 #[cfg(feature = "vulkan")]
 pub(crate) mod vulkan_readback;
+#[cfg(feature = "wgpu")]
+mod vulkan_wgpu;
 
 use fframes::{EncoderInput, FFramesRendererError, FFramesRendererResult, VideoEncoderInfo};
 use skia_safe::{Surface, gpu::DirectContext, surfaces};
@@ -54,6 +56,12 @@ pub struct SkiaContext {
 }
 
 pub trait SkiaBackend: Sync + Send {
+    /// The [`fframes::SharedGpu::id`] of the device this backend's contexts draw on, when
+    /// the backend shares it with wgpu: layers rendered on it are sampled in place.
+    fn shared_gpu_id(&self) -> Option<u64> {
+        None
+    }
+
     fn create_skia_surface(&self) -> FFramesRendererResult<(Surface, Option<DirectContext>)>;
 
     /// Like [`Self::create_skia_surface`], with what the context needs to share its GPU
@@ -66,6 +74,16 @@ pub trait SkiaBackend: Sync + Send {
             queue_lock: None,
             reader: None,
         })
+    }
+
+    /// A GPU context without a surface, and the lock of its queue. Code that draws into
+    /// surfaces of its own size uses it (`FFramesContext::render_svgr`). The default makes
+    /// a whole context with [`Self::create_skia_context`] and drops the surface.
+    fn create_offscreen_context(
+        &self,
+    ) -> FFramesRendererResult<(Option<DirectContext>, Option<QueueLock>)> {
+        let context = self.create_skia_context()?;
+        Ok((context.gpu, context.queue_lock))
     }
 
     /// Offers hardware frames to the video encoder of a render: textures Skia draws into and

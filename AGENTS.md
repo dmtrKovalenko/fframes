@@ -233,6 +233,7 @@ cargo test -- --nocapture
 /fframes-editor            # Web editor UI (ReScript + React), published as @fframes/editor
 /fframes-editor-controller # WASM bridge between a Video impl and the editor
 /fframes-test-utils        # Snapshot helpers for svgr! trees
+/fframes-three-d           # 3D: three.js style scene graph, glTF, CPU rasterizer or wgpu (GPU texture shared with Skia)
 /svgr-macro                # The svgr! procedural macro (SVG DSL + static-subtree hashing)
 /media-dir-macro           # include_media_dir! (embeds a media folder into the binary)
 /webvtt-parser             # Subtitle format parser
@@ -276,7 +277,7 @@ my-video/
   Cargo.toml          # fframes with the `cli` and `compile-time-svgtree` features
   media/              # embedded by include_media_dir! (a DM Sans font to start with)
   src/lib.rs          # the Video from the template
-  src/main.rs         # fframes::cli (render, frame, strip, onion, svg, timeline, inspect, snapshot, audio)
+  src/main.rs         # fframes::cli (render, frame, strip, onion, svg, timeline, inspect, audio)
 ```
 
 For the web editor copy `examples/hello-world/editor` next to it and adapt step 9; gate the
@@ -288,7 +289,9 @@ the editor bridge builds the library with `default-features = false`.
 Embed static assets with `include_media_dir!`. The path is relative to the **workspace root**
 and every file in the folder becomes a field of the generated struct; fonts are registered by
 their family name. Audio (`mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a`) is decoded to mono at
-compile time; files loaded with `MediaDirectory` keep stereo.
+compile time unless the macro gets the `stereo` option
+(`include_media_dir!(pub struct MyVideoMedia, "examples/my-video/media", stereo)`, twice the
+embedded size); files loaded with `MediaDirectory` keep stereo.
 
 ```rust
 use fframes::include_media_dir;
@@ -304,8 +307,8 @@ include_media_dir!(pub struct MyVideoMedia, "examples/my-video/media");
   `let folder = MediaDirectory::read_folder("./dynamic_media")?;`
   `let media = folder.process_media_source()?;`
 - Inside `render_frame` resolve media through the context: `ctx.get_image("bg.png")`,
-  `ctx.get_audio("track.mp3")`, `ctx.get_subtitles("subs.vtt")`, `ctx.get_video("clip.mp4")`.
-  Never `.expect()` on these in real code; return a fallback element instead.
+  `ctx.get_audio("track.mp3")`, `ctx.get_subtitles("subs.vtt")`, `ctx.get_video("clip.mp4")`,
+  `ctx.get_lottie("anim.json")` (see 7d). Never `.expect()` on these in real code; return a fallback element instead.
 - Fonts are referenced by family name in `font-family=...`. `load_system_fonts: true` is a
   development convenience only; ship every font in `media/` so renders are reproducible.
 
@@ -356,7 +359,7 @@ Rules for `render_frame`:
 
 - It runs once per frame on several threads. No panics, no I/O, no heavy allocation. Precompute
   in the constructor and read from `self`; memoise per-video data in a `std::sync::OnceLock`
-  field (only store a measurement once it succeeded, see `examples/motion-graphics`).
+  field (only store a measurement once it succeeded).
 - `svgr!` is SVG with Rust interpolation: attributes and text children accept `{expr}` where
   `expr` is a string, number, `Color`, `Transform`, another `Svgr`, or an iterator of `Svgr`
   (`.collect::<Vec<_>>()`). Comments are `// ...` lines inside the markup.
@@ -425,8 +428,8 @@ let paragraph = frame.text_break_lines(ctx, self.description, BreakLinesOpts {
 ```
 
 Use the same `FontQuery` values in the `<text>` attributes (`font-family`, `font-size`,
-`font-weight`) so what is measured is what is drawn. `font-weight` must be numeric or
-`normal`/`bold`.
+`font-weight`) so what is measured is what is drawn. `font-weight` is a number from 1 to
+1000, written or as `{expr}`, or `normal`/`bold`; a number outside that range is ignored.
 
 ### 6. Scenes (optional)
 
@@ -520,6 +523,109 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
   draws nothing in their place, and the editor shows a placeholder.
 - Requires the `compile-time-svgtree` feature (the default `renderer` feature of the examples).
 
+### 7d. 3D scenes (`fframes::three_d`)
+
+`fframes = { features = ["3d"] }` adds `fframes::three_d` (the `fframes_three_d` crate): a
+three.js style scene graph with its own renderer. It has 4x MSAA, metal/roughness PBR with
+clearcoat, a studio or HDR panorama environment, soft sun shadows, planar reflections,
+transparency, additive glows, particles, fog, depth of field, motion blur, bloom and ACES.
+It returns an image for `<image href>`. glTF and STL models load too. The crate docs
+(`fframes-three-d/src/lib.rs`) map three.js classes to their fframes_three_d names.
+
+Two renderers draw the same picture:
+
+- The CPU rasterizer runs everywhere, also in the editor (at half size there).
+- With `fframes = { features = ["3d", "wgpu"] }` the renderer uses wgpu (Vulkan, Metal, DX12).
+  A frame differs from the CPU frame by less than one 8-bit step on average. Without a GPU
+  it falls back to the CPU. `Renderer::cpu()` forces the CPU.
+- With `fframes_skia_renderer = { features = ["vulkan", "wgpu"] }` as well, the 3D stays on
+  the GPU: Skia draws the wgpu texture in place and converts the frame for the encoder.
+  Nothing is read back. Other backends (the CPU backend, Metal, the editor) get pixels.
+
+Without these features nothing of wgpu compiles.
+
+```rust
+use fframes::three_d::*;
+
+// once, in the constructor: geometry is shared by `Arc`, keep the ids you animate
+let mut scene = Scene::new().environment(Environment::studio()).background(Background::Transparent);
+let body = scene.add(Node::mesh(Geometry::rounded_box(1.0, 1.0, 1.0, 0.08, 4), Material::metal(0xd4d8e0, 0.25)).at(0.0, 0.5, 0.0));
+let arm = scene.add_to(body, Node::mesh(Geometry::cylinder(0.1, 0.1, 0.8, 24), Material::standard(0xff5500).clearcoat(1.0)).at(0.6, 0.2, 0.0));
+scene.add(Node::mesh(Geometry::floor(30.0, 30.0), Material::shadow_catcher(0.6)).shadows(false, true));
+scene.add(Node::light(Light::sun(Rgb::WHITE, 3.0, vec3(3.0, 6.0, 4.0))));
+let renderer = Renderer::new(1920, 1080).bloom(Bloom::default());
+
+// render_frame: clone (cheap), pose, render
+let mut s = scene.clone();
+s[arm].rotation = euler(0.0, 0.0, t * 2.0);
+s[body].material_mut().unwrap().emissive_intensity = glow;
+let camera = Camera::perspective(35.0).orbit(vec3(0.0, 0.6, 0.0), 6.0, 30.0 + t * 20.0, 15.0);
+let image = renderer.render(&s, &camera);
+// motion blur for fast shots: renderer.render_motion_blur(3, |o| build(t + o / 120.0))
+svgr!(<image href={image.href()} x="0" y="0" width="1920" height="1080" />)
+```
+
+- Y is up, the camera looks down -Z, angles are radians (`deg()`, `euler_deg()`), units are
+  meters. Hex and `&str` colors are sRGB like three.js. Multiply an `Rgb` above 1 for HDR
+  glow (`Rgb::hex(0x22e8ff) * 6.0`).
+- Geometry: `cuboid`, `rounded_box`, `sphere`, `cylinder`, `cone`, `capsule`, `torus`, `plane`,
+  `floor`, `ring`, `lathe`, `extrude` (concave shapes, bevels), `tube`, `icosahedron`, `text`,
+  with `translate`, `rotate_*`, `scale`, `merge`, `with_color`, `flat`, `smooth`.
+- Materials: `standard`, `metal`, `unlit`, `glow` (additive), `shadow_catcher`, `normals`,
+  with `emissive`, `clearcoat`, `opacity`, `additive`, `map`, `normal_map`, `ao_map`.
+- Pin SVG to 3D: `camera.project(scene.local_to_world(id, local), 1920.0, 1080.0)` gives the
+  pixel. `camera.pixel_size(..)` sizes a bracket. HUD labels then stay on the object.
+- glTF: `let model = Model::from_gltf(bytes)?; let inst = model.add_to(&mut s, None);
+  inst.play(&mut s, model.animation("Dance").unwrap(), t);`
+- STL (geometry only): `Geometry::from_stl(bytes)?.smooth(40.0)` and a `Material`. Most
+  files are millimeters with Z up: `.scale(0.001, 0.001, 0.001).rotate_x(-FRAC_PI_2)`.
+- Depth of field: `camera.focus_on(point, blur_px)` or `.focus(distance, blur_px)`.
+- Reflections (three.js `Reflector`): `scene.reflector = Some(Reflector::floor())` names the
+  plane. `.reflection(0.8)` on a material on that plane shows the scene mirrored in it, blurred
+  by the roughness. One plane per scene, rendered at half resolution by default.
+- Highlights do not sparkle: a normal that turns inside a pixel widens the specular lobe.
+- Cost of a 1080p frame: 60 to 150 ms on 28 CPU threads, 5 to 20 ms on an Intel iGPU. The
+  GPU caches meshes and textures by their `Arc`, so build geometry once. Only the sun
+  (`Light::sun`) casts shadows. Set `.shadows(false, ..)` on floors and far scenery to keep
+  the shadow map tight. `fframes-three-d/tests/gpu.rs` compares both renderers.
+- `examples/arm` is a short film that uses most of the crate. Its `src/effects.rs` builds
+  camera shake, a light beam in hazy air, spark streaks and a printed grid from these blocks.
+
+### 7e. Your own wgpu passes (`fframes::wgpu_layer`)
+
+With `fframes = { features = ["wgpu"] }` and the Skia Vulkan backend's `wgpu` feature,
+anything rendered with wgpu goes into a frame the way fframes_three_d does:
+
+```rust
+use fframes::wgpu;
+
+let Some(gpu) = fframes::shared_gpu() else { return cpu_fallback() }; // CPU backend, editor
+let texture = gpu.device().create_texture(&wgpu::TextureDescriptor {
+    format: fframes::WGPU_LAYER_FORMAT, // Rgba8Unorm, premultiplied sRGB
+    usage: fframes::WGPU_LAYER_USAGE | wgpu::TextureUsages::RENDER_ATTACHMENT,
+    ..
+});
+let mut encoder = gpu.device().create_command_encoder(&Default::default());
+// passes rendering into `texture`
+fframes::finish_wgpu_layer(&mut encoder, &texture); // leaves it sampled, Skia adds no barrier
+gpu.submit([encoder.finish()]);                     // under the backend's queue lock
+let layer = fframes::wgpu_layer(&gpu, &texture);
+svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080" />)
+```
+
+- Render into the texture again only after the returned image is dropped. The backend has
+  submitted the frame that samples it by then. Keep a pool (see `LayerTarget` in
+  `fframes-three-d/src/gpu/mod.rs`) and drop its textures with the device: the GPU can still
+  sample a texture after its image is dropped, and wgpu waits only for its own submissions.
+- The texture is 2D with one layer and one sample. Other textures draw nothing.
+- Keep per-device state in `gpu.state(|gpu| ..)`. It is dropped with the device. The
+  shared Vulkan device belongs to wgpu and goes with the last wgpu object, so wgpu objects
+  may outlive the backend context (`SkiaVulkanCtx`); they hold the GPU memory until then.
+- Every Skia context then submits to the wgpu queue. The queue orders a layer before the
+  frame that samples it. Submit only with `gpu.submit`, which holds the backend's queue lock.
+- The tiny-skia CPU backend draws no layers. Do not keep a shared `SkiaVulkanCtx` alive
+  while it renders.
+
 ### 7c. Audio mix
 
 `fn audio` places files on the timeline. Tuples still work; `AudioTrack` adds mix settings:
@@ -578,6 +684,46 @@ AudioTrack::new("whoosh.wav", Second(4.)..Eof).rate(0.8).width(1.5); // a lower,
   `audio` command). It keeps the played part in memory at the mix rate: 23 MB per stereo
   minute at 48 kHz. Tracks without effects are read from the file as before.
 
+### 7d. Lottie animations (feature `lottie`)
+
+With `fframes = { features = ["lottie"] }`, a Lottie `.json` file is media like an image. Put it
+into the `include_media_dir!` folder or a `MediaDirectory` folder and play it by name.
+[velato](https://github.com/linebender/velato) reads and evaluates the file. fframes draws each
+frame as `svgr!` vector graphics, on every backend and in the editor. See
+`examples/lottie`.
+
+```rust
+use fframes::LottieOptions;
+
+fn duration(&self) -> Duration<'_> {
+    self.media.confetti_json.duration() // each embedded file is a field of the media struct
+}
+
+fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+    let confetti = frame.play_lottie(ctx, "confetti.json", LottieOptions {
+        start: 1.5,          // second of the video or scene, nothing is drawn before it
+        looping: true,       // without it the last frame stays
+        x: 660.0,
+        y: 240.0,
+        width: Some(600.0),  // the height follows; with both, the file fits into the box
+        ..Default::default() // speed 1.0, the size of the file
+    });
+    fframes::svgr!(<svg ...>{confetti}</svg>)
+}
+```
+
+- A missing file gives an empty element, and `inspect` reports it. An invalid file makes
+  `prepare()` or `process_media_source()` fail.
+- `ctx.get_lottie(name)` and `fframes::Lottie::parse(bytes)` give the `Lottie` itself, with
+  `width()`, `height()`, `seconds()`, `duration()` and `render_at(seconds)` in the units of
+  the file.
+- The editor plays embedded files. For `.json` files in the dynamic media folder, enable
+  `fframes-editor-controller = { features = ["lottie"] }` in the bridge.
+- Drawn: shapes, fills, strokes, linear and radial gradients, trim paths, repeaters, masks,
+  track mattes, precomps, parenting and solid layers. Exports from bodymovin before 5.5 are
+  converted when they load.
+- Not drawn: text and image layers, time remapping, blend modes, effects and expressions.
+
 ### 8. Render it: `fframes::cli`
 
 `main.rs` hands the video to `fframes::cli` (feature `cli`), which gives every video the same
@@ -597,7 +743,7 @@ The rest is optional and chains in any order:
 
 ```rust
 cli::new(&video, options)
-    // Render with Skia. Frame previews (frame, strip, onion, snapshot) use the backend's own
+    // Render with Skia. Frame previews (frame, strip, onion) use the backend's own
     // renderer, so they match the video; the CPU backend is the default.
     .backend(SkiaFFramesRenderer::new_metal(&gpu, SkiaPipelineConfig::default())?)
     // The `preview` command: a real-time window with audio (fframes_native_player).
@@ -629,13 +775,12 @@ See `examples/teej-podcast/src/main.rs`; `cargo fframes new` generates the same 
 | command | what |
 | --- | --- |
 | `render [RANGE] [-o out.mp4] [--draft]` | the video or a range of it (default command); `--draft` = half size + fastest preset |
-| `frame 1s,50%,Intro@end [-o dir] [--svg]` | PNGs of single frames plus the problems found in them |
-| `strip [RANGE] -n 12` | labelled contact sheet of evenly spaced frames, one image to review motion |
+| `frame 1s,50%,Intro@end [-o dir] [--svg] [--crop x,y,w,h] [--zoom N] [--ids]` | PNGs of single frames plus the problems found in them; `--crop` renders one rectangle sharply (zoomed to about 960 px wide), `--ids` outlines and labels every element with an `id` |
+| `strip [RANGE \| TIMES] -n 12 [--crop x,y,w,h]` | labelled contact sheet of evenly spaced frames (or of comma separated times), one image to review motion |
 | `onion RANGE -n 6` | frames blended into one image, shows the path of a movement |
 | `svg TIME` | the frame as SVG after conversion |
 | `timeline` | size, fps, scenes with frame and second ranges, audio tracks |
-| `inspect [RANGE] [--every 0.25s]` | missing media/fonts/glyphs, text cut by the canvas edge, NaN transforms, panics; exit code 2 on errors |
-| `snapshot TIMES [--update]` | compare frames with approved PNGs, writes `.actual.png` and `.diff.png` |
+| `inspect [RANGE] [--every 0.25s] [--pops]` | missing media/fonts/glyphs, text cut by the canvas edge, NaN transforms, panics; exit code 2 on errors. `--pops` also renders every frame small and warns about pops: parts that change in one frame between still frames (an element appearing, vanishing or jumping in front of another) |
 | `audio render/analyze/at` | WAV of the mix, loudness report and waveform, tracks playing at a time |
 | `preview [TIME] [--paused] [--mute]` | real-time GPU window (`fframes_native_player`), blocks until closed |
 
@@ -720,11 +865,6 @@ $R audio analyze --waveform w.png   # levels, silence, cue positions
 $R render                           # final file
 just clippy && cargo fmt --all && just check-wasm my-video   # if it has an editor bridge
 ```
-
-Snapshot the compile-time tree against the runtime parser with
-`fframes_test_utils::assert_compile_time_svgr_eq_runtime(name, svgr)` (see
-`examples/marketing/src/tests.rs`); the first run writes `_svgr_snapshots/`, later runs diff.
-Pixel snapshots of frames: `fframes::snapshot::assert_frames(&mut previewer, &mut renderer, &["Intro@1s"], &Default::default())`.
 
 ## Important Notes
 

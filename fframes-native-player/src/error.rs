@@ -45,6 +45,12 @@ impl From<winit::error::OsError> for PlayerError {
     }
 }
 
+impl From<winit::raw_window_handle::HandleError> for PlayerError {
+    fn from(err: winit::raw_window_handle::HandleError) -> Self {
+        PlayerError::Window(err.to_string())
+    }
+}
+
 impl From<softbuffer::SoftBufferError> for PlayerError {
     fn from(err: softbuffer::SoftBufferError) -> Self {
         PlayerError::Surface(err.to_string())

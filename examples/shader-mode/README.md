@@ -4,6 +4,10 @@ A 932-frame, 1920×1080 Skia GPU example with 18 shaders, a 3D panel wall,
 native preview footage and an animated fframes wordmark. Preview and rendering
 run at 30 fps, using Metal on macOS and Vulkan elsewhere.
 
+https://github.com/user-attachments/assets/53bed61f-6478-471b-81c1-125a3054ee18
+
+The preview is silent: the soundtrack is not in the repository.
+
 ## Run
 
 Place the soundtrack at `dynamic_media/reference-audio.wav`. To show the recorded

@@ -68,7 +68,7 @@
 //! fn main() -> std::process::ExitCode {
 //!     let media = Media::prepare().expect("embedded media");
 //!     let video = Hello { media: &media, title: "world" };
-//!     // `render`, `frame`, `strip`, `inspect`, `snapshot`, `audio` and more (feature `cli`).
+//!     // `render`, `frame`, `strip`, `inspect`, `audio` and more (feature `cli`).
 //!     fframes::cli::new(&video, RenderOptions { media: Some(&media), ..Default::default() }).run()
 //! }
 //! ```
@@ -84,6 +84,10 @@
 //! - `compile-time-svgtree`: [`svgr!`] builds the SVG tree at compile time and hashes static
 //!   subtrees. Required by the Skia backend and by [`Shader`].
 //! - `exif`: EXIF orientation of loaded images.
+//! - `3d`: [`three_d`], 3D scenes with the building blocks of three.js, rendered into an
+//!   `<image>` of the frame. Runs on the CPU, also in the editor.
+//! - `wgpu`: `wgpu_layer` puts textures rendered with wgpu into frames, and the Skia
+//!   Vulkan backend draws them without a readback. With `3d`, the 3D renders on the GPU.
 //! - Codecs `h264`, `h265`, `aac`, `mp3lame`, `opus`, `vpx`: compile the library into the static
 //!   `FFmpeg` build. Some of them need `libav-agree-gpl`, `libav-agree-nonfree` or
 //!   `libav-agree-version3`, which state that you accept the corresponding `FFmpeg` license terms.
@@ -111,12 +115,16 @@ mod duration;
 mod fframes_context;
 mod font_data;
 mod frame;
+#[cfg(feature = "lottie")]
+mod lottie;
 mod markers;
 mod media_provider;
 mod named_range;
 mod scenes;
 mod shader;
 mod svgr;
+#[cfg(not(target_arch = "wasm32"))]
+mod svgr_image;
 mod text;
 mod time_spec;
 mod video;
@@ -148,12 +156,20 @@ pub use duration::*;
 pub use fframes_context::*;
 pub use font_data::*;
 pub use frame::*;
+#[cfg(feature = "lottie")]
+pub use lottie::*;
 pub use markers::*;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use media::wgpu;
+#[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
+pub use media::wgpu_layer::*;
 pub use media_provider::*;
 pub use named_range::*;
 pub use scenes::*;
 pub use shader::*;
 pub use svgr::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub use svgr_image::*;
 pub use svgr_macro::*;
 pub use text::*;
 pub use time_spec::*;
@@ -174,5 +190,8 @@ pub use serde;
 pub use ttf_parser;
 pub use usvgr;
 
+#[cfg(feature = "3d")]
+#[doc(inline)]
+pub use fframes_three_d as three_d;
 #[cfg(feature = "exif")]
 pub use media::exif;

@@ -4,6 +4,7 @@ use fframes::{
     MediaProvider, TextCache, TimeBase, Video, VideoDecodersWorker, usvgr,
 };
 use skia_safe::Surface;
+use std::mem::ManuallyDrop;
 
 /// Creates a new GPU context that can be used for instant rendering.
 /// Recommended for use with externally provided textures to minimize the copying overhead.
@@ -11,51 +12,71 @@ use skia_safe::Surface;
 /// Each `InstantRenderingGPUBackend` owns its own render caches, so multiple backends can
 /// render frames concurrently without contention.
 pub struct InstantRenderingGPUBackend<TBackend: SkiaBackend> {
+    render_cache: crate::render::RenderCache,
+    converter_cache: usvgr::Cache,
+    // Skia submits when these go, so `Drop` drops them under the queue lock
+    surface: ManuallyDrop<Surface>,
+    gpu_context: ManuallyDrop<skia_safe::gpu::DirectContext>,
+    /// Held around every call that reaches the queue, see [`crate::SkiaContext::queue_lock`].
+    queue_lock: Option<crate::QueueLock>,
+    // Last: the device of the backend outlives everything made on it.
     #[allow(dead_code)] // this is required for lifetime in case of ffi usage
     backend: TBackend,
-    surface: Surface,
-    gpu_context: skia_safe::gpu::DirectContext,
-    converter_cache: usvgr::Cache,
-    render_cache: crate::render::RenderCache,
 }
 
 impl<TBackend: SkiaBackend> InstantRenderingGPUBackend<TBackend> {
     pub fn new(backend: TBackend) -> FFramesRendererResult<Self> {
-        let (surface, gpu_context) = backend.create_skia_surface()?;
+        let context = backend.create_skia_context()?;
 
-        let gpu_context = gpu_context.ok_or_else(|| {
+        let gpu_context = context.gpu.ok_or_else(|| {
             FFramesRendererError::Skia(
                 "Instant Rendering is only available for gpu renderers".to_string(),
             )
         })?;
 
         Ok(Self {
-            backend,
-            surface,
-            gpu_context,
+            render_cache: crate::render::RenderCache::new().for_backend(&backend),
             converter_cache: usvgr::Cache::default(),
-            render_cache: crate::render::RenderCache::new(),
+            surface: ManuallyDrop::new(context.surface),
+            gpu_context: ManuallyDrop::new(gpu_context),
+            queue_lock: context.queue_lock,
+            backend,
         })
     }
 
     /// Applies cache limits to instant rendering and clears cached resources.
     pub fn with_cache_config(mut self, config: crate::SkiaCacheConfig) -> Self {
         self.converter_cache = usvgr::Cache::new_with_text_cache(config.text_capacity);
-        self.render_cache = crate::render::RenderCache::with_config(config);
+        self.render_cache = self.render_cache.cleared(config);
         self
     }
 
+    /// Renders into `surface` of `gpu_context`. They must submit to a queue that nothing
+    /// else uses at the same time.
     pub fn new_from_existing_texture(
         backend: TBackend,
         surface: Surface,
         gpu_context: skia_safe::gpu::DirectContext,
     ) -> Self {
         Self {
-            backend,
-            surface,
-            gpu_context,
+            render_cache: crate::render::RenderCache::new().for_backend(&backend),
             converter_cache: usvgr::Cache::default(),
-            render_cache: crate::render::RenderCache::new(),
+            surface: ManuallyDrop::new(surface),
+            gpu_context: ManuallyDrop::new(gpu_context),
+            queue_lock: None,
+            backend,
+        }
+    }
+}
+
+impl<TBackend: SkiaBackend> Drop for InstantRenderingGPUBackend<TBackend> {
+    fn drop(&mut self) {
+        let _queue = crate::lock_queue(self.queue_lock.as_ref());
+        self.render_cache = crate::render::RenderCache::new();
+        // SAFETY: dropped once, here; the fields are not used after this
+        unsafe {
+            ManuallyDrop::drop(&mut self.surface);
+            ManuallyDrop::drop(&mut self.gpu_context);
         }
     }
 }
@@ -165,6 +186,7 @@ impl<TBackend: SkiaBackend> SkiaFFramesRenderer<'_, TBackend> {
             native_ctx.surface.canvas(),
             &mut native_ctx.render_cache,
         );
+        let _queue = crate::lock_queue(native_ctx.queue_lock.as_ref());
         native_ctx.gpu_context.flush_and_submit();
 
         Ok(frame_index < fframes_ctx.runtime.timeline.duration_in_frames - 1)

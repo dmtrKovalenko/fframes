@@ -1,6 +1,6 @@
 [package]
 name = "fframes-media-dir-macro"
-version = "1.2.0"
+version = "1.3.0"
 edition = "2024"
 description = "A macro for generating SVG trees at compile time"
 license = "MIT"
@@ -32,6 +32,8 @@ fframes-media = { workspace = true, features = ["videotoolbox"] }
 [features]
 build-portable = ["fframes-media/build-portable"]
 exif = ["fframes-media/kamadak-exif"]
+# `.json` files are Lottie animations (`fframes::Lottie`)
+lottie = []
 nightly = []
 metadata = []
 

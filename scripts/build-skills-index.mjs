@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Publishes skills/ on fframes.studio as an agent-skills well-known index, so
-// `npx skills add https://fframes.studio` downloads four markdown files instead of
+// `npx skills add https://fframes.studio` downloads a few markdown files instead of
 // cloning the whole repository with its example media. Runs as the wrangler build
 // step (see wrangler.jsonc); the output directory is generated and gitignored.
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

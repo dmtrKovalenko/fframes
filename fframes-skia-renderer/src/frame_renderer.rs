@@ -22,11 +22,15 @@ pub fn context_with_size<TBackend: SkiaBackend + ?Sized>(
     width: i32,
     height: i32,
 ) -> FFramesRendererResult<SkiaContext> {
-    let mut context = backend.create_skia_context()?;
+    let context = backend.create_skia_context()?;
     if context.surface.width() == width && context.surface.height() == height {
         return Ok(context);
     }
 
+    let queue_lock = context.queue_lock.clone();
+    let _queue = lock_queue(queue_lock.as_ref());
+    // Declare the context after the guard so failed resizing drops it while locked.
+    let mut context = context;
     let info = ImageInfo::new(
         (width, height),
         ColorType::RGBA8888,
@@ -81,11 +85,12 @@ impl<TBackend: SkiaBackend> SkiaFrameRenderer<'_, TBackend> {
         }) = self.surface.take()
         {
             // what lives on the context goes first
-            self.render_cache = crate::render::RenderCache::with_config(self.cache_config);
+            self.render_cache = self.render_cache.cleared(self.cache_config);
             drop(surface);
-            drop(reader);
             let _queue = lock_queue(queue_lock.as_ref());
             drop(gpu);
+            // Keep readback resources alive until the GPU context has waited.
+            drop(reader);
         }
     }
 }
@@ -102,14 +107,14 @@ impl<'a, TBackend: SkiaBackend> SkiaFrameRenderer<'a, TBackend> {
             backend,
             cache_config: crate::SkiaCacheConfig::default(),
             surface: None,
-            render_cache: crate::render::RenderCache::new(),
+            render_cache: crate::render::RenderCache::new().for_backend(backend),
         }
     }
 
     /// Uses these cache limits for subsequent frames. Clears previously cached render resources.
     pub fn with_cache_config(mut self, config: crate::SkiaCacheConfig) -> Self {
         self.cache_config = config;
-        self.render_cache = crate::render::RenderCache::with_config(config);
+        self.render_cache = self.render_cache.cleared(config);
         self
     }
 }

@@ -658,28 +658,6 @@ fn main() {
         bench.run(Spec::new("marketing", 30), &video, &media);
     }
 
-    {
-        use motion_graphics_example::{
-            InstallSceneVideo, MotionGraphicsMedia, MotionGraphicsVideo, QuoteCardVideo,
-        };
-        let media = MotionGraphicsMedia::prepare().unwrap();
-        bench.run(
-            Spec::new("motion-graphics", 10),
-            &MotionGraphicsVideo { media: &media },
-            &media,
-        );
-        bench.run(
-            Spec::new("motion-graphics-install", 10),
-            &InstallSceneVideo::new(&media),
-            &media,
-        );
-        bench.run(
-            Spec::new("motion-graphics-quote", 10),
-            &QuoteCardVideo::new(&media, "SPEED\n!=\nFAST"),
-            &media,
-        );
-    }
-
     if bench.wants("podcast") {
         let folder = MediaDirectory::read_folder(root.join("examples/podcast/media")).unwrap();
         let media = folder.process_media_source().unwrap();

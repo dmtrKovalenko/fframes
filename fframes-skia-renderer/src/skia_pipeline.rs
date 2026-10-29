@@ -207,6 +207,12 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
 
     let failed = AtomicBool::new(false);
     let buffers = BufferPool::default();
+    // The generators share the images of `FFramesContext::render_svgr`.
+    let svgr_images = fframes::SvgrImages::new(Some(Box::new(crate::SkiaSvgrRasterizer::new(
+        skia,
+        pipeline_config.cache,
+        gpu_contexts.max(2),
+    ))));
     let (tree_sender, tree_receiver) = mpsc::sync_channel::<(FrameClaim, usvgr::Tree)>(queue_size);
     let (frame_sender, frame_receiver) = mpsc::sync_channel::<RenderedFrame>(queue_size);
     // Every stage owns its end of the queues, so a stage that stops (all of its threads
@@ -226,25 +232,27 @@ pub(crate) fn render<'p, 'a, 'media: 'a, TVideo: Video + Sync + Send, TBackend: 
         let mut handles = Vec::new();
         for worker in 0..scheduler.workers() {
             let tree_sender = tree_sender.clone();
-            let (scheduler, failed) = (&scheduler, &failed);
+            let (scheduler, failed, svgr_images) = (&scheduler, &failed, &svgr_images);
             #[cfg(feature = "debug")]
             let metrics = metrics.generator_metrics.clone();
             handles.push(scope.spawn(move || {
-                mark_failed(generate_frames(
-                    worker,
-                    video,
-                    scheduler,
-                    frame_offset,
-                    usvg_options,
-                    font_db,
-                    tree_sender,
-                    queue_size,
-                    pipeline_config.cache.text_capacity,
-                    ctx,
-                    failed,
-                    #[cfg(feature = "debug")]
-                    metrics,
-                ))
+                mark_failed(svgr_images.enter(usvg_options, font_db, || {
+                    generate_frames(
+                        worker,
+                        video,
+                        scheduler,
+                        frame_offset,
+                        usvg_options,
+                        font_db,
+                        tree_sender,
+                        queue_size,
+                        pipeline_config.cache.text_capacity,
+                        ctx,
+                        failed,
+                        #[cfg(feature = "debug")]
+                        metrics,
+                    )
+                }))
             }));
         }
         drop(tree_sender);

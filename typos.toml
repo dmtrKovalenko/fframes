@@ -1,7 +1,12 @@
 [files]
 # Keep the upstream minified player unchanged; its identifiers are not prose.
-extend-exclude = ["*.snapshot.txt", "sessions.json", "examples/the-why/landing/vendor/hls.min.js"]
+# The Lottie files are third-party animations: their layer names are not prose either.
+extend-exclude = ["*.snapshot.txt", "sessions.json", "landing/the-why/vendor/hls.min.js", "landing/vendor/hls.min.js", "examples/lottie/media/*.json"]
 [default.extend-words]
 hd = "hd"
 # "PNGs" is split into "PN" + "Gs"
 PN = "PN"
+# graphics terms of fframes_three_d: PBR metalness (three.js), level of detail, integer y next to ix
+metalness = "metalness"
+lod = "lod"
+iy = "iy"

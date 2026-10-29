@@ -70,6 +70,8 @@ var resolveAudio = MediaResolvers.resolveAudio;
 
 var resolveSubtitles = MediaResolvers.resolveSubtitles;
 
+var resolveLottie = MediaResolvers.resolveLottie;
+
 var resolveFont = MediaResolvers.resolveFont;
 
 var resolveImage = MediaResolvers.resolveImage;
@@ -123,6 +125,9 @@ function processDynamicMedia(imports, wasmController, options) {
                     var tmp;
                     if (match !== undefined) {
                       switch (match) {
+                        case "json" :
+                            tmp = resolveLottie;
+                            break;
                         case "jpeg" :
                         case "jpg" :
                         case "png" :
@@ -186,6 +191,7 @@ export {
   MediaLoaderObserver ,
   resolveAudio ,
   resolveSubtitles ,
+  resolveLottie ,
   resolveFont ,
   resolveImage ,
   resolveVideo ,

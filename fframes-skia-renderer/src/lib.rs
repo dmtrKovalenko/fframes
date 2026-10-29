@@ -18,6 +18,9 @@ pub use instant_rendering::*;
 mod frame_renderer;
 pub use frame_renderer::*;
 
+mod svgr_rasterizer;
+pub use svgr_rasterizer::SkiaSvgrRasterizer;
+
 mod frame_export;
 pub use frame_export::{
     FrameExportPath, HardwareFrameTarget, SkiaEncoderFrameRenderer, SkiaFrameExport,

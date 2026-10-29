@@ -18,8 +18,8 @@ pub trait FFramesRenderBackend {
         false
     }
 
-    /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip`, `onion` and
-    /// `snapshot`) the way this backend renders the video, so previews match the output.
+    /// Renders single frames (`fframes::Previewer`, the CLI's `frame`, `strip` and `onion`)
+    /// the way this backend renders the video, so previews match the output.
     /// `None` uses the built-in CPU renderer.
     fn frame_renderer(&self) -> Option<impl super::FrameRenderer + '_> {
         None::<std::convert::Infallible>
@@ -58,6 +58,13 @@ pub trait FFramesRenderBackend {
 
         RgbaEncoderFrameRenderer::new(renderer, input, width, height)
             .map_err(|err| FFramesRendererError::from_chunk(0, err))
+    }
+
+    /// Renders svgr trees inside `Video::render_frame` for
+    /// [`crate::FFramesContext::render_svgr`] during the renders and previews of this
+    /// backend. The default renders on the CPU with tiny-skia (feature `cpu_renderer`).
+    fn svgr_rasterizer(&self) -> Option<Box<dyn crate::SvgrRasterizer + '_>> {
+        super::default_svgr_rasterizer()
     }
 
     fn render_frame<'a, 'media: 'a, TVideo: Video + Sync + Sized + Send>(

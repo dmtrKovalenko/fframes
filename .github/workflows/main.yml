@@ -265,7 +265,7 @@ jobs:
         env:
           RUSTFLAGS: --cfg fframes_docsrs
           RUSTDOCFLAGS: --cfg docsrs -D warnings
-        run: cargo doc --no-deps -p fframes-media -p fframes --features fframes/cli,fframes/compile-time-svgtree,fframes/exif
+        run: cargo doc --no-deps -p fframes-media -p fframes --features fframes/cli,fframes/compile-time-svgtree,fframes/exif,fframes/3d
 
   release:
     # A push to main publishes a nightly, a v* tag publishes that version (scripts/release-version.sh)

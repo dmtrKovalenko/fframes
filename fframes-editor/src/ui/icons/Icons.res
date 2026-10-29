@@ -86,6 +86,12 @@ module CaptionsIcon = {
     "CaptionOn"
 }
 
+module AnimationIcon = {
+  @react.component @module("@openai/apps-sdk-ui/components/Icon")
+  external make: (~className: string=?, @as("aria-hidden") ~ariaHidden: bool=?) => React.element =
+    "PlayCircle"
+}
+
 module FontIcon = {
   @react.component @module("@openai/apps-sdk-ui/components/Icon")
   external make: (~className: string=?, @as("aria-hidden") ~ariaHidden: bool=?) => React.element =

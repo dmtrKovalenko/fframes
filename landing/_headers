@@ -5,3 +5,7 @@
   Content-Type: video/mp4
 /the-why/assets/captions.vtt
   Content-Type: text/vtt
+/hls/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+/hls/*.m4s
+  Content-Type: video/mp4
