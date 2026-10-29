@@ -174,7 +174,8 @@ fn centered(src_width: f32, src_height: f32, scale_x: f32, scale_y: f32, dest: R
 /// A cover-based crop that moves from one focal point and zoom to another.
 ///
 /// `zoom` is relative to [`Fit::Cover`]: `1.0` fills the destination, `1.2` is
-/// twenty percent closer. `focus` is a point in the source in 0–1 coordinates
+/// twenty percent closer, and values below `1.0` are treated as `1.0` so the
+/// destination stays covered. `focus` is a point in the source in 0–1 coordinates
 /// (`(0.5, 0.5)` is the centre) mapped to the centre of the destination.
 ///
 /// Drive `t` from 0 to 1 with a timeline:
@@ -231,7 +232,8 @@ impl PanZoom {
         }
 
         let t = t.clamp(0.0, 1.0);
-        let zoom = lerp(self.from_zoom, self.to_zoom, t).max(0.0);
+        // Below cover scale the drawing would leave part of `dest` uncovered.
+        let zoom = lerp(self.from_zoom, self.to_zoom, t).max(1.0);
         let focus_x = lerp(self.from_focus.0, self.to_focus.0, t).clamp(0.0, 1.0);
         let focus_y = lerp(self.from_focus.1, self.to_focus.1, t).clamp(0.0, 1.0);
 
