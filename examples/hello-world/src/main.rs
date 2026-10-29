@@ -1,5 +1,11 @@
 use clap::Args;
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
+#[cfg(all(
+    feature = "dynamic-linking",
+    any(target_os = "macos", target_os = "linux"),
+    not(target_feature = "crt-static")
+))]
+use fframes_dylib as _;
 use fframes_skia_renderer::cli::SkiaRenderers;
 use hello_world_example::{HelloWorldMedia, HelloWorldVideo};
 use std::path::PathBuf;

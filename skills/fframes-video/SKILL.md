@@ -113,6 +113,10 @@ fonts and decorations with a design made for the video the user asked for.
 `opt-level = 3` in a dev profile does not give scene code and renderer generics compiled into
 the video crate release optimization, and dev assertions/overflow checks remain enabled.
 
+The generated project reuses a shared fframes library on macOS and Linux with a dynamic C
+runtime. Use the usual `cargo run --release` commands. To distribute a generated executable
+independently of its Rust build directory, run `cargo build --release --no-default-features`.
+
 For fast rebuilds, generated standalone projects enable incremental release compilation.
 For existing projects or ones that added fframes manually, merge these settings into the
 **workspace-root `Cargo.toml`**, preserving the other profile settings:

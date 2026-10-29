@@ -1,0 +1,13 @@
+
+[workspace]
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+# Cache scene edits with the usual release optimizations and codegen unit count.
+[profile.release]
+incremental = true
+codegen-units = 16
