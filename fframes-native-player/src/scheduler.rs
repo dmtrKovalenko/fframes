@@ -295,8 +295,10 @@ impl Scheduler {
         on_frame_ready: &(dyn Fn(FrameReady) + Sync),
     ) {
         // Text caches are `Rc` based and therefore owned by the worker.
-        let text_cache = TextCache::new(100);
-        let mut converter_cache = usvgr::Cache::new_with_text_cache(100);
+        // A changing frame counter would otherwise retain 100 sets of glyph outlines per worker.
+        const TEXT_CACHE_ENTRIES: usize = 8;
+        let text_cache = TextCache::new(TEXT_CACHE_ENTRIES);
+        let mut converter_cache = usvgr::Cache::new_with_text_cache(TEXT_CACHE_ENTRIES);
         let video_decoders = match kind {
             WorkerKind::Playback => self.playback_decoders.clone(),
             WorkerKind::Thumbnails => VideoDecodersWorker::for_preview(self.software_decode),
