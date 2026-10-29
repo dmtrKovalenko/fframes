@@ -91,6 +91,7 @@ mp3lame = ["fframes-media/mp3lame"]
 opus = ["fframes-media/opus"]
 vpx = ["fframes-media/vpx"]
 # enable various hardware accelerations
+preview-videotoolbox = ["fframes-media/preview-videotoolbox"]
 videotoolbox = ["fframes-media/videotoolbox"]
 audiotoolbox = ["fframes-media/audiotoolbox"]
 vaapi = ["fframes-media/vaapi"]

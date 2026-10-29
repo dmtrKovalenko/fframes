@@ -131,6 +131,9 @@ pub struct PreviewArgs {
     /// Do not play the audio.
     #[arg(long)]
     pub mute: bool,
+    /// Decode source video on the CPU even if hardware decoding is available.
+    #[arg(long)]
+    pub software_decode: bool,
     /// Skia backend of the window: auto, metal, vulkan or cpu.
     #[arg(long, default_value = "auto")]
     pub backend: String,
@@ -653,6 +656,7 @@ fn preview<'a, 'media: 'a, V: Video>(
         autoplay: !args.paused,
         looping: !args.no_loop,
         audio: !args.mute,
+        software_decode: args.software_decode,
         backend: args.backend,
     };
     play(video, options, &request).map(|()| ExitCode::SUCCESS)

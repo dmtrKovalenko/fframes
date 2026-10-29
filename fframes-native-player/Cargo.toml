@@ -20,6 +20,7 @@ cpal = { version = "0.18", optional = true }
 
 # The CAMetalLayer of the window, presented to by Metal and by Vulkan (MoltenVK).
 [target.'cfg(target_os = "macos")'.dependencies]
+fframes = { workspace = true, features = ["preview-videotoolbox"] }
 raw-window-metal = { version = "1.1", optional = true }
 core-graphics-types = { version = "0.2", optional = true, default-features = false }
 

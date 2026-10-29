@@ -366,10 +366,23 @@ impl SwsScaler {
     }
 }
 
+/// Selects the decode path without changing encoder or presentation settings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DecodeMode {
+    /// Hardware accelerators explicitly enabled by this project.
+    #[default]
+    Configured,
+    /// Also try the platform accelerator included with the native studio.
+    Preview,
+    /// Use the codec's software implementation.
+    Software,
+}
+
 #[derive(Debug)]
 pub struct FFmpegDecoder {
     pub current_loop: i64,
     hw_frame: *mut AVFrame,
+    map_videotoolbox: bool,
     /// Frames are received here and moved into the target frame, so the newest decoded frame
     /// survives `avcodec_receive_frame` returning EOF (which unrefs the frame it is given).
     recv_frame: *mut AVFrame,
@@ -556,6 +569,8 @@ impl FFmpegFrameBuf {
 }
 
 impl FFmpegDecoder {
+    /// Live view of this decoder's cursor. Use [`Self::retained_frame`] for a frame
+    /// that will outlive the next decode or seek.
     pub fn get_raw_frame(&self) -> Arc<FFmpegFrameBuf> {
         Arc::clone(&self.frame_buf)
     }
@@ -592,6 +607,18 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn new(path: &Path, target_fps: usize, buffer_size: usize) -> Result<Self> {
+        unsafe { Self::new_with_mode(path, target_fps, buffer_size, DecodeMode::Configured) }
+    }
+
+    /// Opens a decoder using the requested hardware policy.
+    /// # Safety
+    /// Has the same libav initialization requirements as [`Self::new`].
+    pub unsafe fn new_with_mode(
+        path: &Path,
+        target_fps: usize,
+        buffer_size: usize,
+        mode: DecodeMode,
+    ) -> Result<Self> {
         unsafe {
             let filename = path
                 .file_name()
@@ -627,7 +654,7 @@ impl FFmpegDecoder {
                 )));
             }
 
-            let (mut codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx)
+            let (mut codec_ctx, video_stream_info) = Self::open_codec_context(fmt_ctx, mode)
                 .inspect_err(|_| avformat_close_input(&raw mut fmt_ctx))?;
             let frame_buf = FFmpegFrameBuf::new(
                 filename.to_string_lossy().into_owned(),
@@ -655,6 +682,7 @@ impl FFmpegDecoder {
                 fmt_ctx,
                 pkt: ptr::null_mut(),
                 hw_frame: ptr::null_mut(),
+                map_videotoolbox: cfg!(target_os = "macos") && mode == DecodeMode::Preview,
                 recv_frame: ptr::null_mut(),
                 frame_buf: Arc::new(frame_buf),
                 video_stream_info,
@@ -686,6 +714,7 @@ impl FFmpegDecoder {
 
     unsafe fn open_codec_context(
         fmt_ctx: *mut AVFormatContext,
+        mode: DecodeMode,
     ) -> Result<(*mut AVCodecContext, VideoStreamInfo)> {
         unsafe {
             let ret = av_find_best_stream(
@@ -729,7 +758,7 @@ impl FFmpegDecoder {
             }
 
             let hw_pix_fmt =
-                find_hw_acceleration_for_codec(&mut (*video_dec_ctx).hw_device_ctx, dec);
+                find_hw_acceleration_for_codec(&mut (*video_dec_ctx).hw_device_ctx, dec, mode);
             if let Some(hw_pix_fmt) = hw_pix_fmt {
                 (*video_dec_ctx).opaque = hw_pix_fmt as i32 as *mut c_void;
                 (*video_dec_ctx).get_format = Some(get_hw_format);
@@ -812,6 +841,7 @@ impl FFmpegDecoder {
 
             (*self.frame_buf.latest_av_frame).pts = -1;
             avcodec_flush_buffers(self.codec_ctx);
+            self.last_offset = Some(offset);
             self.draining = false;
             self.has_decoded_frame = false;
             av_packet_unref(self.pkt);
@@ -845,12 +875,27 @@ impl FFmpegDecoder {
 
     /// If we are actually using hardware accelerated frames it is required to correctly
     /// move the data from the hardware surface to the software frame
-    unsafe fn transfer_hardware_surface_data(&self, target_frame: *mut AVFrame) -> Result<()> {
+    unsafe fn transfer_hardware_surface_data(&mut self, target_frame: *mut AVFrame) -> Result<()> {
         match self.video_stream_info.hw_pix_fmt {
             Some(hw_pix_fmt) if hw_pix_fmt as i32 == (*target_frame).format => {
                 // A retained frame can still own the last transfer's software planes.
                 let output = self.frame_buf.latest_av_frame;
-                if !(*output).buf[0].is_null() && av_frame_is_writable(output) == 0 {
+                if self.map_videotoolbox && hw_pix_fmt == AVPixelFormat::AV_PIX_FMT_VIDEOTOOLBOX {
+                    // FFmpeg holds a read lock on the CVPixelBuffer until the last
+                    // mapped frame reference drops. swscale can read its planes directly.
+                    av_frame_unref(output);
+                    if av_hwframe_map(output, target_frame, AV_HWFRAME_MAP_READ as i32) == 0 {
+                        return Ok(());
+                    }
+                    av_frame_unref(output);
+                    self.map_videotoolbox = false;
+                }
+                // copy_props appends side data and merges dictionaries. Retire those
+                // along with the pixels if this destination already has frame metadata.
+                if (!(*output).buf[0].is_null() && av_frame_is_writable(output) == 0)
+                    || (*output).nb_side_data != 0
+                    || !(*output).metadata.is_null()
+                {
                     av_frame_unref(output);
                 }
                 if (*self.frame_buf.latest_av_frame).format
@@ -873,7 +918,13 @@ impl FFmpegDecoder {
                     )));
                 }
 
-                av_frame_copy_props(self.frame_buf.latest_av_frame, self.hw_frame);
+                let ret = av_frame_copy_props(output, target_frame);
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error copying hardware frame properties".to_string(),
+                    )));
+                }
             }
             // The decoder fell back to software decoding: the frame it returned already
             // holds the pixels. Keep a reference in the target too, since EOF may need
@@ -904,9 +955,11 @@ impl FFmpegDecoder {
             // decoding every frame in between (frames can be requested out of order by
             // parallel renderers).
             let seek_ahead_frames = 2 * i64::from(self.custom_time_base.den.max(1));
-            let needs_seek = self.last_offset.is_some_and(|last_offset| {
-                offset < last_offset || offset - last_offset > seek_ahead_frames
-            });
+            let needs_seek = self
+                .last_offset
+                .map_or(offset > seek_ahead_frames, |last_offset| {
+                    offset < last_offset || offset - last_offset > seek_ahead_frames
+                });
             self.last_offset = Some(offset);
             if needs_seek {
                 self.seek_to_offset(offset)?;
@@ -1014,7 +1067,11 @@ impl Drop for FFmpegDecoder {
 unsafe fn find_hw_acceleration_for_codec(
     hw_device_ctx: &mut *mut AVBufferRef,
     codec: *const AVCodec,
+    mode: DecodeMode,
 ) -> Option<AVPixelFormat> {
+    if mode == DecodeMode::Software {
+        return None;
+    }
     unsafe {
         let hw_types = [
             #[cfg(feature = "vaapi")]
@@ -1023,7 +1080,7 @@ unsafe fn find_hw_acceleration_for_codec(
             AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA,
             #[cfg(feature = "direct3d9")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_DXVA2,
-            #[cfg(feature = "videotoolbox")]
+            #[cfg(any(feature = "preview-videotoolbox", feature = "videotoolbox"))]
             AVHWDeviceType::AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
             #[cfg(feature = "nvidia")]
             AVHWDeviceType::AV_HWDEVICE_TYPE_CUDA,
@@ -1036,6 +1093,12 @@ unsafe fn find_hw_acceleration_for_codec(
         ];
 
         for &hw_type in &hw_types {
+            #[cfg(all(feature = "preview-videotoolbox", not(feature = "videotoolbox")))]
+            if hw_type == AVHWDeviceType::AV_HWDEVICE_TYPE_VIDEOTOOLBOX
+                && mode != DecodeMode::Preview
+            {
+                continue;
+            }
             let mut hw_pix_fmt = AVPixelFormat::AV_PIX_FMT_NONE;
 
             let mut i = 0;

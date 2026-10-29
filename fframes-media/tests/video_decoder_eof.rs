@@ -390,3 +390,81 @@ fn frames_can_be_converted_at_widths_that_are_not_a_multiple_of_16() {
         }
     }
 }
+
+#[test]
+fn preview_decoding_preserves_frames_and_color_across_seeks() {
+    use fframes_media::DecodeMode;
+    let fixture = VideoFixture::with_size(3, FPS, 56, (320, 192));
+    let file = fixture.path();
+    let mut preview =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Preview) }.unwrap();
+    let mut software =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Software) }.unwrap();
+    for i in [0, 1, 16, 9, 55, 2] {
+        unsafe {
+            assert!(preview.decode_up_to(i).unwrap() && software.decode_up_to(i).unwrap());
+            let held = preview.retained_frame().unwrap();
+            let reference = software.retained_frame().unwrap();
+            assert_eq!(held.get_pts(), reference.get_pts());
+            // Changing the cursor must not invalidate a mapped VideoToolbox surface.
+            assert!(preview.decode_up_to((i + 1) % 56).unwrap());
+            let a = held
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            let b = reference
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            assert_eq!((a.width, a.height), (320, 192));
+            assert_eq!(a.data.len(), b.data.len());
+            // Hardware can reconstruct a channel a little differently than libavcodec.
+            let error: usize = a
+                .data
+                .iter()
+                .zip(b.data.iter())
+                .map(|(x, y)| x.abs_diff(*y) as usize)
+                .sum();
+            assert!(
+                error < a.data.len() * 2,
+                "frame {i}: mean channel difference exceeds two"
+            );
+        }
+    }
+}
+
+#[test]
+fn preview_falls_back_for_lossless_alpha_video() {
+    use fframes_media::DecodeMode;
+    let fixture = VideoFixture::with_rate(0, FPS, 8);
+    let file = fixture.path().with_extension("mkv");
+    let output = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=32x32:rate=30,format=bgra,colorchannelmixer=aa=0.5",
+            "-frames:v",
+            "8",
+            "-c:v",
+            "ffv1",
+        ])
+        .arg(&file)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mut preview =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Preview) }.unwrap();
+    let mut software =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Software) }.unwrap();
+    for i in [0, 6, 3] {
+        let pixels = convert_frame(&mut preview, i, None);
+        assert_eq!(pixels, convert_frame(&mut software, i, None));
+        assert!((127..=128).contains(&pixels[3]));
+    }
+}

@@ -30,7 +30,8 @@ pub(crate) struct Scheduler {
     lookahead: u64,
     thumbnails: usize,
     playback_decoders: VideoDecodersWorker,
-    video_sources: bool,
+    pub(crate) video_sources: bool,
+    software_decode: bool,
 }
 
 struct State {
@@ -72,6 +73,7 @@ impl Scheduler {
         looping: bool,
         thumbnails: usize,
         video_sources: bool,
+        software_decode: bool,
     ) -> Self {
         Self {
             state: Mutex::new(State {
@@ -89,8 +91,9 @@ impl Scheduler {
             duration: duration_in_frames.max(1) as u64,
             lookahead: lookahead.min(duration_in_frames) as u64,
             thumbnails,
-            playback_decoders: VideoDecodersWorker::default(),
+            playback_decoders: VideoDecodersWorker::for_preview(software_decode),
             video_sources,
+            software_decode,
         }
     }
 
@@ -296,7 +299,7 @@ impl Scheduler {
         let mut converter_cache = usvgr::Cache::new_with_text_cache(100);
         let video_decoders = match kind {
             WorkerKind::Playback => self.playback_decoders.clone(),
-            WorkerKind::Thumbnails => VideoDecodersWorker::default(),
+            WorkerKind::Thumbnails => VideoDecodersWorker::for_preview(self.software_decode),
         };
 
         while let Some(job) = match kind {
@@ -318,6 +321,11 @@ impl Scheduler {
                     Ok(svgr.into_svg_tree(usvg_options, &mut converter_cache, font_db)?)
                 });
 
+            let concurrent_jobs = match kind {
+                WorkerKind::Playback => self.lock().in_flight,
+                WorkerKind::Thumbnails => 1,
+            };
+            video_decoders.finish_preview_frame(concurrent_jobs);
             match (tree, job.kind) {
                 (Ok(tree), JobKind::Thumbnail(slot)) => {
                     if let Some(image) = thumbnail(&tree, TVideo::BACKGROUND_COLOR) {
@@ -367,7 +375,7 @@ mod tests {
 
     #[test]
     fn taking_out_of_order_frames_preserves_future_frames_and_rejects_stale_jobs() {
-        let scheduler = Scheduler::new(100, 3, false, 2, false);
+        let scheduler = Scheduler::new(100, 3, false, 2, false, false);
         for index in 0..=3 {
             assert_eq!(scheduler.next_job().unwrap().frame, index);
         }
@@ -389,7 +397,7 @@ mod tests {
 
     #[test]
     fn finished_frames_fill_the_window_and_a_seek_reuses_its_target() {
-        let scheduler = Scheduler::new(100, 48, false, 0, false);
+        let scheduler = Scheduler::new(100, 48, false, 0, false, false);
         let mut images = BTreeMap::new();
         let image = fframes_skia_renderer::skia_safe::surfaces::raster_n32_premul((8, 8))
             .unwrap()
@@ -429,7 +437,7 @@ mod tests {
 
     #[test]
     fn live_frames_take_priority_over_queued_trees() {
-        let scheduler = Scheduler::new(100, 48, false, 0, false);
+        let scheduler = Scheduler::new(100, 48, false, 0, false, false);
         let mut images = BTreeMap::new();
         for p in 0..4 {
             assert_eq!(scheduler.next_job().unwrap().frame as u64, p);
@@ -451,7 +459,7 @@ mod tests {
 
     #[test]
     fn video_workers_bound_in_flight_frames_and_release_failed_jobs() {
-        let scheduler = Scheduler::new(100, 48, false, 0, true);
+        let scheduler = Scheduler::new(100, 48, false, 0, true, false);
         for p in 0..4 {
             assert_eq!(scheduler.next_job().unwrap().frame, p);
         }
@@ -467,7 +475,7 @@ mod tests {
 
     #[test]
     fn thumbnails_do_not_consume_playback_jobs_and_stop_when_finished() {
-        let scheduler = Scheduler::new(100, 3, false, 2, false);
+        let scheduler = Scheduler::new(100, 3, false, 2, false, false);
         assert_eq!(scheduler.next_job().unwrap().frame, 0);
         scheduler.complete(0, 0, Some(tree()));
         scheduler.take(0, &mut BTreeMap::new()).unwrap();
@@ -476,7 +484,7 @@ mod tests {
         assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 75);
         assert!(scheduler.next_thumbnail_job().is_none());
         assert_eq!(scheduler.next_job().unwrap().frame, 2);
-        let stopped = Scheduler::new(100, 3, false, 2, false);
+        let stopped = Scheduler::new(100, 3, false, 2, false, false);
         stopped.shutdown();
         assert!(stopped.next_thumbnail_job().is_none());
     }

@@ -344,6 +344,12 @@ Drag the filmstrip to scrub, or click a scene marker to pause on its first frame
 to jump between scenes and `,` and `.` to step one frame. Press `Space` to play or pause, or `T`
 to hide the timeline and expand the video.
 
+On macOS the studio tries VideoToolbox for supported source videos and falls back to software
+for unsupported formats. `preview --software-decode` uses the CPU for decoding while keeping
+the selected drawing backend. Playback and filmstrip workers release idle source decoders.
+The automatic lookahead covers up to two seconds. The CPU draws directly into the window.
+The GPU budgets 96 MiB for finished frames when playing source videos or expensive scenes.
+
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
 `--title` and `--backend`. On macOS and Linux (arm64, x86_64) the first build downloads prebuilt Skia and ffmpeg
 libraries and takes under a minute on a fast machine; other targets and feature combinations

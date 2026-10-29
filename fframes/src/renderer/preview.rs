@@ -211,6 +211,7 @@ pub struct PreviewRequest {
     pub autoplay: bool,
     pub looping: bool,
     pub audio: bool,
+    pub software_decode: bool,
     /// `auto`, `metal`, `vulkan` or `cpu`.
     pub backend: String,
 }
