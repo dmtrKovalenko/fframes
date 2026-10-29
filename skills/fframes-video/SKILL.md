@@ -336,6 +336,9 @@ launch it. After final export, provide the output path and duration.
 
 ## Troubleshooting
 
+- If a frame panics, rerun the failing command with `RUST_BACKTRACE=1` and check the
+  first stack frame in the video's source.
+
 - Build fails in `ffmpeg-sys-fframes`: a system library from step 1 is missing (`nasm`,
   `pkg-config`, the codec `-dev` packages).
 - Build fails in the Skia bindings (`skia-bindings`) with bindgen or libclang errors (Skia

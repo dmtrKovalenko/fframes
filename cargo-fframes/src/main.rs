@@ -621,6 +621,7 @@ mod tests {
             new(args).unwrap();
             let manifest = std::fs::read_to_string(project.join("Cargo.toml")).unwrap();
             assert!(manifest.contains("default = [\"dynamic-linking\"]"));
+            assert!(manifest.contains("\ndebug = \"line-tables-only\"\n"));
             assert!(manifest.contains(&format!(
                 "fframes-dylib = {{ version = \"={}\", optional = true }}",
                 env!("CARGO_PKG_VERSION")
