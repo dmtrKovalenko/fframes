@@ -80,6 +80,29 @@ pub fn av_error_to_string(errnum: i32) -> String {
     }
 }
 
+/// Copies the colors the encoder context is tagged with onto `frame`.
+///
+/// Some encoders write them into the bitstream from the frame, not from the context:
+/// `prores_ks` puts primaries, transfer and matrix into every frame header, and `FFmpeg`
+/// converts an untagged frame with BT.601 whatever the stream says. Pooled frames are
+/// reused, so this runs on every send.
+unsafe fn tag_frame_colors(enc: *const AVCodecContext, frame: *mut AVFrame) {
+    unsafe {
+        if (*enc).color_range != AVColorRange::AVCOL_RANGE_UNSPECIFIED {
+            (*frame).color_range = (*enc).color_range;
+        }
+        if (*enc).colorspace != AVColorSpace::AVCOL_SPC_UNSPECIFIED {
+            (*frame).colorspace = (*enc).colorspace;
+        }
+        if (*enc).color_primaries != AVColorPrimaries::AVCOL_PRI_UNSPECIFIED {
+            (*frame).color_primaries = (*enc).color_primaries;
+        }
+        if (*enc).color_trc != AVColorTransferCharacteristic::AVCOL_TRC_UNSPECIFIED {
+            (*frame).color_trc = (*enc).color_trc;
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EncoderOptions<'a> {
     /// Force the codec to be used for encoding audio/video stream. If not provided the codec will
@@ -404,6 +427,10 @@ impl Encoder {
         customize_frame: F,
     ) -> RenderEncodingResult<()> {
         unsafe {
+            if matches!(stream.variant, stream::StreamVariant::Video) {
+                tag_frame_colors(stream.enc, frame);
+            }
+
             let mut status = avcodec_send_frame(stream.enc, frame);
 
             if status < 0 {

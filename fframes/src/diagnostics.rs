@@ -31,6 +31,7 @@ pub enum MediaKind {
     Audio,
     Video,
     Subtitles,
+    Lottie,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

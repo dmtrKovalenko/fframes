@@ -41,8 +41,8 @@ impl MediaDirectory {
 
             match path.extension().and_then(OsStr::to_str) {
                 Some(
-                    "jpg" | "jpeg" | "png" | "gif" | "vtt" | "mp3" | "wav" | "flac" | "aac" | "pcm"
-                    | "ogg" | "mp2",
+                    "jpg" | "jpeg" | "png" | "gif" | "vtt" | "json" | "mp3" | "wav" | "flac"
+                    | "aac" | "pcm" | "ogg" | "mp2",
                 ) => {
                     let bytes = fs::read(&path)?;
                     folder_content.push((path, RawMediaFile::Data(bytes)));
@@ -66,6 +66,8 @@ impl MediaDirectory {
         let image_hash = Mutex::new(HashMap::new());
         let fontdata = Mutex::new(Vec::new());
         let video_paths = Mutex::new(HashMap::new());
+        #[cfg(feature = "lottie")]
+        let lottie_hash = Mutex::new(HashMap::new());
 
         self.0
             .par_iter()
@@ -94,6 +96,14 @@ impl MediaDirectory {
                                 filename.to_owned(),
                                 Subtitles::parse(str_bytes)
                                     .map_err(crate::media::FFramesMediaError::from)?,
+                            );
+                        }
+                        #[cfg(feature = "lottie")]
+                        ("json", RawMediaFile::Data(bytes)) => {
+                            lottie_hash.lock()?.insert(
+                                filename.to_owned(),
+                                crate::Lottie::parse(bytes)
+                                    .map_err(crate::error::FFramesError::from)?,
                             );
                         }
                         ("ttf" | "ttc" | "otf" | "otc", RawMediaFile::Stream(path)) => {
@@ -134,14 +144,14 @@ impl MediaDirectory {
                 Ok(())
             })?;
 
-        let provider = DynamicMediaProvider::new(
-            audio_hash.into_inner()?,
-            image_hash.into_inner()?,
-            subtitles_hash.into_inner()?,
-            video_paths.into_inner()?,
-            fontdata.into_inner()?,
-        );
-
-        Ok(provider)
+        Ok(DynamicMediaProvider {
+            audio: audio_hash.into_inner()?,
+            images: image_hash.into_inner()?,
+            subtitles: subtitles_hash.into_inner()?,
+            videos: video_paths.into_inner()?,
+            fontdata: fontdata.into_inner()?,
+            #[cfg(feature = "lottie")]
+            lottie: lottie_hash.into_inner()?,
+        })
     }
 }

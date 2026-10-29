@@ -27,9 +27,23 @@ impl AudioData {
             fframes::AudioData::Lazy => panic!("Lazy audio is not supported in wasm"),
         };
 
+        // The editor plays one channel: mix stereo files down instead of dropping the right.
+        let fltp_data = match &preloaded_data.right {
+            Some(right) => {
+                let mixed: Vec<f32> = preloaded_data
+                    .samples
+                    .iter()
+                    .zip(right.iter())
+                    .map(|(left, right)| (left + right) * 0.5)
+                    .collect();
+                js_sys::Float32Array::from(mixed.as_slice())
+            }
+            None => js_sys::Float32Array::from(preloaded_data.samples.as_ref()),
+        };
+
         Self {
             name,
-            fltp_data: js_sys::Float32Array::from(preloaded_data.samples.as_ref()),
+            fltp_data,
             sample_rate: preloaded_data.sample_rate,
         }
     }

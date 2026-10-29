@@ -292,7 +292,8 @@ impl SurfaceReader for VulkanSurfaceReader {
 
 impl Drop for VulkanSurfaceReader {
     fn drop(&mut self) {
-        // `read` waits for its copy, so nothing of ours is in flight here
+        // A failed read may leave a copy in flight. The owner must retire its GPU
+        // context (which waits for the queue) before dropping this reader.
         self.free_staging();
         unsafe {
             self.device.destroy_fence(self.fence, None);

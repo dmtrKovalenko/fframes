@@ -11,7 +11,7 @@ pub struct SheetCell {
     pub label: String,
 }
 
-fn to_pixmap(frame: &RgbaFrame) -> FFramesRendererResult<tiny_skia::Pixmap> {
+pub(crate) fn to_pixmap(frame: &RgbaFrame) -> FFramesRendererResult<tiny_skia::Pixmap> {
     let mut data = frame.pixels.clone();
     for px in data.as_chunks_mut::<4>().0 {
         let a = u32::from(px[3]);
@@ -38,7 +38,7 @@ fn escape_xml(text: &str) -> String {
 }
 
 /// Font families for labels: the requested one, then whatever the database has.
-fn label_font_family(fontdb: &usvgr::fontdb::Database, preferred: &str) -> String {
+pub(crate) fn label_font_family(fontdb: &usvgr::fontdb::Database, preferred: &str) -> String {
     let mut families = vec![format!("'{}'", preferred)];
     if let Some(face) = fontdb.faces().next()
         && let Some((family, _)) = face.families.first()

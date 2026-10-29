@@ -130,10 +130,19 @@ fn gpu_context_options() -> gpu::ContextOptions {
 }
 
 impl SkiaMetalCtx {
-    /// A new Skia context on the device.
-    pub(crate) fn create_context(&self) -> FFramesRendererResult<DirectContext> {
+    /// A new Skia context on the device. It submits to [`Self::command_queue`].
+    pub fn create_context(&self) -> FFramesRendererResult<DirectContext> {
         gpu::direct_contexts::make_metal(&self.backend, Some(&gpu_context_options()))
             .ok_or_else(|| FFramesRendererError::Skia("Failed to create GPU context".to_string()))
+    }
+
+    pub fn device(&self) -> &metal_rs::DeviceRef {
+        &self.device
+    }
+
+    /// The queue the Skia contexts of this backend submit to.
+    pub fn command_queue(&self) -> &metal_rs::CommandQueueRef {
+        &self.command_queue
     }
 
     /// The `id<MTLDevice>` of the context.

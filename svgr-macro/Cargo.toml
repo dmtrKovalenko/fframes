@@ -1,5 +1,5 @@
 [package]
-version = "1.2.0"
+version = "1.3.0"
 name = "svgr-macro"
 edition = "2018"
 description = "A macro for generating SVG trees at compile time"

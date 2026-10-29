@@ -64,6 +64,7 @@ pub(crate) struct AppConfig<'a> {
     pub title: &'a str,
     pub window_size: LogicalSize<u32>,
     pub backend: PlayerBackend,
+    pub vsync: bool,
     pub fps: usize,
     pub duration_in_frames: usize,
     pub background: fframes::Color,
@@ -97,7 +98,11 @@ pub(crate) struct App<'s> {
     seeking_with_mouse: bool,
 
     stats_since: Instant,
+    /// New frames drawn into the window since `stats_since`. Frames taken from the
+    /// scheduler can be replaced before a redraw, so they are not counted.
     frames_shown: usize,
+    /// The position of the frame last drawn into the window.
+    presented: Option<u64>,
     shown_fps: f64,
     title_updated_at: Instant,
 }
@@ -135,6 +140,7 @@ impl<'s> App<'s> {
             seeking_with_mouse: false,
             stats_since: now,
             frames_shown: 0,
+            presented: None,
             shown_fps: 0.,
             title_updated_at: now,
             config,
@@ -198,7 +204,6 @@ impl<'s> App<'s> {
 
         if let Some(frame) = self.scheduler.take(position) {
             self.current = Some(frame);
-            self.frames_shown += 1;
             self.needs_redraw = true;
         }
 
@@ -426,6 +431,12 @@ impl<'s> App<'s> {
 
         if let Some(presenter) = self.presenter.as_mut() {
             presenter.present(self.current.as_ref().map(|(_, tree)| tree), &controls)?;
+
+            let position = self.current.as_ref().map(|(position, _)| *position);
+            if position.is_some() && position != self.presented {
+                self.frames_shown += 1;
+            }
+            self.presented = position;
         }
 
         Ok(())
@@ -456,6 +467,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
         match Presenter::new(
             window.clone(),
             self.config.backend,
+            self.config.vsync,
             self.config.background,
             duration_label,
         ) {

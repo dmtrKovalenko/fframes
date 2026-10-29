@@ -95,6 +95,8 @@ struct VideoStreamInfo {
     codec_ctx: *mut AVCodecContext,
     width: i32,
     height: i32,
+    display_width: i32,
+    display_height: i32,
     pixel_format: AVPixelFormat,
     color_space: AVColorSpace,
     color_range: AVColorRange,
@@ -125,6 +127,14 @@ impl Drop for SwsScaler {
 }
 
 const PIX_FMT_SIZE: usize = size_of::<i32>();
+const MAX_PIXEL_STRETCH: i64 = 4;
+
+/// Bytes `sws_scale` may write past the end of an RGBA image whose rows are `width * 4` bytes
+/// apart. The x86 YUV to RGB converter of `FFmpeg` (`yuv2rgb_fn` in
+/// `libswscale/x86/yuv_2_rgb.asm`) stores whole blocks of 16 pixels (64 bytes), at least one
+/// per row, so it can write up to 60 bytes past the last row. Frames allocated by `FFmpeg`
+/// have padding there.
+const SWS_DST_PADDING: usize = 64;
 
 impl SwsScaler {
     unsafe fn init_sws_context(
@@ -237,15 +247,18 @@ impl SwsScaler {
     }
 
     fn new(video_stream_info: VideoStreamInfo) -> Self {
-        let frame_data_len =
-            video_stream_info.width as usize * video_stream_info.height as usize * PIX_FMT_SIZE;
+        let (width, height) = (
+            video_stream_info.display_width,
+            video_stream_info.display_height,
+        );
+        let frame_data_len = width as usize * height as usize * PIX_FMT_SIZE;
 
-        let linesize: [i32; 7] = Self::calculate_linesize(video_stream_info.width);
+        let linesize: [i32; 7] = Self::calculate_linesize(width);
         SwsScaler {
             linesize,
             frame_data_len,
-            height: video_stream_info.height,
-            width: video_stream_info.width,
+            height,
+            width,
             sws_ctx: std::ptr::null_mut(),
             options: None,
             source_format: None,
@@ -260,8 +273,12 @@ impl SwsScaler {
         source_color: (AVColorSpace, AVColorRange),
         options: Option<FrameConvertOptions>,
     ) -> Result<()> {
-        let new_width = options.map_or(self.video_stream_info.width, |o| o.resize.width as i32);
-        let new_height = options.map_or(self.video_stream_info.height, |o| o.resize.height as i32);
+        let new_width = options.map_or(self.video_stream_info.display_width, |o| {
+            o.resize.width as i32
+        });
+        let new_height = options.map_or(self.video_stream_info.display_height, |o| {
+            o.resize.height as i32
+        });
 
         let ctx = Self::init_sws_context(
             &self.video_stream_info,
@@ -287,7 +304,7 @@ impl SwsScaler {
         &mut self,
         options: Option<FrameConvertOptions>,
         source_frame: *mut AVFrame,
-        rgba_dst: &mut [u8],
+        rgba_dst: &mut Vec<u8>,
     ) -> Result<()> {
         let source_pix_fmt: AVPixelFormat = std::mem::transmute((*source_frame).format);
         // Decoded frame metadata takes precedence over the stream defaults and
@@ -308,6 +325,13 @@ impl SwsScaler {
         {
             self.reinit_sws_context(source_pix_fmt, source_color, options)?;
         }
+
+        // A reused buffer may still have the length of another output size. This
+        // reallocates only when the output grows and does nothing when the size is
+        // unchanged. `sws_scale` can write past the image, see `SWS_DST_PADDING`.
+        let capacity = self.frame_data_len + SWS_DST_PADDING;
+        rgba_dst.reserve(capacity.saturating_sub(rgba_dst.len()));
+        rgba_dst.resize(self.frame_data_len, 0);
 
         let ret = sws_scale(
             self.sws_ctx,
@@ -428,14 +452,6 @@ unsafe impl Send for FFmpegFrameBuf {}
 unsafe impl Sync for FFmpegFrameBuf {}
 
 impl FFmpegFrameBuf {
-    fn alloc_data_vec(ctx: &SwsScaler) -> Vec<u8> {
-        let frame_data_len = ctx.frame_data_len;
-        let mut data_vec = Vec::with_capacity(frame_data_len * PIX_FMT_SIZE);
-        data_vec.reserve(frame_data_len);
-        data_vec.resize(frame_data_len, 0);
-        data_vec
-    }
-
     unsafe fn new(
         resource_name: String,
         video_stream_info: VideoStreamInfo,
@@ -462,7 +478,6 @@ impl FFmpegFrameBuf {
     unsafe fn write_new_frame(&self) -> Option<&'static mut ScaledFrameImage> {
         unsafe {
             let queue = self.data_buf.get().as_mut()?;
-            let scaler = self.sws_scaler.get().as_ref()?;
             let latest_pts = (*self.latest_av_frame).pts;
 
             // fast path for the cpu renderer which will always have capacity 1
@@ -474,19 +489,15 @@ impl FFmpegFrameBuf {
                 return Some(image);
             }
 
+            // `SwsScaler::convert` sizes the buffer once it knows the requested output size
             if queue.len() == queue.capacity() {
                 let mut last_buffer = queue.pop_front()?;
-
-                if last_buffer.data.len() != scaler.frame_data_len {
-                    last_buffer.data.set_len(scaler.frame_data_len);
-                }
-
                 last_buffer.pts = latest_pts;
                 queue.push_back(last_buffer);
             } else {
                 queue.push_back(ScaledFrameImage {
                     pts: latest_pts,
-                    data: Self::alloc_data_vec(scaler),
+                    data: Vec::new(),
                 });
             }
 
@@ -495,17 +506,11 @@ impl FFmpegFrameBuf {
     }
 
     pub fn get_stream_width(&self) -> u32 {
-        unsafe { self.sws_scaler.get().as_ref() }
-            .expect("Critical mememroy error: SWS scale is not allocated")
-            .video_stream_info
-            .width as u32
+        self.video_stream_info.display_width as u32
     }
 
     pub fn get_stream_height(&self) -> u32 {
-        unsafe { self.sws_scaler.get().as_ref() }
-            .expect("Critical mememroy error: SWS scale is not allocated")
-            .video_stream_info
-            .height as u32
+        self.video_stream_info.display_height as u32
     }
 
     pub fn get_width(&self) -> u32 {
@@ -531,10 +536,14 @@ impl FFmpegFrameBuf {
     ) -> Result<Arc<PreloadedImageData>> {
         unsafe {
             let scaler = self.sws_scaler.get().as_mut().unwrap();
-            // fast path if we have the image already decoded and converted last time
-            // e.g. the same video frame is requested from multiple scenes
+            // fast path if we have the image already decoded and converted last time with the
+            // same options (the scaler keeps them), e.g. the same video frame is requested at
+            // the same size from multiple scenes
             match self.data_buf.get().as_ref().and_then(|q| q.back()) {
-                Some(image) if image.pts == (*self.latest_av_frame).pts => {
+                Some(image)
+                    if image.pts == (*self.latest_av_frame).pts
+                        && scaler.options == options.copied() =>
+                {
                     return Ok(create_preloaded_image(
                         scaler.video_stream_info.pixel_format,
                         encode_video_resource(&self.resource_name, image.pts),
@@ -780,12 +789,36 @@ impl FFmpegDecoder {
                 )));
             }
 
+            let (width, height) = ((*video_dec_ctx).width, (*video_dec_ctx).height);
+            let (display_width, display_height) = match [
+                (*stream).sample_aspect_ratio,
+                (*video_dec_ctx).sample_aspect_ratio,
+            ]
+            .into_iter()
+            .find(|ratio| {
+                let (num, den) = (i64::from(ratio.num), i64::from(ratio.den));
+                num > 0
+                    && den > 0
+                    && num <= MAX_PIXEL_STRETCH * den
+                    && den <= MAX_PIXEL_STRETCH * num
+            }) {
+                Some(AVRational { num, den }) => {
+                    let ratio = f64::from(num) / f64::from(den);
+                    (
+                        (f64::from(width) * ratio.max(1.0)).round() as i32,
+                        (f64::from(height) / ratio.min(1.0)).round() as i32,
+                    )
+                }
+                None => (width, height),
+            };
             Ok(VideoStreamInfo {
                 hw_pix_fmt,
                 stream_index: video_stream_idx,
                 codec_ctx: video_dec_ctx,
-                width: (*video_dec_ctx).width,
-                height: (*video_dec_ctx).height,
+                width,
+                height,
+                display_width,
+                display_height,
                 pixel_format: (*video_dec_ctx).pix_fmt,
                 color_space: (*video_dec_ctx).colorspace,
                 color_range: (*video_dec_ctx).color_range,
@@ -1206,6 +1239,8 @@ mod color_tests {
             codec_ctx: ptr::null_mut(),
             width: WIDTH,
             height: HEIGHT,
+            display_width: WIDTH,
+            display_height: HEIGHT,
             pixel_format: AVPixelFormat::AV_PIX_FMT_YUV444P,
             color_space: space,
             color_range: range,

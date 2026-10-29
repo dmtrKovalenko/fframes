@@ -24,6 +24,7 @@ module LoadedMediaIcon = {
       | Audio(_) => <Icons.MusicIcon />
       | Font(_) => <Icons.FontIcon />
       | Subtitles(_) => <Icons.CaptionsIcon />
+      | Lottie(_) => <Icons.AnimationIcon />
       }}
     </div>
   }
@@ -69,6 +70,7 @@ module LoadedMedia = {
               `${fontInfo.name} (${fontInfo.style}, ${fontInfo.weight->stringifyFontWeight}, ${fontInfo.unicodeRange})`
             }->React.string
           | Subtitles(phrasesCount) => React.string(`${phrasesCount->Int.toString} phrases`)
+          | Lottie(duration) => `Lottie, ${duration->Utils.Duration.formatSeconds}`->React.string
           | Image({width, height}) => `${width->Int.toString}x${height->Int.toString}`->React.string
           }}
         </p>

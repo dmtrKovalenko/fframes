@@ -2,7 +2,7 @@
 name = "fframes-editor-controller"
 description = "Helper wasm module that provies fframes bindings for the web WASM editor"
 license = "MIT"
-version = "1.2.0"
+version = "1.3.0"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2024"
 homepage = "https://fframes.studio"
@@ -20,6 +20,10 @@ futures = "0.3.31"
 serde-wasm-bindgen = "0.6.5"
 fframes = { workspace = true }
 getrandom = { version = "0.2.15", features = ["js"] }
+
+[features]
+# Lottie `.json` files of the dynamic media folder (`fframes/lottie`)
+lottie = ["fframes/lottie"]
 
 
 

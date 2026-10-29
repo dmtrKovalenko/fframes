@@ -35,7 +35,7 @@ fn main() -> ExitCode {
         },
     )
     .args(args)
-    // Frame previews (frame, strip, onion, snapshot) render with the same Skia backend.
+    // Frame previews (frame, strip, onion) render with the same Skia backend.
     .backend(
         SkiaFFramesRenderer::{{skia_constructor}}(
             &gpu,

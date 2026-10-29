@@ -27,12 +27,23 @@ fn read_snapshot(path: &std::path::Path) -> io::Result<String> {
     })
 }
 
+/// DM Sans Regular and Medium. usvgr drops text in a font it cannot find, so snapshots keep
+/// only the text in DM Sans.
+pub fn dm_sans() -> usvgr::fontdb::Database {
+    let mut fontdb = usvgr::fontdb::Database::default();
+    fontdb.load_font_data(include_bytes!("../../examples/beta/media/DMSans-Regular.ttf").to_vec());
+    fontdb.load_font_data(
+        include_bytes!("../../examples/hello-world/media/DMSans-Medium.ttf").to_vec(),
+    );
+    fontdb
+}
+
 pub fn assert_compile_time_svgr_eq_runtime(name: &str, svgr: Svgr) {
     let svgtree = svgr
         .into_svg_tree(
             &usvgr::Options::default(),
             &mut usvgr::Cache::default(),
-            &usvgr::fontdb::Database::default(),
+            &dm_sans(),
         )
         .unwrap();
 

@@ -27,6 +27,8 @@ type fontInfo = {
 type processedMedia =
   | Font(fontInfo)
   | Subtitles(int)
+  // Length of the animation in seconds
+  | Lottie(float)
   | Image(imageInfo)
   | Audio(audioInfo)
 
@@ -109,6 +111,7 @@ type mediaResolveFnWithOptions = mediaResolverOptions => Js.Promise.t<forceTsRet
 @module("./MediaResolvers") external resolveAudio: mediaResolveFnWithOptions = "resolveAudio"
 @module("./MediaResolvers")
 external resolveSubtitles: mediaResolveFnWithOptions = "resolveSubtitles"
+@module("./MediaResolvers") external resolveLottie: mediaResolveFnWithOptions = "resolveLottie"
 @module("./MediaResolvers") external resolveFont: mediaResolveFnWithOptions = "resolveFont"
 @module("./MediaResolvers") external resolveImage: mediaResolveFnWithOptions = "resolveImage"
 @module("./MediaResolvers") external resolveVideo: mediaResolveFnWithOptions = "resolveVideo"
@@ -168,6 +171,7 @@ let processDynamicMedia = (
       switch name->Js.String.split(".")->Utils.Array.last {
       | Some("mp3" | "aac" | "ogg" | "wav" | "pcm" | "flac") => Some(resolveAudio)
       | Some("vtt") => Some(resolveSubtitles)
+      | Some("json") => Some(resolveLottie)
       | Some("ttf" | "otf") => Some(resolveFont)
       | Some("png" | "jpg" | "jpeg") => Some(resolveImage)
       | Some("mp4" | "webm" | "mov" | "avi" | "mkv") => Some(resolveVideo)

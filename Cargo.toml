@@ -10,6 +10,7 @@ members = [
     "fframes-media",
     "fframes-skia-renderer",
     "fframes-native-player",
+    "fframes-three-d",
     "media-dir-macro",
     "render-bench",
     "render-bench/vs-remotion",
@@ -37,12 +38,11 @@ members = [
     "examples/teej-podcast/editor/editor-bridge",
     "examples/pixel-memory",
     "examples/pixel-memory/editor/editor-bridge",
-    "examples/motion-graphics",
-    "examples/motion-graphics/editor/editor-bridge",
     "examples/shaders",
     "examples/shaders/editor/editor-bridge",
     "examples/neon-triangle",
     "examples/neon-triangle/editor/editor-bridge",
+    "examples/arm",
 
     # maybe clean this up?
     # "fframes-lyon-renderer",
@@ -50,6 +50,9 @@ members = [
     "examples/fframes-intro",
     "examples/made-of-motion",
     "examples/shader-mode",
+    "examples/lottie",
+    "examples/svg-in-3d",
+    "examples/anamorphic-video",
 ]
 
 [workspace.lints.rust]
@@ -100,20 +103,20 @@ float_cmp = "allow"
 # into the parent directory of fframes (as a sibling) and uncomment the following lines:
 # svgr = { path = "../svgr/crates/svgr" }
 # usvgr = { path = "../svgr/crates/usvgr" }
-svgr = "0.50.1"
-usvgr = "0.50.1"
+svgr = "0.50.2"
+usvgr = "0.50.2"
 # ffmpeg-sys-next with prebuilt FFmpeg binaries: https://github.com/dmtrKovalenko/rust-ffmpeg-sys
 ffmpeg-sys-fframes = "9.0.0"
 wasm-bindgen = "0.2.100"
 kamadak-exif = "0.6.1"
 
 # fframes internal deps
-fframes_renderer = { path = "fframes-renderer", version = "1.0.0-beta.6.rc-3.2" }
-fframes-media = { path = "fframes-media", version = "1.2.0" }
-svgr-macro = { path = "svgr-macro", version = "1.2.0" }
-fframes-media-dir-macro = { path = "media-dir-macro", version = "1.2.0" }
-fframes = { path = "fframes", version = "1.2.0" }
-webvtt-parser = { path = "webvtt-parser", version = "1.2.0" }
-fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.2.0" }
+fframes-media = { path = "fframes-media", version = "=1.3.0" }
+svgr-macro = { path = "svgr-macro", version = "=1.3.0" }
+fframes-media-dir-macro = { path = "media-dir-macro", version = "=1.3.0" }
+fframes = { path = "fframes", version = "=1.3.0" }
+webvtt-parser = { path = "webvtt-parser", version = "=1.3.0" }
+fframes_skia_renderer = { path = "fframes-skia-renderer", version = "=1.3.0" }
 # Members pick metal or vulkan: both at once match no prebuilt Skia and build it from source.
-fframes_native_player = { path = "fframes-native-player", version = "1.2.0", default-features = false }
+fframes_native_player = { path = "fframes-native-player", version = "=1.3.0", default-features = false }
+fframes_three_d = { path = "fframes-three-d", version = "=1.3.0" }

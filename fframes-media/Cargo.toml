@@ -1,6 +1,6 @@
 [package]
 name = "fframes-media"
-version = "1.2.0"
+version = "1.3.0"
 description = "Media loaders used by different fframes packages. This crate is not meant to be used directly."
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2024"
@@ -30,6 +30,9 @@ image = { version = "0.25.6", default-features = false, features = [
 ] }
 usvgr.workspace = true
 libc = "0.2.159"
+log = "0.4"
+# The `wgpu` feature only: the editor never shares a GPU.
+wgpu = { version = "30", optional = true, default-features = false, features = ["std", "parking_lot", "wgsl", "vulkan", "metal", "dx12"] }
 
 # FFmpeg is linked statically everywhere except Windows. ffmpeg-sys-fframes downloads a
 # prebuilt static FFmpeg for the target and codec features from its GitHub releases and
@@ -69,6 +72,9 @@ mediacodec = ["ffmpeg-sys-fframes/build-mediacodec"]
 direct3d11 = ["ffmpeg-sys-fframes/build-lib-d3d11va"]
 direct3d9 = ["ffmpeg-sys-fframes/build-lib-dxva2"]
 exif = ["kamadak-exif"]
+# `wgpu_layer`: textures rendered with wgpu on the GPU of the rendering backend go into
+# frames without leaving the GPU (fframes re-exports it, fframes_three_d uses it)
+wgpu = ["dep:wgpu"]
 
 # licensing stuff
 libav-agree-gpl = ["ffmpeg-sys-fframes/build-license-gpl"]

@@ -145,6 +145,21 @@ export const resolveSubtitles: MediaResolver = async ({
   });
 };
 
+export const resolveLottie: MediaResolver = async ({
+  name,
+  url,
+  wasmController,
+}) => {
+  const response = await fetch(url);
+  const text = await response.text();
+  const duration = wasmController.add_lottie_source(name, text);
+
+  return resolveMedia(name, {
+    tag: "Lottie",
+    value: duration ?? 0,
+  });
+};
+
 // We load image through this very unfamiliar way because
 // 1. It is fast enough and caches image in browser memory
 // 2. We need to get image natural width and height which can be done only through encoding.

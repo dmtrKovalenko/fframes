@@ -44,9 +44,11 @@ pub use frame_guard::*;
 mod preview;
 pub use preview::*;
 
+pub mod continuity;
+#[cfg(feature = "cpu_renderer")]
+pub mod element_labels;
 #[cfg(feature = "cpu_renderer")]
 pub mod sheet;
-pub mod snapshot;
 
 #[cfg(feature = "cli")]
 pub mod cli;

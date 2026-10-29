@@ -1,7 +1,7 @@
 [package]
 name = "render-bench"
 description = "Per-stage and end-to-end rendering benchmark over every fframes example"
-version = "1.2.0"
+version = "1.3.0"
 edition = "2024"
 publish = false
 
@@ -22,7 +22,6 @@ conference-splash-screen-example = { path = "../examples/conference-splash-scree
 hello-world-example = { path = "../examples/hello-world" }
 low-poly-art-example = { path = "../examples/low-poly-art" }
 marketing-example = { path = "../examples/marketing" }
-motion-graphics-example = { path = "../examples/motion-graphics" }
 pixel-example = { path = "../examples/pixel-memory" }
 podcast-example = { path = "../examples/podcast" }
 teej_podcast_example = { path = "../examples/teej-podcast" }

@@ -16,8 +16,8 @@ const VARIANTS = {
   a: null,
   b: {
     poster: "made-of-motion-poster.jpg",
-    av1: "made-of-motion.av1.mp4",
-    h264: "made-of-motion.mp4",
+    stream: "hls/made-of-motion/master.m3u8",
+    fallback: "made-of-motion.mp4",
     label: "Made of motion, a film rebuilt with fframes",
     caption:
       'Jordan Watkins’ film, rebuilt in Rust with <strong>fframes</strong> and <a href="https://github.com/dmtrKovalenko/fframes/tree/main/examples/made-of-motion">open source</a>',
@@ -50,10 +50,10 @@ function rewrite(response, intro) {
         element(el) {
           el.setAttribute("poster", variant.poster);
           el.setAttribute("aria-label", variant.label);
+          el.setAttribute("data-stream", variant.stream);
+          el.setAttribute("data-fallback", variant.fallback);
         },
       })
-      .on('figure source[data-codec="av1"]', { element: (el) => el.setAttribute("src", variant.av1) })
-      .on('figure source[data-codec="h264"]', { element: (el) => el.setAttribute("src", variant.h264) })
       .on("figcaption span", { element: (el) => el.setInnerContent(variant.caption, { html: true }) });
   }
 

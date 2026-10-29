@@ -35,15 +35,17 @@ const out = join(target, "e2e", renderer);
 // media is kept outside Git.
 // prettier-ignore
 const examples = [
+  { dir: "anamorphic-video", pkg: "anamorphic-video", bin: "anamorphic-video", frames: "50%" },
   { dir: "audio-announce", pkg: "audio-announce-example", bin: "audio_announce_example_bin", frames: "5s,30s" },
   { dir: "beta", pkg: "beta-example", bin: "beta_example_bin", frames: "CodeDemoScene@50%,IphoneScene@50%,BetaExamples@50%" },
   { dir: "conference-splash-screen", pkg: "conference-splash-screen-example", bin: "conference_splash_screen_bin", frames: "SponsorScene@50%,SpeakerScene@50%" },
   { dir: "fframes-intro", pkg: "fframes-intro", bin: "fframes-intro", frames: "CodeScene@50%,ShaderScene@2.6s,BenchmarkScene@12.4s,OutroScene@7s", skia: true },
   { dir: "hello-world", pkg: "hello-world-example", bin: "hello_world_example_bin", frames: "5s,20s" },
   { dir: "low-poly-art", pkg: "low-poly-art-example", bin: "low_poly_art_example_bin", frames: "Owl@3s,Owl@8s" },
+  // tiger.json at four points of its loop: crouching, the take-off, in the air, landing
+  { dir: "lottie", pkg: "lottie", bin: "lottie", frames: "Code@2s,Code@3.5s,Code@3.7s,Code@3.9s" },
   { dir: "made-of-motion", pkg: "made-of-motion", bin: "made-of-motion", frames: "Portrait@50%,Orbit@50%,Fframes@50%", skia: true },
   { dir: "marketing", pkg: "marketing-example", bin: "marketing-example", frames: "3s,10s,18s" },
-  { dir: "motion-graphics", pkg: "motion-graphics-example", bin: "motion_graphics_example_bin", frames: "1s,3s" },
   { dir: "neon-triangle", pkg: "neon-triangle-example", bin: "neon_triangle_example_bin", frames: "2s,4s", skia: true },
   { dir: "pixel-memory", pkg: "pixel-example", bin: "pixel_memory_example_bin", frames: "StartScene@1.2s,ParallaxGridPhotos[0]@7s,SinglePhotoFloat[0]@50%,SpiralHeapGallery@50%", args: ["--song", "revenge.mp3", "--seed", "48"] },
   { dir: "podcast", pkg: "podcast-example", bin: "podcast_example_bin", frames: "10s,40s" },

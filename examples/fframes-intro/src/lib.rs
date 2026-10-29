@@ -154,7 +154,6 @@ fn hud(frame: &Frame, b: f32) -> Svgr<'static> {
     let bpm = format!("132 BPM   BAR {bar:03}.{beat_in_bar}");
     // a tick that flashes on every beat
     let tick = if b < 0.0 { 0.0 } else { pulse(b, 7.0) };
-    let progress = (gsec(frame) / TOTAL_SECONDS * 1788.0).max(0.5);
     fframes::svgr!(
         <g opacity={appear * 0.9} style="mix-blend-mode:difference">
             {corners(36.0, 36.0, 1848.0, 1008.0, 26.0, "#d8d4cc", 2.0)}
@@ -164,8 +163,6 @@ fn hud(frame: &Frame, b: f32) -> Svgr<'static> {
             {label(66.0, 1018.0, tc, "#d8d4cc", 17.0, "start")}
             {label(290.0, 1018.0, fnum, "#77736d", 17.0, "start")}
             {label(1854.0, 1018.0, section.to_owned(), "#d8d4cc", 17.0, "end")}
-            <rect x="66" y="1034" width="1788" height="1" fill="#d8d4cc" opacity="0.25" />
-            <rect x="66" y="1033" width={progress} height="3" fill="#d8d4cc" />
         </g>
     )
 }

@@ -8,5 +8,3 @@ onion.png
 *.wav
 !media/*.wav
 test_render/
-_frame_snapshots/*.actual.png
-_frame_snapshots/*.diff.png
