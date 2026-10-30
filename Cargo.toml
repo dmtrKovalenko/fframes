@@ -5,6 +5,7 @@ members = [
     "svgr-macro",
     "webvtt-parser",
     "fframes",
+    "fframes-dylib",
     "fframes-editor-controller",
     "fframes-test-utils",
     "fframes-media",
@@ -115,8 +116,16 @@ fframes-media = { path = "fframes-media", version = "=1.3.0" }
 svgr-macro = { path = "svgr-macro", version = "=1.3.0" }
 fframes-media-dir-macro = { path = "media-dir-macro", version = "=1.3.0" }
 fframes = { path = "fframes", version = "=1.3.0" }
+fframes-dylib = { path = "fframes-dylib", version = "=1.3.0" }
 webvtt-parser = { path = "webvtt-parser", version = "=1.3.0" }
 fframes_skia_renderer = { path = "fframes-skia-renderer", version = "=1.3.0" }
 # Members pick metal or vulkan: both at once match no prebuilt Skia and build it from source.
 fframes_native_player = { path = "fframes-native-player", version = "=1.3.0", default-features = false }
 fframes_three_d = { path = "fframes-three-d", version = "=1.3.0" }
+
+# All repository examples inherit this profile. Match standalone generated projects:
+# reuse release compilation work while keeping the usual 16 codegen units.
+[profile.release]
+incremental = true
+codegen-units = 16
+debug = "line-tables-only"

@@ -421,53 +421,55 @@ fn new(args: NewArgs) -> Result<(), String> {
             .unwrap_or_default()
     };
 
-    let (fframes_dep, skia_dep, media_path, standalone_tables, run) = match (
-        &workspace,
-        &fframes_path,
-    ) {
-        (Some(root), _) => {
-            let relative = std::path::absolute(dir)
-                .map_err(|e| e.to_string())?
-                .strip_prefix(root)
-                .map_err(|e| e.to_string())?
-                .to_string_lossy()
-                .replace('\\', "/");
-            (
-                format!("fframes = {{ workspace = true, {fframes_features} }}"),
-                skia_deps("workspace = true", "workspace = true"),
-                format!("{relative}/media"),
-                String::new(),
-                format!("cargo run --release -p {} --", project.name),
-            )
-        }
-        (None, source) => {
-            let [fframes_source, skia_source, player_source] = match source {
-                Some(path) => {
-                    let path = std::path::absolute(path).map_err(|e| e.to_string())?;
-                    ["fframes", "fframes-skia-renderer", "fframes-native-player"]
+    let (fframes_dep, skia_dep, dylib_source, media_path, standalone_tables, run) =
+        match (&workspace, &fframes_path) {
+            (Some(root), _) => {
+                let relative = std::path::absolute(dir)
+                    .map_err(|e| e.to_string())?
+                    .strip_prefix(root)
+                    .map_err(|e| e.to_string())?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                (
+                    format!("fframes = {{ workspace = true, {fframes_features} }}"),
+                    skia_deps("workspace = true", "workspace = true"),
+                    "workspace = true".to_owned(),
+                    format!("{relative}/media"),
+                    String::new(),
+                    format!("cargo run --release -p {} --", project.name),
+                )
+            }
+            (None, source) => {
+                let [fframes_source, skia_source, player_source, dylib_source] = match source {
+                    Some(path) => {
+                        let path = std::path::absolute(path).map_err(|e| e.to_string())?;
+                        [
+                            "fframes",
+                            "fframes-skia-renderer",
+                            "fframes-native-player",
+                            "fframes-dylib",
+                        ]
                         .map(|crate_dir| format!("path = \"{}\"", path.join(crate_dir).display()))
-                }
-                None if from_git => {
-                    std::array::from_fn(|_| format!("git = \"{FFRAMES_GIT}\", branch = \"main\""))
-                }
-                // fframes and cargo-fframes are released together with the same version, so
-                // the generated project uses exactly the fframes this template was written for.
-                None => {
-                    std::array::from_fn(|_| format!("version = \"={}\"", env!("CARGO_PKG_VERSION")))
-                }
-            };
-            (
+                    }
+                    None if from_git => std::array::from_fn(|_| {
+                        format!("git = \"{FFRAMES_GIT}\", branch = \"main\"")
+                    }),
+                    // fframes and cargo-fframes are released together with the same version, so
+                    // the generated project uses exactly the fframes this template was written for.
+                    None => std::array::from_fn(|_| {
+                        format!("version = \"={}\"", env!("CARGO_PKG_VERSION"))
+                    }),
+                };
+                (
                     format!("fframes = {{ {fframes_source}, {fframes_features} }}"),
                     skia_deps(&skia_source, &player_source),
+                    dylib_source,
                     "media".to_owned(),
-                    // Its own workspace, and dependencies optimized in dev builds so that
-                    // `cargo run` without --release still renders quickly.
-                    "\n[workspace]\n\n[profile.dev]\nopt-level = 1\n\n[profile.dev.package.\"*\"]\nopt-level = 3\n"
-                        .to_owned(),
+                    include_str!("../templates/standalone.toml.tmpl").to_owned(),
                     "cargo run --release --".to_owned(),
                 )
-        }
-    };
+            }
+        };
 
     let (skia_module, skia_ctx, skia_constructor, skia_hint, backend_label) = match project.backend
     {
@@ -499,6 +501,12 @@ fn new(args: NewArgs) -> Result<(), String> {
         ),
         ("fframes_dep", fframes_dep),
         ("skia_dep", skia_dep),
+        ("dylib_dep", dylib_source),
+        (
+            "dylib_target",
+            r#"any(target_os = "macos", target_os = "linux"), not(target_feature = "crt-static")"#
+                .to_owned(),
+        ),
         ("standalone_tables", standalone_tables),
         ("skia_module", skia_module.to_owned()),
         ("skia_ctx", skia_ctx.to_owned()),
@@ -529,8 +537,9 @@ fn new(args: NewArgs) -> Result<(), String> {
     } else {
         MAIN_SKIA
     };
-    let files: [(&str, String); 5] = [
+    let files = [
         ("Cargo.toml", render(CARGO_TOML, &vars)),
+        ("build.rs", include_str!("../templates/build.rs").to_owned()),
         ("src/lib.rs", render(project.template.lib(), &vars)),
         ("src/main.rs", render(main, &vars)),
         ("README.md", render(README, &vars)),
@@ -593,6 +602,33 @@ mod tests {
     }
 
     #[test]
+    fn standalone_videos_use_the_shared_engine_by_default() {
+        let dir = std::env::temp_dir().join(format!("fframes-template-{}", std::process::id()));
+        for (name, flags) in [("platform", &[][..]), ("cpu", &["--backend", "cpu"][..])] {
+            let project = dir.join(name);
+            let cli = Cli::parse_from(
+                ["cargo-fframes", "new", name, "--yes", "--dir"]
+                    .into_iter()
+                    .chain([project.to_str().unwrap()])
+                    .chain(flags.iter().copied()),
+            );
+            let Command::New(args) = cli.command;
+            new(args).unwrap();
+            let manifest = std::fs::read_to_string(project.join("Cargo.toml")).unwrap();
+            assert!(manifest.contains("default = [\"dynamic-linking\"]"));
+            assert!(manifest.contains(&format!(
+                "fframes-dylib = {{ version = \"={}\", optional = true }}",
+                env!("CARGO_PKG_VERSION")
+            )));
+            assert!(manifest.contains("[profile.release]\nincremental = true\ncodegen-units = 16"));
+            assert!(manifest.contains("\ndebug = \"line-tables-only\"\n"));
+            let main = std::fs::read_to_string(project.join("src/main.rs")).unwrap();
+            assert!(main.contains("use fframes_dylib as _;"));
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn templates_have_no_unknown_placeholders() {
         let vars: Vec<(&str, String)> = [
             "crate_name",
@@ -606,6 +642,8 @@ mod tests {
             "fframes_dep",
             "codecs",
             "skia_dep",
+            "dylib_dep",
+            "dylib_target",
             "standalone_tables",
             "skia_module",
             "skia_ctx",
