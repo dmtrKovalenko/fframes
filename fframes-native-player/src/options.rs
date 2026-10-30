@@ -97,7 +97,20 @@ impl PlayerOptions<'_, '_> {
                 .clamp(1, crate::scheduler::MAX_STAGED_TREES + 1);
         }
         self.render_threads
-            .unwrap_or_else(|| (fframes::get_thread_count() / 2).clamp(1, 8))
+            .unwrap_or_else(|| {
+                // The preview owns its workers. Querying Rayon here starts a second idle pool.
+                let cores = std::env::var("FFRAMES_NUM_THREADS")
+                    .ok()
+                    .and_then(|value| value.parse::<usize>().ok())
+                    .or_else(|| {
+                        std::env::var("RAYON_NUM_THREADS")
+                            .ok()
+                            .and_then(|value| value.parse::<usize>().ok())
+                            .filter(|&threads| threads > 0)
+                    })
+                    .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, usize::from));
+                (cores / 2).clamp(1, 8)
+            })
             .max(1)
     }
 }
