@@ -152,6 +152,9 @@ add `--bin <name>` if it has several binaries. After building an edit, reuse the
 or embedded-media edits. Use only the requested checks for a narrow text/layout change;
 broaden the review when timing, scenes or audio change.
 
+To try title text in a generated project, run `./target/release/my-video frame 2s --title "Take two"`
+with the project's binary name. Save the chosen title as the default in `src/main.rs` once.
+
 ## 3. The loop
 
 **Do not write tests at all when using this skill.** Do not create unit, integration,
