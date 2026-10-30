@@ -140,12 +140,9 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         .min(timeline.duration_in_frames);
     let scheduler = Scheduler::new(
         timeline.duration_in_frames,
-        options.lookahead(TVideo::FPS),
+        options.lookahead(),
         options.looping,
         thumbnail_count,
-        options
-            .media
-            .is_some_and(fframes::MediaProvider::has_video_sources),
         options.software_decode,
     );
     let proxy = Mutex::new(event_loop.create_proxy());
@@ -176,7 +173,6 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
             looping: options.looping,
             autoplay: options.autoplay,
             start_frame: options.start_frame,
-            limit_prefetch_memory: options.prefetch_frames == usize::MAX,
         },
         &scheduler,
         #[cfg(feature = "audio")]

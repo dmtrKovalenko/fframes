@@ -347,12 +347,9 @@ to hide the timeline and expand the video.
 On macOS the studio tries VideoToolbox for supported source videos and falls back to software
 for unsupported formats. `preview --software-decode` uses the CPU for decoding while keeping
 the selected drawing backend. Playback and filmstrip workers release idle source decoders.
-On unified-memory Macs, automatic playback draws simple vector scenes into a reusable
-full-resolution raster surface and presents it through Metal. Source videos, images, effects,
-large scenes, and frames that repeatedly exceed their drawing budget use GPU rendering.
-Use `preview --backend metal` to render every frame on the GPU.
-The automatic lookahead covers up to two seconds. The CPU draws directly into the window.
-The GPU budgets 96 MiB for finished frames when playing source videos or expensive scenes.
+The GPU preview draws each scene through Skia directly into the window drawable or swapchain.
+The default buffer holds up to four prepared scene trees. Source video frames remain attached
+to their trees until drawing finishes. The CPU backend draws directly into the window buffer.
 
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
 `--title` and `--backend`. On macOS and Linux (arm64, x86_64) the first build downloads prebuilt Skia and ffmpeg
