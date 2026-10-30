@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -13,15 +12,13 @@ use winit::window::{CursorIcon, Fullscreen, Window, WindowId};
 use crate::controls::{Control, ControlsState, format_time};
 use crate::error::PlayerError;
 use crate::options::PlayerBackend;
-use crate::presenter::{BufferedFrame, Presenter};
-use crate::scheduler::{PlaybackFrame, Scheduler};
+use crate::presenter::Presenter;
+use crate::scheduler::Scheduler;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
 use fframes_skia_renderer::skia_safe::Point;
 
 /// The control bar hides after this long without pointer movement while playing.
 const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
-/// Conservative RGBA budget using the whole window as an upper bound per image.
-const BUFFER_BYTES: u64 = 96 << 20;
 
 /// A frame worker finished a playback or filmstrip job.
 pub(crate) enum FrameReady {
@@ -80,19 +77,6 @@ pub(crate) struct AppConfig<'a> {
     pub looping: bool,
     pub autoplay: bool,
     pub start_frame: usize,
-    pub limit_prefetch_memory: bool,
-}
-
-impl AppConfig<'_> {
-    fn should_snapshot(&self, gpu: bool, video_sources: bool, draw_time: Duration) -> bool {
-        if !self.limit_prefetch_memory {
-            return true;
-        }
-        // Rasterizing ahead competes with presentation on the same CPU. Cheap GPU
-        // scenes also fit their deadline without retaining extra surfaces.
-        let frame_interval = Duration::from_secs_f64(1. / self.fps.max(1) as f64);
-        gpu && (video_sources || draw_time >= frame_interval / 2)
-    }
 }
 
 pub(crate) struct App<'s> {
@@ -102,13 +86,10 @@ pub(crate) struct App<'s> {
     audio: Option<&'s crate::audio::AudioOutput>,
 
     window: Option<Rc<Window>>,
-    // Drop texture-backed images before the presenter and its Skia context.
-    current: Option<(u64, PlaybackFrame)>,
-    buffered: BTreeMap<u64, BufferedFrame>,
+    // Keep source frames alive until Skia finishes drawing them.
+    current: Option<(u64, fframes::usvgr::Tree)>,
     presenter: Option<Presenter>,
     redraw_pending: bool,
-    draw_time: Duration,
-    snapshots_available: bool,
     pub(crate) error: Option<PlayerError>,
 
     clock: Clock,
@@ -158,11 +139,8 @@ impl<'s> App<'s> {
             #[cfg(feature = "audio")]
             audio,
             window: None,
-            buffered: BTreeMap::new(),
             presenter: None,
             redraw_pending: false,
-            draw_time: Duration::ZERO,
-            snapshots_available: true,
             error: None,
             clock,
             current: None,
@@ -204,14 +182,10 @@ impl<'s> App<'s> {
         self.scheduler.frame_of(position, self.looping)
     }
 
-    /// Restarts playback at `position`, all the prepared frames are discarded.
+    /// Seeks to `position`, reusing prepared scenes when possible.
     fn seek_to(&mut self, position: u64, playing: bool) {
         self.scrub_target = None;
-        if !self
-            .scheduler
-            .seek_buffered(position, self.looping, &mut self.buffered)
-        {
-            self.buffered.clear();
+        if !self.scheduler.seek_buffered(position, self.looping) {
             self.scheduler.seek(position, self.looping);
         }
         self.set_playback(position, playing);
@@ -261,7 +235,7 @@ impl<'s> App<'s> {
             }
         }
 
-        if let Some(frame) = self.scheduler.take(position, &mut self.buffered) {
+        if let Some(frame) = self.scheduler.take(position) {
             let next_frame = self.scheduler.frame_of(frame.0, self.looping);
             self.current = Some(frame);
             self.needs_redraw = true;
@@ -415,15 +389,6 @@ impl<'s> App<'s> {
     }
 
     fn invalidate_view(&mut self) {
-        if !self.buffered.is_empty() || matches!(self.current, Some((_, PlaybackFrame::Image(_)))) {
-            self.buffered.clear();
-            if matches!(self.current, Some((_, PlaybackFrame::Image(_)))) {
-                self.current = None;
-                self.presented = None;
-            }
-            self.scheduler.seek(self.clock.position(), self.looping);
-        }
-        self.snapshots_available = true;
         self.needs_redraw = true;
     }
 
@@ -600,59 +565,6 @@ impl<'s> App<'s> {
         }
     }
 
-    /// Start at most one speculative draw before returning to the event loop.
-    fn draw_ahead(&mut self) -> bool {
-        if self.redraw_pending
-            || self.drag.is_some()
-            || self.scrub_target.is_some()
-            || !self.snapshots_available
-            || self.presented != Some(self.clock.position())
-        {
-            return false;
-        }
-        let Some(presenter) = self.presenter.as_mut() else {
-            return false;
-        };
-        if !self.config.should_snapshot(
-            presenter.is_gpu(),
-            self.scheduler.video_sources,
-            self.draw_time,
-        ) {
-            return false;
-        }
-        if let Some(deadline) = self.clock.next_frame_at()
-            && deadline.saturating_duration_since(Instant::now())
-                <= self.draw_time + Duration::from_millis(2)
-        {
-            return false;
-        }
-        let Some(window) = &self.window else {
-            return false;
-        };
-        let size = window.inner_size();
-        let bytes = (u64::from(size.width) * u64::from(size.height)).saturating_mul(4);
-        // Leave room for the displayed image and keep large/high-DPI windows bounded.
-        if bytes == 0
-            || (self.config.limit_prefetch_memory
-                && bytes.saturating_mul(self.buffered.len() as u64 + 2) > BUFFER_BYTES)
-        {
-            return false;
-        }
-        let Some((position, tree)) = self.scheduler.next_to_draw() else {
-            return false;
-        };
-        let start = Instant::now();
-        if let Some(image) = presenter.snapshot(&tree, self.studio_open) {
-            self.draw_time = start.elapsed();
-            self.buffered.insert(position, image);
-            true
-        } else {
-            self.scheduler.put_back(position, tree);
-            self.snapshots_available = false;
-            false
-        }
-    }
-
     fn redraw(&mut self) -> Result<(), PlayerError> {
         self.redraw_pending = false;
         let controls = ControlsState {
@@ -667,7 +579,6 @@ impl<'s> App<'s> {
         };
 
         if let Some(presenter) = self.presenter.as_mut() {
-            let start = Instant::now();
             presenter.present(
                 self.current.as_ref().map(|(_, tree)| tree),
                 &controls,
@@ -677,11 +588,6 @@ impl<'s> App<'s> {
             )?;
 
             let position = self.current.as_ref().map(|(position, _)| *position);
-            if position != self.presented
-                && matches!(self.current, Some((_, PlaybackFrame::Tree(_))))
-            {
-                self.draw_time = start.elapsed();
-            }
             if position.is_some() && position != self.presented {
                 self.frames_shown += 1;
             }
@@ -730,7 +636,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             Err(err) => return self.fail(event_loop, err.into()),
         };
 
-        match Presenter::new(window.clone(), &self.config, self.scheduler.video_sources) {
+        match Presenter::new(window.clone(), &self.config) {
             Ok(presenter) => self.presenter = Some(presenter),
             Err(err) => return self.fail(event_loop, err),
         }
@@ -803,10 +709,6 @@ impl ApplicationHandler<FrameReady> for App<'_> {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         self.tick();
 
-        if self.draw_ahead() {
-            event_loop.set_control_flow(ControlFlow::Poll);
-            return;
-        }
         event_loop.set_control_flow(match self.clock.next_frame_at() {
             Some(next_frame) => ControlFlow::WaitUntil(next_frame),
             // Paused: sleep until input or a worker delivers the requested frame.
@@ -843,7 +745,6 @@ mod tests {
                 looping: false,
                 autoplay: false,
                 start_frame: 0,
-                limit_prefetch_memory: true,
             },
             scheduler,
             #[cfg(feature = "audio")]
@@ -852,23 +753,8 @@ mod tests {
     }
 
     #[test]
-    fn automatic_buffer_reserves_surfaces_for_gpu_work_that_needs_them() {
-        let scheduler = Scheduler::new(100, 3, false, 0, false, false);
-        let mut app = paused_app(&scheduler);
-        let config = &mut app.config;
-        let fast = Duration::from_millis(1);
-        let slow = Duration::from_millis(25);
-        assert!(!config.should_snapshot(false, true, slow));
-        assert!(!config.should_snapshot(true, false, fast));
-        assert!(config.should_snapshot(true, true, fast));
-        assert!(config.should_snapshot(true, false, slow));
-        config.limit_prefetch_memory = false;
-        assert!(config.should_snapshot(false, false, fast));
-    }
-
-    #[test]
     fn resuming_keeps_prefetched_frames_unless_playback_restarts() {
-        let scheduler = Scheduler::new(100, 3, false, 0, false, false);
+        let scheduler = Scheduler::new(100, 3, false, 0, false);
         let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.toggle_play();
@@ -882,7 +768,7 @@ mod tests {
 
     #[test]
     fn failed_scrub_continues_at_the_latest_pointer_position() {
-        let scheduler = Scheduler::new(100, 3, false, 0, false, false);
+        let scheduler = Scheduler::new(100, 3, false, 0, false);
         let mut app = paused_app(&scheduler);
         app.seek_to(10, false);
         app.scrub_target = Some(20);

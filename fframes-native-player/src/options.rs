@@ -45,14 +45,12 @@ pub struct PlayerOptions<'a, 'media> {
     pub audio: bool,
     /// Maximum number of threads building frame trees (`Video::render_frame`) in parallel.
     /// Defaults to one worker for video sources so the decoder reads frames in order.
-    /// Video sources allow up to four staged trees and one worker for a newly due frame.
+    /// Source video workers are limited to the default buffer size plus one live frame.
     /// Other projects use half the available cores, up to eight workers.
     pub render_threads: Option<usize>,
-    /// Maximum number of future frames to prepare. The default (`usize::MAX`) uses
-    /// two seconds at the video's frame rate. Zero disables preparation ahead of time.
-    /// On automatic, the CPU prepares frame trees and draws directly into the window.
-    /// GPU pre-rendering for slow scenes or source videos budgets 96 MiB of finished frames.
-    /// An explicit frame count takes precedence over that limit.
+    /// Maximum number of future frame trees to prepare. The default (`usize::MAX`)
+    /// buffers up to four trees. Zero prepares only the currently due frame.
+    /// Skia draws each tree directly into the window when it is due.
     pub prefetch_frames: usize,
     /// Master bus of the audio mix, see `RenderOptions::audio_mix`.
     pub audio_mix: fframes::AudioMixOptions,
@@ -81,9 +79,9 @@ impl Default for PlayerOptions<'_, '_> {
 }
 
 impl PlayerOptions<'_, '_> {
-    pub(crate) fn lookahead(&self, fps: usize) -> usize {
+    pub(crate) fn lookahead(&self) -> usize {
         if self.prefetch_frames == usize::MAX {
-            fps.saturating_mul(2)
+            crate::scheduler::MAX_STAGED_TREES
         } else {
             self.prefetch_frames
         }
@@ -120,14 +118,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_lookahead_tracks_the_video_frame_rate() {
+    fn lookahead_defaults_to_a_small_tree_buffer() {
         let mut options = PlayerOptions::default();
-        assert_eq!(options.lookahead(24), 48);
-        assert_eq!(options.lookahead(60), 120);
+        assert_eq!(options.lookahead(), 4);
         options.prefetch_frames = 8;
-        assert_eq!(options.lookahead(24), 8);
+        assert_eq!(options.lookahead(), 8);
         options.prefetch_frames = 0;
-        assert_eq!(options.lookahead(60), 0);
+        assert_eq!(options.lookahead(), 0);
     }
 
     #[test]

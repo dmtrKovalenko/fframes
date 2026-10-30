@@ -7,21 +7,10 @@
 use std::collections::BTreeMap;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
-use crate::{app::FrameReady, presenter::BufferedFrame, studio::thumbnail};
+use crate::{app::FrameReady, studio::thumbnail};
 use fframes::{FFramesContext, TextCache, Video, VideoDecodersWorker, usvgr};
 
 pub(crate) const MAX_STAGED_TREES: usize = 4;
-
-/// A tree can go straight to the window when its frame is due. Images were already
-/// drawn at the window scale and stay on the thread that owns the Skia context.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "The window holds one current frame. Keeping its tree inline avoids a per-frame allocation."
-)]
-pub(crate) enum PlaybackFrame {
-    Tree(usvgr::Tree),
-    Image(BufferedFrame),
-}
 
 pub(crate) struct Scheduler {
     state: Mutex<State>,
@@ -30,7 +19,6 @@ pub(crate) struct Scheduler {
     lookahead: u64,
     thumbnails: usize,
     playback_decoders: VideoDecodersWorker,
-    pub(crate) video_sources: bool,
     software_decode: bool,
 }
 
@@ -72,7 +60,6 @@ impl Scheduler {
         lookahead: usize,
         looping: bool,
         thumbnails: usize,
-        video_sources: bool,
         software_decode: bool,
     ) -> Self {
         Self {
@@ -92,7 +79,6 @@ impl Scheduler {
             lookahead: lookahead.min(duration_in_frames) as u64,
             thumbnails,
             playback_decoders: VideoDecodersWorker::for_preview(software_decode),
-            video_sources,
             software_decode,
         }
     }
@@ -126,21 +112,17 @@ impl Scheduler {
     }
 
     /// A forward seek within the finished buffer can show its target immediately.
-    pub(crate) fn seek_buffered(
-        &self,
-        position: u64,
-        looping: bool,
-        images: &mut BTreeMap<u64, BufferedFrame>,
-    ) -> bool {
+    pub(crate) fn seek_buffered(&self, position: u64, looping: bool) -> bool {
         let mut state = self.lock();
-        if state.looping != looping || position < state.playhead || !images.contains_key(&position)
+        if state.looping != looping
+            || position < state.playhead
+            || !state.ready.contains_key(&position)
         {
             return false;
         }
         state.playhead = position;
         state.ready.retain(|&p, _| p >= position);
         drop(state);
-        images.retain(|&p, _| p >= position);
         self.workers_wakeup.notify_all();
         true
     }
@@ -148,46 +130,21 @@ impl Scheduler {
     /// Moves the playhead and returns the newest ready frame at or before it.
     /// Frames that are late are still returned so heavy videos degrade to a lower
     /// frame rate instead of freezing.
-    pub(crate) fn take(
-        &self,
-        playhead: u64,
-        images: &mut BTreeMap<u64, BufferedFrame>,
-    ) -> Option<(u64, PlaybackFrame)> {
-        let image = take_due(images, playhead).map(|(p, image)| (p, PlaybackFrame::Image(image)));
+    pub(crate) fn take(&self, playhead: u64) -> Option<(u64, usvgr::Tree)> {
         let mut state = self.lock();
         let advanced = state.playhead != playhead;
-        let first_frame = state.displayed.is_none();
         state.playhead = playhead;
 
-        let tree =
-            take_due(&mut state.ready, playhead).map(|(p, tree)| (p, PlaybackFrame::Tree(tree)));
-        let taken = tree.into_iter().chain(image).max_by_key(|(p, _)| *p);
+        let taken = take_due(&mut state.ready, playhead);
         if let Some((position, _)) = &taken {
             state.displayed = Some(*position);
         }
         drop(state);
 
-        if advanced || (first_frame && taken.is_some()) {
+        if advanced || taken.is_some() {
             self.workers_wakeup.notify_all();
         }
         taken
-    }
-
-    /// Hands one future tree to the window for offscreen drawing. Leave any due
-    /// frame for `take`, even if it completed between the last tick and this call.
-    pub(crate) fn next_to_draw(&self) -> Option<(u64, usvgr::Tree)> {
-        let mut state = self.lock();
-        if state.displayed.is_none() || *state.ready.first_key_value()?.0 <= state.playhead {
-            return None;
-        }
-        let next = state.ready.pop_first();
-        drop(state);
-        self.workers_wakeup.notify_one();
-        next
-    }
-
-    pub(crate) fn put_back(&self, position: u64, tree: usvgr::Tree) {
-        self.lock().ready.insert(position, tree);
     }
 
     pub(crate) fn shutdown(&self) {
@@ -215,20 +172,14 @@ impl Scheduler {
 
     fn claim_playback(&self, state: &mut State) -> Option<Job> {
         let position = state.next.max(state.playhead);
-        // Decoding workers can each hold full-size source frames before they return a tree.
-        let staged = state.ready.len()
-            + if self.video_sources {
-                state.in_flight
-            } else {
-                0
-            };
+        let staged = state.ready.len() + state.in_flight;
         if position > state.playhead.saturating_add(self.lookahead)
             || (!state.looping && position >= self.duration)
-            || (position > state.playhead && staged >= MAX_STAGED_TREES)
+            || (position > state.playhead && staged >= self.lookahead.max(1) as usize)
         {
             return None;
         }
-        // Keep only a few decoded trees waiting for the window. A new live position
+        // Bound prepared trees and in-flight work. A new live position
         // can bypass that limit if the clock jumped ahead of all assigned work.
         state.next = position + 1;
         state.in_flight += 1;
@@ -377,98 +328,68 @@ mod tests {
 
     #[test]
     fn taking_out_of_order_frames_preserves_future_frames_and_rejects_stale_jobs() {
-        let scheduler = Scheduler::new(100, 3, false, 2, false, false);
+        let scheduler = Scheduler::new(100, 4, false, 2, false);
         for index in 0..=3 {
             assert_eq!(scheduler.next_job().unwrap().frame, index);
         }
         for index in [2, 1] {
             assert!(scheduler.complete(index, 0, Some(tree())));
         }
-        assert_eq!(scheduler.take(1, &mut BTreeMap::new()).unwrap().0, 1);
-        assert!(scheduler.take(1, &mut BTreeMap::new()).is_none());
+        assert_eq!(scheduler.take(1).unwrap().0, 1);
+        assert!(scheduler.take(1).is_none());
         assert!(!scheduler.complete(0, 0, Some(tree())));
-        assert_eq!(scheduler.take(2, &mut BTreeMap::new()).unwrap().0, 2);
+        assert_eq!(scheduler.take(2).unwrap().0, 2);
         scheduler.seek(50, false);
         assert!(!scheduler.complete(3, 0, Some(tree())));
         assert_eq!(scheduler.next_job().unwrap().frame, 50);
         assert!(scheduler.complete(50, 1, Some(tree())));
-        assert_eq!(scheduler.take(50, &mut BTreeMap::new()).unwrap().0, 50);
+        assert_eq!(scheduler.take(50).unwrap().0, 50);
         scheduler.shutdown();
         assert!(scheduler.next_job().is_none());
     }
 
     #[test]
-    fn finished_frames_fill_the_window_and_a_seek_reuses_its_target() {
-        let scheduler = Scheduler::new(100, 48, false, 0, false, false);
-        let mut images = BTreeMap::new();
-        let image = fframes_skia_renderer::skia_safe::surfaces::raster_n32_premul((8, 8))
-            .unwrap()
-            .image_snapshot();
-        assert_eq!(scheduler.next_job().unwrap().frame, 0);
-        scheduler.complete(0, 0, Some(tree()));
-        assert!(scheduler.next_to_draw().is_none());
-        assert!(matches!(
-            scheduler.take(0, &mut images),
-            Some((0, PlaybackFrame::Tree(_)))
-        ));
-
-        for p in 1..=48 {
-            assert_eq!(scheduler.next_job().unwrap().frame as u64, p);
-            scheduler.complete(p, 0, Some(tree()));
-            assert_eq!(scheduler.next_to_draw().unwrap().0, p);
-            images.insert(
-                p,
-                BufferedFrame {
-                    image: image.clone(),
-                    origin: fframes_skia_renderer::skia_safe::IPoint::default(),
-                },
-            );
+    fn prepared_frames_are_bounded_and_forward_seeks_reuse_trees() {
+        let scheduler = Scheduler::new(100, 4, false, 0, false);
+        for p in 0..4 {
+            assert_eq!(scheduler.next_job().unwrap().frame, p);
+            assert!(scheduler.complete(p as u64, 0, Some(tree())));
         }
         assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
-        assert_eq!(images.len(), 48);
-        assert!(scheduler.seek_buffered(40, false, &mut images));
-        assert!(matches!(
-            scheduler.take(40, &mut images),
-            Some((40, PlaybackFrame::Image(_)))
-        ));
-        assert_eq!(images.len(), 8);
-        assert!(!scheduler.seek_buffered(41, true, &mut images));
-        assert!(!scheduler.seek_buffered(0, false, &mut images));
-        assert_eq!(scheduler.next_job().unwrap().frame, 49);
+        assert_eq!(scheduler.take(0).unwrap().0, 0);
+        assert_eq!(scheduler.next_job().unwrap().frame, 4);
+        scheduler.complete(4, 0, Some(tree()));
+        assert!(scheduler.seek_buffered(3, false));
+        assert_eq!(scheduler.take(3).unwrap().0, 3);
+        assert!(!scheduler.seek_buffered(4, true));
+        assert!(!scheduler.seek_buffered(0, false));
+        assert_eq!(scheduler.take(4).unwrap().0, 4);
     }
 
     #[test]
     fn live_frames_take_priority_over_queued_trees() {
-        let scheduler = Scheduler::new(100, 48, false, 0, false, false);
-        let mut images = BTreeMap::new();
+        let scheduler = Scheduler::new(100, 4, false, 0, false);
         for p in 0..4 {
             assert_eq!(scheduler.next_job().unwrap().frame as u64, p);
             scheduler.complete(p, 0, Some(tree()));
         }
         assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
-        assert!(matches!(
-            scheduler.take(30, &mut images),
-            Some((3, PlaybackFrame::Tree(_)))
-        ));
+        assert_eq!(scheduler.take(30).unwrap().0, 3);
         assert_eq!(scheduler.next_job().unwrap().frame, 30);
         scheduler.complete(30, 0, Some(tree()));
-        assert!(scheduler.next_to_draw().is_none());
-        assert!(matches!(
-            scheduler.take(30, &mut images),
-            Some((30, PlaybackFrame::Tree(_)))
-        ));
+        assert_eq!(scheduler.take(30).unwrap().0, 30);
     }
 
     #[test]
-    fn video_workers_bound_in_flight_frames_and_release_failed_jobs() {
-        let scheduler = Scheduler::new(100, 48, false, 0, true, false);
+    fn workers_bound_in_flight_frames_and_release_failed_jobs() {
+        let scheduler = Scheduler::new(100, 4, false, 0, false);
         for p in 0..4 {
             assert_eq!(scheduler.next_job().unwrap().frame, p);
         }
         assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
         scheduler.complete(2, 0, None);
         assert_eq!(scheduler.next_job().unwrap().frame, 4);
-        scheduler.take(30, &mut BTreeMap::new());
+        scheduler.take(30);
         assert_eq!(scheduler.next_job().unwrap().frame, 30);
         scheduler.seek(60, false);
         assert!(!scheduler.complete(1, 0, Some(tree())));
@@ -476,17 +397,45 @@ mod tests {
     }
 
     #[test]
+    fn zero_prefetch_only_prepares_the_live_frame() {
+        let scheduler = Scheduler::new(3, 0, false, 0, false);
+        for p in 0..3 {
+            scheduler.take(p);
+            assert_eq!(scheduler.next_job().unwrap().frame as u64, p);
+            assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
+            assert!(scheduler.complete(p, 0, Some(tree())));
+            assert_eq!(scheduler.take(p).unwrap().0, p);
+        }
+        assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
+    }
+
+    #[test]
+    fn looping_buffer_uses_monotonic_positions_across_the_end() {
+        let scheduler = Scheduler::new(3, 2, true, 0, false);
+        scheduler.seek(2, true);
+        for p in 2..4 {
+            let job = scheduler.next_job().unwrap();
+            assert_eq!(job.frame, p % 3);
+            assert!(scheduler.complete(p as u64, 1, Some(tree())));
+        }
+        assert_eq!(scheduler.take(2).unwrap().0, 2);
+        assert!(scheduler.seek_buffered(3, true));
+        assert_eq!(scheduler.take(3).unwrap().0, 3);
+        assert_eq!(scheduler.next_job().unwrap().frame, 1);
+    }
+
+    #[test]
     fn thumbnails_do_not_consume_playback_jobs_and_stop_when_finished() {
-        let scheduler = Scheduler::new(100, 3, false, 2, false, false);
+        let scheduler = Scheduler::new(100, 3, false, 2, false);
         assert_eq!(scheduler.next_job().unwrap().frame, 0);
         scheduler.complete(0, 0, Some(tree()));
-        scheduler.take(0, &mut BTreeMap::new()).unwrap();
+        scheduler.take(0).unwrap();
         assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 25);
         assert_eq!(scheduler.next_job().unwrap().frame, 1);
         assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 75);
         assert!(scheduler.next_thumbnail_job().is_none());
         assert_eq!(scheduler.next_job().unwrap().frame, 2);
-        let stopped = Scheduler::new(100, 3, false, 2, false, false);
+        let stopped = Scheduler::new(100, 3, false, 2, false);
         stopped.shutdown();
         assert!(stopped.next_thumbnail_job().is_none());
     }

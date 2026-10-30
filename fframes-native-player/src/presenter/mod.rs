@@ -12,34 +12,17 @@ use std::rc::Rc;
 
 use fframes::usvgr;
 use fframes_skia_renderer::render::RenderCache;
-use fframes_skia_renderer::skia_safe::{
-    Canvas, Color, IPoint, IRect, Image, ImageInfo, Point, Rect, RoundOut, Surface, gpu, surfaces,
-};
-use fframes_skia_renderer::{QueueLock, lock_queue};
+use fframes_skia_renderer::skia_safe::{Canvas, Color, Rect};
 use winit::window::Window;
 
 use crate::controls::{Controls, ControlsLayout, ControlsState};
 use crate::error::PlayerResult;
 use crate::options::PlayerBackend;
-use crate::scheduler::PlaybackFrame;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
-
-/// Only the video occupies this image. Its origin is in window pixels.
-pub(crate) struct BufferedFrame {
-    pub(crate) origin: IPoint,
-    pub(crate) image: Image,
-}
 
 /// The images of the window that Skia draws into.
 trait WindowTarget {
     fn is_gpu(&self) -> bool;
-
-    /// Allow an automatic target to switch to GPU rendering before drawing this frame.
-    fn prepare_frame(&mut self, _frame: Option<&PlaybackFrame>) {}
-
-    fn gpu_context(&mut self) -> Option<(&mut gpu::DirectContext, Option<&QueueLock>)> {
-        None
-    }
 
     /// An empty cache for the canvas of this target. A target on a GPU that the backend
     /// shares with wgpu samples the wgpu layers of the frames in place.
@@ -61,7 +44,6 @@ trait WindowTarget {
 pub(crate) struct Presenter {
     pub studio_layout: Option<StudioLayout>,
     render_cache: RenderCache,
-    snapshot_surface: Option<Surface>,
     target: Box<dyn WindowTarget>,
     window: Rc<Window>,
     background: Color,
@@ -77,10 +59,8 @@ impl Presenter {
     pub(crate) fn new(
         window: Rc<Window>,
         config: &crate::app::AppConfig<'_>,
-        video_sources: bool,
     ) -> PlayerResult<Self> {
-        let raster_fps = (config.limit_prefetch_memory && !video_sources).then_some(config.fps);
-        let target = create_target(&window, config.backend, config.vsync, raster_fps)?;
+        let target = create_target(&window, config.backend, config.vsync)?;
         let duration_label = crate::controls::format_time(config.duration_in_frames, config.fps);
         let background = config.background;
         let model = &config.studio;
@@ -96,7 +76,6 @@ impl Presenter {
 
         let mut presenter = Self {
             render_cache: target.render_cache(),
-            snapshot_surface: None,
             target,
             window,
             background: Color::from_argb(background.a, background.r, background.g, background.b),
@@ -129,7 +108,6 @@ impl Presenter {
             return Ok(());
         }
 
-        self.snapshot_surface = None;
         self.target.resize(size.width, size.height)?;
         let logical = size.to_logical::<f32>(self.window.scale_factor());
         self.studio_layout = StudioLayout::new(
@@ -149,66 +127,10 @@ impl Presenter {
         Ok(())
     }
 
-    /// Draws just the scene. Controls and the timeline are composited when it is shown.
-    pub(crate) fn snapshot(
-        &mut self,
-        tree: &usvgr::Tree,
-        studio_open: bool,
-    ) -> Option<BufferedFrame> {
-        let view = self.studio_layout.as_ref().filter(|_| studio_open);
-        let mut context = self.target.gpu_context();
-        // Keep window coordinates while rendering filters and shaders. Only the
-        // video rectangle is retained in each finished frame.
-        if self.snapshot_surface.is_none() {
-            let size = self.window.inner_size();
-            let info = ImageInfo::new_n32_premul((size.width as i32, size.height as i32), None);
-            self.snapshot_surface = match context.as_mut() {
-                Some((gpu, queue)) => {
-                    let _lock = lock_queue(*queue);
-                    gpu::surfaces::render_target(
-                        gpu,
-                        gpu::Budgeted::Yes,
-                        &info,
-                        None,
-                        gpu::SurfaceOrigin::TopLeft,
-                        None,
-                        false,
-                        None,
-                    )
-                }
-                None => surfaces::raster(&info, None, None),
-            };
-        }
-        let surface = self.snapshot_surface.as_mut()?;
-        let canvas = surface.canvas();
-        canvas.clear(matte(view));
-        let rect = draw_video(
-            canvas,
-            tree,
-            view,
-            self.window.scale_factor() as f32,
-            self.background,
-            &mut self.render_cache,
-        );
-        let bounds = IRect::intersect(
-            &rect.round_out(),
-            &IRect::from_size(canvas.base_layer_size()),
-        )?;
-        let image = surface.image_snapshot_with_bounds(bounds)?;
-        if let Some((gpu, queue)) = context {
-            let _lock = lock_queue(queue);
-            gpu.flush_and_submit_surface(surface, gpu::SyncCpu::Yes);
-        }
-        Some(BufferedFrame {
-            origin: IPoint::new(bounds.left, bounds.top),
-            image,
-        })
-    }
-
     /// Draws the current frame and overlays the controls before presenting the window.
     pub(crate) fn present(
         &mut self,
-        frame: Option<&PlaybackFrame>,
+        frame: Option<&usvgr::Tree>,
         controls: &ControlsState,
         model: &Studio,
         scroll: &StudioScroll,
@@ -225,18 +147,11 @@ impl Presenter {
             ..
         } = self;
 
-        target.prepare_frame(frame);
         target.present(&mut |canvas| {
             let view = studio_layout.as_ref().filter(|_| studio_open);
             canvas.clear(matte(view));
-            match frame {
-                Some(PlaybackFrame::Image(frame)) => {
-                    canvas.draw_image(&frame.image, Point::from(frame.origin), None);
-                }
-                Some(PlaybackFrame::Tree(tree)) => {
-                    draw_video(canvas, tree, view, pixel_scale, *background, render_cache);
-                }
-                None => {}
+            if let Some(tree) = frame {
+                draw_video(canvas, tree, view, pixel_scale, *background, render_cache);
             }
 
             let show_bar = view.is_none();
@@ -276,7 +191,7 @@ fn draw_video(
     pixel_scale: f32,
     background: Color,
     cache: &mut RenderCache,
-) -> Rect {
+) {
     let size = canvas.base_layer_size();
     let viewport = view.map_or_else(
         || Rect::from_iwh(size.width, size.height),
@@ -312,36 +227,32 @@ fn draw_video(
     canvas.draw_color(background, None);
     fframes_skia_renderer::render::render_tree(tree, canvas, cache);
     canvas.restore();
-    Rect::from_xywh(x, y, width, height)
 }
 
 fn create_target(
     window: &Rc<Window>,
     backend: PlayerBackend,
     vsync: bool,
-    raster_fps: Option<usize>,
 ) -> PlayerResult<Box<dyn WindowTarget>> {
-    #[cfg(not(feature = "metal"))]
-    let _ = raster_fps;
     match backend {
         PlayerBackend::Auto => {
             #[cfg(feature = "metal")]
-            match metal::MetalTarget::new(window, vsync, raster_fps) {
+            match metal::MetalTarget::new(window, vsync) {
                 Ok(target) => return Ok(Box::new(target)),
                 Err(err) => eprintln!("fframes player: metal is not available ({err})"),
             }
 
             #[cfg(feature = "vulkan")]
-            match create_target(window, PlayerBackend::Vulkan, vsync, None) {
+            match create_target(window, PlayerBackend::Vulkan, vsync) {
                 Ok(target) => return Ok(target),
                 Err(err) => eprintln!("fframes player: vulkan is not available ({err})"),
             }
 
             eprintln!("fframes player: falling back to the Skia CPU renderer");
-            create_target(window, PlayerBackend::Cpu, vsync, None)
+            create_target(window, PlayerBackend::Cpu, vsync)
         }
         #[cfg(feature = "metal")]
-        PlayerBackend::Metal => Ok(Box::new(metal::MetalTarget::new(window, vsync, None)?)),
+        PlayerBackend::Metal => Ok(Box::new(metal::MetalTarget::new(window, vsync)?)),
         #[cfg(feature = "vulkan")]
         PlayerBackend::Vulkan => Ok(Box::new(vulkan::VulkanTarget::new(window.clone(), vsync)?)),
         PlayerBackend::Cpu => Ok(Box::new(cpu::CpuTarget::new(window.clone())?)),
