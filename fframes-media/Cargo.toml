@@ -62,7 +62,9 @@ mp3lame = ["ffmpeg-sys-fframes/build-lib-mp3lame"]
 opus = ["ffmpeg-sys-fframes/build-lib-opus"]
 vpx = ["ffmpeg-sys-fframes/build-lib-vpx"]
 # enable various hardware accelerations
-videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]
+# The player opts in on macOS without changing decoding policy for exports.
+preview-videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]
+videotoolbox = ["preview-videotoolbox"]
 audiotoolbox = ["ffmpeg-sys-fframes/build-audiotoolbox"]
 vaapi = ["ffmpeg-sys-fframes/build-vaapi"]
 nvidia = ["ffmpeg-sys-fframes/build-nvidia"]

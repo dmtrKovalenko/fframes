@@ -8,7 +8,11 @@ use crate::error::Result;
 use fframes_media::ImageMetadata;
 pub use fframes_media::{FrameConvertOptions, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
@@ -43,20 +47,11 @@ pub fn set_video_frame_resolver(resolver: VideoFrameResolver) {
 }
 
 pub trait FFramesSyncedVideoFrame<'media> {
-    /// Gets the original image from the frame
-    /// This will perform color space conversion and return the frame at `width()` by
-    /// `height()`. If you need to render the video frame in the smaller size, use `into_resized_image`.
-    ///
-    /// This method take self to reuse frame data allocations, but you should not
-    /// call this method more than once per the render function
+    /// Converts the frame to RGBA at its display dimensions.
+    /// Native renderers share the pixels between consecutive requests at the same size.
     #[allow(clippy::wrong_self_convention)]
     fn into_image(&self) -> ImageData<'media>;
-    /// Performs color space conversion and resizes the image to the specified size.
-    /// Recommended to use this method if you render image in the smaller size than the original
-    /// video e.g. as a pattern of some other shape or as a filler of standalone image.
-    ///
-    /// This method take self to reuse frame data allocations, but you should not
-    /// call this method more than once per the render function
+    /// Converts the frame to RGBA at the requested size.
     #[allow(clippy::wrong_self_convention)]
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>>;
     /// Get the height of the frame with non-square pixels stretched to square ones
@@ -133,22 +128,22 @@ impl<'media> FFramesSyncedVideoFrame<'media> for WasmEditorVideoFrameFallback<'m
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn decoded_image<'media>(pixels: Arc<usvgr::PreloadedImageData>) -> ImageData<'media> {
+    let metadata = ImageMetadata {
+        width: pixels.width,
+        height: pixels.height,
+    };
+    let id = pixels.id.clone();
+    ImageData::new_from_raw_data(pixels, id, metadata)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     fn into_image(&self) -> ImageData<'media> {
         let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(None) }
-            // we unwrap here because we guarantee that the sws scaler would work correctly
-            // unless the wrong dimensions are provided
             .expect("Failed to convert frame to image");
 
-        let filename = image_data.id.clone();
-        ImageData::new_from_raw_data(
-            image_data,
-            filename,
-            ImageMetadata {
-                width: self.get_width(),
-                height: self.get_height(),
-            },
-        )
+        decoded_image(image_data)
     }
 
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>> {
@@ -158,15 +153,7 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
             })
             .ok()?;
 
-        let filename = image_data.id.clone();
-        Some(ImageData::new_from_raw_data(
-            image_data,
-            filename,
-            ImageMetadata {
-                width: self.get_width(),
-                height: self.get_height(),
-            },
-        ))
+        Some(decoded_image(image_data))
     }
 
     fn width(&self) -> u32 {
@@ -194,17 +181,63 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+type DecoderSlot = Arc<Mutex<Option<fframes_media::FFmpegDecoder>>>;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct DecoderEntry {
+    last_used: u64,
+    slot: DecoderSlot,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct DecoderPool {
+    sources: HashMap<PathBuf, DecoderEntry>,
+    generation: u64,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl DecoderPool {
+    fn slot(&mut self, path: &Path) -> DecoderSlot {
+        let entry = if let Some(entry) = self.sources.get_mut(path) {
+            entry
+        } else {
+            self.sources.entry(path.to_owned()).or_default()
+        };
+        entry.last_used = self.generation;
+        Arc::clone(&entry.slot)
+    }
+
+    fn finish_frame(&mut self, concurrent_jobs: usize) -> Vec<DecoderSlot> {
+        // Count completed jobs, not timeline positions. Scrubs, loops and out-of-order
+        // workers share the same grace period. Keep all layers of an active composition.
+        self.generation += 1;
+        self.sources
+            .extract_if(|_, entry| {
+                self.generation - entry.last_used > concurrent_jobs.max(1) as u64 + 1
+                    && Arc::strong_count(&entry.slot) == 1
+            })
+            .map(|(_, entry)| entry.slot)
+            .collect()
+    }
+}
+
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct VideoDecodersWorker {
     buffer_size: usize,
     #[cfg(not(target_arch = "wasm32"))]
-    map: Arc<std::sync::RwLock<HashMap<String, fframes_media::FFmpegDecoder>>>,
+    pool: Arc<Mutex<DecoderPool>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    mode: fframes_media::DecodeMode,
 }
 
 impl std::fmt::Debug for VideoDecodersWorker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkerLocalDecoders").finish()
+        f.debug_struct("VideoDecodersWorker")
+            .finish_non_exhaustive()
     }
 }
 
@@ -219,8 +252,35 @@ impl VideoDecodersWorker {
         VideoDecodersWorker {
             buffer_size,
             #[cfg(not(target_arch = "wasm32"))]
-            map: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            pool: Arc::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            mode: fframes_media::DecodeMode::Configured,
         }
+    }
+
+    /// The native studio keeps only recently used source decoders between frames.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn for_preview(software_decode: bool) -> Self {
+        Self {
+            mode: if software_decode {
+                fframes_media::DecodeMode::Software
+            } else {
+                fframes_media::DecodeMode::Preview
+            },
+            ..Self::default()
+        }
+    }
+
+    /// Retire idle decoder sessions outside the pool lock, including after a seek
+    /// into a scene that contains no video files.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn finish_preview_frame(&self, concurrent_jobs: usize) {
+        let retired = self
+            .pool
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .finish_frame(concurrent_jobs);
+        drop(retired);
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -290,14 +350,27 @@ impl VideoDecodersWorker {
         pts: i64,
         filename: &str,
     ) -> Result<Option<Arc<usvgr::PreloadedImageData>>> {
-        let frame = self
-            .map
-            .read()
-            .unwrap()
-            .get(filename)
-            .and_then(|decoder| decoder.get_decoded_image_in_buf(pts));
-
-        Ok(frame)
+        let decoder = {
+            let pool = self.pool.lock()?;
+            let path = Path::new(filename);
+            pool.sources
+                .get(path)
+                .or_else(|| {
+                    // Older callers use a bare filename. Only resolve an unambiguous source.
+                    let mut matches = pool
+                        .sources
+                        .iter()
+                        .filter(|(source, _)| source.file_name() == Some(path.as_os_str()));
+                    let (_, entry) = matches.next()?;
+                    matches.next().is_none().then_some(entry)
+                })
+                .map(|entry| Arc::clone(&entry.slot))
+        };
+        let Some(slot) = decoder else { return Ok(None) };
+        Ok(slot
+            .lock()?
+            .as_ref()
+            .and_then(|decoder| decoder.get_decoded_image_in_buf(pts)))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -308,52 +381,35 @@ impl VideoDecodersWorker {
         ctx: &FFramesContext<'_, 'media>,
         options: &SyncVideoFrameInput,
     ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>>> {
-        use crate::error::FFramesError;
-        use fframes_media::FFramesMediaError;
-
-        let resource_name = path
-            .file_name()
-            .ok_or_else(|| FFramesError::MediaError(FFramesMediaError::MediaDirectoryProvided))?
-            .to_string_lossy();
-
-        // It is important to lock it for the whole duration of he function to
-        // avoid any parallel encoder creation.
-        let mut map_guard = self.map.write()?;
-        let needs_new_decoder = !map_guard.contains_key(resource_name.as_ref());
-
-        // Create new decoder if needed
-        if needs_new_decoder {
-            let decoder = unsafe {
-                let mut decoder =
-                    fframes_media::FFmpegDecoder::new(path, ctx.time_base.fps, self.buffer_size)?;
-
-                if offset > 0 {
-                    decoder.seek_to_offset(offset)?;
-                }
-
-                decoder
-            };
-
-            map_guard.insert(resource_name.to_string(), decoder);
-        }
-
+        // A slot serializes this source's cursor. Opening a file, decoding a frame
+        // or tearing down a hardware session never holds the shared pool lock.
+        let slot = self.pool.lock()?.slot(path);
+        let mut guard = slot.lock()?;
         unsafe {
-            // Use write lock for modifying decoder state
-            let decoder = map_guard.get_mut(resource_name.as_ref()).unwrap();
-
+            let decoder = match guard.as_mut() {
+                Some(decoder) => decoder,
+                None => guard.insert(fframes_media::FFmpegDecoder::new_with_mode(
+                    path,
+                    ctx.time_base.fps,
+                    self.buffer_size,
+                    self.mode,
+                )?),
+            };
             if options.looping {
                 offset = decoder.adjust_offset_for_looping(offset)?;
             }
 
             let has_frame = decoder.decode_up_to(offset)?;
             if has_frame {
-                Ok(Some(decoder.get_raw_frame()))
+                Ok(Some(decoder.retained_frame()?))
             } else if options.looping {
                 decoder.seek_to_offset(0)?;
                 let has_first_frame = decoder.decode_up_to(0)?;
 
                 decoder.current_loop += 1;
-                Ok(has_first_frame.then_some(decoder.get_raw_frame()))
+                Ok(has_first_frame
+                    .then(|| decoder.retained_frame())
+                    .transpose()?)
             } else {
                 Ok(None)
             }
@@ -361,6 +417,31 @@ impl VideoDecodersWorker {
     }
 }
 
-// These implementations are already thread-safe due to RwLock
-unsafe impl Send for VideoDecodersWorker {}
-unsafe impl Sync for VideoDecodersWorker {}
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod decoder_pool_tests {
+    use super::*;
+
+    #[test]
+    fn clips_age_out_without_evicting_active_layers_or_in_flight_work() {
+        let mut pool = DecoderPool::default();
+        let first = Path::new("first/clip.mp4");
+        let second = Path::new("second/clip.mp4");
+        let held = pool.slot(first);
+        assert!(!Arc::ptr_eq(&held, &pool.slot(second)));
+        for _ in 0..24 {
+            // Overlapping sources in a composite must all stay warm.
+            for i in 0..12 {
+                pool.slot(Path::new(&format!("layer-{i}.mp4")));
+            }
+            drop(pool.finish_frame(5));
+        }
+        assert!(!pool.sources.contains_key(second));
+        assert!(Arc::ptr_eq(&held, &pool.slot(first)));
+        assert_eq!(pool.sources.len(), 13);
+        drop(held);
+        for _ in 0..9 {
+            drop(pool.finish_frame(5));
+        }
+        assert!(pool.sources.is_empty());
+    }
+}

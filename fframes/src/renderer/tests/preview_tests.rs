@@ -201,3 +201,45 @@ fn frames_crop_to_a_clamped_rectangle() {
     let corner = frame.crop(190, 90, 50, 50);
     assert_eq!((corner.width, corner.height), (10, 10));
 }
+
+#[test]
+fn audio_device_rate_is_only_requested_for_playable_tracks() {
+    use crate::{AudioTimestamp::Second, FFramesRendererRuntime, Scenes, TimeBase};
+    #[derive(Debug)]
+    struct Sound;
+    impl Scene for Sound {
+        fn audio(&self) -> AudioMap<'_> {
+            AudioMap::from([("clip.wav", Second(0.)..Second(1.))])
+        }
+        fn duration(&self) -> crate::Duration<'_> {
+            crate::Duration::Seconds(1.)
+        }
+        fn render_frame<'a>(&'a self, _: Frame, _: &FFramesContext) -> Svgr<'a> {
+            unreachable!()
+        }
+    }
+
+    let time = TimeBase {
+        fps: 10,
+        sample_rate: 44100,
+    };
+    let silent = FFramesRendererRuntime::with_audio_sample_rate(
+        time,
+        &TwoScenes,
+        &TwoScenes.define_scenes(),
+        None,
+        || panic!("silent scenes opened the audio device"),
+    )
+    .unwrap();
+    assert_eq!(silent.time_base.sample_rate, 44100);
+
+    let scenes = Scenes::from(vec![&Sound as &dyn Scene]);
+    let voiced =
+        FFramesRendererRuntime::with_audio_sample_rate(time, &TwoScenes, &scenes, None, || 48000)
+            .unwrap();
+    assert_eq!(voiced.time_base.sample_rate, 48000);
+    assert_eq!(
+        voiced.timeline.audio_map.unwrap().tracks()[0].range.end.0,
+        48000
+    );
+}
