@@ -285,9 +285,10 @@ impl Scheduler {
         kind: WorkerKind,
         on_frame_ready: &(dyn Fn(FrameReady) + Sync),
     ) {
-        // Text caches are `Rc` based and therefore owned by the worker.
-        // A changing frame counter would otherwise retain 100 sets of glyph outlines per worker.
-        const TEXT_CACHE_ENTRIES: usize = 8;
+        // Text caches are `Rc` based and therefore owned by the worker. The entries are
+        // small. Fewer than the text nodes of one frame makes every frame lay out all
+        // its text again: 8 entries cost teej-podcast eight times the worker CPU.
+        const TEXT_CACHE_ENTRIES: usize = 100;
         let text_cache = TextCache::new(TEXT_CACHE_ENTRIES);
         let mut converter_cache = usvgr::Cache::new_with_text_cache(TEXT_CACHE_ENTRIES);
         let video_decoders = match kind {
