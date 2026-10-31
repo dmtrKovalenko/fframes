@@ -172,7 +172,8 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   `include_media_dir!(pub struct MyMedia, "media", stereo)` keeps stereo files stereo.
 - Large or stereo files: `let dir = MediaDirectory::read_folder("assets")?; let media = dir.process_media_source()?;`
   and combine providers with `CombinedMediaProvider::from([&static_media as &dyn MediaProvider, &media])`.
-- Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, editor_fallback_image })`
+- Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, speed, editor_fallback_image })`
+  (`speed: 2.0` plays twice as fast, `..Default::default()` keeps 1.0)
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
 - Subtitles: `ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s))`.
 - Audio spectrum: `frame.visualize_audio_frame(VisualizeFrameInput { audio, sample_size: SampleSize::S256, smooth_level: 4, window: Some(WindowFunction::Hann) })`.
@@ -233,7 +234,7 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
   green-screen key (bind the `SyncVideoFrameInput` to a variable first, the frame borrows it):
 
 ```rust
-let input = SyncVideoFrameInput { start_from: 0., looping: false, editor_fallback_image: None };
+let input = SyncVideoFrameInput { start_from: 0., looping: false, ..Default::default() };
 let Some(clip) = frame.get_synced_video_frame(ctx, "clip.mp4", &input) else { return Svgr::empty() };
 let layer = self.chroma.draw(&frame, ShaderUniforms::new()
     .image("uSrc", &clip.into_image())

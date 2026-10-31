@@ -88,6 +88,7 @@ impl Video for TeejPodcast<'_> {
                     start_from: 0.,
                     looping: false,
                     editor_fallback_image: ctx.get_image("left.jpg"),
+                    ..Default::default()
                 },
             )
             .map(|fr| fr.into_image());
@@ -100,6 +101,7 @@ impl Video for TeejPodcast<'_> {
                     start_from: 0.,
                     looping: false,
                     editor_fallback_image: ctx.get_image("right.jpg"),
+                    ..Default::default()
                 },
             )
             .map(|fr| fr.into_image());

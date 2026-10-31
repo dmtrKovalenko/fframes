@@ -59,6 +59,7 @@ impl Scene for PreviewScene {
                     start_from: 0.0,
                     looping: true,
                     editor_fallback_image: None,
+                    ..Default::default()
                 },
             )
             .map(|f| f.into_image());
