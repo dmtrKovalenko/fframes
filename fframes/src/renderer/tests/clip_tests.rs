@@ -58,7 +58,8 @@ impl Drop for ColorsFixture {
     }
 }
 
-/// Draws `left` on the left half and `right` on the right half of a 40x20 frame.
+/// Draws `left` on the left half and `right` on the right half of a 40x20 frame, `right`
+/// decoded at the size it is shown.
 #[derive(Debug)]
 struct TwoClips<'a> {
     left: Clip<'a>,
@@ -71,10 +72,16 @@ impl Scene for TwoClips<'_> {
     }
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+        let left = self.left.image(&frame, ctx).map(
+            |image| crate::svgr!(<image href={image.href()} x="0" y="0" width="20" height="20" />),
+        );
+        let right = self.right.image_at_width(&frame, ctx, 20).map(
+            |image| crate::svgr!(<image href={image.href()} x="20" y="0" width="20" height="20" />),
+        );
         crate::svgr!(
             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="20">
-                {self.left.draw(&frame, ctx, 0.0, (0., 0., 20., 20.))}
-                {self.right.draw(&frame, ctx, 0.0, (20., 0., 20., 20.))}
+                {left}
+                {right}
             </svg>
         )
     }
@@ -189,6 +196,26 @@ fn speed_and_reverse_play_the_source_range() {
             (Blue, Red),
             // 2.7 and 0.0
             (Blue, Red),
+        ]
+    );
+}
+
+#[test]
+fn a_clip_starts_at_its_second_of_the_scene() {
+    use Shown::*;
+    let shown = render(
+        Clip::new("colors.mp4", 0.0..1.0),
+        Clip::new("colors.mp4", 2.0..2.3).at(0.5),
+        &[0, 4, 5, 7, 8],
+    );
+    assert_eq!(
+        shown,
+        [
+            (Red, Nothing),
+            (Red, Nothing),
+            (Red, Blue),
+            (Red, Blue),
+            (Red, Nothing),
         ]
     );
 }

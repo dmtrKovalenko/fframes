@@ -6,30 +6,23 @@ use std::sync::Arc;
 
 use crate::media::ImageData;
 use crate::video_data::FFramesSyncedVideoFrame;
-use crate::{Duration, FFramesContext, Frame, PlaybackSpeed, Svgr};
+use crate::{
+    Duration, FFramesContext, Frame, FrameConvertOptions, PlaybackSpeed, ResizeVideoFrame,
+};
 
 /// Added to the length of a clip before it is cut to whole frames, so a length like
 /// `24.7 - 19.2` that float math makes a bit shorter than 5.5 s does not lose a frame.
 const FRAME_EPSILON_SECONDS: f64 = 1e-4;
 
-/// How a [`Clip`] fills the box it is drawn into.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Fit {
-    /// Fills the box and crops what is outside it (CSS `object-fit: cover`).
-    #[default]
-    Cover,
-    /// Shows the whole frame inside the box, with empty bars where the aspect ratios differ.
-    Contain,
-    /// Stretches the frame to the box.
-    Fill,
-}
-
-/// A part of a video file: the seconds `source` of `video`, played at `speed`.
+/// A part of a video file: the seconds `source` of `video`, played at `speed` from the
+/// second `at` of the scene that shows it.
 ///
-/// A clip has no position on the timeline. A scene shows it from a second of its own
-/// time, so the clip moves with the scene when an earlier scene gets shorter. Put the
-/// sound that belongs to the clip (the voice recorded with it) into the scene's `audio`
-/// at the same second.
+/// A clip has no position on the timeline, so it moves with its scene when an earlier
+/// scene gets shorter. Put the sound that belongs to the clip (the voice recorded with
+/// it) into the scene's `audio` at the same second.
+///
+/// [`Clip::image`] gives the frame of the current frame as an image. Draw it like any
+/// other image, with your own size, crop, transform, filter, mask or shader:
 ///
 /// ```rust,ignore
 /// use fframes::{
@@ -60,11 +53,17 @@ pub enum Fit {
 ///     }
 ///
 ///     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> Svgr<'a> {
+///         let Some(face) = self.face.image(&frame, ctx) else { return Svgr::empty() };
+///         // decoded at the size it is shown
+///         let plan = self.plan.image_at_width(&frame, ctx, 440);
 ///         fframes::svgr!(
 ///             <g>
-///                 {self.face.draw(&frame, ctx, 0.0, (0., 0., 1080., 1920.))}
-///                 // a screen recording in the bottom right corner from 1.2 s
-///                 {self.plan.draw(&frame, ctx, 1.2, (580., 1180., 440., 660.))}
+///                 <image href={face.href()} x="0" y="0" width="1080" height="1920"
+///                        preserveAspectRatio="xMidYMid slice" />
+///                 {plan.map(|plan| fframes::svgr!(
+///                     <image href={plan.href()} x="580" y="1180" width="440" height="660"
+///                            preserveAspectRatio="xMidYMid slice" clip-path="url(#rounded)" />
+///                 ))}
 ///             </g>
 ///         )
 ///     }
@@ -72,7 +71,8 @@ pub enum Fit {
 ///
 /// let hook = Hook {
 ///     face: Clip::new("IMG_0926.mov", 19.2..24.7),
-///     plan: Clip::new("screen.mov", 3.0..6.0).speed(1.5),
+///     // a screen recording from 1.2 s of the scene
+///     plan: Clip::new("screen.mov", 3.0..6.0).speed(1.5).at(1.2),
 /// };
 /// ```
 ///
@@ -85,6 +85,8 @@ pub struct Clip<'a> {
     pub video: &'a str,
     /// The seconds of the file the clip plays, `start` included, `end` not.
     pub source: Range<f64>,
+    /// The second of the scene when the clip starts. Default `0.0`.
+    pub at: f32,
     /// `2.0` plays the clip twice as fast (and half as long), `0.5` at half speed.
     /// Kept to 1/1000 like [`PlaybackSpeed`]. Default `1.0`.
     pub speed: f32,
@@ -92,24 +94,28 @@ pub struct Clip<'a> {
     pub reverse: bool,
     /// Starts the clip again after its end, for as long as the scene shows it.
     pub looping: bool,
-    /// How the clip fills the box of [`Clip::draw`]. Default [`Fit::Cover`].
-    pub fit: Fit,
     /// The image the editor shows until the frame is decoded.
     pub editor_fallback_image: Option<&'a ImageData<'a>>,
 }
 
 impl<'a> Clip<'a> {
-    /// The seconds `source` of `video` at normal speed.
+    /// The seconds `source` of `video` at normal speed, from the start of the scene.
     pub fn new(video: &'a str, source: Range<f64>) -> Self {
         Self {
             video,
             source,
+            at: 0.0,
             speed: 1.0,
             reverse: false,
             looping: false,
-            fit: Fit::Cover,
             editor_fallback_image: None,
         }
+    }
+
+    #[must_use]
+    pub fn at(mut self, seconds: f32) -> Self {
+        self.at = seconds;
+        self
     }
 
     #[must_use]
@@ -127,12 +133,6 @@ impl<'a> Clip<'a> {
     #[must_use]
     pub fn looping(mut self) -> Self {
         self.looping = true;
-        self
-    }
-
-    #[must_use]
-    pub fn fit(mut self, fit: Fit) -> Self {
-        self.fit = fit;
         self
     }
 
@@ -156,7 +156,8 @@ impl<'a> Clip<'a> {
         self.source_seconds_len() / self.speed_value()
     }
 
-    /// The length of the clip, for the `duration` of the scene that shows it.
+    /// The length of the clip, for the `duration` of the scene that shows it. It does not
+    /// include `at`.
     pub fn duration(&self) -> Duration<'static> {
         Duration::Seconds((self.seconds() + FRAME_EPSILON_SECONDS) as f32)
     }
@@ -166,8 +167,8 @@ impl<'a> Clip<'a> {
         ((self.seconds() + FRAME_EPSILON_SECONDS) * fps as f64) as usize
     }
 
-    /// The second of the file shown on frame `index` of the clip (0 is the first frame).
-    /// `None` after the end of the clip unless it loops.
+    /// The second of the file shown on frame `index` of the clip (0 is the first frame of
+    /// the clip, at `at`). `None` after the end of the clip unless it loops.
     pub fn source_seconds(&self, index: usize, fps: usize) -> Option<f64> {
         let frames = self.frames(fps);
         if frames == 0 || (index >= frames && !self.looping) {
@@ -184,16 +185,14 @@ impl<'a> Clip<'a> {
         Some(seconds)
     }
 
-    /// The decoded frame of the clip on `frame`, for a clip that starts at `start`
-    /// seconds of the scene. `None` before the start, after the end, or when the file is
-    /// missing or fails to decode.
-    pub fn frame_at(
+    /// The decoded frame of the clip on `frame` of the scene, with its size and timestamp.
+    /// `None` before `at`, after the end, or when the file is missing or fails to decode.
+    pub fn frame(
         &self,
         frame: &Frame,
         ctx: &FFramesContext<'_, '_>,
-        start: f32,
     ) -> Option<Arc<impl FFramesSyncedVideoFrame<'a> + use<'a>>> {
-        let start_frame = (f64::from(start) * frame.fps as f64).round() as usize;
+        let start_frame = (f64::from(self.at) * frame.fps as f64).round() as usize;
         let index = frame.index.checked_sub(start_frame)?;
         let seconds = self.source_seconds(index, frame.fps)?;
         frame.video_frame_at_keyed(
@@ -205,37 +204,30 @@ impl<'a> Clip<'a> {
         )
     }
 
-    /// Draws the clip into the box `(x, y, width, height)` for a clip that starts at
-    /// `start` seconds of the scene. Nothing is drawn outside the clip's time.
-    pub fn draw<'r>(
+    /// The clip on `frame` of the scene as an image at the size of the video file, for
+    /// `<image href={image.href()} ... />` or a shader. `None` when [`Clip::frame`] is.
+    pub fn image(&self, frame: &Frame, ctx: &FFramesContext<'_, '_>) -> Option<ImageData<'a>> {
+        Some(self.frame(frame, ctx)?.into_image())
+    }
+
+    /// [`Clip::image`] decoded at `width` pixels, the height follows the aspect ratio of
+    /// the file. A 4K clip shown small (a picture in picture) converts faster this way.
+    pub fn image_at_width(
         &self,
         frame: &Frame,
-        ctx: &FFramesContext<'r, '_>,
-        start: f32,
-        (x, y, width, height): (f32, f32, f32, f32),
-    ) -> Svgr<'r>
-    where
-        'a: 'r,
-    {
-        let Some(video_frame) = self.frame_at(frame, ctx, start) else {
-            return Svgr::empty();
-        };
-        let image = video_frame.into_image();
-
-        match self.fit {
-            Fit::Cover => crate::svgr!(
-                <image href={image.href()} x={x} y={y} width={width} height={height}
-                       preserveAspectRatio="xMidYMid slice" />
-            ),
-            Fit::Contain => crate::svgr!(
-                <image href={image.href()} x={x} y={y} width={width} height={height}
-                       preserveAspectRatio="xMidYMid meet" />
-            ),
-            Fit::Fill => crate::svgr!(
-                <image href={image.href()} x={x} y={y} width={width} height={height}
-                       preserveAspectRatio="none" />
-            ),
-        }
+        ctx: &FFramesContext<'_, '_>,
+        width: u32,
+    ) -> Option<ImageData<'a>> {
+        let video_frame = self.frame(frame, ctx)?;
+        let height = (f64::from(width) * f64::from(video_frame.height())
+            / f64::from(video_frame.width().max(1)))
+        .round() as u32;
+        video_frame.into_resized_image(&FrameConvertOptions {
+            resize: ResizeVideoFrame {
+                width: width.max(1),
+                height: height.max(1),
+            },
+        })
     }
 
     /// Clips that play the same thing share a decoder, other clips never do.

@@ -177,11 +177,14 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
   `start_from` is when the video starts on the timeline, not a position in the file.
 - Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file
-  (`.speed(1.5)`, `.reverse()`, `.looping()`, `.fit(Fit::Contain)`). In a scene:
-  `fn duration` returns `self.face.duration()`, `render_frame` draws
-  `self.face.draw(&frame, ctx, start_second_in_scene, (x, y, width, height))`. Put the voice
-  of the clip into the scene's `audio` with `.offset(...)` into the audio file, so it moves
-  with the scene. Cut a phrase by splitting the clip into two clips, never by cutting the file.
+  (`.at(1.2)` starts it at 1.2 s of the scene, `.speed(1.5)`, `.reverse()`, `.looping()`).
+  In a scene, `fn duration` returns `self.face.duration()` and `render_frame` takes
+  `self.face.image(&frame, ctx)` (or `image_at_width(&frame, ctx, 440)` for a small picture in
+  picture), an `Option<ImageData>` drawn as `<image href={image.href()} ...>` with any
+  transform, filter, mask or shader. `{option_of_svgr}` in `svgr!` draws nothing for `None`.
+  Put the voice of the clip into the scene's `audio` with `.offset(...)` into the audio file,
+  so it moves with the scene. Cut a phrase by splitting the clip into two clips, never by
+  cutting the file.
 - One frame of a file: `frame.video_frame_at(ctx, "IMG_0926.mov", 21.0, None)` (seconds of the file).
 - Subtitles: `ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s))`.
 - Audio spectrum: `frame.visualize_audio_frame(VisualizeFrameInput { audio, sample_size: SampleSize::S256, smooth_level: 4, window: Some(WindowFunction::Hann) })`.
