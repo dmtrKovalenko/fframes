@@ -196,8 +196,7 @@ pub async fn prepare_video_with_audio<
         static_media,
         resolve_video_duration,
     )
-    .await
-    .unwrap();
+    .await?;
 
     let resolve_audio_duration_in_frames = |val: &str| {
         audio_durations

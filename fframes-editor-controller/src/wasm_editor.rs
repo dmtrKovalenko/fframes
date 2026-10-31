@@ -116,8 +116,17 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
     pub async fn replace(&self, video: TVideo) -> Result<video_metadata::VideoMetadata, JsValue> {
         let fps = { self.time_base.lock().unwrap().as_ref().map(|tb| tb.fps) };
 
-        self.video_ctx.replace(VideoCtx::new(video));
-        self.prepare(fps).await
+        // Keep the previous video until the new one prepares successfully, so a
+        // failed replacement (for example duplicate marker names) leaves the
+        // existing scenes and markers valid.
+        let previous = self.video_ctx.replace(VideoCtx::new(video));
+        match self.prepare(fps).await {
+            Ok(metadata) => Ok(metadata),
+            Err(err) => {
+                self.video_ctx.replace(previous);
+                Err(err)
+            }
+        }
     }
 
     pub async fn prepare(
