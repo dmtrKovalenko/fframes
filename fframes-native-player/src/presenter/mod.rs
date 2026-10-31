@@ -33,9 +33,9 @@ trait WindowTarget {
     /// The window has a new size in physical pixels, neither is zero.
     fn resize(&mut self, width: u32, height: u32) -> PlayerResult<()>;
 
-    /// Draws the next image of the window with `draw` and shows it. Returns once the GPU is
-    /// done: video frame images point into the pixel buffers of the tree, which is dropped
-    /// as soon as the next frame replaces it.
+    /// Draws the next image of the window with `draw` and shows it. The GPU backends
+    /// return before the GPU is done: Skia copies video frame pixels into its staging
+    /// memory during the flush, so the tree can be dropped once this returns.
     fn present(&mut self, draw: &mut dyn FnMut(&Canvas)) -> PlayerResult<()>;
 }
 

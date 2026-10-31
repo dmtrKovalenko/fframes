@@ -104,8 +104,9 @@ impl WindowTarget for MetalTarget {
             .ok_or_else(|| PlayerError::Skia("can not draw into the drawable".to_owned()))?;
 
             draw(surface.canvas());
-            self.gpu
-                .flush_and_submit_surface(&mut surface, SyncCpu::Yes);
+            // The flush copies image pixels into transfer buffers, so the CPU does not
+            // wait for the GPU. The layer limits the drawables in flight.
+            self.gpu.flush_and_submit_surface(&mut surface, SyncCpu::No);
             drop(surface);
 
             // Skia submitted to the same queue, the drawable is presented after its work.
