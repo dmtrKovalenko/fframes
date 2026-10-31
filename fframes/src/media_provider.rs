@@ -53,6 +53,9 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
     }
 
     /// Whether the provider lists video files that need a decoder during playback.
+    /// A provider that can return `Some` from `resolve_video` must override this method
+    /// or `get_all_video_data`. Otherwise the native preview uses its no-video defaults:
+    /// more workers, and decoders that are not shared between them.
     fn has_video_sources(&self) -> bool {
         !self.get_all_video_data().is_empty()
     }

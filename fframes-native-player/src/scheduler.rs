@@ -32,6 +32,8 @@ struct State {
     /// Last position handed to the player, anything at or before it is stale.
     displayed: Option<u64>,
     looping: bool,
+    /// A timeline drag is in progress: prepare only the frame under the pointer.
+    scrubbing: bool,
     ready: BTreeMap<u64, usvgr::Tree>,
     in_flight: usize,
     shutdown: bool,
@@ -69,6 +71,7 @@ impl Scheduler {
                 playhead: 0,
                 displayed: None,
                 looping,
+                scrubbing: false,
                 ready: BTreeMap::new(),
                 in_flight: 0,
                 shutdown: false,
@@ -106,9 +109,11 @@ impl Scheduler {
         state.playhead = position;
         state.displayed = None;
         state.looping = looping;
-        state.ready.clear();
+        // Trees hold video frames. Free them after the workers can continue.
+        let stale = std::mem::take(&mut state.ready);
         drop(state);
         self.workers_wakeup.notify_all();
+        drop(stale);
     }
 
     /// A forward seek within the finished buffer can show its target immediately.
@@ -121,10 +126,24 @@ impl Scheduler {
             return false;
         }
         state.playhead = position;
-        state.ready.retain(|&p, _| p >= position);
+        let kept = state.ready.split_off(&position);
+        let stale = std::mem::replace(&mut state.ready, kept);
         drop(state);
         self.workers_wakeup.notify_all();
+        drop(stale);
         true
+    }
+
+    /// While a drag is in progress only the frame under the pointer is prepared, so a
+    /// scrub never waits for lookahead frames the next pointer position discards.
+    pub(crate) fn set_scrubbing(&self, scrubbing: bool) {
+        let mut state = self.lock();
+        if state.scrubbing == scrubbing {
+            return;
+        }
+        state.scrubbing = scrubbing;
+        drop(state);
+        self.workers_wakeup.notify_all();
     }
 
     /// Moves the playhead and returns the newest ready frame at or before it.
@@ -135,7 +154,7 @@ impl Scheduler {
         let advanced = state.playhead != playhead;
         state.playhead = playhead;
 
-        let taken = take_due(&mut state.ready, playhead);
+        let (taken, skipped) = take_due(&mut state.ready, playhead);
         if let Some((position, _)) = &taken {
             state.displayed = Some(*position);
         }
@@ -144,6 +163,7 @@ impl Scheduler {
         if advanced || taken.is_some() {
             self.workers_wakeup.notify_all();
         }
+        drop(skipped);
         taken
     }
 
@@ -170,17 +190,24 @@ impl Scheduler {
         }
     }
 
-    fn claim_playback(&self, state: &mut State) -> Option<Job> {
+    /// The next position a playback worker can prepare, if any. Prepared trees and
+    /// in-flight work are bounded. A new live position bypasses that bound when the
+    /// clock jumped ahead of all assigned work.
+    fn claimable_position(&self, state: &State) -> Option<u64> {
+        let lookahead = if state.scrubbing { 0 } else { self.lookahead };
         let position = state.next.max(state.playhead);
         let staged = state.ready.len() + state.in_flight;
-        if position > state.playhead.saturating_add(self.lookahead)
+        if position > state.playhead.saturating_add(lookahead)
             || (!state.looping && position >= self.duration)
-            || (position > state.playhead && staged >= self.lookahead.max(1) as usize)
+            || (position > state.playhead && staged >= lookahead.max(1) as usize)
         {
             return None;
         }
-        // Bound prepared trees and in-flight work. A new live position
-        // can bypass that limit if the clock jumped ahead of all assigned work.
+        Some(position)
+    }
+
+    fn claim_playback(&self, state: &mut State) -> Option<Job> {
+        let position = self.claimable_position(state)?;
         state.next = position + 1;
         state.in_flight += 1;
         Some(Job {
@@ -192,10 +219,16 @@ impl Scheduler {
         })
     }
 
-    // The filmstrip seeks across the video with its own decoder.
+    // The filmstrip seeks across the video with its own decoder. It waits until the
+    // first frame is shown, no drag is in progress and the playback workers have nothing
+    // left to prepare, so thumbnails never compete with playback or a scrub.
     fn next_thumbnail_job(&self) -> Option<Job> {
         let mut state = self.lock();
-        while !state.shutdown && state.displayed.is_none() {
+        while !state.shutdown
+            && (state.displayed.is_none()
+                || state.scrubbing
+                || self.claimable_position(&state).is_some())
+        {
             state = self
                 .workers_wakeup
                 .wait(state)
@@ -214,6 +247,11 @@ impl Scheduler {
         })
     }
 
+    #[cfg(test)]
+    pub(crate) fn is_scrubbing(&self) -> bool {
+        self.lock().scrubbing
+    }
+
     pub(crate) fn is_current_seek(&self, position: u64, epoch: u64) -> bool {
         let state = self.lock();
         state.playhead == position && state.epoch == epoch
@@ -227,13 +265,15 @@ impl Scheduler {
                 .displayed
                 .is_some_and(|displayed| position <= displayed);
 
-        if !is_stale && let Some(tree) = tree {
+        let tree = tree.filter(|_| !is_stale);
+        let inserted = tree.is_some();
+        if let Some(tree) = tree {
             state.ready.insert(position, tree);
-            return true;
         }
         drop(state);
-        self.workers_wakeup.notify_one();
-        false
+        // A full buffer lets the filmstrip worker start, a freed slot the playback workers.
+        self.workers_wakeup.notify_all();
+        inserted
     }
 
     pub(crate) fn run_worker<'a, 'media: 'a, TVideo: Video + Sync>(
@@ -305,12 +345,16 @@ impl Scheduler {
     }
 }
 
-fn take_due<T>(ready: &mut BTreeMap<u64, T>, playhead: u64) -> Option<(u64, T)> {
-    let mut latest = None;
-    while ready.first_key_value().is_some_and(|(&p, _)| p <= playhead) {
-        latest = ready.pop_first();
-    }
-    latest
+/// Removes the frames at or before `playhead`. Returns the newest of them and the ones
+/// it skipped, so the caller can drop those after releasing the lock.
+fn take_due<T>(
+    ready: &mut BTreeMap<u64, T>,
+    playhead: u64,
+) -> (Option<(u64, T)>, BTreeMap<u64, T>) {
+    let future = ready.split_off(&playhead.saturating_add(1));
+    let mut due = std::mem::replace(ready, future);
+    let latest = due.pop_last();
+    (latest, due)
 }
 
 #[cfg(test)]
@@ -425,16 +469,47 @@ mod tests {
     }
 
     #[test]
-    fn thumbnails_do_not_consume_playback_jobs_and_stop_when_finished() {
+    fn scrubbing_prepares_only_the_frame_under_the_pointer() {
+        let scheduler = Scheduler::new(100, 4, false, 0, false);
+        scheduler.set_scrubbing(true);
+        scheduler.seek(10, false);
+        assert_eq!(scheduler.next_job().unwrap().frame, 10);
+        assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
+        assert!(scheduler.complete(10, 1, Some(tree())));
+        assert_eq!(scheduler.take(10).unwrap().0, 10);
+        assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
+        scheduler.set_scrubbing(false);
+        assert_eq!(scheduler.next_job().unwrap().frame, 11);
+    }
+
+    #[test]
+    fn thumbnails_wait_for_a_full_playback_buffer_and_stop_when_finished() {
         let scheduler = Scheduler::new(100, 3, false, 2, false);
         assert_eq!(scheduler.next_job().unwrap().frame, 0);
         scheduler.complete(0, 0, Some(tree()));
         scheduler.take(0).unwrap();
-        assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 25);
-        assert_eq!(scheduler.next_job().unwrap().frame, 1);
-        assert_eq!(scheduler.next_thumbnail_job().unwrap().frame, 75);
-        assert!(scheduler.next_thumbnail_job().is_none());
-        assert_eq!(scheduler.next_job().unwrap().frame, 2);
+        let (sender, thumbnails) = std::sync::mpsc::channel();
+        let scheduler = &scheduler;
+        std::thread::scope(|scope| {
+            // The channel closes when the filmstrip worker runs out of jobs.
+            scope.spawn(move || {
+                while let Some(job) = scheduler.next_thumbnail_job() {
+                    sender.send(job.frame).unwrap();
+                }
+            });
+            // Playback jobs come first while the buffer has room.
+            for p in 1..=3 {
+                assert_eq!(scheduler.next_job().unwrap().frame, p);
+                if p < 3 {
+                    assert!(thumbnails.try_recv().is_err());
+                }
+                assert!(scheduler.complete(p as u64, 0, Some(tree())));
+            }
+            assert_eq!(thumbnails.recv().unwrap(), 25);
+            assert_eq!(thumbnails.recv().unwrap(), 75);
+            assert!(thumbnails.recv().is_err());
+        });
+        assert!(scheduler.claim_playback(&mut scheduler.lock()).is_none());
         let stopped = Scheduler::new(100, 3, false, 2, false);
         stopped.shutdown();
         assert!(stopped.next_thumbnail_job().is_none());

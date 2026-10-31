@@ -86,7 +86,7 @@ pub(crate) struct App<'s> {
     audio: Option<&'s crate::audio::AudioOutput>,
 
     window: Option<Rc<Window>>,
-    // Keep source frames alive until Skia finishes drawing them.
+    /// The tree on screen. Skia copies its video frames to the GPU during the flush.
     current: Option<(u64, fframes::usvgr::Tree)>,
     presenter: Option<Presenter>,
     redraw_pending: bool,
@@ -392,10 +392,18 @@ impl<'s> App<'s> {
         self.needs_redraw = true;
     }
 
+    /// A drag along the timeline or the seek slider turns lookahead off: the workers
+    /// prepare only the frame under the pointer until the button is released.
+    fn set_drag(&mut self, drag: Option<Control>) {
+        self.drag = drag;
+        self.scheduler
+            .set_scrubbing(matches!(drag, Some(Control::Seek | Control::Timeline)));
+    }
+
     fn toggle_studio(&mut self) {
         self.invalidate_view();
         self.studio_open = !self.studio_open;
-        self.drag = None;
+        self.set_drag(None);
         self.hovered = None;
         self.last_pointer_activity = Instant::now();
         self.needs_redraw = true;
@@ -489,7 +497,7 @@ impl<'s> App<'s> {
                 (ui.time_axis(self.pointer()) - self.scene_press_axis).abs() >= 3.
             })
         {
-            self.drag = Some(Control::Timeline);
+            self.set_drag(Some(Control::Timeline));
         }
         if matches!(self.drag, Some(Control::Seek | Control::Timeline)) {
             self.seek_to_cursor();
@@ -534,14 +542,14 @@ impl<'s> App<'s> {
             Some(Control::Back) => self.seek_to_frame(frame - second),
             Some(Control::Forward) => self.seek_to_frame(frame + second),
             Some(control @ (Control::Seek | Control::Timeline)) => {
-                self.drag = Some(control);
+                self.set_drag(Some(control));
                 self.seek_to_cursor();
             }
             Some(control @ Control::Scene(_)) => {
                 if let Some(ui) = self.studio_layout() {
                     self.scene_press_axis = ui.time_axis(self.pointer());
                 }
-                self.drag = Some(control);
+                self.set_drag(Some(control));
             }
             Some(Control::Focus) => self.toggle_studio(),
             Some(Control::Loop) => {
@@ -558,7 +566,9 @@ impl<'s> App<'s> {
     }
 
     fn on_pointer_released(&mut self) {
-        if let Some(control @ Control::Scene(start)) = self.drag.take()
+        let drag = self.drag;
+        self.set_drag(None);
+        if let Some(control @ Control::Scene(start)) = drag
             && self.control_under_cursor() == Some(control)
         {
             self.step(start as i64);
@@ -687,7 +697,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
                     self.needs_redraw = true;
                 }
             }
-            WindowEvent::Focused(false) => self.drag = None,
+            WindowEvent::Focused(false) => self.set_drag(None),
             WindowEvent::CursorLeft { .. } => {
                 self.cursor_inside = false;
                 if self.hovered.take().is_some() {
@@ -791,5 +801,18 @@ mod tests {
         });
         assert_eq!(app.scrub_target, None);
         assert!(scheduler.is_current_seek(20, 3));
+    }
+
+    #[test]
+    fn a_timeline_drag_turns_lookahead_off_until_the_button_is_released() {
+        let scheduler = Scheduler::new(100, 3, false, 0, false);
+        let mut app = paused_app(&scheduler);
+        app.set_drag(Some(Control::Scene(0)));
+        assert!(!scheduler.is_scrubbing());
+        app.set_drag(Some(Control::Timeline));
+        assert!(scheduler.is_scrubbing());
+        app.on_pointer_released();
+        assert!(!scheduler.is_scrubbing());
+        assert_eq!(app.drag, None);
     }
 }
