@@ -116,6 +116,9 @@
                 <feMergeNode in="SourceGraphic"/>
             </feMerge>
         </filter>
+        <clipPath id="code-window">
+            <path fill="#000000" stroke="none" d="M -968 122.50001 L -132 122.50001 C -114.32689 122.50001 -100 136.82689 -100 154.5 L -100 765.49994 C -100 783.17303 -114.32689 797.49994 -132 797.49994 L -968 797.49994 C -985.6731 797.49994 -1000 783.17303 -1000 765.49994 L -1000 154.5 C -1000 136.82689 -985.6731 122.50001 -968 122.50001 Z"/>
+        </clipPath>
         <clipPath id="clipPath1">
             <path fill="#000000" stroke="none" d="M 1456 769.9673 L 1856 769.9673 L 1856 1169.9673 L 1456 1169.9673 Z"/>
         </clipPath>
@@ -160,7 +163,11 @@
             <path fill="none" stroke="#ffffff" stroke-width="4.5" d="M 545.58 385.92 C 553.02 389.43 562.97 387.49 572.02 395.83997"/>
         </g>
     </g>
-    <image x="-1000" y="10" width="900" height="900" xlink:href="code.png"/>
+    <g>
+        <g clip-path="url(#code-window)">
+            <image x="-1000" y="122.5" width="900" height="675" preserveAspectRatio="none" xlink:href="code.png"/>
+        </g>
+    </g>
     <g clip-path="url(#clipPath1)">
         <g transform="matrix(0.33333334 0 0 0.33333334 1456 836.63403)">
             <g id="ferris-crab">

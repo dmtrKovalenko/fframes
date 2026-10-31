@@ -115,6 +115,7 @@ mod duration;
 mod fframes_context;
 mod font_data;
 mod frame;
+mod layout;
 #[cfg(feature = "lottie")]
 mod lottie;
 mod media_provider;
@@ -155,6 +156,7 @@ pub use duration::*;
 pub use fframes_context::*;
 pub use font_data::*;
 pub use frame::*;
+pub use layout::*;
 #[cfg(feature = "lottie")]
 pub use lottie::*;
 #[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]

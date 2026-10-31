@@ -1,4 +1,4 @@
-use fframes::{AnimateRuntimeInput, AudioMap, Frame, Svgr, Video, animation};
+use fframes::{AnimateRuntimeInput, AudioMap, Frame, PanZoom, Rect, Svgr, Video, animation};
 use fframes::{FFramesContext, VisualizeFrameInput, animation::Easing, include_media_dir};
 
 const SPRING: animation::Easing = animation::Easing::Spring {
@@ -28,6 +28,56 @@ pub struct MarketingVideo<'a> {
 }
 
 impl MarketingVideo<'_> {
+    /// The code screenshot slides in through a rounded window and pans and zooms across
+    /// the code while it is on screen.
+    fn render_code(&self, frame: &Frame) -> Svgr<'_> {
+        let x = frame.animate(&fframes::timeline!(
+            at 5.8, animate -1000. => 40., Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. },
+            at 9.0, animate 40. => -1200., Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. }
+        ));
+        // 900 x 675 is the 4:3 of the screenshot, so at zoom 1 the crop shows all of it.
+        let window = Rect::new(x, 122.5, 900., 675.);
+        let progress = frame.animate(&fframes::timeline!(
+            at 6.2 => 8.8, animate 0. => 1., Easing::EaseInOut
+        ));
+        let code = &self.media.code_png;
+        let placed = PanZoom::new()
+            .zoom(1., 1.6)
+            .focus((0.5, 0.5), (0.3, 0.3))
+            .place(
+                code.metadata.width as f32,
+                code.metadata.height as f32,
+                window,
+                progress,
+            );
+
+        fframes::svgr!(
+            <g>
+                <defs>
+                    <clipPath id="code-window">
+                        <rect
+                            x={placed.clip.x}
+                            y={placed.clip.y}
+                            width={placed.clip.width}
+                            height={placed.clip.height}
+                            rx="32"
+                        />
+                    </clipPath>
+                </defs>
+                <g clip-path="url(#code-window)">
+                    <image
+                        href={code.href()}
+                        x={placed.x}
+                        y={placed.y}
+                        width={placed.width}
+                        height={placed.height}
+                        preserveAspectRatio="none"
+                    />
+                </g>
+            </g>
+        )
+    }
+
     fn render_ferris(&self, frame: &Frame) -> Svgr<'_> {
         if !(2.3f32..5.0f32).contains(&frame.seconds()) {
             return Svgr::default();
@@ -387,16 +437,7 @@ impl Video for MarketingVideo<'_> {
                     {frame.get_subtitle_phrase(&self.media.subtitles_vtt).unwrap_or("")}
                 </text>
 
-                <image
-                    width="900"
-                    height="900"
-                    href={self.media.code_png.href()}
-                    x={frame.animate(&fframes::timeline!(
-                        at 5.8, animate -1000. => 40., Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. },
-                        at 9.0, animate 40. => -1200., Easing::Spring { mass: 0.85, stiffness: 80., damping: 16. }
-                    ))}
-                    y="10"
-                />
+                {self.render_code(&frame)}
 
                 {self.render_ferris(&frame)}
 
