@@ -30,6 +30,7 @@ pub struct Rect {
 }
 
 impl Rect {
+    /// A rectangle with its top-left corner at (`x`, `y`).
     pub const fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
             x,
@@ -44,18 +45,22 @@ impl Rect {
         Self::new(0.0, 0.0, width, height)
     }
 
+    /// The x coordinate of the right edge.
     pub fn right(self) -> f32 {
         self.x + self.width
     }
 
+    /// The y coordinate of the bottom edge.
     pub fn bottom(self) -> f32 {
         self.y + self.height
     }
 
+    /// The centre point as `(x, y)`.
     pub fn center(self) -> (f32, f32) {
         (self.x + self.width * 0.5, self.y + self.height * 0.5)
     }
 
+    /// True when the width or the height is zero or negative.
     pub fn is_empty(self) -> bool {
         self.width <= 0.0 || self.height <= 0.0
     }
@@ -93,6 +98,7 @@ pub struct Placement {
 }
 
 impl Placement {
+    /// The drawn area as a [`Rect`], which can extend past [`Placement::clip`].
     pub fn rect(self) -> Rect {
         Rect::new(self.x, self.y, self.width, self.height)
     }
@@ -209,16 +215,20 @@ impl Default for PanZoom {
 }
 
 impl PanZoom {
+    /// The default crop: centred, zooming from `1.0` to `1.2`.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the zoom at `t = 0` and `t = 1`. Values below `1.0` are treated as `1.0`.
     pub fn zoom(mut self, from: f32, to: f32) -> Self {
         self.from_zoom = from;
         self.to_zoom = to;
         self
     }
 
+    /// Set the focal point at `t = 0` and `t = 1`, in 0–1 source coordinates.
+    /// Values outside that range are clamped.
     pub fn focus(mut self, from: (f32, f32), to: (f32, f32)) -> Self {
         self.from_focus = from;
         self.to_focus = to;
