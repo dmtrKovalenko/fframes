@@ -1,6 +1,6 @@
 use crate::FFramesMediaError;
 use crate::error::Result;
-use crate::video_types::FrameConvertOptions;
+use crate::video_types::{FrameConvertOptions, PlaybackSpeed};
 use ffmpeg_sys_fframes::SwsFlags::{SWS_BICUBIC, SWS_BILINEAR};
 use ffmpeg_sys_fframes::*;
 use std::cell::UnsafeCell;
@@ -65,9 +65,6 @@ unsafe fn duration_tag(stream: *mut AVStream) -> Option<i64> {
         .checked_add(micros)?;
     (total > 0).then_some(total)
 }
-
-/// `FFmpegDecoder::with_playback_speed` keeps the speed to 1/1000.
-const PLAYBACK_SPEED_SCALE: i32 = 1000;
 
 const FFRAMES_VIDEO_PATH_TAG: &str = "___fframes_internal_video_frame_pts___";
 // just a little bit faster than the format! macro
@@ -371,9 +368,8 @@ pub struct FFmpegDecoder {
     /// Offsets are counted in this time base: `speed / target_fps` seconds per offset.
     custom_time_base: AVRational,
     target_fps: i32,
-    duration_in_frames: i64,
-    /// The offset of the previous `decode_up_to` call, in `custom_time_base` units.
-    last_offset: Option<i64>,
+    /// The stream position of the previous decode or seek, in the stream's time base.
+    last_pts: Option<i64>,
     /// A null packet has been sent; receive delayed frames until decoder EOF.
     draining: bool,
     /// The target frame holds a frame decoded since the last seek.
@@ -639,29 +635,32 @@ impl FFmpegDecoder {
     }
 
     /// Plays the stream `speed` times faster: offset `n` shows the frame at
-    /// `n * speed / target_fps` seconds of the stream. The speed is kept to 1/1000.
-    /// A speed that is not positive and finite plays at normal speed.
-    pub fn with_playback_speed(mut self, speed: f32) -> Self {
-        let speed = if speed.is_finite() && speed > 0.0 {
-            ((speed * PLAYBACK_SPEED_SCALE as f32).round() as i32).max(1)
-        } else {
-            PLAYBACK_SPEED_SCALE
-        };
-
+    /// `n * speed / target_fps` seconds of the stream.
+    pub fn with_playback_speed(mut self, speed: PlaybackSpeed) -> Self {
         self.custom_time_base = AVRational {
-            num: speed,
-            den: self.target_fps * PLAYBACK_SPEED_SCALE,
+            num: speed.thousandths(),
+            den: self.target_fps * PlaybackSpeed::SCALE,
         };
-        self.duration_in_frames = unsafe {
-            av_rescale_q(
-                self.video_stream_info.duration,
-                self.video_stream_info.time_base,
-                self.custom_time_base,
-            )
-        };
-        self.last_offset = None;
+        self.last_pts = None;
         self.current_loop = 0;
         self
+    }
+
+    /// The stream position of the offset, in the stream's time base.
+    fn offset_pts(&self, offset: i64) -> i64 {
+        unsafe {
+            av_rescale_q(
+                offset,
+                self.custom_time_base,
+                self.video_stream_info.time_base,
+            )
+        }
+    }
+
+    /// The exact stream duration, in the stream's time base. `None` if it is unknown.
+    fn stream_duration(&self) -> Option<i64> {
+        let duration = self.video_stream_info.duration;
+        (duration > 0).then_some(duration)
     }
 
     /// Creates a new decoder for the video file at the specified path
@@ -737,12 +736,6 @@ impl FFmpegDecoder {
                 den: target_fps as i32,
             };
 
-            let duration_in_frames = av_rescale_q(
-                video_stream_info.duration,
-                video_stream_info.time_base,
-                custom_time_base,
-            );
-
             Ok(FFmpegDecoder {
                 pkt,
                 fmt_ctx,
@@ -756,9 +749,8 @@ impl FFmpegDecoder {
                 video_stream_info,
                 custom_time_base,
                 target_fps: target_fps as i32,
-                duration_in_frames,
                 current_loop: 0,
-                last_offset: None,
+                last_pts: None,
                 draining: false,
                 has_decoded_frame: false,
             })
@@ -865,13 +857,11 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn seek_to_offset(&mut self, offset: i64) -> Result<()> {
-        unsafe {
-            let timestamp = av_rescale_q(
-                offset,
-                self.custom_time_base,
-                self.video_stream_info.time_base,
-            );
+        unsafe { self.seek_to_pts(self.offset_pts(offset)) }
+    }
 
+    unsafe fn seek_to_pts(&mut self, timestamp: i64) -> Result<()> {
+        unsafe {
             let ret = av_seek_frame(
                 self.fmt_ctx,
                 self.video_stream_info.stream_index,
@@ -890,33 +880,42 @@ impl FFmpegDecoder {
             avcodec_flush_buffers(self.video_stream_info.codec_ctx);
             self.draining = false;
             self.has_decoded_frame = false;
+            self.last_pts = Some(timestamp);
             av_packet_unref(self.pkt);
 
             Ok(())
         }
     }
 
-    /// Moves offset to the start of the video if need to loop
+    /// Decodes the frame at the offset of the video played in a loop. The position in
+    /// the loop comes from the exact stream duration, so loops at a fractional speed
+    /// do not drift and do not end early.
     /// # Safety
     /// Generally safe but uses libav functions
-    pub unsafe fn adjust_offset_for_looping(&mut self, offset: i64) -> Result<i64> {
-        // An unknown or empty duration can't be looped over (and would divide by zero below).
-        if self.duration_in_frames <= 0 || offset < self.duration_in_frames {
-            return Ok(offset);
-        }
-
-        let new_loop_index = offset / self.duration_in_frames;
-        let new_offset = offset % self.duration_in_frames;
-        if new_loop_index == self.current_loop {
-            return Ok(new_offset);
-        }
-
-        self.current_loop = new_loop_index;
+    pub unsafe fn decode_looping(&mut self, offset: i64) -> Result<bool> {
         unsafe {
-            self.seek_to_offset(new_offset)?;
-        }
+            let pts = self.offset_pts(offset);
+            // An unknown duration can't be looped over (and would divide by zero below).
+            let Some(duration) = self.stream_duration() else {
+                return self.decode_up_to_pts(pts);
+            };
 
-        Ok(new_offset)
+            let loop_index = pts.div_euclid(duration);
+            let pts = pts.rem_euclid(duration);
+            if loop_index != self.current_loop {
+                self.current_loop = loop_index;
+                self.seek_to_pts(pts)?;
+            }
+
+            if self.decode_up_to_pts(pts)? {
+                return Ok(true);
+            }
+
+            // The frames end before the stream's duration: start the next loop.
+            self.current_loop += 1;
+            self.seek_to_pts(0)?;
+            self.decode_up_to_pts(0)
+        }
     }
 
     /// If we are actually using hardware accelerated frames it is required to correctly
@@ -969,27 +968,25 @@ impl FFmpegDecoder {
     /// # Safety
     /// Generally safe but uses libav functions
     pub unsafe fn decode_up_to(&mut self, offset: i64) -> Result<bool> {
+        unsafe { self.decode_up_to_pts(self.offset_pts(offset)) }
+    }
+
+    unsafe fn decode_up_to_pts(&mut self, target_pts: i64) -> Result<bool> {
         unsafe {
             // Going back needs a seek, otherwise the newer frame that was already decoded
-            // would be returned. Far jumps forward seek to the closest keyframe instead of
-            // decoding every frame in between (frames can be requested out of order by
-            // parallel renderers).
-            // 2 seconds of the stream
-            let seek_ahead_frames = 2 * i64::from(self.custom_time_base.den.max(1))
-                / i64::from(self.custom_time_base.num.max(1));
-            let needs_seek = self.last_offset.is_some_and(|last_offset| {
-                offset < last_offset || offset - last_offset > seek_ahead_frames
-            });
-            self.last_offset = Some(offset);
-            if needs_seek {
-                self.seek_to_offset(offset)?;
-            }
-
-            let target_pts = av_rescale_q(
-                offset,
-                self.custom_time_base,
+            // would be returned. Far jumps forward (more than 2 seconds of the stream) seek
+            // to the closest keyframe instead of decoding every frame in between (frames can
+            // be requested out of order by parallel renderers). A new decoder is at the start.
+            let seek_ahead = av_rescale_q(
+                2,
+                AVRational { num: 1, den: 1 },
                 self.video_stream_info.time_base,
             );
+            let last_pts = self.last_pts.unwrap_or(0);
+            if target_pts < last_pts || target_pts - last_pts > seek_ahead {
+                self.seek_to_pts(target_pts)?;
+            }
+            self.last_pts = Some(target_pts);
 
             if (*self.frame_buf.latest_av_frame).pts >= target_pts {
                 return Ok(true);
@@ -1020,8 +1017,10 @@ impl FFmpegDecoder {
                         // The target lies after the last frame's timestamp but before the end of
                         // the stream (e.g. a 24 fps clip sampled at 30 fps): the last frame is
                         // still the one on screen, so return it instead of reporting the end.
-                        let shows_last_frame =
-                            self.has_decoded_frame && offset < self.duration_in_frames;
+                        let shows_last_frame = self.has_decoded_frame
+                            && self
+                                .stream_duration()
+                                .is_some_and(|duration| target_pts < duration);
                         if shows_last_frame {
                             self.transfer_hardware_surface_data(target_frame)?;
                         }
