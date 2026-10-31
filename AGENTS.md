@@ -472,6 +472,7 @@ lets scenes cross-fade; `ctx.get_scene_info(&scene)` gives the resolved frame ra
 let Some(video_frame) = frame.get_synced_video_frame(ctx, "clip.mp4", &fframes::SyncVideoFrameInput {
     start_from: 0.,
     looping: false,
+    speed: 1.5, // 1.5x from start_from on; 0.5 for slow motion, default 1.0
     editor_fallback_image: ctx.get_image("clip_poster.jpg"),
 }) else { return Svgr::empty() };
 let image = video_frame.into_image(); // <image href={image.href()} .../>

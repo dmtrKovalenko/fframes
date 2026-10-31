@@ -66,6 +66,9 @@ unsafe fn duration_tag(stream: *mut AVStream) -> Option<i64> {
     (total > 0).then_some(total)
 }
 
+/// `FFmpegDecoder::with_playback_speed` keeps the speed to 1/1000.
+const PLAYBACK_SPEED_SCALE: i32 = 1000;
+
 const FFRAMES_VIDEO_PATH_TAG: &str = "___fframes_internal_video_frame_pts___";
 // just a little bit faster than the format! macro
 pub fn encode_video_resource(resource: &str, pts: i64) -> String {
@@ -365,7 +368,9 @@ pub struct FFmpegDecoder {
     fmt_ctx: *mut AVFormatContext,
     video_stream_info: VideoStreamInfo,
     pkt: *mut AVPacket,
+    /// Offsets are counted in this time base: `speed / target_fps` seconds per offset.
     custom_time_base: AVRational,
+    target_fps: i32,
     duration_in_frames: i64,
     /// The offset of the previous `decode_up_to` call, in `custom_time_base` units.
     last_offset: Option<i64>,
@@ -633,6 +638,32 @@ impl FFmpegDecoder {
         ))
     }
 
+    /// Plays the stream `speed` times faster: offset `n` shows the frame at
+    /// `n * speed / target_fps` seconds of the stream. The speed is kept to 1/1000.
+    /// A speed that is not positive and finite plays at normal speed.
+    pub fn with_playback_speed(mut self, speed: f32) -> Self {
+        let speed = if speed.is_finite() && speed > 0.0 {
+            ((speed * PLAYBACK_SPEED_SCALE as f32).round() as i32).max(1)
+        } else {
+            PLAYBACK_SPEED_SCALE
+        };
+
+        self.custom_time_base = AVRational {
+            num: speed,
+            den: self.target_fps * PLAYBACK_SPEED_SCALE,
+        };
+        self.duration_in_frames = unsafe {
+            av_rescale_q(
+                self.video_stream_info.duration,
+                self.video_stream_info.time_base,
+                self.custom_time_base,
+            )
+        };
+        self.last_offset = None;
+        self.current_loop = 0;
+        self
+    }
+
     /// Creates a new decoder for the video file at the specified path
     /// # Safety
     /// Generally safe but uses libav functions
@@ -724,6 +755,7 @@ impl FFmpegDecoder {
                 )?),
                 video_stream_info,
                 custom_time_base,
+                target_fps: target_fps as i32,
                 duration_in_frames,
                 current_loop: 0,
                 last_offset: None,
@@ -942,7 +974,9 @@ impl FFmpegDecoder {
             // would be returned. Far jumps forward seek to the closest keyframe instead of
             // decoding every frame in between (frames can be requested out of order by
             // parallel renderers).
-            let seek_ahead_frames = 2 * i64::from(self.custom_time_base.den.max(1));
+            // 2 seconds of the stream
+            let seek_ahead_frames = 2 * i64::from(self.custom_time_base.den.max(1))
+                / i64::from(self.custom_time_base.num.max(1));
             let needs_seek = self.last_offset.is_some_and(|last_offset| {
                 offset < last_offset || offset - last_offset > seek_ahead_frames
             });

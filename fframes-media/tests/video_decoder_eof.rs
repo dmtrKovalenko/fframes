@@ -326,3 +326,39 @@ fn frames_can_be_converted_at_widths_that_are_not_a_multiple_of_16() {
         }
     }
 }
+
+/// Offset `n` at `num / den` speed shows the first source frame at or after `n * num / den`.
+fn assert_speed(speed: f32, num: i64, den: i64) {
+    let video = VideoFixture::new(3);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }
+        .unwrap()
+        .with_playback_speed(speed);
+    let offsets = FRAME_COUNT * den / num;
+    for offset in 0..offsets {
+        assert!(
+            unsafe { decoder.decode_up_to(offset) }.unwrap(),
+            "{speed}x: offset {offset}"
+        );
+        let source_frame = ((offset * num + den - 1) / den).min(FRAME_COUNT - 1);
+        let seconds = unsafe { decoder.get_raw_frame().timestamp_seconds() };
+        assert!(
+            (seconds - source_frame as f32 / FPS as f32).abs() < 0.0001,
+            "{speed}x: offset {offset} shows {seconds}s, expected frame {source_frame}"
+        );
+    }
+    assert!(!unsafe { decoder.decode_up_to(offsets) }.unwrap());
+
+    // A loop of the faster video is shorter.
+    assert_eq!(
+        unsafe { decoder.adjust_offset_for_looping(offsets) }.unwrap(),
+        0
+    );
+    assert_frame(&mut decoder, 0);
+}
+
+#[test]
+fn playback_speed_scales_the_source_time() {
+    assert_speed(2.0, 2, 1);
+    assert_speed(1.5, 3, 2);
+    assert_speed(0.5, 1, 2);
+}

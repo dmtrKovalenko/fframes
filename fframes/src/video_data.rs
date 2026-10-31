@@ -73,7 +73,7 @@ pub trait FFramesSyncedVideoFrame<'media> {
     fn stream_duration_in_seconds(&self) -> f32;
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct SyncVideoFrameInput<'media> {
     /// The seconds timestamp in seconds to start playing the video from
     /// If not provided starts playing from the beginning of the video or scene.
@@ -82,9 +82,26 @@ pub struct SyncVideoFrameInput<'media> {
     /// Also if `true` the `get_synced_video_frame` API should never return None, only in case of
     /// decoding errors, so in some cases it might be okay to panic if the frame is not available.
     pub looping: bool,
+    /// Playback speed of the video: `2.0` plays it twice as fast, `0.5` at half speed.
+    /// Every frame shows the source frame at `seconds since start_from * speed`, so the
+    /// motion stays even at any speed and frame rate. With `looping` a loop takes
+    /// `duration / speed` seconds. The speed is kept to 1/1000; a value that is not
+    /// positive and finite plays at normal speed. Default `1.0`.
+    pub speed: f32,
     /// The wasm preview editor is not supporting decoding video frames in runtime
     /// so this allows to provide a fallback image for the debugging
     pub editor_fallback_image: Option<&'media ImageData<'media>>,
+}
+
+impl Default for SyncVideoFrameInput<'_> {
+    fn default() -> Self {
+        Self {
+            start_from: 0.0,
+            looping: false,
+            speed: 1.0,
+            editor_fallback_image: None,
+        }
+    }
 }
 
 /// This is used by the editor as a fallback for the static image
@@ -237,6 +254,15 @@ impl VideoDecodersWorker {
             return Ok(None);
         };
 
+        // The editor decodes on the grid of the video's frames. The speed is kept to
+        // 1/1000 like in `FFmpegDecoder::with_playback_speed`.
+        let speed = if options.speed.is_finite() && options.speed > 0.0 {
+            ((options.speed * 1000.0).round() as i64).max(1)
+        } else {
+            1000
+        };
+        let offset = (offset * speed + 999) / 1000;
+
         let last_frame_to_display_image = metadata.duration * ctx.time_base.fps as f32;
         if offset > last_frame_to_display_image as i64 && !options.looping {
             return Ok(None);
@@ -316,6 +342,14 @@ impl VideoDecodersWorker {
             .ok_or_else(|| FFramesError::MediaError(FFramesMediaError::MediaDirectoryProvided))?
             .to_string_lossy();
 
+        // Every speed gets its own decoder, offsets of different speeds point to
+        // different parts of the file.
+        let resource_name = if options.speed == 1.0 {
+            resource_name
+        } else {
+            format!("{resource_name}@{}x", options.speed).into()
+        };
+
         // It is important to lock it for the whole duration of he function to
         // avoid any parallel encoder creation.
         let mut map_guard = self.map.write()?;
@@ -325,7 +359,8 @@ impl VideoDecodersWorker {
         if needs_new_decoder {
             let decoder = unsafe {
                 let mut decoder =
-                    fframes_media::FFmpegDecoder::new(path, ctx.time_base.fps, self.buffer_size)?;
+                    fframes_media::FFmpegDecoder::new(path, ctx.time_base.fps, self.buffer_size)?
+                        .with_playback_speed(options.speed);
 
                 if offset > 0 {
                     decoder.seek_to_offset(offset)?;
