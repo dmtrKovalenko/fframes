@@ -228,6 +228,32 @@ fn converted_images_survive_single_buffer_reuse_and_decoder_drop() {
 }
 
 #[test]
+fn released_frames_lend_their_pixel_buffers_to_later_conversions() {
+    let video = VideoFixture::new(0);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    let mut convert = |index| {
+        assert!(unsafe { decoder.decode_up_to(index) }.unwrap());
+        unsafe {
+            decoder
+                .get_raw_frame()
+                .convert_last_decoded_frame_into_svg_image(None)
+        }
+        .unwrap()
+    };
+    let first = convert(0);
+    let first_pixels = first.data.as_ptr();
+    // The first image is still held, so the second one needs its own buffer.
+    let second = convert(30);
+    assert_ne!(second.data.as_ptr(), first_pixels);
+    drop(first);
+    // Once released, the buffer of the first image is reused.
+    let third = convert(60);
+    assert_eq!(third.data.as_ptr(), first_pixels);
+    assert_ne!(third.data.as_ref(), second.data.as_ref());
+    assert_eq!(third.data.len(), 32 * 32 * 4);
+}
+
+#[test]
 fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
     let video = VideoFixture::new(0);
     let thumbnail = FrameConvertOptions {

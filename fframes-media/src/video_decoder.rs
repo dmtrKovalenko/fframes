@@ -411,10 +411,41 @@ struct ScaledFrameImage {
     image: Arc<PreloadedImageData>,
 }
 
+/// Evicted images kept for buffer reuse, see `ConvertedFrames::retired`.
+const MAX_RETIRED_IMAGES: usize = 8;
+
 #[derive(Debug)]
 struct ConvertedFrames {
     scaler: SwsScaler,
     images: VecDeque<ScaledFrameImage>,
+    /// Images evicted from the ring that a scene tree or a renderer still holds. Their
+    /// pixel buffers are reused once the last holder drops them, so playback does not
+    /// allocate a frame-sized buffer per frame.
+    retired: Vec<Arc<PreloadedImageData>>,
+}
+
+impl ConvertedFrames {
+    /// A pixel buffer no other holder can see, from the ring or the retired images.
+    fn free_pixels(&mut self) -> Vec<u8> {
+        if self.images.len() == self.images.capacity()
+            && let Some(evicted) = self.images.pop_front()
+        {
+            if self.retired.len() == MAX_RETIRED_IMAGES {
+                self.retired.remove(0);
+            }
+            self.retired.push(evicted.image);
+        }
+        let Some(free) = self
+            .retired
+            .iter()
+            .position(|image| Arc::strong_count(image) == 1)
+        else {
+            return Vec::new();
+        };
+        Arc::try_unwrap(self.retired.swap_remove(free))
+            .map(|image| image.data.into_owned())
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug)]
@@ -465,6 +496,7 @@ impl FFmpegFrameBuf {
                 converted: Arc::new(Mutex::new(ConvertedFrames {
                     scaler: sws_ctx,
                     images: VecDeque::with_capacity(buf_size.max(1)),
+                    retired: Vec::with_capacity(MAX_RETIRED_IMAGES),
                 })),
             })
         }
@@ -496,22 +528,15 @@ impl FFmpegFrameBuf {
         let pts = unsafe { (*self.latest_av_frame).pts };
         let options = options.copied();
         let mut converted = self.converted.lock().unwrap();
-        let ConvertedFrames { scaler, images } = &mut *converted;
-        if let Some(last) = images.back()
+        if let Some(last) = converted.images.back()
             && last.pts == pts
             && last.options == options
         {
             return Ok(Arc::clone(&last.image));
         }
 
-        // A queued frame may still own the evicted image.
-        let mut pixels = if images.len() == images.capacity() {
-            Arc::try_unwrap(images.pop_front().unwrap().image)
-                .map(|image| image.data.into_owned())
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+        let mut pixels = converted.free_pixels();
+        let scaler = &mut converted.scaler;
         unsafe { scaler.convert(options, self.latest_av_frame, &mut pixels)? };
         if scaler.source_has_alpha {
             premultiply_alpha(&mut pixels);
@@ -522,7 +547,7 @@ impl FFmpegFrameBuf {
             height: scaler.height as u32,
             data: Cow::Owned(pixels),
         });
-        images.push_back(ScaledFrameImage {
+        converted.images.push_back(ScaledFrameImage {
             pts,
             options,
             image: Arc::clone(&image),
