@@ -477,6 +477,15 @@ let Some(video_frame) = frame.get_synced_video_frame(ctx, "clip.mp4", &fframes::
 }) else { return Svgr::empty() };
 let image = video_frame.into_image(); // <image href={image.href()} .../>
 
+// A part of a file (footage): seconds 19.2..24.7 of the file, drawn from second 0 of the
+// scene into a box. `Fit::Cover` (default), `Contain` or `Fill`; `.speed(1.5)`, `.reverse()`,
+// `.looping()`. Each clip has its own decoder, so a clip and a picture in picture of the same
+// file do not slow each other down. Store clips in the scene, `duration` = `clip.duration()`.
+let face = fframes::Clip::new("IMG_0926.mov", 19.2..24.7).editor_fallback_image(ctx.get_image("poster.jpg"));
+let picture = face.draw(&frame, ctx, 0.0, (0., 0., 1080., 1920.));
+// One frame of a file (a freeze frame): seconds of the file, not of the timeline.
+let still = frame.video_frame_at(ctx, "IMG_0926.mov", 21.0, None);
+
 // Audio spectrum for the current frame (see examples/audio-announce).
 let bars = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
     audio: ctx.get_audio("track.mp3")?, // listed in `fn audio`, so it is loaded

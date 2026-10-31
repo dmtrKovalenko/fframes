@@ -468,6 +468,43 @@ impl Frame {
             .ok()
             .flatten()
     }
+
+    /// Returns the frame at `seconds` of the video file, wherever it is on the timeline.
+    /// This is a seek into the file: `video_frame_at(ctx, "clip.mp4", 19.2, None)` is the
+    /// frame at 19.2 s of `clip.mp4` on every frame of the video (a freeze frame). To play
+    /// a part of a file, use [`Clip`](crate::Clip).
+    ///
+    /// Returns `None` if the file is not found, `seconds` is after its last frame, or the
+    /// frame fails to decode. The editor decodes on the grid of the video's fps and shows
+    /// `editor_fallback_image` until the frame is decoded.
+    pub fn video_frame_at<'f>(
+        &self,
+        ctx: &crate::FFramesContext<'_, '_>,
+        file_name: &str,
+        seconds: f64,
+        editor_fallback_image: Option<&'f crate::media::ImageData<'f>>,
+    ) -> Option<Arc<impl FFramesSyncedVideoFrame<'f> + use<'f>>> {
+        self.video_frame_at_keyed(ctx, file_name, seconds, 0, editor_fallback_image)
+    }
+
+    /// `video_frame_at` with the decoder of `key`. Different keys never share a decoder.
+    pub(crate) fn video_frame_at_keyed<'f>(
+        &self,
+        ctx: &crate::FFramesContext<'_, '_>,
+        file_name: &str,
+        seconds: f64,
+        key: u64,
+        editor_fallback_image: Option<&'f crate::media::ImageData<'f>>,
+    ) -> Option<crate::video_data::SourceFrame<'f>> {
+        let video = ctx.get_video(file_name)?;
+        self.worker_local_video_decoders
+            .get_frame_at_source(video, seconds, key, ctx, editor_fallback_image)
+            .map_err(|e| {
+                crate::log!("Error while decoding video frame: {:?}", e);
+            })
+            .ok()
+            .flatten()
+    }
 }
 
 #[cfg(test)]

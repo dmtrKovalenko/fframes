@@ -175,6 +175,14 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
 - Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, speed, editor_fallback_image })`
   (`speed: 2.0` plays twice as fast, `..Default::default()` keeps 1.0)
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
+  `start_from` is when the video starts on the timeline, not a position in the file.
+- Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file
+  (`.speed(1.5)`, `.reverse()`, `.looping()`, `.fit(Fit::Contain)`). In a scene:
+  `fn duration` returns `self.face.duration()`, `render_frame` draws
+  `self.face.draw(&frame, ctx, start_second_in_scene, (x, y, width, height))`. Put the voice
+  of the clip into the scene's `audio` with `.offset(...)` into the audio file, so it moves
+  with the scene. Cut a phrase by splitting the clip into two clips, never by cutting the file.
+- One frame of a file: `frame.video_frame_at(ctx, "IMG_0926.mov", 21.0, None)` (seconds of the file).
 - Subtitles: `ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s))`.
 - Audio spectrum: `frame.visualize_audio_frame(VisualizeFrameInput { audio, sample_size: SampleSize::S256, smooth_level: 4, window: Some(WindowFunction::Hann) })`.
 

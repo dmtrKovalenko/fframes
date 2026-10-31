@@ -1069,6 +1069,26 @@ impl FFmpegDecoder {
         unsafe { self.decode_up_to_pts(self.offset_pts(offset)) }
     }
 
+    /// Decodes the frame at `seconds` of the stream, independent of the target fps and
+    /// the playback speed. The time is rounded to a microsecond first, so a time like
+    /// `19.2` shows the frame at 19.2 s and not the frame after it.
+    /// # Safety
+    /// Generally safe but uses libav functions
+    pub unsafe fn decode_at_seconds(&mut self, seconds: f64) -> Result<bool> {
+        unsafe {
+            let micros = (seconds.max(0.0) * 1_000_000.0).round() as i64;
+            let pts = av_rescale_q(
+                micros,
+                AVRational {
+                    num: 1,
+                    den: 1_000_000,
+                },
+                self.video_stream_info.time_base,
+            );
+            self.decode_up_to_pts(pts)
+        }
+    }
+
     unsafe fn decode_up_to_pts(&mut self, target_pts: i64) -> Result<bool> {
         unsafe {
             if (*self.frame_buf.latest_av_frame).pts == target_pts {
