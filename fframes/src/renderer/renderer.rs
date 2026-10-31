@@ -110,6 +110,7 @@ impl<'a, 'media: 'a> FFramesRendererRuntime<'a> {
             &ScenesWithAudio::new(scenes),
             &time_base,
             &video.audio(),
+            &video.markers(),
             |name| {
                 let media = media.ok_or_else(|| {
                     crate::error::FFramesError::RequiredAudioNotFound(name.to_owned())
@@ -221,6 +222,7 @@ pub fn render<
         media_source: options.media,
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
+        markers: &timeline.markers,
         font_source: Some(&font_source),
         abort_signal: options.abort_signal,
         current_video_size: VideoSize::new_scaled(
@@ -305,6 +307,7 @@ pub fn render_frame<
         media_source: options.media,
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
+        markers: &timeline.markers,
         font_source: Some(&font_source),
         abort_signal: None,
         current_video_size: VideoSize::new_scaled(

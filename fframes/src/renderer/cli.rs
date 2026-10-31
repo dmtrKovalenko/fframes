@@ -41,8 +41,9 @@ TIME SPECS (for --at, ranges and positional times):
   Intro            first frame of a scene (case-insensitive)   #3   scene index 3
   Intro[1]         second scene of type Intro
   Intro@1.2s       1.2s into the scene (also @12, @50%, @end)
+  title-hit        a named marker from Video::markers
 RANGES: a..b (end exclusive), a.., ..b, all, or a scene name for the whole scene.
-Run `timeline` to list scenes. Add --json to any command for machine-readable output.";
+Run `timeline` to list scenes and markers. Add --json to any command for machine-readable output.";
 
 /// No application specific flags.
 #[derive(Debug, Clone, Default, Args)]
@@ -106,7 +107,7 @@ pub enum Command {
     Onion(OnionArgs),
     /// Print a frame as SVG after conversion (text laid out, styles resolved).
     Svg(SvgArgs),
-    /// Scenes, duration and audio tracks.
+    /// Scenes, markers, duration and audio tracks.
     Timeline,
     /// Check frames for missing media and fonts, clipped text and panics without rendering.
     Inspect(InspectArgs),
@@ -1130,6 +1131,13 @@ fn timeline<'a, 'm: 'a, V: Video>(json: bool, previewer: &Previewer<'a, 'm, V>) 
                 format!("{:.2}s..{:.2}s", scene.start_seconds, scene.end_seconds)
             );
         }
+        for marker in &report.markers {
+            let _ = writeln!(
+                text,
+                "marker {:<24} frame {:>8} {:>10.2}s",
+                marker.name, marker.frame, marker.seconds
+            );
+        }
         for track in &report.audio {
             let mix = &track.mix;
             let mut extra = Vec::new();
@@ -1344,6 +1352,11 @@ fn inspect<'a, 'm: 'a, V: Video>(
             if range.contains(&frame) {
                 frames.push(frame);
             }
+        }
+    }
+    for marker in &timeline.markers {
+        if range.contains(&marker.frame) {
+            frames.push(marker.frame);
         }
     }
     frames.push(range.end - 1);

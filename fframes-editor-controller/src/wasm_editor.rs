@@ -1,4 +1,5 @@
 use fframes::{FFramesContext, FFramesMode, Frame, StaticMediaProvider, Video, VideoSize};
+use futures::lock::Mutex as AsyncMutex;
 use std::{cell::RefCell, marker::PhantomPinned, pin::Pin, sync::Mutex};
 use wasm_bindgen::prelude::*;
 
@@ -76,11 +77,14 @@ impl<T: Video> VideoCtx<T> {
 
 pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> {
     video_ctx: RefCell<Pin<Box<VideoCtx<T>>>>,
+    // `prepare` borrows `video_ctx` across an await, so `replace` must not swap it meanwhile.
+    prepare_lock: AsyncMutex<()>,
     static_media: &'static TMedia,
     duration_in_frames: Mutex<usize>,
     break_lines_cache: fframes::TextCache,
     fonts: Mutex<wasm_font_source::WasmFontSource>,
     scenes: Mutex<Option<fframes::ResolvedScenesTimeline<'static>>>,
+    markers: Mutex<Vec<fframes::TimelineMarker>>,
     time_base: Mutex<Option<fframes::TimeBase>>,
     media_provider: Mutex<fframes::DynamicMediaProvider<'static>>,
     video_decoders: fframes::VideoDecodersWorker,
@@ -100,11 +104,13 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
 
         Self {
             video_ctx: RefCell::new(VideoCtx::new(video)),
+            prepare_lock: AsyncMutex::new(()),
             static_media,
             duration_in_frames: Mutex::new(0),
             break_lines_cache: fframes::TextCache::new(20).unwrap(),
             fonts: Mutex::new(wasm_font_source::WasmFontSource::new()),
             scenes: Mutex::new(None),
+            markers: Mutex::new(Vec::new()),
             time_base: Mutex::new(None),
             media_provider: Mutex::new(media_provider),
             video_decoders: fframes::VideoDecodersWorker::default(),
@@ -112,13 +118,31 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
     }
 
     pub async fn replace(&self, video: TVideo) -> Result<video_metadata::VideoMetadata, JsValue> {
+        let _prepare_guard = self.prepare_lock.lock().await;
         let fps = { self.time_base.lock().unwrap().as_ref().map(|tb| tb.fps) };
 
-        self.video_ctx.replace(VideoCtx::new(video));
-        self.prepare(fps).await
+        // Keep the previous video until the new one prepares successfully, so a
+        // failed replacement (for example duplicate marker names) leaves the
+        // existing scenes and markers valid.
+        let previous = self.video_ctx.replace(VideoCtx::new(video));
+        match self.prepare_inner(fps).await {
+            Ok(metadata) => Ok(metadata),
+            Err(err) => {
+                self.video_ctx.replace(previous);
+                Err(err)
+            }
+        }
     }
 
     pub async fn prepare(
+        &self,
+        fps: Option<usize>,
+    ) -> Result<video_metadata::VideoMetadata, JsValue> {
+        let _prepare_guard = self.prepare_lock.lock().await;
+        self.prepare_inner(fps).await
+    }
+
+    async fn prepare_inner(
         &self,
         fps: Option<usize>,
     ) -> Result<video_metadata::VideoMetadata, JsValue> {
@@ -130,7 +154,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
         self.time_base.lock().unwrap().replace(tb);
         let video_ctx = self.video_ctx.borrow();
 
-        let (duration, scenes, audio_map) = wasm_audio::prepare_video_with_audio(
+        let (duration, scenes, audio_map, markers) = wasm_audio::prepare_video_with_audio(
             &video_ctx.video,
             &tb,
             self.static_media,
@@ -145,7 +169,8 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     .map(|metadata| metadata.duration)
             },
         )
-        .await;
+        .await
+        .map_err(|err| JsValue::from_str(&err.to_string()))?;
 
         let mut duration_mutex_ref = self.duration_in_frames.lock().unwrap();
         *duration_mutex_ref = duration;
@@ -155,11 +180,13 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             tb.fps,
             audio_map,
             scenes.as_ref(),
+            markers.clone(),
         );
 
         if let Some(scenes_data) = scenes {
             self.scenes.lock().unwrap().replace(scenes_data.clone());
         }
+        *self.markers.lock().unwrap() = markers;
 
         Ok(video_metadata)
     }
@@ -301,6 +328,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     time_base,
                     font_source: Some(self.fonts.lock().unwrap().deref()),
                     scenes: self.scenes.lock().unwrap().as_ref(),
+                    markers: self.markers.lock().unwrap().as_slice(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
                     abort_signal: None,
                 },
@@ -342,6 +370,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
                     duration_in_frames: *self.duration_in_frames.lock().unwrap(),
                     mode: FFramesMode::EditorTimelinePreview,
                     scenes: self.scenes.lock().unwrap().as_ref(),
+                    markers: self.markers.lock().unwrap().as_slice(),
                     media_source: Some(self.media_provider.lock().unwrap().deref()),
                     font_source: Some(self.fonts.lock().unwrap().deref()),
                     abort_signal: None,

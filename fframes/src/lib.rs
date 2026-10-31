@@ -117,6 +117,7 @@ mod font_data;
 mod frame;
 #[cfg(feature = "lottie")]
 mod lottie;
+mod markers;
 mod media_provider;
 mod named_range;
 mod scenes;
@@ -157,6 +158,7 @@ pub use font_data::*;
 pub use frame::*;
 #[cfg(feature = "lottie")]
 pub use lottie::*;
+pub use markers::*;
 #[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
 pub use media::wgpu;
 #[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
