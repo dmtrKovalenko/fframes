@@ -621,7 +621,7 @@ mod tests {
                 env!("CARGO_PKG_VERSION")
             )));
             assert!(manifest.contains("[profile.release]\nincremental = true\ncodegen-units = 16"));
-            assert!(manifest.contains("\ndebug = \"line-tables-only\"\n"));
+            assert!(!manifest.contains("debug ="));
             let main = std::fs::read_to_string(project.join("src/main.rs")).unwrap();
             assert!(main.contains("use fframes_dylib as _;"));
         }

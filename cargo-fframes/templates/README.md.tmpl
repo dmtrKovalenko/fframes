@@ -19,8 +19,8 @@ directory consistent between checks. The profile uses 16 codegen units, the usua
 count, instead of the larger incremental default. Existing workspace projects configure
 profiles in their workspace-root `Cargo.toml`.
 
-Release builds keep source locations. If a frame panics, rerun the command with
-`RUST_BACKTRACE=1` to see the file and line of each available Rust stack frame.
+If a frame panics, rerun the command with `RUST_BACKTRACE=1` to see the functions on the
+stack. Release builds carry no debug info, which keeps the binaries small and the links short.
 
 On macOS and Linux with a dynamic C runtime, the default `dynamic-linking` feature lets
 Cargo reuse the linked fframes engine after a scene edit. For an executable you can move
