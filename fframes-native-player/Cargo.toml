@@ -17,6 +17,7 @@ fframes_skia_renderer.workspace = true
 winit = "0.30"
 softbuffer = "0.4"
 cpal = { version = "0.18", optional = true }
+rtrb = { version = "0.4.1", optional = true }
 
 # The CAMetalLayer of the window, presented to by Metal and by Vulkan (MoltenVK).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -30,7 +31,7 @@ hello-world-example = { path = "../examples/hello-world" }
 
 [features]
 default = ["vulkan", "audio"]
-audio = ["cpal"]
+audio = ["cpal", "dep:rtrb"]
 # At least one GPU backend is required to build Skia with Ganesh. The player falls back
 # to the Skia CPU raster backend at runtime if the GPU backend can not be initialized.
 vulkan = ["fframes_skia_renderer/vulkan", "dep:raw-window-metal"]
