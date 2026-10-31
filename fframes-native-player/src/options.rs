@@ -44,9 +44,9 @@ pub struct PlayerOptions<'a, 'media> {
     /// Play the video's audio map on the default output device.
     pub audio: bool,
     /// Maximum number of threads building frame trees (`Video::render_frame`) in parallel.
-    /// Defaults to one worker for video sources so the decoder reads frames in order.
-    /// Source video workers are limited to the default buffer size plus one live frame.
-    /// Other projects use half the available cores, up to eight workers.
+    /// Defaults to half the available cores: up to four workers for video sources, which
+    /// share one decoder per file, and up to eight otherwise. Source video workers are
+    /// limited to the default buffer size plus one live frame.
     pub render_threads: Option<usize>,
     /// Maximum number of future frame trees to prepare. The default (`usize::MAX`)
     /// buffers up to four trees. Zero prepares only the currently due frame.
@@ -88,29 +88,32 @@ impl PlayerOptions<'_, '_> {
     }
 
     pub(crate) fn render_threads(&self) -> usize {
+        // Source decoders are shared and keep recent frames, so a few workers can
+        // prepare trees in parallel. More workers than staged trees would idle.
         if self.media.is_some_and(MediaProvider::has_video_sources) {
             return self
                 .render_threads
-                .unwrap_or(1)
+                .unwrap_or_else(|| (cores() / 2).min(crate::scheduler::MAX_STAGED_TREES))
                 .clamp(1, crate::scheduler::MAX_STAGED_TREES + 1);
         }
         self.render_threads
-            .unwrap_or_else(|| {
-                // The preview owns its workers. Querying Rayon here starts a second idle pool.
-                let cores = std::env::var("FFRAMES_NUM_THREADS")
-                    .ok()
-                    .and_then(|value| value.parse::<usize>().ok())
-                    .or_else(|| {
-                        std::env::var("RAYON_NUM_THREADS")
-                            .ok()
-                            .and_then(|value| value.parse::<usize>().ok())
-                            .filter(|&threads| threads > 0)
-                    })
-                    .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, usize::from));
-                (cores / 2).clamp(1, 8)
-            })
+            .unwrap_or_else(|| (cores() / 2).clamp(1, 8))
             .max(1)
     }
+}
+
+/// The preview owns its workers. Querying Rayon here starts a second idle pool.
+fn cores() -> usize {
+    std::env::var("FFRAMES_NUM_THREADS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .or_else(|| {
+            std::env::var("RAYON_NUM_THREADS")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .filter(|&threads| threads > 0)
+        })
+        .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, usize::from))
 }
 
 #[cfg(test)]
@@ -128,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn video_sources_default_to_one_worker() {
+    fn video_sources_default_to_a_few_workers() {
         let media = fframes::DynamicMediaProvider::default().with_video(
             "clip.mp4",
             fframes::media::VideoMedia {
@@ -141,7 +144,10 @@ mod tests {
             media: Some(&media),
             ..Default::default()
         };
-        assert_eq!(options.render_threads(), 1);
+        assert_eq!(
+            options.render_threads(),
+            (fframes::get_thread_count() / 2).clamp(1, 4)
+        );
         options.render_threads = Some(4);
         assert_eq!(options.render_threads(), 4);
         options.render_threads = Some(16);

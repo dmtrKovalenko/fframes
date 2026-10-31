@@ -399,7 +399,15 @@ pub struct FFmpegDecoder {
     draining: bool,
     /// The target frame holds a frame decoded since the last seek.
     has_decoded_frame: bool,
+    /// Frames received since the last seek, oldest first, at most `recent_capacity`.
+    /// Workers that request frames out of order take one of these instead of seeking back.
+    recent: VecDeque<*mut AVFrame>,
+    recent_capacity: usize,
+    seeks: u64,
 }
+
+/// Frames the preview keeps for out-of-order requests, see `FFmpegDecoder::recent`.
+const RECENT_FRAMES: usize = 8;
 
 unsafe impl Send for FFmpegDecoder {}
 unsafe impl Sync for FFmpegDecoder {}
@@ -717,6 +725,14 @@ impl FFmpegDecoder {
                 last_offset: None,
                 draining: false,
                 has_decoded_frame: false,
+                recent: VecDeque::new(),
+                // Export workers own their decoders and read in order.
+                recent_capacity: if mode == DecodeMode::Configured {
+                    0
+                } else {
+                    RECENT_FRAMES
+                },
+                seeks: 0,
             };
 
             decoder.pkt = av_packet_alloc();
@@ -869,10 +885,56 @@ impl FFmpegDecoder {
             self.last_offset = Some(offset);
             self.draining = false;
             self.has_decoded_frame = false;
+            self.seeks += 1;
+            self.forget_recent();
             av_packet_unref(self.pkt);
 
             Ok(())
         }
+    }
+
+    /// How many times the decoder repositioned the stream.
+    pub fn seeks(&self) -> u64 {
+        self.seeks
+    }
+
+    /// Keeps a reference to the frame that was just received.
+    unsafe fn remember(&mut self, frame: *mut AVFrame) {
+        if self.recent_capacity == 0 {
+            return;
+        }
+        let clone = unsafe { av_frame_clone(frame) };
+        if clone.is_null() {
+            return;
+        }
+        if self.recent.len() == self.recent_capacity
+            && let Some(mut oldest) = self.recent.pop_front()
+        {
+            unsafe { av_frame_free(&raw mut oldest) };
+        }
+        self.recent.push_back(clone);
+    }
+
+    fn forget_recent(&mut self) {
+        for mut frame in self.recent.drain(..) {
+            unsafe { av_frame_free(&raw mut frame) };
+        }
+    }
+
+    /// The frame the stream shows at `target_pts`, if the recent frames cover it. They
+    /// are consecutive, so the first one at or after the target is the right one.
+    fn recent_frame(&self, target_pts: i64) -> Option<*mut AVFrame> {
+        let covered = self
+            .recent
+            .front()
+            .is_some_and(|&oldest| unsafe { (*oldest).pts } <= target_pts);
+        if !covered {
+            return None;
+        }
+        self.recent
+            .iter()
+            .copied()
+            .find(|&frame| unsafe { (*frame).pts } >= target_pts)
     }
 
     /// Moves offset to the start of the video if need to loop
@@ -979,6 +1041,28 @@ impl FFmpegDecoder {
             // would be returned. Far jumps forward seek to the closest keyframe instead of
             // decoding every frame in between (frames can be requested out of order by
             // parallel renderers).
+            let target_pts = av_rescale_q(
+                offset,
+                self.custom_time_base,
+                self.video_stream_info.time_base,
+            );
+            if (*self.frame_buf.latest_av_frame).pts == target_pts {
+                return Ok(true);
+            }
+            // A recent frame leaves the stream position alone, so the worker that
+            // reads in order continues without a seek.
+            if let Some(frame) = self.recent_frame(target_pts) {
+                av_frame_unref(self.frame_buf.latest_av_frame);
+                let ret = av_frame_ref(self.frame_buf.latest_av_frame, frame);
+                if ret < 0 {
+                    return Err(FFramesMediaError::LibAVAudioDecodingError((
+                        ret,
+                        "Error reusing a decoded frame".to_string(),
+                    )));
+                }
+                return Ok(true);
+            }
+
             let seek_ahead_frames = 2 * i64::from(self.custom_time_base.den.max(1));
             let needs_seek = self
                 .last_offset
@@ -989,12 +1073,6 @@ impl FFmpegDecoder {
             if needs_seek {
                 self.seek_to_offset(offset)?;
             }
-
-            let target_pts = av_rescale_q(
-                offset,
-                self.custom_time_base,
-                self.video_stream_info.time_base,
-            );
 
             if (*self.frame_buf.latest_av_frame).pts >= target_pts {
                 return Ok(true);
@@ -1015,8 +1093,13 @@ impl FFmpegDecoder {
                         av_frame_unref(target_frame);
                         av_frame_move_ref(target_frame, self.recv_frame);
                         self.has_decoded_frame = true;
-                        if (*target_frame).pts >= target_pts {
+                        let due = (*target_frame).pts >= target_pts;
+                        // Skipped frames are kept too, so the recent frames stay consecutive.
+                        if due || self.recent_capacity > 0 {
                             self.transfer_hardware_surface_data(target_frame)?;
+                            self.remember(self.frame_buf.latest_av_frame);
+                        }
+                        if due {
                             return Ok(true);
                         }
                         continue;
@@ -1086,6 +1169,7 @@ impl Drop for FFmpegDecoder {
             avformat_close_input(&raw mut self.fmt_ctx);
             av_packet_free(&raw mut self.pkt);
         }
+        self.forget_recent();
     }
 }
 

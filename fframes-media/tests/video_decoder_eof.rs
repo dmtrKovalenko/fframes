@@ -254,6 +254,26 @@ fn released_frames_lend_their_pixel_buffers_to_later_conversions() {
 }
 
 #[test]
+fn preview_decoders_serve_recent_frames_out_of_order_without_seeking() {
+    use fframes_media::DecodeMode;
+
+    let video = VideoFixture::new(2);
+    let mut decoder =
+        unsafe { FFmpegDecoder::new_with_mode(&video.path(), FPS, 1, DecodeMode::Preview) }
+            .unwrap();
+    // Parallel workers reach the decoder out of order within a few frames.
+    for index in [100, 102, 101, 104, 103, 100, 105, 107, 106] {
+        assert_frame(&mut decoder, index);
+    }
+    assert_eq!(decoder.seeks(), 1, "only the jump from the start seeks");
+    // Beyond the recent frames the decoder seeks back as before.
+    assert_frame(&mut decoder, 90);
+    assert_eq!(decoder.seeks(), 2);
+    assert_frame(&mut decoder, 91);
+    assert_eq!(decoder.seeks(), 2);
+}
+
+#[test]
 fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
     let video = VideoFixture::new(0);
     let thumbnail = FrameConvertOptions {
