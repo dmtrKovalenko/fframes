@@ -1,4 +1,5 @@
 use fframes::{FFramesContext, FFramesMode, Frame, StaticMediaProvider, Video, VideoSize};
+use futures::lock::Mutex as AsyncMutex;
 use std::{cell::RefCell, marker::PhantomPinned, pin::Pin, sync::Mutex};
 use wasm_bindgen::prelude::*;
 
@@ -76,6 +77,8 @@ impl<T: Video> VideoCtx<T> {
 
 pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> {
     video_ctx: RefCell<Pin<Box<VideoCtx<T>>>>,
+    // `prepare` borrows `video_ctx` across an await, so `replace` must not swap it meanwhile.
+    prepare_lock: AsyncMutex<()>,
     static_media: &'static TMedia,
     duration_in_frames: Mutex<usize>,
     break_lines_cache: fframes::TextCache,
@@ -101,6 +104,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
 
         Self {
             video_ctx: RefCell::new(VideoCtx::new(video)),
+            prepare_lock: AsyncMutex::new(()),
             static_media,
             duration_in_frames: Mutex::new(0),
             break_lines_cache: fframes::TextCache::new(20).unwrap(),
@@ -114,13 +118,14 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
     }
 
     pub async fn replace(&self, video: TVideo) -> Result<video_metadata::VideoMetadata, JsValue> {
+        let _prepare_guard = self.prepare_lock.lock().await;
         let fps = { self.time_base.lock().unwrap().as_ref().map(|tb| tb.fps) };
 
         // Keep the previous video until the new one prepares successfully, so a
         // failed replacement (for example duplicate marker names) leaves the
         // existing scenes and markers valid.
         let previous = self.video_ctx.replace(VideoCtx::new(video));
-        match self.prepare(fps).await {
+        match self.prepare_inner(fps).await {
             Ok(metadata) => Ok(metadata),
             Err(err) => {
                 self.video_ctx.replace(previous);
@@ -130,6 +135,14 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
     }
 
     pub async fn prepare(
+        &self,
+        fps: Option<usize>,
+    ) -> Result<video_metadata::VideoMetadata, JsValue> {
+        let _prepare_guard = self.prepare_lock.lock().await;
+        self.prepare_inner(fps).await
+    }
+
+    async fn prepare_inner(
         &self,
         fps: Option<usize>,
     ) -> Result<video_metadata::VideoMetadata, JsValue> {
