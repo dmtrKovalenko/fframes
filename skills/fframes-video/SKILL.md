@@ -29,7 +29,7 @@ When matching a supplied video, first follow the reference-analysis guidance in
 `references/design.md`. Its cuts, pacing and motion take precedence over the design defaults
 below; fast edits and intentional black frames may be part of the requested result.
 
-## Two rules before anything else
+## Three rules before anything else
 
 ### Plan before you write code
 
@@ -68,6 +68,27 @@ effort on detail and motion rather than words: secondary motion, staggered entra
 strokes, objects that react to each other, elements carried across cuts. Before showing the
 user anything, look at a strip and ask whether the video would still work for a different
 product with only the text changed. If it would, change the idea, not the colors.
+
+### The video is the Rust crate and `media/`
+
+Every decision about the video is in Rust code: which part of a file plays, when and at what
+speed, how a voice syncs with its picture, captions, music, grading and the export settings.
+Put the files into `media/` as the user gave them.
+
+- Do not write Python, shell or ffmpeg scripts that cut, join, retime or grade media, that
+  generate Rust code or data tables, or that change the file after `$R render` (remux, retag,
+  replace the audio). Reading files to measure them (`ffprobe`, a sync offset) is fine.
+- Footage: make one scene for each spoken segment. `Clip::new("IMG_0926.mov", 19.2..24.7)`
+  plays seconds 19.2 to 24.7 of the file. The scene's `fn audio` places the voice recorded
+  with it, so picture and voice move together when an earlier scene changes. Inserts and
+  picture in picture are clips of the same scene (`.at(1.2)`). `clip.image(&frame, ctx)` gives
+  an image: draw it with your own size, crop, transform, filter, mask or shader. To remove a
+  phrase, split the clip into two clips. See `references/api.md`.
+- Write measured values (the offset between a camera file and an audio recorder) as named
+  constants with a comment that says what was measured and in which direction.
+- If fframes cannot express something the user asked for, stop and tell the user what was
+  asked, which part fframes cannot do, and the closest result that works. Do not work around
+  it with an external tool.
 
 ## 1. Install
 
@@ -287,6 +308,8 @@ impl Video for MyVideo<'_> {
 - Measure text rather than guess: `frame.text_width`, `frame.text_fit(.., TextOverflow::Ellipsis)`,
   `frame.text_break_lines` for paragraphs. `inspect` catches text leaving the canvas, not text
   leaving its own box, so check boxes in a `frame` PNG.
+- Camera or phone footage plays through `fframes::Clip` inside scenes (see the rules at the
+  top). `frame.video_frame_at(ctx, file, seconds, None)` is one frame of a file (a freeze frame).
 - GPU shaders (SkSL or Shadertoy GLSL) run on the Skia backend through `fframes::Shader`; they
   take images and synced video frames as input (green-screen keying, color grading). See
   `references/api.md`.
