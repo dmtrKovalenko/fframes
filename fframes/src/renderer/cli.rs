@@ -132,6 +132,9 @@ pub struct PreviewArgs {
     /// Do not play the audio.
     #[arg(long)]
     pub mute: bool,
+    /// Decode source video on the CPU even if hardware decoding is available.
+    #[arg(long)]
+    pub software_decode: bool,
     /// Skia backend of the window: auto, metal, vulkan or cpu.
     #[arg(long, default_value = "auto")]
     pub backend: String,
@@ -495,12 +498,15 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
 
     /// Parses the command line (unless `args` was given) and runs the command.
     pub fn run(mut self) -> ExitCode {
-        let renderer = self
-            .args
-            .get_or_insert_with(Cli::<A>::parse)
+        let args = self.args.get_or_insert_with(Cli::<A>::parse);
+        if matches!(args.command, Some(Command::Preview(_))) {
+            // The player opens its own window backend.
+            return self.execute();
+        }
+        let renderer = args
             .renderer
             .take()
-            .or(self.renderers.default_renderer());
+            .or_else(|| self.renderers.default_renderer());
         let runner = Runner {
             video: self.video,
             options: self.options,
@@ -551,6 +557,10 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
                 args.output = args.output.or(Some(default_output));
                 render(json, cli.scale, video, options, args, backend)
             }
+            Command::Preview(args) => {
+                drop(backend);
+                preview(video, &options, player, args)
+            }
             command => {
                 let mut frame_renderer = backend.frame_renderer();
                 let mut fallback;
@@ -576,29 +586,7 @@ impl<'r, 'a, 'media: 'a, V: Video + Send + Sync, B: FFramesRenderBackend, A: Arg
                             inspect(json, &mut previewer, frame_renderer, args)
                         }
                         Command::Audio(args) => audio(json, &previewer, args),
-                        Command::Preview(args) => {
-                            let Some(play) = player else {
-                                return Err("this binary has no real-time player: add the \
-                                    `fframes_native_player` crate and \
-                                    `.preview(fframes_native_player::cli_preview)`. Without a \
-                                    window use `strip`, `frame` or `render --draft`."
-                                    .to_owned());
-                            };
-                            let request = super::PreviewRequest {
-                                start_frame: previewer
-                                    .timeline()
-                                    .resolve_frame(&args.at)
-                                    .map_err(err)?,
-                                autoplay: !args.paused,
-                                looping: !args.no_loop,
-                                audio: !args.mute,
-                                backend: args.backend,
-                            };
-                            // Fonts and caches of the previewer are not needed by the player.
-                            drop(previewer);
-                            play(video, &options, &request).map(|()| ExitCode::SUCCESS)
-                        }
-                        Command::Render(_) => unreachable!(),
+                        Command::Preview(_) | Command::Render(_) => unreachable!(),
                     })
             }
         };
@@ -629,6 +617,50 @@ fn print<T: Serialize>(json: bool, value: &T, text: impl FnOnce() -> String) {
             println!("{text}");
         }
     }
+}
+
+fn preview<'a, 'media: 'a, V: Video>(
+    video: &'a V,
+    options: &RenderOptions<'a, 'media>,
+    player: Option<Player<'_, 'a, 'media, V>>,
+    args: PreviewArgs,
+) -> Result<ExitCode, String> {
+    let Some(play) = player else {
+        return Err("this binary has no real-time player: add the \
+            `fframes_native_player` crate and \
+            `.preview(fframes_native_player::cli_preview)`. Without a \
+            window use `strip`, `frame` or `render --draft`."
+            .to_owned());
+    };
+    let start_frame = {
+        let time_base = crate::TimeBase {
+            fps: V::FPS,
+            sample_rate: options.audio_encoder_options.sample_rate,
+        };
+        let timeline = crate::FFramesRendererRuntime::resolve_video_timeline(
+            time_base,
+            video,
+            &video.define_scenes(),
+            options.media,
+        )
+        .map_err(err)?;
+        crate::TimelineIndex::new(
+            V::FPS,
+            timeline.duration_in_frames,
+            timeline.scenes.as_ref(),
+        )
+        .resolve_frame(&args.at)
+        .map_err(err)?
+    };
+    let request = super::PreviewRequest {
+        start_frame,
+        autoplay: !args.paused,
+        looping: !args.no_loop,
+        audio: !args.mute,
+        software_decode: args.software_decode,
+        backend: args.backend,
+    };
+    play(video, options, &request).map(|()| ExitCode::SUCCESS)
 }
 
 fn scenes_label(scenes: &[String]) -> String {

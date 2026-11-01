@@ -443,6 +443,7 @@ impl Frame {
     /// Returns a synced video frame of the video file media.
     /// If the video file is not found or there is no frame or error during decoding returns None.
     /// Video frame is decoded and timebase (fps) is synced with the target fframe's video frame.
+    /// Each frame shows the source frame at `(seconds - start_from) * speed`.
     ///
     /// **Make sure this function is not working in the editor for now. Editor will automatically fallback to
     /// `{your_video_file}.{your_extension}_fallback.{jpg|png}` image file for preview if it exists

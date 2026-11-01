@@ -339,6 +339,19 @@ cargo fframes new my-video
 cd my-video && cargo run --release -- preview
 ```
 
+The preview timeline sits below landscape and square videos and to the left of portrait videos.
+Drag the filmstrip to scrub, or click a scene marker to pause on its first frame. Use `[` and `]`
+to jump between scenes and `,` and `.` to step one frame. Press `Space` to play or pause, or `T`
+to hide the timeline and expand the video.
+
+On macOS the studio tries VideoToolbox for supported source videos and falls back to software
+for unsupported formats. `preview --software-decode` uses the CPU for decoding while keeping
+the selected drawing backend. Playback and filmstrip workers release idle source decoders.
+The GPU preview draws each scene through Skia directly into the window drawable or swapchain.
+The default buffer holds up to four prepared scene trees, and only the frame under the pointer
+is prepared while you drag the timeline. Decoders reuse the pixel buffers of frames that no
+scene tree holds any more. The CPU backend draws directly into the window buffer.
+
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
 `--title` and `--backend`. On macOS and Linux (arm64, x86_64) the first build downloads prebuilt Skia and ffmpeg
 libraries and takes under a minute on a fast machine; other targets and feature combinations

@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::time::{Duration, Instant};
 
 use core_graphics_types::geometry::CGSize;
 use fframes_skia_renderer::metal::SkiaMetalCtx;
@@ -17,9 +18,12 @@ use winit::window::Window;
 use super::WindowTarget;
 use crate::error::{PlayerError, PlayerResult};
 
+const GPU_CACHE_IDLE: Duration = Duration::from_secs(1);
+
 /// Skia draws into the drawables of a `CAMetalLayer` of the window.
 pub(super) struct MetalTarget {
     gpu: DirectContext,
+    last_cache_cleanup: Instant,
     layer: MetalLayer,
     backend: SkiaMetalCtx,
 }
@@ -50,6 +54,7 @@ impl MetalTarget {
 
         Ok(Self {
             gpu,
+            last_cache_cleanup: Instant::now(),
             layer,
             backend,
         })
@@ -76,6 +81,12 @@ impl WindowTarget for MetalTarget {
             };
 
             let texture = drawable.texture();
+            // Release unlocked Skia resources from earlier scenes while retaining active frames.
+            if self.last_cache_cleanup.elapsed() >= GPU_CACHE_IDLE {
+                self.gpu.perform_deferred_cleanup(GPU_CACHE_IDLE, None);
+                self.last_cache_cleanup = Instant::now();
+            }
+
             // SAFETY: the texture lives as long as the drawable, which outlives the surface.
             let texture_info = unsafe { mtl::TextureInfo::new(texture.as_ptr() as mtl::Handle) };
             let render_target = backend_render_targets::make_mtl(
@@ -93,8 +104,9 @@ impl WindowTarget for MetalTarget {
             .ok_or_else(|| PlayerError::Skia("can not draw into the drawable".to_owned()))?;
 
             draw(surface.canvas());
-            self.gpu
-                .flush_and_submit_surface(&mut surface, SyncCpu::Yes);
+            // The flush copies image pixels into transfer buffers, so the CPU does not
+            // wait for the GPU. The layer limits the drawables in flight.
+            self.gpu.flush_and_submit_surface(&mut surface, SyncCpu::No);
             drop(surface);
 
             // Skia submitted to the same queue, the drawable is presented after its work.
