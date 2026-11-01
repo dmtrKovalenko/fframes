@@ -1,10 +1,13 @@
 //! The playback control bar drawn over the video. It mirrors the web editor dock: a floating
 //! pill with quiet round buttons, one solid primary action and the system slider, using the
 //! dark tokens of the `ChatGPT` design system (`@openai/apps-sdk-ui`) and the system font.
+//! Over a video the pill is frosted glass (the frame blurred behind a dark tint), so it
+//! reads on light and dark footage alike, like the system players.
 
 use fframes_skia_renderer::skia_safe::{
-    self, BlurStyle, Canvas, Color, Contains, Font, FontMgr, FontStyle, MaskFilter, Paint,
-    PaintStyle, Path, PathFillType, Point, RRect, Rect, Typeface, font_style,
+    self, BlurStyle, Canvas, ClipOp, Color, Color4f, Contains, Font, FontMgr, FontStyle,
+    MaskFilter, Paint, PaintStyle, Path, PathFillType, Point, RRect, Rect, TileMode, Typeface,
+    canvas::SaveLayerRec, font_style, gradient, image_filters,
 };
 
 use crate::icons::{self, Icon};
@@ -32,6 +35,9 @@ pub(crate) struct ControlsState {
     pub looping: bool,
     pub fullscreen: bool,
     pub hovered: Option<Control>,
+    /// The pointer, in physical pixels, while it is inside the window: the time under it
+    /// is shown over the slider while it hovers or drags the thumb.
+    pub pointer_x: Option<f32>,
 }
 
 impl ControlsState {
@@ -42,12 +48,19 @@ impl ControlsState {
 }
 
 // Dark theme tokens
-const SURFACE_ELEVATED: Color = Color::from_argb(240, 0x30, 0x30, 0x30);
-const HAIRLINE: Color = Color::from_argb(26, 255, 255, 255);
+/// The glass tint over the blurred frame.
+const GLASS: Color = Color::from_argb(178, 0x1c, 0x1c, 0x1e);
+const HAIRLINE: Color = Color::from_argb(36, 255, 255, 255);
+/// The lit top edge of the glass.
+const GLASS_HIGHLIGHT: Color = Color::from_argb(56, 255, 255, 255);
+const SHADOW: Color = Color::from_argb(64, 0, 0, 0);
 const TEXT: Color = Color::from_rgb(0xff, 0xff, 0xff);
 const TEXT_SECONDARY: Color = Color::from_rgb(0xaf, 0xaf, 0xaf);
 const GHOST_HOVER: Color = Color::from_argb(31, 255, 255, 255);
-const GHOST_ACTIVE: Color = Color::from_argb(41, 255, 255, 255);
+/// A toggle that is on: a solid step up from hover, so the two never read alike.
+const GHOST_PRESSED: Color = Color::from_argb(56, 255, 255, 255);
+const GHOST_PRESSED_HOVER: Color = Color::from_argb(72, 255, 255, 255);
+const CHIP: Color = Color::from_argb(235, 0x1c, 0x1c, 0x1e);
 // fframes brand orange: only on the primary action and the playback progress
 const BRAND: Color = Color::from_rgb(0xfb, 0x6a, 0x22);
 const BRAND_HOVER: Color = Color::from_rgb(0xe2, 0x55, 0x07);
@@ -68,6 +81,12 @@ const LABEL_PADDING: f32 = 12.;
 const FONT_SIZE: f32 = 14.;
 const TRACK_HEIGHT: f32 = 4.;
 const THUMB_SIZE: f32 = 14.;
+/// How much of the frame behind the bar is blurred into the glass.
+const GLASS_BLUR: f32 = 14.;
+const CHIP_FONT_SIZE: f32 = 12.;
+const CHIP_PADDING_X: f32 = 8.;
+const CHIP_HEIGHT: f32 = 24.;
+const CHIP_GAP: f32 = 10.;
 /// Vertical area around the track that grabs the pointer.
 const TRACK_HIT_HEIGHT: f32 = 24.;
 
@@ -237,8 +256,12 @@ impl Controls {
     }
 
     fn font(&self, medium: bool, scale: f32) -> Font {
+        self.font_sized(medium, FONT_SIZE * scale)
+    }
+
+    fn font_sized(&self, medium: bool, size: f32) -> Font {
         let typeface = if medium { &self.medium } else { &self.regular };
-        let mut font = Font::from_typeface(typeface, FONT_SIZE * scale);
+        let mut font = Font::from_typeface(typeface, size);
         font.set_subpixel(true);
         font.set_edging(skia_safe::font::Edging::AntiAlias);
         font
@@ -253,22 +276,57 @@ impl Controls {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
 
-        // Floating pill: elevation shadow, surface and hairline border
+        // Floating glass pill: a soft shadow, the frame blurred behind a dark tint, a
+        // hairline edge lit at the top
         let radius = layout.bar.height() / 2.;
         let bar = RRect::new_rect_xy(layout.bar, radius, radius);
         let mut shadow = paint.clone();
-        shadow.set_color(Color::from_argb(77, 0, 0, 0));
-        shadow.set_mask_filter(MaskFilter::blur(BlurStyle::Normal, 8. * scale, false));
-        canvas.draw_rrect(bar.with_offset((0., 8. * scale)), &shadow);
+        shadow.set_color(SHADOW);
+        shadow.set_mask_filter(MaskFilter::blur(BlurStyle::Normal, 10. * scale, false));
+        canvas.draw_rrect(bar.with_offset((0., 6. * scale)), &shadow);
 
-        paint.set_color(SURFACE_ELEVATED);
-        canvas.draw_rrect(bar, &paint);
+        canvas.save();
+        canvas.clip_rrect(bar, ClipOp::Intersect, true);
+        if let Some(blur) = image_filters::blur(
+            (GLASS_BLUR * scale, GLASS_BLUR * scale),
+            TileMode::Clamp,
+            None,
+            None,
+        ) {
+            let layer = SaveLayerRec::default().bounds(&layout.bar).backdrop(&blur);
+            canvas.save_layer(&layer);
+            canvas.restore();
+        }
+        paint.set_color(GLASS);
+        canvas.draw_rect(layout.bar, &paint);
+        canvas.restore();
 
         let mut border = paint.clone();
         border.set_style(PaintStyle::Stroke);
         border.set_stroke_width(scale.max(1.));
         border.set_color(HAIRLINE);
-        canvas.draw_rrect(bar, &border);
+        let inset = bar.with_inset((scale / 2., scale / 2.));
+        canvas.draw_rrect(inset, &border);
+        let highlight_colors = [
+            Color4f::from(GLASS_HIGHLIGHT),
+            Color4f::from(Color::TRANSPARENT),
+        ];
+        let highlight = gradient::Gradient::new(
+            gradient::Colors::new_evenly_spaced(&highlight_colors, TileMode::Clamp, None),
+            gradient::Interpolation::default(),
+        );
+        if let Some(highlight) = gradient::shaders::linear_gradient(
+            (
+                Point::new(0., layout.bar.top),
+                Point::new(0., layout.bar.center_y()),
+            ),
+            &highlight,
+            None,
+        ) {
+            border.set_color(Color::WHITE);
+            border.set_shader(highlight);
+            canvas.draw_rrect(inset, &border);
+        }
 
         let hovered = |control| state.hovered == Some(control);
 
@@ -366,7 +424,51 @@ impl Controls {
             canvas.draw_circle(center, thumb_radius, &paint);
             paint.set_color(THUMB);
             canvas.draw_circle(center, thumb_radius - 2. * scale, &paint);
+
+            // The time under the pointer, in a chip above the slider while it is scrubbed
+            if let (true, Some(pointer_x)) = (hovered(Control::Seek), state.pointer_x) {
+                let last_frame = state.duration_in_frames.saturating_sub(1);
+                let frame = (layout.progress_at(pointer_x) * last_frame as f32).round() as usize;
+                self.scrub_chip(canvas, layout, pointer_x, &format_time(frame, state.fps));
+            }
         }
+    }
+
+    fn scrub_chip(&self, canvas: &Canvas, layout: &ControlsLayout, x: f32, label: &str) {
+        let scale = layout.scale;
+        let font = self.font_sized(true, CHIP_FONT_SIZE * scale);
+        let width = tabular_width(&font, label) + CHIP_PADDING_X * scale * 2.;
+        let height = CHIP_HEIGHT * scale;
+        let x = x.clamp(layout.track.left, layout.track.right);
+        let left = (x - width / 2.).clamp(layout.bar.left, layout.bar.right - width);
+        let top = layout.bar.top - CHIP_GAP * scale - height;
+        let chip = Rect::from_xywh(left, top, width, height);
+        let rounded = RRect::new_rect_xy(chip, 6. * scale, 6. * scale);
+
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(SHADOW);
+        paint.set_mask_filter(MaskFilter::blur(BlurStyle::Normal, 6. * scale, false));
+        canvas.draw_rrect(rounded.with_offset((0., 3. * scale)), &paint);
+        paint.set_mask_filter(None);
+        paint.set_color(CHIP);
+        canvas.draw_rrect(rounded, &paint);
+        paint.set_style(PaintStyle::Stroke);
+        paint.set_stroke_width(scale.max(1.));
+        paint.set_color(HAIRLINE);
+        canvas.draw_rrect(rounded.with_inset((scale / 2., scale / 2.)), &paint);
+
+        let mut text = Paint::default();
+        text.set_anti_alias(true);
+        text.set_color(TEXT);
+        let baseline = chip.center_y() + font.metrics().1.cap_height / 2.;
+        draw_tabular(
+            canvas,
+            label,
+            Point::new(left + CHIP_PADDING_X * scale, baseline),
+            &font,
+            &text,
+        );
     }
 
     fn ghost_button(
@@ -382,8 +484,9 @@ impl Controls {
         paint.set_anti_alias(true);
 
         let background = match (hovered, pressed) {
-            (true, true) => Some(GHOST_ACTIVE),
-            (true, false) | (false, true) => Some(GHOST_HOVER),
+            (true, true) => Some(GHOST_PRESSED_HOVER),
+            (false, true) => Some(GHOST_PRESSED),
+            (true, false) => Some(GHOST_HOVER),
             (false, false) => None,
         };
         if let Some(background) = background {
@@ -487,6 +590,7 @@ mod tests {
             looping: true,
             fullscreen: false,
             hovered: None,
+            pointer_x: None,
         };
         controls.draw(surface.canvas(), &layout, &state);
 

@@ -34,6 +34,8 @@ mod error;
 mod icons;
 mod options;
 mod presenter;
+#[cfg(test)]
+mod review_snapshot;
 mod scheduler;
 
 pub use error::*;

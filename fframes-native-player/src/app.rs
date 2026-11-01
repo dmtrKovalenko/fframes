@@ -421,7 +421,13 @@ impl<'s> App<'s> {
             playing: self.clock.is_playing(),
             looping: self.looping,
             fullscreen: self.is_fullscreen(),
-            hovered: self.hovered,
+            // A drag keeps the thumb (and its time chip) even when the pointer leaves the track
+            hovered: if self.seeking_with_mouse {
+                Some(Control::Seek)
+            } else {
+                self.hovered
+            },
+            pointer_x: self.cursor_inside.then_some(self.cursor.x as f32),
         };
 
         if let Some(presenter) = self.presenter.as_mut() {
