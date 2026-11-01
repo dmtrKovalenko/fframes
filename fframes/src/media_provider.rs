@@ -52,6 +52,14 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
         Vec::new()
     }
 
+    /// Whether the provider lists video files that need a decoder during playback.
+    /// A provider that can return `Some` from `resolve_video` must override this method
+    /// or `get_all_video_data`. Otherwise the native preview uses its no-video defaults:
+    /// more workers, and decoders that are not shared between them.
+    fn has_video_sources(&self) -> bool {
+        !self.get_all_video_data().is_empty()
+    }
+
     #[cfg(feature = "lottie")]
     fn get_all_lottie_data(&self) -> Vec<(&crate::Lottie, &str)> {
         Vec::new()
@@ -241,6 +249,10 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
             .collect()
     }
 
+    fn has_video_sources(&self) -> bool {
+        !self.videos.is_empty()
+    }
+
     fn get_all_video_data(&self) -> Vec<(&fframes_media::VideoMedia, &str)> {
         self.videos
             .iter()
@@ -291,6 +303,10 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_video(name))
+    }
+
+    fn has_video_sources(&self) -> bool {
+        self.0.iter().any(|provider| provider.has_video_sources())
     }
 
     #[cfg(feature = "lottie")]

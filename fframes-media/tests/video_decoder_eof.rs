@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use fframes_media::{FFmpegDecoder, FrameConvertOptions, PlaybackSpeed, ResizeVideoFrame};
@@ -98,6 +99,36 @@ fn assert_frame(decoder: &mut FFmpegDecoder, index: i64) {
 }
 
 #[test]
+fn retained_frame_keeps_its_pixels_and_timestamp_across_decode_and_seek() {
+    let video = VideoFixture::new(3);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    unsafe {
+        assert!(decoder.decode_up_to(3).unwrap());
+        let held = decoder.retained_frame().unwrap();
+        let pts = held.get_pts();
+        let expected = held
+            .convert_last_decoded_frame_into_svg_image(None)
+            .unwrap();
+
+        std::thread::scope(|scope| {
+            let decode = scope.spawn(move || {
+                assert_frame(&mut decoder, 5);
+                decoder.seek_to_offset(0).unwrap();
+                assert_frame(&mut decoder, 0);
+            });
+            assert_eq!(held.get_pts(), pts);
+            decode.join().unwrap();
+        });
+
+        assert_eq!(held.get_pts(), pts);
+        let actual = held
+            .convert_last_decoded_frame_into_svg_image(None)
+            .unwrap();
+        assert_eq!(actual.data, expected.data);
+    }
+}
+
+#[test]
 fn b_frames_are_drained_and_decoding_can_restart_after_eof() {
     let video = VideoFixture::new(3);
     let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
@@ -174,6 +205,74 @@ fn videos_without_b_frames_stop_at_eof() {
 }
 
 #[test]
+fn converted_images_survive_single_buffer_reuse_and_decoder_drop() {
+    let video = VideoFixture::new(3);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    let mut images = Vec::new();
+    for index in [0, 17, 2, 90, 299] {
+        assert!(unsafe { decoder.decode_up_to(index) }.unwrap());
+        let image = unsafe {
+            decoder
+                .get_raw_frame()
+                .convert_last_decoded_frame_into_svg_image(None)
+        }
+        .unwrap();
+        let expected = image.data.to_vec();
+        images.push((image, expected));
+    }
+    drop(decoder);
+    for (image, expected) in images {
+        assert_eq!(image.data.as_ref(), expected);
+    }
+}
+
+#[test]
+fn released_frames_lend_their_pixel_buffers_to_later_conversions() {
+    let video = VideoFixture::new(0);
+    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
+    let mut convert = |index| {
+        assert!(unsafe { decoder.decode_up_to(index) }.unwrap());
+        unsafe {
+            decoder
+                .get_raw_frame()
+                .convert_last_decoded_frame_into_svg_image(None)
+        }
+        .unwrap()
+    };
+    let first = convert(0);
+    let first_pixels = first.data.as_ptr();
+    // The first image is still held, so the second one needs its own buffer.
+    let second = convert(30);
+    assert_ne!(second.data.as_ptr(), first_pixels);
+    drop(first);
+    // Once released, the buffer of the first image is reused.
+    let third = convert(60);
+    assert_eq!(third.data.as_ptr(), first_pixels);
+    assert_ne!(third.data.as_ref(), second.data.as_ref());
+    assert_eq!(third.data.len(), 32 * 32 * 4);
+}
+
+#[test]
+fn preview_decoders_serve_recent_frames_out_of_order_without_seeking() {
+    use fframes_media::DecodeMode;
+
+    let video = VideoFixture::new(2);
+    let mut decoder =
+        unsafe { FFmpegDecoder::new_with_mode(&video.path(), FPS, 1, DecodeMode::Preview) }
+            .unwrap();
+    // Parallel workers reach the decoder out of order within a few frames.
+    for index in [100, 102, 101, 104, 103, 100, 105, 107, 106] {
+        assert_frame(&mut decoder, index);
+    }
+    assert_eq!(decoder.seeks(), 1, "only the jump from the start seeks");
+    // Beyond the recent frames the decoder seeks back as before.
+    assert_frame(&mut decoder, 90);
+    assert_eq!(decoder.seeks(), 2);
+    assert_frame(&mut decoder, 91);
+    assert_eq!(decoder.seeks(), 2);
+}
+
+#[test]
 fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
     let video = VideoFixture::new(0);
     let thumbnail = FrameConvertOptions {
@@ -201,22 +300,33 @@ fn a_frame_requested_again_at_another_size_is_converted_to_that_size() {
                 .convert_last_decoded_frame_into_svg_image(None)
                 .unwrap();
             assert_eq!((image.width, image.height), (32, 32));
-            // The second thumbnail request is served from the cache
-            for _ in 0..2 {
-                let image = frame
-                    .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
-                    .unwrap();
-                assert_eq!(
-                    (image.width, image.height),
-                    (16, 16),
-                    "buffer size {buffer_size}"
-                );
-                // A buffer last sized for a larger output can be longer than the image
-                assert!(
-                    image.data[..thumbnail_len] == expected.data[..thumbnail_len],
-                    "the thumbnail differs from a decoder that only converts to 16x16 \
-                     (buffer size {buffer_size})"
-                );
+            let thumb = frame
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+            assert_eq!((thumb.width, thumb.height), (16, 16));
+            assert_eq!(thumb.data.len(), thumbnail_len);
+            assert_eq!(thumb.data, expected.data);
+            let again = frame
+                .convert_last_decoded_frame_into_svg_image(Some(&thumbnail))
+                .unwrap();
+            assert!(Arc::ptr_eq(&thumb, &again));
+            let pts = frame.get_pts();
+            assert!(Arc::ptr_eq(
+                &thumb,
+                &decoder.get_decoded_image_in_buf(pts).unwrap()
+            ));
+            assert!(decoder.decode_up_to(6).unwrap());
+            let _full_size = frame
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            if buffer_size == 1 {
+                assert!(decoder.get_decoded_image_in_buf(pts).is_none());
+            } else {
+                // The cached thumbnail retains its own dimensions after a full-size conversion.
+                assert!(Arc::ptr_eq(
+                    &thumb,
+                    &decoder.get_decoded_image_in_buf(pts).unwrap()
+                ));
             }
         }
     }
@@ -322,6 +432,84 @@ fn frames_can_be_converted_at_widths_that_are_not_a_multiple_of_16() {
         for index in 0..8 {
             convert_frame(&mut decoder, index, Some((width, 32)));
         }
+    }
+}
+
+#[test]
+fn preview_decoding_preserves_frames_and_color_across_seeks() {
+    use fframes_media::DecodeMode;
+    let fixture = VideoFixture::with_size(3, FPS, 56, (320, 192));
+    let file = fixture.path();
+    let mut preview =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Preview) }.unwrap();
+    let mut software =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Software) }.unwrap();
+    for i in [0, 1, 16, 9, 55, 2] {
+        unsafe {
+            assert!(preview.decode_up_to(i).unwrap() && software.decode_up_to(i).unwrap());
+            let held = preview.retained_frame().unwrap();
+            let reference = software.retained_frame().unwrap();
+            assert_eq!(held.get_pts(), reference.get_pts());
+            // Changing the cursor must not invalidate a mapped VideoToolbox surface.
+            assert!(preview.decode_up_to((i + 1) % 56).unwrap());
+            let a = held
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            let b = reference
+                .convert_last_decoded_frame_into_svg_image(None)
+                .unwrap();
+            assert_eq!((a.width, a.height), (320, 192));
+            assert_eq!(a.data.len(), b.data.len());
+            // Hardware can reconstruct a channel a little differently than libavcodec.
+            let error: usize = a
+                .data
+                .iter()
+                .zip(b.data.iter())
+                .map(|(x, y)| x.abs_diff(*y) as usize)
+                .sum();
+            assert!(
+                error < a.data.len() * 2,
+                "frame {i}: mean channel difference exceeds two"
+            );
+        }
+    }
+}
+
+#[test]
+fn preview_falls_back_for_lossless_alpha_video() {
+    use fframes_media::DecodeMode;
+    let fixture = VideoFixture::with_rate(0, FPS, 8);
+    let file = fixture.path().with_extension("mkv");
+    let output = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=32x32:rate=30,format=bgra,colorchannelmixer=aa=0.5",
+            "-frames:v",
+            "8",
+            "-c:v",
+            "ffv1",
+        ])
+        .arg(&file)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mut preview =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Preview) }.unwrap();
+    let mut software =
+        unsafe { FFmpegDecoder::new_with_mode(&file, FPS, 1, DecodeMode::Software) }.unwrap();
+    for i in [0, 6, 3] {
+        let pixels = convert_frame(&mut preview, i, None);
+        assert_eq!(pixels, convert_frame(&mut software, i, None));
+        assert!((127..=128).contains(&pixels[3]));
     }
 }
 

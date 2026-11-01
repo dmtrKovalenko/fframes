@@ -16,6 +16,9 @@ pub(crate) enum Control {
     PlayPause,
     Forward,
     Seek,
+    Timeline,
+    Scene(usize),
+    Focus,
     Loop,
     Fullscreen,
     /// The bar background, swallows clicks so they do not toggle playback.
@@ -86,6 +89,7 @@ pub(crate) struct Controls {
     regular: Typeface,
     medium: Typeface,
     icons: IconPaths,
+    pub(crate) frame_mark: skia_safe::svg::Dom,
 }
 
 struct IconPaths {
@@ -120,6 +124,8 @@ impl ControlsLayout {
         height: f32,
         scale: f32,
     ) -> Self {
+        // Keep both time labels and icon hitboxes apart in a narrow window.
+        let scale = scale.min(width / 400.);
         let px = |logical: f32| logical * scale;
         let font = controls.font(true, scale);
         let time_width = tabular_width(&font, duration_label);
@@ -221,9 +227,14 @@ impl Controls {
             }
         };
 
+        let frame_mark =
+            skia_safe::svg::Dom::from_str(include_str!("frame-f.svg"), FontMgr::empty())
+                .expect("valid fframes mark SVG");
+
         Self {
             regular: typeface(font_style::Weight::NORMAL),
             medium: typeface(font_style::Weight::MEDIUM),
+            frame_mark,
             icons: IconPaths {
                 play: icon(icons::PLAY),
                 pause: icon(icons::PAUSE),
@@ -236,7 +247,7 @@ impl Controls {
         }
     }
 
-    fn font(&self, medium: bool, scale: f32) -> Font {
+    pub(crate) fn font(&self, medium: bool, scale: f32) -> Font {
         let typeface = if medium { &self.medium } else { &self.regular };
         let mut font = Font::from_typeface(typeface, FONT_SIZE * scale);
         font.set_subpixel(true);
@@ -272,53 +283,15 @@ impl Controls {
 
         let hovered = |control| state.hovered == Some(control);
 
-        self.ghost_button(
-            canvas,
-            layout.back,
-            &self.icons.back,
-            hovered(Control::Back),
-            false,
-            scale,
-        );
-        self.primary_button(
-            canvas,
-            layout.play,
-            if state.playing {
-                &self.icons.pause
-            } else {
-                &self.icons.play
-            },
-            hovered(Control::PlayPause),
-            scale,
-        );
-        self.ghost_button(
-            canvas,
-            layout.forward,
-            &self.icons.forward,
-            hovered(Control::Forward),
-            false,
-            scale,
-        );
-        self.ghost_button(
-            canvas,
-            layout.looping,
-            &self.icons.looping,
-            hovered(Control::Loop),
-            state.looping,
-            scale,
-        );
-        self.ghost_button(
-            canvas,
-            layout.fullscreen,
-            if state.fullscreen {
-                &self.icons.collapse
-            } else {
-                &self.icons.expand
-            },
-            hovered(Control::Fullscreen),
-            false,
-            scale,
-        );
+        for (control, rect) in [
+            (Control::Back, layout.back),
+            (Control::PlayPause, layout.play),
+            (Control::Forward, layout.forward),
+            (Control::Loop, layout.looping),
+            (Control::Fullscreen, layout.fullscreen),
+        ] {
+            self.draw_button(canvas, control, rect, state, scale);
+        }
 
         let mut text = paint.clone();
         text.set_color(TEXT);
@@ -367,6 +340,46 @@ impl Controls {
             paint.set_color(THUMB);
             canvas.draw_circle(center, thumb_radius - 2. * scale, &paint);
         }
+    }
+
+    pub(crate) fn draw_button(
+        &self,
+        canvas: &Canvas,
+        control: Control,
+        rect: Rect,
+        state: &ControlsState,
+        scale: f32,
+    ) {
+        let hovered = state.hovered == Some(control);
+        let icon = match control {
+            Control::PlayPause => {
+                let icon = if state.playing {
+                    &self.icons.pause
+                } else {
+                    &self.icons.play
+                };
+                return self.primary_button(canvas, rect, icon, hovered, scale);
+            }
+            Control::Back => &self.icons.back,
+            Control::Forward => &self.icons.forward,
+            Control::Loop => &self.icons.looping,
+            Control::Fullscreen => {
+                if state.fullscreen {
+                    &self.icons.collapse
+                } else {
+                    &self.icons.expand
+                }
+            }
+            _ => return,
+        };
+        self.ghost_button(
+            canvas,
+            rect,
+            icon,
+            hovered,
+            control == Control::Loop && state.looping,
+            scale,
+        );
     }
 
     fn ghost_button(
@@ -427,7 +440,7 @@ fn digit_width(font: &Font) -> f32 {
         .fold(0., f32::max)
 }
 
-fn tabular_width(font: &Font, text: &str) -> f32 {
+pub(crate) fn tabular_width(font: &Font, text: &str) -> f32 {
     let digit = digit_width(font);
     text.chars()
         .map(|char| {
@@ -440,7 +453,13 @@ fn tabular_width(font: &Font, text: &str) -> f32 {
         .sum()
 }
 
-fn draw_tabular(canvas: &Canvas, text: &str, origin: Point, font: &Font, paint: &Paint) {
+pub(crate) fn draw_tabular(
+    canvas: &Canvas,
+    text: &str,
+    origin: Point,
+    font: &Font,
+    paint: &Paint,
+) -> f32 {
     let digit = digit_width(font);
     let mut x = origin.x;
     for char in text.chars() {
@@ -454,6 +473,7 @@ fn draw_tabular(canvas: &Canvas, text: &str, origin: Point, font: &Font, paint: 
             x += width;
         }
     }
+    x
 }
 
 /// `mm:ss`, or `h:mm:ss` from an hour on, like the web editor.

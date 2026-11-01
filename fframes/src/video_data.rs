@@ -8,7 +8,11 @@ use crate::error::Result;
 use fframes_media::ImageMetadata;
 pub use fframes_media::{FrameConvertOptions, PlaybackSpeed, ResizeVideoFrame};
 #[cfg(not(target_arch = "wasm32"))]
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
@@ -43,20 +47,11 @@ pub fn set_video_frame_resolver(resolver: VideoFrameResolver) {
 }
 
 pub trait FFramesSyncedVideoFrame<'media> {
-    /// Gets the original image from the frame
-    /// This will perform color space conversion and return the frame at `width()` by
-    /// `height()`. If you need to render the video frame in the smaller size, use `into_resized_image`.
-    ///
-    /// This method take self to reuse frame data allocations, but you should not
-    /// call this method more than once per the render function
+    /// Converts the frame to RGBA at its display dimensions.
+    /// Native renderers share the pixels between consecutive requests at the same size.
     #[allow(clippy::wrong_self_convention)]
     fn into_image(&self) -> ImageData<'media>;
-    /// Performs color space conversion and resizes the image to the specified size.
-    /// Recommended to use this method if you render image in the smaller size than the original
-    /// video e.g. as a pattern of some other shape or as a filler of standalone image.
-    ///
-    /// This method take self to reuse frame data allocations, but you should not
-    /// call this method more than once per the render function
+    /// Converts the frame to RGBA at the requested size.
     #[allow(clippy::wrong_self_convention)]
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>>;
     /// Get the height of the frame with non-square pixels stretched to square ones
@@ -152,22 +147,22 @@ impl<'media> FFramesSyncedVideoFrame<'media> for WasmEditorVideoFrameFallback<'m
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn decoded_image<'media>(pixels: Arc<usvgr::PreloadedImageData>) -> ImageData<'media> {
+    let metadata = ImageMetadata {
+        width: pixels.width,
+        height: pixels.height,
+    };
+    let id = pixels.id.clone();
+    ImageData::new_from_raw_data(pixels, id, metadata)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     fn into_image(&self) -> ImageData<'media> {
         let image_data = unsafe { self.convert_last_decoded_frame_into_svg_image(None) }
-            // we unwrap here because we guarantee that the sws scaler would work correctly
-            // unless the wrong dimensions are provided
             .expect("Failed to convert frame to image");
 
-        let filename = image_data.id.clone();
-        ImageData::new_from_raw_data(
-            image_data,
-            filename,
-            ImageMetadata {
-                width: self.get_width(),
-                height: self.get_height(),
-            },
-        )
+        decoded_image(image_data)
     }
 
     fn into_resized_image(&self, options: &FrameConvertOptions) -> Option<ImageData<'media>> {
@@ -177,15 +172,7 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
             })
             .ok()?;
 
-        let filename = image_data.id.clone();
-        Some(ImageData::new_from_raw_data(
-            image_data,
-            filename,
-            ImageMetadata {
-                width: self.get_width(),
-                height: self.get_height(),
-            },
-        ))
+        Some(decoded_image(image_data))
     }
 
     fn width(&self) -> u32 {
@@ -213,26 +200,120 @@ impl<'media> FFramesSyncedVideoFrame<'media> for crate::media::FFmpegFrameBuf {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+type DecoderSlot = Arc<Mutex<Option<fframes_media::FFmpegDecoder>>>;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct DecoderEntry {
+    /// The preview job that used the decoder last, see `DecoderPool::finish_frame`.
+    last_used: u64,
+    /// The order of the last `DecoderPool::slot` call, for `MAX_DECODERS_PER_VIDEO`.
+    last_access: u64,
+    slot: DecoderSlot,
+}
+
+/// Each decoder keeps the file open and its frames in memory. A file played at more
+/// speeds closes the idle decoder that was used least recently.
+#[cfg(not(target_arch = "wasm32"))]
+const MAX_DECODERS_PER_VIDEO: usize = 4;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct DecoderPool {
+    /// The decoders of each file, one per playback speed: offsets of different speeds
+    /// point to different parts of the file.
+    sources: HashMap<PathBuf, Vec<(PlaybackSpeed, DecoderEntry)>>,
+    generation: u64,
+    accesses: u64,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl DecoderPool {
+    fn slot(&mut self, path: &Path, speed: PlaybackSpeed) -> DecoderSlot {
+        self.accesses += 1;
+        let decoders = if let Some(decoders) = self.sources.get_mut(path) {
+            decoders
+        } else {
+            self.sources.entry(path.to_owned()).or_default()
+        };
+        let index = if let Some(index) = decoders.iter().position(|(s, _)| *s == speed) {
+            index
+        } else {
+            if decoders.len() >= MAX_DECODERS_PER_VIDEO
+                && let Some(idle) = decoders
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (_, entry))| Arc::strong_count(&entry.slot) == 1)
+                    .min_by_key(|(_, (_, entry))| entry.last_access)
+                    .map(|(index, _)| index)
+            {
+                decoders.remove(idle);
+            }
+            decoders.push((speed, DecoderEntry::default()));
+            decoders.len() - 1
+        };
+        let entry = &mut decoders[index].1;
+        entry.last_used = self.generation;
+        entry.last_access = self.accesses;
+        Arc::clone(&entry.slot)
+    }
+
+    /// The decoders of `path` at every speed. A bare file name finds an unambiguous source.
+    fn slots_of(&self, path: &Path) -> Vec<DecoderSlot> {
+        let decoders = self.sources.get(path).or_else(|| {
+            let mut matches = self
+                .sources
+                .iter()
+                .filter(|(source, _)| source.file_name() == Some(path.as_os_str()));
+            let (_, decoders) = matches.next()?;
+            matches.next().is_none().then_some(decoders)
+        });
+        decoders
+            .map(|decoders| {
+                decoders
+                    .iter()
+                    .map(|(_, entry)| Arc::clone(&entry.slot))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn finish_frame(&mut self, concurrent_jobs: usize) -> Vec<DecoderSlot> {
+        // Count completed jobs, not timeline positions. Scrubs, loops and out-of-order
+        // workers share the same grace period. Keep all layers of an active composition.
+        self.generation += 1;
+        let generation = self.generation;
+        let grace = concurrent_jobs.max(1) as u64 + 1;
+        let mut retired = Vec::new();
+        self.sources.retain(|_, decoders| {
+            retired.extend(
+                decoders
+                    .extract_if(.., |(_, entry)| {
+                        generation - entry.last_used > grace && Arc::strong_count(&entry.slot) == 1
+                    })
+                    .map(|(_, entry)| entry.slot),
+            );
+            !decoders.is_empty()
+        });
+        retired
+    }
+}
+
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct VideoDecodersWorker {
     buffer_size: usize,
     #[cfg(not(target_arch = "wasm32"))]
-    map: Arc<std::sync::RwLock<HashMap<String, Vec<SpeedDecoder>>>>,
+    pool: Arc<Mutex<DecoderPool>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    mode: fframes_media::DecodeMode,
 }
-
-/// A decoder of a file at one playback speed.
-#[cfg(not(target_arch = "wasm32"))]
-type SpeedDecoder = (PlaybackSpeed, fframes_media::FFmpegDecoder);
-
-/// Each decoder keeps the file open and its frames in memory. A file played at more
-/// speeds closes the decoder that was used least recently.
-#[cfg(not(target_arch = "wasm32"))]
-const MAX_DECODERS_PER_VIDEO: usize = 4;
 
 impl std::fmt::Debug for VideoDecodersWorker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkerLocalDecoders").finish()
+        f.debug_struct("VideoDecodersWorker")
+            .finish_non_exhaustive()
     }
 }
 
@@ -247,8 +328,35 @@ impl VideoDecodersWorker {
         VideoDecodersWorker {
             buffer_size,
             #[cfg(not(target_arch = "wasm32"))]
-            map: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            pool: Arc::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            mode: fframes_media::DecodeMode::Configured,
         }
+    }
+
+    /// The native studio keeps only recently used source decoders between frames.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn for_preview(software_decode: bool) -> Self {
+        Self {
+            mode: if software_decode {
+                fframes_media::DecodeMode::Software
+            } else {
+                fframes_media::DecodeMode::Preview
+            },
+            ..Self::default()
+        }
+    }
+
+    /// Retire idle decoder sessions outside the pool lock, including after a seek
+    /// into a scene that contains no video files.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn finish_preview_frame(&self, concurrent_jobs: usize) {
+        let retired = self
+            .pool
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .finish_frame(concurrent_jobs);
+        drop(retired);
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -323,13 +431,17 @@ impl VideoDecodersWorker {
         pts: i64,
         filename: &str,
     ) -> Result<Option<Arc<usvgr::PreloadedImageData>>> {
-        let frame = self.map.read().unwrap().get(filename).and_then(|decoders| {
-            decoders
-                .iter()
-                .find_map(|(_, decoder)| decoder.get_decoded_image_in_buf(pts))
-        });
-
-        Ok(frame)
+        let slots = self.pool.lock()?.slots_of(Path::new(filename));
+        for slot in slots {
+            let image = slot
+                .lock()?
+                .as_ref()
+                .and_then(|decoder| decoder.get_decoded_image_in_buf(pts));
+            if image.is_some() {
+                return Ok(image);
+            }
+        }
+        Ok(None)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -340,94 +452,87 @@ impl VideoDecodersWorker {
         ctx: &FFramesContext<'_, 'media>,
         options: &SyncVideoFrameInput,
     ) -> Result<Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>>> {
-        use crate::error::FFramesError;
-        use fframes_media::FFramesMediaError;
-
-        let resource_name = path
-            .file_name()
-            .ok_or_else(|| FFramesError::MediaError(FFramesMediaError::MediaDirectoryProvided))?
-            .to_string_lossy();
-
+        // A slot serializes the cursor of this source at this speed. Opening a file,
+        // decoding a frame or tearing down a hardware session never holds the pool lock.
         let speed = PlaybackSpeed::new(options.speed);
-
-        // It is important to lock it for the whole duration of he function to
-        // avoid any parallel encoder creation.
-        let mut map_guard = self.map.write()?;
-        // Every speed gets its own decoder, offsets of different speeds point to
-        // different parts of the file.
-        let decoders = map_guard.entry(resource_name.into_owned()).or_default();
-        let decoder = decoder_for_speed(decoders, speed, || unsafe {
-            fframes_media::FFmpegDecoder::new(path, ctx.time_base.fps, self.buffer_size)
-                .map(|decoder| decoder.with_playback_speed(speed))
-        })?;
+        let slot = self.pool.lock()?.slot(path, speed);
+        let mut guard = slot.lock()?;
         unsafe {
+            let decoder = match guard.as_mut() {
+                Some(decoder) => decoder,
+                None => guard.insert(
+                    fframes_media::FFmpegDecoder::new_with_mode(
+                        path,
+                        ctx.time_base.fps,
+                        self.buffer_size,
+                        self.mode,
+                    )?
+                    .with_playback_speed(speed),
+                ),
+            };
             let has_frame = if options.looping {
                 decoder.decode_looping(offset)?
             } else {
                 decoder.decode_up_to(offset)?
             };
-            Ok(has_frame.then(|| decoder.get_raw_frame()))
+            Ok(has_frame.then(|| decoder.retained_frame()).transpose()?)
         }
     }
-}
-
-/// The decoder of `speed`, made with `create` if there is none. The most recently used
-/// decoder is first, and at most `MAX_DECODERS_PER_VIDEO` are kept.
-#[cfg(not(target_arch = "wasm32"))]
-fn decoder_for_speed<D, E>(
-    decoders: &mut Vec<(PlaybackSpeed, D)>,
-    speed: PlaybackSpeed,
-    create: impl FnOnce() -> std::result::Result<D, E>,
-) -> std::result::Result<&mut D, E> {
-    if let Some(index) = decoders.iter().position(|(s, _)| *s == speed) {
-        decoders[..=index].rotate_right(1);
-    } else {
-        decoders.insert(0, (speed, create()?));
-        decoders.truncate(MAX_DECODERS_PER_VIDEO);
-    }
-    Ok(&mut decoders[0].1)
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-mod decoder_cache_tests {
+mod decoder_pool_tests {
     use super::*;
 
-    fn use_speed(decoders: &mut Vec<(PlaybackSpeed, f32)>, speed: f32, created: &mut usize) {
-        decoder_for_speed(decoders, PlaybackSpeed::new(speed), || {
-            *created += 1;
-            Ok::<_, ()>(speed)
-        })
-        .unwrap();
+    #[test]
+    fn clips_age_out_without_evicting_active_layers_or_in_flight_work() {
+        let mut pool = DecoderPool::default();
+        let first = Path::new("first/clip.mp4");
+        let second = Path::new("second/clip.mp4");
+        let normal = PlaybackSpeed::NORMAL;
+        let held = pool.slot(first, normal);
+        assert!(!Arc::ptr_eq(&held, &pool.slot(second, normal)));
+        for _ in 0..24 {
+            // Overlapping sources in a composite must all stay warm.
+            for i in 0..12 {
+                pool.slot(Path::new(&format!("layer-{i}.mp4")), normal);
+            }
+            drop(pool.finish_frame(5));
+        }
+        assert!(!pool.sources.contains_key(second));
+        assert!(Arc::ptr_eq(&held, &pool.slot(first, normal)));
+        assert_eq!(pool.sources.len(), 13);
+        drop(held);
+        for _ in 0..9 {
+            drop(pool.finish_frame(5));
+        }
+        assert!(pool.sources.is_empty());
     }
 
     #[test]
-    fn speeds_that_round_to_the_same_value_share_a_decoder() {
-        let (mut decoders, mut created) = (Vec::new(), 0);
-        for i in 0..100 {
-            use_speed(&mut decoders, 1.0 + i as f32 * 0.000_001, &mut created);
+    fn a_file_keeps_one_decoder_per_speed_and_closes_the_idle_one_used_least_recently() {
+        let mut pool = DecoderPool::default();
+        let clip = Path::new("clip.mp4");
+        let normal = pool.slot(clip, PlaybackSpeed::new(1.0));
+        // Speeds that round to the same thousandth share a decoder.
+        assert!(Arc::ptr_eq(
+            &normal,
+            &pool.slot(clip, PlaybackSpeed::new(1.000_1))
+        ));
+        let held = pool.slot(clip, PlaybackSpeed::new(2.0));
+        for speed in [0.5, 1.5] {
+            pool.slot(clip, PlaybackSpeed::new(speed));
         }
-        assert_eq!((decoders.len(), created), (1, 1));
-    }
-
-    #[test]
-    fn least_recently_used_decoders_are_closed() {
-        let (mut decoders, mut created) = (Vec::new(), 0);
-        for i in 0..100 {
-            use_speed(&mut decoders, 1.0 + i as f32 * 0.1, &mut created);
-        }
-        assert_eq!((decoders.len(), created), (MAX_DECODERS_PER_VIDEO, 100));
-
-        // A used decoder moves to the front and is kept.
-        use_speed(&mut decoders, 1.0 + 97.0 * 0.1, &mut created);
-        use_speed(&mut decoders, 0.25, &mut created);
-        use_speed(&mut decoders, 0.5, &mut created);
-        use_speed(&mut decoders, 1.0 + 97.0 * 0.1, &mut created);
-        assert_eq!(created, 102);
-        let speeds: Vec<_> = decoders.iter().map(|(s, _)| s.thousandths()).collect();
-        assert_eq!(speeds, [10_700, 500, 250, 10_900]);
+        assert_eq!(pool.sources[clip].len(), MAX_DECODERS_PER_VIDEO);
+        drop(normal);
+        // A fifth speed closes the idle decoder used least recently, not the one in use.
+        pool.slot(clip, PlaybackSpeed::new(3.0));
+        let speeds: Vec<_> = pool.sources[clip]
+            .iter()
+            .map(|(speed, _)| speed.thousandths())
+            .collect();
+        assert_eq!(speeds, [2000, 500, 1500, 3000]);
+        assert_eq!(pool.slots_of(Path::new("clip.mp4")).len(), 4);
+        drop(held);
     }
 }
-
-// These implementations are already thread-safe due to RwLock
-unsafe impl Send for VideoDecodersWorker {}
-unsafe impl Sync for VideoDecodersWorker {}
