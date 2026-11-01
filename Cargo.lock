@@ -1228,6 +1228,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "fframes-dylib"
+version = "1.3.0"
+dependencies = [
+ "fframes",
+]
+
+[[package]]
 name = "fframes-editor-controller"
 version = "1.3.0"
 dependencies = [
@@ -1683,6 +1690,7 @@ version = "1.3.0"
 dependencies = [
  "clap",
  "fframes",
+ "fframes-dylib",
  "fframes_skia_renderer",
 ]
 
