@@ -86,6 +86,24 @@ function renderRoundedCorners(ctx, x, y, width, height, topLeftOpt, topRightOpt,
   
 }
 
+var ellipsis = String.fromCharCode(8230);
+
+function fitText(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+  var fitted;
+  var len = text.length - 1 | 0;
+  while(Belt_Option.isNone(fitted) && len > 0) {
+    var candidate = text.slice(0, len) + ellipsis;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      fitted = candidate;
+    }
+    len = len - 1 | 0;
+  };
+  return fitted;
+}
+
 function clipOverTimeLineElement(ctx, size, y, width, fill) {
   var x = size.timelineMarginLeft;
   renderRoundedRect(ctx, x, y, width, 120, 12.0, undefined);
@@ -117,25 +135,25 @@ function renderScenes(ctx, size, editorContext, palette) {
                 var width = constrainedX2 - x1;
                 ctx.globalAlpha = 1;
                 ctx.beginPath();
-                ctx.moveTo(constrainedX2, 24);
-                ctx.lineTo(constrainedX2 - 12, 24);
-                ctx.lineTo(constrainedX2, 36);
+                ctx.moveTo(constrainedX2, 28);
+                ctx.lineTo(constrainedX2 - 12, 28);
+                ctx.lineTo(constrainedX2, 40);
                 ctx.fill();
-                ctx.fillRect(overflowSafeX, 24, constrainedX2 - overflowSafeX, 4);
+                ctx.fillRect(overflowSafeX, 28, constrainedX2 - overflowSafeX, 4);
                 ctx.closePath();
                 ctx.save();
-                ctx.rect(x1, 24, width - 4, 20);
-                ctx.clip();
                 ctx.font = Theme.canvasFontMedium;
                 Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.textSecondary);
-                Belt_Option.forEach(Utils.$$Array.last(scene.name.split("::")), (function (name) {
-                        ctx.fillText(name, overflowSafeX + 4, 40, undefined);
+                Belt_Option.forEach(Belt_Option.flatMap(Utils.$$Array.last(scene.name.split("::")), (function (name) {
+                            return fitText(ctx, name, constrainedX2 - overflowSafeX - 16);
+                          })), (function (name) {
+                        ctx.fillText(name, overflowSafeX + 8, 44, undefined);
                         
                       }));
                 ctx.restore();
                 Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, sceneColor$1);
                 ctx.globalAlpha = 0.05;
-                ctx.fillRect(x1, 24, width, size.scaledHeight);
+                ctx.fillRect(x1, 28, width, size.scaledHeight);
                 
               });
           
@@ -144,7 +162,7 @@ function renderScenes(ctx, size, editorContext, palette) {
   
 }
 
-function renderFrameWithClipping(ctx, image, previewX, renderWidth, frameNumber, i, videoEndX, endX, editorContext) {
+function renderFrameWithClipping(ctx, image, previewX, renderWidth, frameNumber, i, videoEndX, endX, lanesTop, editorContext) {
   var videoConstrainedWidth = videoEndX - previewX;
   var timelineConstrainedWidth = endX - previewX;
   var clipWidthFloat = Math.min(videoConstrainedWidth, timelineConstrainedWidth);
@@ -157,9 +175,9 @@ function renderFrameWithClipping(ctx, image, previewX, renderWidth, frameNumber,
   var isActualLastFrame = frameNumber >= (editorContext.videoMeta.durationInFrames - 1 | 0);
   var isFirstFrame = i === 0;
   var isLastFrame = isActualLastFrame || frameExtendsPastVideoEnd;
-  renderRoundedCorners(ctx, previewX, 64, clipWidth, 120, isFirstFrame ? 12.0 : 0.0, isLastFrame ? 12.0 : 0.0, isFirstFrame ? 12.0 : 0.0, isLastFrame ? 12.0 : 0.0, undefined);
+  renderRoundedCorners(ctx, previewX, lanesTop, clipWidth, 120, isFirstFrame ? 12.0 : 0.0, isLastFrame ? 12.0 : 0.0, isFirstFrame ? 12.0 : 0.0, isLastFrame ? 12.0 : 0.0, undefined);
   ctx.clip();
-  ctx.drawImage(image, previewX | 0, 64, renderWidth, 120);
+  ctx.drawImage(image, previewX | 0, lanesTop, renderWidth, 120);
   ctx.restore();
   
 }
@@ -199,7 +217,7 @@ function renderMainScene(ctx, size, editorContext) {
           var cachedImage = Belt_MapString.get(previewImageCache.contents, cacheKey);
           if (cachedImage !== undefined) {
             var baseRenderWidth = pixelsPerFrame > width ? pixelsPerFrame | 0 : width + 1 | 0;
-            return renderFrameWithClipping(ctx, Caml_option.valFromOption(cachedImage), previewX, baseRenderWidth, frameNumber, i, videoEndX, endX, editorContext);
+            return renderFrameWithClipping(ctx, Caml_option.valFromOption(cachedImage), previewX, baseRenderWidth, frameNumber, i, videoEndX, endX, size.lanesTop, editorContext);
           }
           var svg = editorContext.wasmController.render_preview_frame(BigInt(frameNumber));
           var image = new Image(width, 120);
@@ -208,7 +226,7 @@ function renderMainScene(ctx, size, editorContext) {
               previewImageCache.contents = Belt_MapString.set(previewImageCache.contents, cacheKey, image);
               cleanupCache(undefined);
               var baseRenderWidth = pixelsPerFrame > width ? pixelsPerFrame | 0 : width + 1 | 0;
-              return renderFrameWithClipping(ctx, image, previewX, baseRenderWidth, frameNumber, i, videoEndX, endX, editorContext);
+              return renderFrameWithClipping(ctx, image, previewX, baseRenderWidth, frameNumber, i, videoEndX, endX, size.lanesTop, editorContext);
             });
           
         }));
@@ -241,22 +259,36 @@ function renderAudioWaveForm(ctx, endFrame, startFrame, x0, y0, audioSpaceWidth,
   if (exit === 1) {
     audioInfo = Pervasives.failwith("Unknown audio file " + audioName + ". Did you forget to add it to your media folder?");
   }
-  var positionEnd = (endFrame - startFrame | 0) / editorContext.videoMeta.fps * audioInfo.sampleRate | 0;
-  var length = positionEnd - 0 | 0;
-  var sector = length / audioSpaceWidth * 1;
-  var position = 0;
-  var mid = CanvasSize.audio_height / 2 | 0;
-  var x = x0;
+  var samplesTotal = (endFrame - startFrame | 0) / editorContext.videoMeta.fps * audioInfo.sampleRate | 0;
+  var samplesPerPx = samplesTotal / audioSpaceWidth;
+  var stride = Math.max(1, Math.floor(samplesPerPx / 64));
+  var waveHeight = CanvasSize.audio_height - 20 | 0;
+  var mid = y0 + 20 + waveHeight / 2;
+  var amplitude = waveHeight / 2 - 2;
+  var columns = Math.floor(audioSpaceWidth);
+  Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.textTertiary);
   ctx.beginPath();
-  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.textTertiary);
-  while(x < audioSpaceWidth || position < positionEnd) {
-    var pcm = Utils.$$Option.unwrapOr(audioInfo.fltpData.at(position), 0.0);
-    var y = mid + y0 + pcm * mid;
-    ctx.lineTo(x, y);
-    position = Math.floor(position + sector);
-    x = Math.floor(x + 1);
-  };
-  ctx.stroke();
+  for(var column = 0; column < columns; ++column){
+    var from = Math.floor(column * samplesPerPx);
+    var to_ = Math.min(Math.floor((column + 1 | 0) * samplesPerPx), samplesTotal);
+    var min = 0;
+    var max = 0;
+    var i = from;
+    while(i < to_) {
+      var pcm = Utils.$$Option.unwrapOr(audioInfo.fltpData.at(i), 0.0);
+      if (pcm > max) {
+        max = pcm;
+      }
+      if (pcm < min) {
+        min = pcm;
+      }
+      i = i + stride | 0;
+    };
+    var top = mid - max * amplitude;
+    var bottom = mid - min * amplitude;
+    ctx.rect(x0 + column, top, 1, bottom - top > 1 ? bottom - top : 1);
+  }
+  ctx.fill();
   
 }
 
@@ -272,7 +304,7 @@ function renderAudioMap(ctx, size, editorContext, palette) {
                                     xStack.length = index;
                                     return match[1];
                                   })), startY);
-                        var y = 184 + startY$1 | 0;
+                        var y = (size.lanesTop + 120 | 0) + startY$1 | 0;
                         var originalWidth = (track.end - track.start | 0) * size.frameToPxRatio;
                         var timelineEnd = size.timelineMarginLeft + size.maxSceneWidth;
                         var constrainedEndX = Math.min(x + originalWidth, timelineEnd);
@@ -282,25 +314,22 @@ function renderAudioMap(ctx, size, editorContext, palette) {
                               startY$1
                             ]);
                         ctx.save();
-                        var textX = x + 2;
-                        var textY = y - 8;
-                        ctx.save();
-                        ctx.rect(textX - 10, textY - 14 + 4, width + 8.0, 14);
-                        ctx.clip();
-                        ctx.font = Theme.canvasFont;
-                        Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.textSecondary);
-                        ctx.fillText(track.name, textX, textY, undefined);
-                        ctx.restore();
-                        ctx.beginPath();
-                        renderRoundedRect(ctx, x, y, width, 60, 8.0, undefined);
+                        Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.border);
+                        ctx.lineWidth = 1;
+                        renderRoundedRect(ctx, x + 0.5, y + 0.5, width - 1, CanvasSize.audio_height - 1, 8.0, undefined);
                         ctx.clip();
                         Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.softAlpha);
-                        ctx.fillRect(x, y, width, 60);
+                        ctx.fillRect(x, y, width, CanvasSize.audio_height);
                         renderAudioWaveForm(ctx, track.end, track.start, x, y, width, track.name, editorContext, palette);
-                        ctx.closePath();
+                        ctx.font = Theme.canvasFontMedium;
+                        Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.textSecondary);
+                        Belt_Option.forEach(fitText(ctx, track.name, width - 8 * 2), (function (name) {
+                                ctx.fillText(name, x + 8, y + 14, undefined);
+                                
+                              }));
                         ctx.restore();
-                        return (startY$1 + CanvasSize.audio_height | 0) + (CanvasSize.audio_height / 2 | 0) | 0;
-                      }), 32);
+                        return (startY$1 + CanvasSize.audio_height | 0) + 8 | 0;
+                      }), 8);
                 
               }));
 }
@@ -343,21 +372,28 @@ function renderTimeSlots(ctx, size, editorContext, palette) {
     if (frame >= 0 && frame <= editorContext.videoMeta.durationInFrames) {
       var x = CanvasSize.frameToX(frame, size);
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, 18);
+      ctx.moveTo(x, 18);
+      ctx.lineTo(x, 24);
       Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.border);
       ctx.lineWidth = 1.0;
       ctx.stroke();
       if (Caml_int32.mod_(Caml_int32.div(frame, timeIntervalFrames), full_timestamp_each_steps) === 0) {
         ctx.font = Theme.canvasFont;
         Webapi__Canvas__Canvas2d.setFillStyle(ctx, /* String */0, palette.textTertiary);
-        ctx.fillText(Utils.Duration.formatSeconds(Utils.$$Math.divideFloat(frame, editorContext.videoMeta.fps)), x + 8, 14, undefined);
+        ctx.fillText(Utils.Duration.formatSeconds(Utils.$$Math.divideFloat(frame, editorContext.videoMeta.fps)), x + 6, 15, undefined);
       }
       
     }
     currentFrame = currentFrame + timeIntervalFrames | 0;
     iterations = iterations + 1 | 0;
   };
+  var rulerBottom = 24 - 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, rulerBottom);
+  ctx.lineTo(size.width, rulerBottom);
+  Webapi__Canvas__Canvas2d.setStrokeStyle(ctx, /* String */0, palette.border);
+  ctx.lineWidth = 1.0;
+  ctx.stroke();
   
 }
 
@@ -415,7 +451,8 @@ function SceneMapCanvas(Props) {
         }), [
         size,
         match$1[0],
-        match$2[0]
+        match$2[0],
+        theme
       ]);
   return React.createElement("canvas", {
               ref: canvasRef,
@@ -447,6 +484,8 @@ export {
   renderRoundedRect ,
   fillRoundedRect ,
   renderRoundedCorners ,
+  ellipsis ,
+  fitText ,
   clipOverTimeLineElement ,
   renderScenes ,
   renderFrameWithClipping ,

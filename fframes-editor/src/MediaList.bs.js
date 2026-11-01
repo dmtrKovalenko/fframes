@@ -20,7 +20,17 @@ function MediaList$LoadedMediaIcon(Props) {
   var tmp;
   switch (media.TAG | 0) {
     case /* Font */0 :
-        tmp = React.createElement(Icon.Text, {});
+        var match = media._0;
+        tmp = React.createElement("span", {
+              "aria-hidden": true,
+              className: variant ? "text-lg" : "text-3xl",
+              style: {
+                fontFamily: "\"" + match.name + "\"",
+                fontStyle: match.style,
+                fontWeight: String(match.weight),
+                lineHeight: "1"
+              }
+            }, "Aa");
         break;
     case /* Subtitles */1 :
         tmp = React.createElement(Icon.CaptionOn, {});

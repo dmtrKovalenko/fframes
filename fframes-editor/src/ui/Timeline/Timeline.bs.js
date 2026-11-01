@@ -35,7 +35,8 @@ function Timeline(Props) {
                   pxToFrameRatio: 1 / frameToPxRatio,
                   viewportOffset: player.viewportOffset,
                   timelineMarginLeft: timelineMarginLeft,
-                  timelineMarginRight: timelineMarginRight
+                  timelineMarginRight: timelineMarginRight,
+                  lanesTop: CanvasSize.lanesTop(editorContext.videoMeta.scenesTimeline)
                 };
         }), [
         sectionSize.height,
@@ -58,6 +59,7 @@ function Timeline(Props) {
             var currentSize_viewportOffset = player.viewportOffset;
             var currentSize_timelineMarginLeft = size.timelineMarginLeft;
             var currentSize_timelineMarginRight = size.timelineMarginRight;
+            var currentSize_lanesTop = size.lanesTop;
             var currentSize = {
               width: currentSize_width,
               height: currentSize_height,
@@ -69,7 +71,8 @@ function Timeline(Props) {
               pxToFrameRatio: currentSize_pxToFrameRatio,
               viewportOffset: currentSize_viewportOffset,
               timelineMarginLeft: currentSize_timelineMarginLeft,
-              timelineMarginRight: currentSize_timelineMarginRight
+              timelineMarginRight: currentSize_timelineMarginRight,
+              lanesTop: currentSize_lanesTop
             };
             var currentFrameX = CanvasSize.frameToX(player.frame, currentSize);
             if (currentFrameX < 0.0 || currentFrameX > currentSize_maxSceneWidth) {

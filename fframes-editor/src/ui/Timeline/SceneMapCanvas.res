@@ -107,6 +107,27 @@ let renderRoundedCorners = (
   ctx->Canvas2d.closePath
 }
 
+// U+2026, as a char code so no bundler or dev server can mangle the literal
+let ellipsis = Js.String.fromCharCode(0x2026)
+
+// The clip name, cut to what fits with an ellipsis; nothing when not even a letter fits
+let fitText = (ctx, text, ~maxWidth) => {
+  if text->Canvas2d.measureText(ctx)->Canvas2d.width <= maxWidth {
+    Some(text)
+  } else {
+    let fitted = ref(None)
+    let len = ref(Js.String.length(text) - 1)
+    while fitted.contents->Belt.Option.isNone && len.contents > 0 {
+      let candidate = Js.String.slice(~start=0, ~end=len.contents, text) ++ ellipsis
+      if candidate->Canvas2d.measureText(ctx)->Canvas2d.width <= maxWidth {
+        fitted := Some(candidate)
+      }
+      len := len.contents - 1
+    }
+    fitted.contents
+  }
+}
+
 let clipOverTimeLineElement = (ctx, size: canvasSize, ~y, ~width, ~fill) => {
   let x = Float.fromInt(size.timelineMarginLeft)
   let height = Float.fromInt(scene_height_size)
@@ -187,17 +208,19 @@ let renderScenes = (
 
         ctx->Canvas2d.save
 
-        ctx->Canvas2d.rect(~x=x1, ~y=uninlided_y, ~w=width -. 4., ~h=20.)
-        ctx->Canvas2d.clip
         ctx->Canvas2d.font(Theme.canvasFontMedium)
         ctx->Canvas2d.setFillStyle(String, palette.textSecondary)
+        // The name is cut to its scene with an ellipsis, like the clip names below
         scene.name
         ->Js.String.split("::")
         ->Utils.Array.last
+        ->Belt.Option.flatMap(name =>
+          ctx->fitText(name, ~maxWidth=constrainedX2 -. overflowSafeX -. 16.)
+        )
         ->Belt.Option.forEach(name =>
           name->Canvas2d.fillText(
             ctx,
-            ~x=overflowSafeX +. 4.,
+            ~x=overflowSafeX +. 8.,
             ~y=(timeline_scenes_start_y + 16)->Int.toFloat,
           )
         )
@@ -224,6 +247,7 @@ let renderFrameWithClipping = (
   ~i,
   ~videoEndX,
   ~endX,
+  ~lanesTop,
   ~editorContext: EditorContext.editorContext,
 ) => {
   let videoConstrainedWidth = videoEndX -. previewX
@@ -242,7 +266,7 @@ let renderFrameWithClipping = (
 
     ctx->renderRoundedCorners(
       ~x=previewX,
-      ~y=timeline_margin_y->Float.fromInt,
+      ~y=lanesTop->Float.fromInt,
       ~width=clipWidth->Float.fromInt,
       ~height=Float.fromInt(scene_height_size),
       ~topLeft=if isFirstFrame {
@@ -272,7 +296,7 @@ let renderFrameWithClipping = (
 
     ctx->drawImage(
       ~imageData=image,
-      ~dy=timeline_margin_y,
+      ~dy=lanesTop,
       ~dx=previewX->Float.toInt,
       ~dirtyHeight=scene_height_size,
       ~dirtyWidth=renderWidth,
@@ -390,6 +414,7 @@ let renderMainScene = (ctx, size, editorContext: EditorContext.editorContext) =>
             ~i,
             ~videoEndX,
             ~endX,
+            ~lanesTop=size.lanesTop,
             ~editorContext,
           )
         }
@@ -430,6 +455,7 @@ let renderMainScene = (ctx, size, editorContext: EditorContext.editorContext) =>
               ~i,
               ~videoEndX,
               ~endX,
+              ~lanesTop=size.lanesTop,
               ~editorContext,
             )
           })
@@ -458,35 +484,55 @@ let renderAudioWaveForm = (
   | _ => failwith(`Unknown audio file ${audioName}. Did you forget to add it to your media folder?`)
   }
 
-  let positionStart = 0
-  let positionEnd = Js.Int.fromFloat(
+  let samplesTotal = Js.Int.fromFloat(
     (endFrame - startFrame)->Float.fromInt /.
     editorContext.videoMeta.fps->Float.fromInt *.
     audioInfo.sampleRate->Float.fromInt,
   )
-  let length = positionEnd - positionStart
+  let samplesPerPx = samplesTotal->Float.fromInt /. audioSpaceWidth
+  // Every column shows the peak of its samples, like an audio editor; at most 64 of them are read
+  let stride = Utils.Math.maxI(1, (samplesPerPx /. 64.)->Utils.Math.floor)
 
-  let step = 1.
-  let sector = length->Js.Float.fromInt /. audioSpaceWidth *. step
+  // The waveform fills the band under the clip name, mirrored around its middle
+  let waveHeight = (audio_height - audio_label_height)->Float.fromInt
+  let mid = y0 +. audio_label_height->Float.fromInt +. waveHeight /. 2.
+  let amplitude = waveHeight /. 2. -. 2.
+  let columns = audioSpaceWidth->Utils.Math.floor
 
-  let position = ref(positionStart)
-  let mid = Float.fromInt(audio_height / 2)
-  let x = ref(x0)
-
+  ctx->Canvas2d.setFillStyle(String, palette.textTertiary)
   ctx->Canvas2d.beginPath
-  ctx->Canvas2d.setStrokeStyle(String, palette.textTertiary)
 
-  while x.contents < audioSpaceWidth || position.contents < positionEnd {
-    let pcm = audioInfo.fltpData->Web.Float32Array.at(position.contents)->Utils.Option.unwrapOr(0.0)
+  for column in 0 to columns - 1 {
+    let from = (column->Float.fromInt *. samplesPerPx)->Utils.Math.floor
+    let to_ = Utils.Math.minI(
+      ((column + 1)->Float.fromInt *. samplesPerPx)->Utils.Math.floor,
+      samplesTotal,
+    )
+    let min = ref(0.)
+    let max = ref(0.)
+    let i = ref(from)
+    while i.contents < to_ {
+      let pcm = audioInfo.fltpData->Web.Float32Array.at(i.contents)->Utils.Option.unwrapOr(0.0)
+      if pcm > max.contents {
+        max := pcm
+      }
+      if pcm < min.contents {
+        min := pcm
+      }
+      i := i.contents + stride
+    }
 
-    let y = mid +. y0 +. pcm *. mid
-    ctx->Canvas2d.lineTo(~x=x.contents, ~y)
-
-    position := (position.contents->Float.fromInt +. sector)->Utils.Math.floor
-    x := (x.contents +. step)->Js.Math.floor
+    let top = mid -. max.contents *. amplitude
+    let bottom = mid -. min.contents *. amplitude
+    ctx->Canvas2d.rect(
+      ~x=x0 +. column->Float.fromInt,
+      ~y=top,
+      ~w=1.,
+      ~h=bottom -. top > 1. ? bottom -. top : 1.,
+    )
   }
 
-  ctx->Canvas2d.stroke
+  ctx->Canvas2d.fill
 }
 
 let renderAudioMap = (
@@ -496,6 +542,8 @@ let renderAudioMap = (
   ~palette: Theme.palette,
 ) => {
   let xStack = []
+  let clipHeight = Float.fromInt(audio_height)
+  let inset = 8.
 
   editorContext.videoMeta.audioMap
   ->Js.Nullable.toOption
@@ -513,7 +561,7 @@ let renderAudioMap = (
         })
         ->Utils.Option.unwrapOr(startY)
 
-      let y = Float.fromInt(timeline_margin_y + scene_height_size + startY)
+      let y = Float.fromInt(size.lanesTop + scene_height_size + startY)
       let originalWidth = Float.fromInt(track.end - track.start) *. size.frameToPxRatio
 
       // Constrain audio track end position to respect right margin
@@ -524,38 +572,21 @@ let renderAudioMap = (
       xStack->Js.Array.push((x +. width, startY))->ignore
       ctx->Canvas2d.save
 
-      let textX = x +. 2.
-      let textY = y -. 8.
-      let textHeight = 14.
-
-      // this is level 2 safe needed for a clip around track name text to prevent same stack names overflow.
-      ctx->Canvas2d.save
-      ctx->Canvas2d.rect(
-        ~x=textX -. 10.,
-        ~y=textY -. textHeight +. 4.,
-        ~w=width +. 8.0,
-        ~h=textHeight,
-      )
-
-      ctx->Canvas2d.clip
-      ctx->Canvas2d.font(Theme.canvasFont)
-      ctx->Canvas2d.setFillStyle(String, palette.textSecondary)
-      track.name->Canvas2d.fillText(ctx, ~x=textX, ~y=textY)
-      ctx->Canvas2d.restore
-      ctx->Canvas2d.beginPath
-
+      // The clip: a quiet surface with a hairline edge, everything inside is clipped to it
+      ctx->Canvas2d.setStrokeStyle(String, palette.border)
+      ctx->Canvas2d.lineWidth(1.)
       ctx->renderRoundedRect(
-        ~x,
-        ~y,
-        ~width,
-        ~height=Float.fromInt(scene_height_size / 2),
+        ~x=x +. 0.5,
+        ~y=y +. 0.5,
+        ~width=width -. 1.,
+        ~height=clipHeight -. 1.,
         ~radius=8.0,
         (),
       )
       ctx->Canvas2d.clip
 
       ctx->Canvas2d.setFillStyle(String, palette.softAlpha)
-      ctx->Canvas2d.fillRect(~x, ~y, ~w=width, ~h=Float.fromInt(scene_height_size / 2))
+      ctx->Canvas2d.fillRect(~x, ~y, ~w=width, ~h=clipHeight)
 
       ctx
       ->renderAudioWaveForm(
@@ -570,11 +601,17 @@ let renderAudioMap = (
       )
       ->ignore
 
-      ctx->Canvas2d.closePath
+      // The name sits inside the clip like in any editor, in its own band above the waveform
+      ctx->Canvas2d.font(Theme.canvasFontMedium)
+      ctx->Canvas2d.setFillStyle(String, palette.textSecondary)
+      ctx
+      ->fitText(track.name, ~maxWidth=width -. inset *. 2.)
+      ->Option.forEach(name => name->Canvas2d.fillText(ctx, ~x=x +. inset, ~y=y +. 14.))
+
       ctx->Canvas2d.restore
 
-      startY + audio_height + audio_height / 2
-    }, 32)->ignore)
+      startY + audio_height + audio_gap
+    }, audio_gap)->ignore)
 }
 
 let renderTimeSlots = (
@@ -627,8 +664,8 @@ let renderTimeSlots = (
       let x = frameToX(frame, size)
 
       ctx->Canvas2d.beginPath
-      ctx->Canvas2d.moveTo(~x, ~y=0.)
-      ctx->Canvas2d.lineTo(~x, ~y=18.)
+      ctx->Canvas2d.moveTo(~x, ~y=(ruler_height - 6)->Float.fromInt)
+      ctx->Canvas2d.lineTo(~x, ~y=ruler_height->Float.fromInt)
 
       ctx->Canvas2d.setStrokeStyle(String, palette.border)
       ctx->Canvas2d.lineWidth(1.0)
@@ -643,13 +680,22 @@ let renderTimeSlots = (
         ->Float.fromInt
         ->Utils.Math.divideFloat(editorContext.videoMeta.fps->Float.fromInt)
         ->Utils.Duration.formatSeconds
-        ->Canvas2d.fillText(ctx, ~x=x +. 8., ~y=14.)
+        ->Canvas2d.fillText(ctx, ~x=x +. 6., ~y=15.)
       }
     }
 
     currentFrame := currentFrame.contents + timeIntervalFrames
     iterations := iterations.contents + 1
   }
+
+  // The ruler closes with a hairline so the lanes start under a rule, not in the open
+  let rulerBottom = ruler_height->Float.fromInt -. 0.5
+  ctx->Canvas2d.beginPath
+  ctx->Canvas2d.moveTo(~x=0., ~y=rulerBottom)
+  ctx->Canvas2d.lineTo(~x=size.width, ~y=rulerBottom)
+  ctx->Canvas2d.setStrokeStyle(String, palette.border)
+  ctx->Canvas2d.lineWidth(1.0)
+  ctx->Canvas2d.stroke
 }
 
 @react.component
@@ -706,7 +752,7 @@ let make = (~size: canvasSize) => {
     None
   }, (size, player.viewportOffset, theme))
 
-  React.useEffect3(() => {
+  React.useEffect4(() => {
     canvasRef.current
     ->Js.Nullable.toOption
     ->Belt.Option.map(element => {
@@ -717,7 +763,7 @@ let make = (~size: canvasSize) => {
     ->ignore
 
     None
-  }, (size, throttledViewportOffset, posterVersion))
+  }, (size, throttledViewportOffset, posterVersion, theme))
 
   <canvas
     className="absolute inset-0"

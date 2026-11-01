@@ -10,19 +10,39 @@ type canvasSize = {
   viewportOffset: float,
   timelineMarginLeft: int,
   timelineMarginRight: int,
+  // Top of the filmstrip: under the scene strip when the video has scenes, else right under the ruler
+  lanesTop: int,
 }
 
 // Make sure to not change this from ints to float to enable preval of calculations
 @inline
 let timeline_margin_x = 64
 @inline
-let timeline_margin_y = 64
-@inline
 let scene_height_size = 120
+// The ruler: tick marks and timestamps, closed by a hairline
 @inline
-let timeline_scenes_start_y = 24
+let ruler_height = 24
+@inline
+let timeline_scenes_start_y = 28
+// Filmstrip top with and without a scene strip (ruler, gap, scene bar and its name, gap)
+@inline
+let lanes_top_with_scenes = 60
+@inline
+let lanes_top_without_scenes = 32
+// Gap between the filmstrip and the first audio clip, and between stacked clips
+@inline
+let audio_gap = 8
+// The clip name sits in this band, the waveform below it
+@inline
+let audio_label_height = 20
 
 let audio_height = scene_height_size / 2
+
+let lanesTop = (scenesTimeline: Js.Nullable.t<array<'a>>) =>
+  switch scenesTimeline->Js.Nullable.toOption {
+  | Some(scenes) if Js.Array.length(scenes) > 0 => lanes_top_with_scenes
+  | _ => lanes_top_without_scenes
+  }
 
 module Canvas = Webapi.Canvas
 module Canvas2d = Webapi.Canvas.Canvas2d

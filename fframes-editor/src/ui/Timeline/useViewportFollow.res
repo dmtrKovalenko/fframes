@@ -43,6 +43,7 @@ let useViewportFollow = (sectionSize: UseEditorLayout.sectionSize) => {
       viewportOffset: player.viewportOffset,
       timelineMarginLeft: timelineMarginLeft,
       timelineMarginRight: timelineMarginRight,
+      lanesTop: lanesTop(editorContext.videoMeta.scenesTimeline),
     }
 
     // Always move viewport to position frame at start

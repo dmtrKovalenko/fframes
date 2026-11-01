@@ -22,7 +22,23 @@ module LoadedMediaIcon = {
           {"loading": "lazy"},
         )
       | Audio(_) => <Icons.MusicIcon />
-      | Font(_) => <Icons.FontIcon />
+      // The font shows its own face: it is registered with document.fonts when loaded
+      | Font({name, weight, style}) =>
+        <span
+          ariaHidden=true
+          className={switch variant {
+          | Grid => "text-3xl"
+          | List => "text-lg"
+          }}
+          style={ReactDOMStyle.make(
+            ~fontFamily=`"${name}"`,
+            ~fontWeight=weight->Int.toString,
+            ~fontStyle=style,
+            ~lineHeight="1",
+            (),
+          )}>
+          {React.string("Aa")}
+        </span>
       | Subtitles(_) => <Icons.CaptionsIcon />
       }}
     </div>

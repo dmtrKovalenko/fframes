@@ -4,6 +4,14 @@ import * as React from "react";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 
+function lanesTop(scenesTimeline) {
+  if (!(scenesTimeline == null) && scenesTimeline.length > 0) {
+    return 60;
+  } else {
+    return 32;
+  }
+}
+
 function useCanvasScale(elementRef, size) {
   React.useEffect((function () {
           Belt_Option.forEach(Caml_option.nullable_to_opt(elementRef.current), (function (canvasElement) {
@@ -58,6 +66,7 @@ var Canvas2d;
 
 export {
   audio_height ,
+  lanesTop ,
   Canvas ,
   Canvas2d ,
   useCanvasScale ,

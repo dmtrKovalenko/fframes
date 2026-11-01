@@ -14,9 +14,12 @@ function useViewportFollow(sectionSize) {
                 var initialBasePxRatio = sectionSize.width / editorContext.videoMeta.durationInFrames;
                 var initialVideoTotalWidth = editorContext.videoMeta.durationInFrames * (initialBasePxRatio * player.zoom);
                 var match = CanvasSize.calculateTimelineMargins(player.viewportOffset, initialVideoTotalWidth, sectionSize.width);
-                var availableWidth = sectionSize.width - match[0] - match[1];
+                var timelineMarginRight = match[1];
+                var timelineMarginLeft = match[0];
+                var availableWidth = sectionSize.width - timelineMarginLeft - timelineMarginRight;
                 var basePxRatio = availableWidth / editorContext.videoMeta.durationInFrames;
                 var frameToPxRatio = basePxRatio * player.zoom;
+                CanvasSize.lanesTop(editorContext.videoMeta.scenesTimeline);
                 var totalContentWidth = editorContext.videoMeta.durationInFrames * frameToPxRatio;
                 var maxOffset = totalContentWidth > availableWidth ? totalContentWidth - availableWidth : 0.0;
                 var framePosition = targetFrame * frameToPxRatio;

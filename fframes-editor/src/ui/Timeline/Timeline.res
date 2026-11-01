@@ -39,6 +39,7 @@ let make = (~sectionSize: UseEditorLayout.sectionSize) => {
       viewportOffset: player.viewportOffset,
       timelineMarginLeft: timelineMarginLeft,
       timelineMarginRight: timelineMarginRight,
+      lanesTop: lanesTop(editorContext.videoMeta.scenesTimeline),
     }
   }, (
     sectionSize.height,
