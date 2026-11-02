@@ -181,12 +181,28 @@ fn centered(src_width: f32, src_height: f32, scale_x: f32, scale_y: f32, dest: R
     }
 }
 
+/// A focal point in 0–1 source coordinates.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FocalPoint {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl FocalPoint {
+    /// The middle of the source.
+    pub const CENTER: Self = Self { x: 0.5, y: 0.5 };
+
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
 /// A cover-based crop that moves from one focal point and zoom to another.
 ///
 /// `zoom` is relative to [`Fit::Cover`]: `1.0` fills the destination, `1.2` is
 /// twenty percent closer, and values below `1.0` are treated as `1.0` so the
-/// destination stays covered. `focus` is a point in the source in 0–1 coordinates
-/// (`(0.5, 0.5)` is the centre) mapped to the centre of the destination.
+/// destination stays covered. `focus` is a [`FocalPoint`] in the source, mapped to the
+/// centre of the destination.
 ///
 /// Drive `t` from 0 to 1 with a timeline:
 ///
@@ -196,15 +212,15 @@ fn centered(src_width: f32, src_height: f32, scale_x: f32, scale_y: f32, dest: R
 /// ));
 /// let placed = PanZoom::new()
 ///     .zoom(1.0, 1.35)
-///     .focus((0.4, 0.5), (0.65, 0.4))
+///     .focus(FocalPoint::new(0.4, 0.5), FocalPoint::new(0.65, 0.4))
 ///     .place(src_w, src_h, dest, t);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PanZoom {
     pub from_zoom: f32,
     pub to_zoom: f32,
-    pub from_focus: (f32, f32),
-    pub to_focus: (f32, f32),
+    pub from_focus: FocalPoint,
+    pub to_focus: FocalPoint,
 }
 
 impl Default for PanZoom {
@@ -212,8 +228,8 @@ impl Default for PanZoom {
         Self {
             from_zoom: 1.0,
             to_zoom: 1.2,
-            from_focus: (0.5, 0.5),
-            to_focus: (0.5, 0.5),
+            from_focus: FocalPoint::CENTER,
+            to_focus: FocalPoint::CENTER,
         }
     }
 }
@@ -233,7 +249,7 @@ impl PanZoom {
 
     /// Set the focal point at `t = 0` and `t = 1`, in 0–1 source coordinates.
     /// Values outside that range are clamped.
-    pub fn focus(mut self, from: (f32, f32), to: (f32, f32)) -> Self {
+    pub fn focus(mut self, from: FocalPoint, to: FocalPoint) -> Self {
         self.from_focus = from;
         self.to_focus = to;
         self
@@ -248,8 +264,8 @@ impl PanZoom {
         let t = t.clamp(0.0, 1.0);
         // Below cover scale the drawing would leave part of `dest` uncovered.
         let zoom = lerp(self.from_zoom, self.to_zoom, t).max(1.0);
-        let focus_x = lerp(self.from_focus.0, self.to_focus.0, t).clamp(0.0, 1.0);
-        let focus_y = lerp(self.from_focus.1, self.to_focus.1, t).clamp(0.0, 1.0);
+        let focus_x = lerp(self.from_focus.x, self.to_focus.x, t).clamp(0.0, 1.0);
+        let focus_y = lerp(self.from_focus.y, self.to_focus.y, t).clamp(0.0, 1.0);
 
         let cover = (dest.width / src_width).max(dest.height / src_height);
         let scale = cover * zoom;

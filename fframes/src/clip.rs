@@ -82,7 +82,7 @@ const FRAME_EPSILON_SECONDS: f64 = 1e-4;
 ///
 /// ```rust,ignore
 /// let clip = Clip::new("IMG_0926.mov", 19.2..24.7)
-///     .pan_zoom(PanZoom::new().zoom(1.0, 1.35).focus((0.4, 0.5), (0.65, 0.4)));
+///     .pan_zoom(PanZoom::new().zoom(1.0, 1.35).focus(FocalPoint::new(0.4, 0.5), FocalPoint::new(0.65, 0.4)));
 ///
 /// let dest = Rect::new(40.0, 40.0, 640.0, 1000.0);
 /// let (image, placed) = (clip.image(&frame, ctx)?, clip.place(&frame, ctx, dest)?);

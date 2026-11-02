@@ -2,8 +2,8 @@ use crate::Chapter;
 use crate::{constants::*, create_transition_keyframes_for_chapters};
 use fframes::animation::KeyFramesAnimation;
 use fframes::{
-    AudioMap, Clip, FFramesContext, Fit, FontQuery, Frame, PanZoom, Placement, Rect, TextOverflow,
-    Transform, Video,
+    AudioMap, Clip, FFramesContext, Fit, FocalPoint, FontQuery, Frame, PanZoom, Placement, Rect,
+    TextOverflow, Transform, Video,
 };
 use std::borrow::Cow;
 use std::sync::OnceLock;
@@ -30,7 +30,7 @@ impl TeejPodcast<'_> {
             right: Clip::new("right.mp4", 0.0..).pan_zoom(
                 PanZoom::new()
                     .zoom(1.08, 1.3)
-                    .focus((0.5375, 0.5), (0.5375, 0.45)),
+                    .focus(FocalPoint::new(0.5375, 0.5), FocalPoint::new(0.5375, 0.45)),
             ),
             fitted_titles: OnceLock::new(),
         }
