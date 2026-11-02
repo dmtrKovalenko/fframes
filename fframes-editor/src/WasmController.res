@@ -61,6 +61,7 @@ type t = {
   add_image_source: (string, string, int, int, Js.Undefined.t<string>) => unit,
   add_video_source_placeholder: (string, string, int, int, int) => unit,
   add_subtitles_source: (string, string) => int,
+  add_json_subtitles_source: (string, string) => Js.Undefined.t<int>,
   add_lottie_source: (string, string) => Js.Undefined.t<float>,
   prepare: Js.Undefined.t<int> => Js.Promise.t<videoMeta>,
   render_frame: Js.BigInt.t => string,
@@ -87,6 +88,9 @@ external add_video_source_placeholder: (t, string, string, int, int, int) => uni
 
 @send @genType
 external add_subtitles_source: (t, string, string) => int = "add_subtitles_source"
+
+@send @genType
+external add_json_subtitles_source: (t, string, string) => Js.Undefined.t<int> = "add_json_subtitles_source"
 
 @send @genType
 external add_lottie_source: (t, string, string) => Js.Undefined.t<float> = "add_lottie_source"

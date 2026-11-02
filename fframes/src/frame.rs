@@ -411,6 +411,7 @@ impl Frame {
     }
 
     /// Returns a cue that must be rendered by the time of the current frame
+    /// Legacy lookup includes the cue's ending timestamp.
     /// Besides text cue contains additional metadata like start/end time stamp,
     /// notes and cue settings which can be used to customise text.
     ///
@@ -424,12 +425,11 @@ impl Frame {
         subtitles.get_cue_by_time(milliseconds).map(|(_, cue)| cue)
     }
 
-    /// Returns all the cues in order which timestamp is before or equal current frame.
+    /// Returns cues whose start is strictly before the current time plus `overlap`.
     ///
     /// ### Params
     /// * `overlap` – value in milliseconds is used to control when the next cue will join the stack,
-    ///   e.g if overlap is 1000ms, the next cue will join the stack when it's timestamp is 1000ms or less
-    ///   then the time of the current frame.
+    ///   For example, 1000ms includes cues starting less than one second ahead.
     pub fn get_cue_stack<'a, TSubtitles: FFramesSubtitles<'a>>(
         &self,
         subtitles: &'a TSubtitles,

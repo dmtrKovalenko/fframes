@@ -17,6 +17,7 @@ members = [
     "render-bench/vs-remotion",
     "cargo-fframes",
     # Examples
+    "examples/captions",
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
     "examples/audio-announce",

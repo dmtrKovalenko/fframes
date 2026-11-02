@@ -71,9 +71,11 @@ product with only the text changed. If it would, change the idea, not the colors
 
 ### The video is the Rust crate and `media/`
 
-Every decision about the video is in Rust code: which part of a file plays, when and at what
-speed, how a voice syncs with its picture, captions, music, grading and the export settings.
-Put the files into `media/` as the user gave them.
+The Rust crate and its media data define which part of a file plays, when and at what speed,
+how a voice syncs with its picture, captions, music, grading and the export settings.
+Keep reusable drawing behavior in Rust; timed caption text and per-word enum metadata can
+live in VTT/JSON loaded through the same media provider. Put source files into `media/`
+as the user gave them.
 
 - Do not write Python, shell or ffmpeg scripts that cut, join, retime or grade media, that
   generate Rust code or data tables, or that change the file after `$R render` (remux, retag,
@@ -308,6 +310,9 @@ impl Video for MyVideo<'_> {
 - Measure text rather than guess: `frame.text_width`, `frame.text_fit(.., TextOverflow::Ellipsis)`,
   `frame.text_break_lines` for paragraphs. `inspect` catches text leaving the canvas, not text
   leaving its own box, so check boxes in a `frame` PNG.
+- For subtitles or timed lyrics, read `references/captions.md`: a VTT or JSON track in
+  `media/`, one `Captions` component kept on the video, `metadata.typed::<T>()` for
+  per-word effects. Never parse JSON or rebuild tracks per frame.
 - Camera or phone footage plays through `fframes::Clip` inside scenes (see the rules at the
   top). `frame.video_frame_at(ctx, file, seconds, None)` is one frame of a file (a freeze frame).
 - GPU shaders (SkSL or Shadertoy GLSL) run on the Skia backend through `fframes::Shader`; they

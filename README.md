@@ -151,13 +151,13 @@ impl Video for HelloWorldVideo<'_> {
 
 The skill's guides are plain Markdown, so you can read them too:
 [the workflow](skills/fframes-video/SKILL.md), [the API cheat sheet](skills/fframes-video/references/api.md),
+[captions](skills/fframes-video/references/captions.md),
 [design](skills/fframes-video/references/design.md) and [sound](skills/fframes-video/references/audio.md).
 The full API reference is on [docs.rs/fframes](https://docs.rs/fframes).
 
 ## Examples
 
-Click a poster to watch the video, or an example name to browse its source. Each example's README also has
-the video inline.
+Click an example name to browse its source, or a poster for a preview.
 
 - [Motion and launch videos](#motion-and-launch-videos)
 - [Shaders and 3D](#shaders-and-3d)
@@ -256,6 +256,14 @@ An svgr UI on the screen of a turning 3D monitor, showing a 3D cube with the svg
 </a>
 
 ### Audio and video
+
+#### [captions](examples/captions)
+
+A small example of Highlight, Karaoke, Reveal and Word modes sharing one JSON transcript. Typed per-word metadata adds circles and underlines without registration or per-frame parsing. Run with `cargo run --release -p captions-example -- render`.
+
+<a href="examples/_previews/captions.png">
+  <img alt="Caption presets and custom word highlights" src="examples/_previews/captions.png" width="640" />
+</a>
 
 #### [audio-announce](examples/audio-announce)
 

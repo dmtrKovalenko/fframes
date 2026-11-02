@@ -18,6 +18,8 @@ ttf-parser = "0.25.1"
 itoa = "1.0.14"
 kamadak-exif = { workspace = true, optional = true }
 base64 = { version = "0.22.1" }
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0.154"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true

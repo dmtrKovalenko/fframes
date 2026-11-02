@@ -69,6 +69,8 @@ default = ["cpu_renderer"]
 cpu_renderer = ["svgr"]
 # `fframes::cli`: a ready made command line (render, frames, contact sheets, inspect, audio)
 cli = ["cpu_renderer", "dep:clap", "dep:serde_json"]
+# Declarative SVG caption rendering. Subtitle data/parsing is part of fframes-media.
+captions = []
 exif = ["fframes-media/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 # `fframes::Lottie` and `frame.play_lottie`: Lottie `.json` files in the media folder
@@ -108,7 +110,7 @@ libav-agree-version3 = ["fframes-media/libav-agree-version3"]
 # The codec and hardware features compile FFmpeg from source, which docs.rs cannot do (no
 # network), so only the pure Rust features are documented. `--cfg fframes_docsrs` makes
 # fframes-media link the FFmpeg headers of the docs.rs image instead of building FFmpeg.
-features = ["cli", "compile-time-svgtree", "exif", "3d"]
+features = ["cli", "captions", "compile-time-svgtree", "exif", "3d"]
 rustc-args = ["--cfg", "fframes_docsrs"]
 
 [lints]

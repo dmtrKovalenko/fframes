@@ -1,0 +1,25 @@
+[package]
+name = "captions-example"
+version = "1.3.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fframes = { workspace = true, features = ["cli", "captions", "compile-time-svgtree"] }
+serde = { version = "1", features = ["derive"] }
+
+[features]
+default = ["skia"]
+skia = ["dep:fframes_skia_renderer"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_skia_renderer = { workspace = true, optional = true, features = ["cli", "metal"] }
+
+[target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
+fframes_skia_renderer = { workspace = true, optional = true, features = ["cli", "vulkan"] }
+
+[target.'cfg(not(any(windows, target_arch = "wasm32")))'.dependencies]
+fframes = { workspace = true, features = ["h264", "libav-agree-gpl", "build-portable"] }
+
+[lints]
+workspace = true

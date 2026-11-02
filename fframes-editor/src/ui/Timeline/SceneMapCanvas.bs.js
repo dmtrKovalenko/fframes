@@ -223,7 +223,7 @@ function renderAudioWaveForm(ctx, endFrame, startFrame, x0, y0, audioSpaceWidth,
     switch (media.TAG | 0) {
       case /* Media */1 :
           var audioInfo$1 = media._0;
-          if (audioInfo$1.TAG === /* Audio */3) {
+          if (audioInfo$1.TAG === /* Audio */4) {
             audioInfo = audioInfo$1._0;
           } else {
             exit = 1;

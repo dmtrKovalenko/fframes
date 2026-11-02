@@ -5,6 +5,7 @@ pub enum FFramesMediaError {
     AudioDecodingError(String),
     FontError(ttf_parser::FaceParsingError),
     VttError(webvtt_parser::VttError),
+    SubtitlesError(crate::subtitles::SubtitlesError),
     NulError(std::ffi::NulError),
     MediaDirectoryProvided,
     Base64Error(base64::DecodeError),
@@ -30,6 +31,12 @@ impl From<ttf_parser::FaceParsingError> for FFramesMediaError {
 impl From<webvtt_parser::VttError> for FFramesMediaError {
     fn from(err: webvtt_parser::VttError) -> Self {
         Self::VttError(err)
+    }
+}
+
+impl From<crate::subtitles::SubtitlesError> for FFramesMediaError {
+    fn from(err: crate::subtitles::SubtitlesError) -> Self {
+        Self::SubtitlesError(err)
     }
 }
 
@@ -68,6 +75,7 @@ impl std::fmt::Debug for FFramesMediaError {
             Self::ImageError(err) => write!(f, "ImageError: {err:?}"),
             Self::FontError(err) => write!(f, "FontError: {err:?}"),
             Self::VttError(err) => write!(f, "VttError: {err:?}"),
+            Self::SubtitlesError(err) => write!(f, "SubtitlesError: {err}"),
             Self::NulError(err) => write!(f, "{err:?}"),
             Self::LibAVAllocationError(what) => write!(f, "libav: Failed to allocate {what}"),
             Self::MediaDirectoryProvided => write!(

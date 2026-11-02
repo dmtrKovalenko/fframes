@@ -234,10 +234,10 @@ impl Display for VttCue<'_> {
             "{}{}{} --> {}{}\n{}\n",
             self.note
                 .as_ref()
-                .map_or_else(String::new, |comment| format!("NOTE {comment}\n")),
+                .map_or_else(String::new, |comment| format!("NOTE {comment}\n\n")),
             self.name
                 .as_ref()
-                .map_or_else(String::new, |comment| format!("NOTE {comment}\n")),
+                .map_or_else(String::new, |name| format!("{name}\n")),
             self.start,
             self.end,
             self.cue_settings
@@ -591,16 +591,61 @@ mod tests {
     }
 
     #[test]
-    fn incomplete_file() {
-        let content = fs::read_to_string("tests/incomplete.vtt").unwrap();
-
-        match Vtt::parse(&content) {
-            Ok(_) => panic!("The data is incomplete, should fail."),
-            Err(error) => {
-                assert_eq!(error.looking_for, "Digit");
-                assert_eq!(&error.fragment, Span::from("").fragment());
-            }
+    fn empty_document() {
+        let content = include_str!("../tests/empty.vtt");
+        assert_eq!(Vtt::parse(content).unwrap().cues, []);
+        for header in [
+            "WEBVTT",
+            "WEBVTT\n",
+            "WEBVTT header comment",
+            "WEBVTT\nKind: captions",
+            "WEBVTT\nKind: captions\n",
+            "WEBVTT\n\nNOTE trailing comment",
+            "WEBVTT\n\nNOTE",
+        ] {
+            assert!(Vtt::parse(header).unwrap().cues.is_empty(), "{header}");
         }
+    }
+
+    #[test]
+    fn timing_line_terminates_header_without_blank_separator() {
+        for ending in ["\n", "\r\n"] {
+            let input =
+                "WEBVTT\nKind: captions\n00:00.000 --> 00:01.000\nHello\n".replace('\n', ending);
+            let parsed = Vtt::parse(&input).unwrap();
+            assert_eq!(parsed.slugs.get("Kind"), Some(&"captions"));
+            assert_eq!(parsed.cues.len(), 1);
+            assert_eq!(parsed.cues[0].text, "Hello");
+        }
+    }
+
+    #[test]
+    fn note_blocks_and_identifiers_round_trip() {
+        for ending in ["\n", "\r\n"] {
+            let content = concat!(
+                "WEBVTT\n\nNOTE\nfirst comment\n\nNOTE\tsecond\ncontinued\n\n",
+                "NOTEworthy identifier\n00:01.000 --> 00:02.000\nHello\n\n",
+                "NOTE\n\n00:02.000 --> 00:03.000\nWorld\n\n",
+                "NOTE identifier\n00:03.000 --> 00:04.000\nKeep this cue\n\n",
+                "NOTE trailing\ncomment"
+            )
+            .replace('\n', ending);
+            let parsed = Vtt::parse(&content).unwrap();
+            assert_eq!(parsed.cues.len(), 3);
+            assert_eq!(parsed.cues[0].name, Some("NOTEworthy identifier"));
+            let note = format!("second{ending}continued");
+            assert_eq!(parsed.cues[0].note, Some(note.as_str()));
+            assert_eq!(parsed.cues[1].note, Some(""));
+            assert_eq!(parsed.cues[2].name, Some("NOTE identifier"));
+            assert_eq!(parsed.cues[2].note, None);
+            assert_eq!(parsed.cues[2].text, "Keep this cue");
+            let exported = parsed.to_string();
+            assert_eq!(Vtt::parse(&exported).unwrap(), parsed);
+        }
+        assert!(
+            Vtt::parse("WEBVTT\n\nNOTE comment\ninvalid --> comment\n\n").is_err(),
+            "malformed timing-bearing blocks must not silently discard text"
+        );
     }
 
     #[test]

@@ -93,6 +93,10 @@ jobs:
         working-directory: fframes-editor
         run: pnpm build
 
+      - name: Media loading regression test
+        working-directory: fframes-editor
+        run: node --test tests/media-loader.test.mjs
+
   build-rust:
     name: Build and Test
     continue-on-error: true
@@ -265,7 +269,7 @@ jobs:
         env:
           RUSTFLAGS: --cfg fframes_docsrs
           RUSTDOCFLAGS: --cfg docsrs -D warnings
-        run: cargo doc --no-deps -p fframes-media -p fframes --features fframes/cli,fframes/compile-time-svgtree,fframes/exif,fframes/3d
+        run: cargo doc --no-deps -p fframes-media -p fframes --features fframes/cli,fframes/captions,fframes/compile-time-svgtree,fframes/exif,fframes/3d
 
   release:
     # A push to main publishes a nightly, a v* tag publishes that version (scripts/release-version.sh)
@@ -358,7 +362,7 @@ jobs:
           cargo clippy $PACKAGES --tests -- -D warnings
 
       - name: Unit tests
-        run: cargo test -p fframes -p fframes-media -p webvtt-parser -p fframes-media-dir-macro
+        run: cargo test -p fframes -p fframes-media -p webvtt-parser -p fframes-media-dir-macro --features fframes/captions
 
       - name: Render a video
         run: cargo test -p e2e-tests --test render_smoke -- --nocapture
