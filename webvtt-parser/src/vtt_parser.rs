@@ -102,7 +102,7 @@ fn parse_cue(input: Span) -> IResult<Span, VttCue> {
     let (input, start) = parse_time(input)?;
     let (input, _) = tag(" --> ")(input)?;
     let (input, end) = parse_time(input)?;
-    if end.as_milliseconds() <= start.as_milliseconds() {
+    if end.as_milliseconds() < start.as_milliseconds() {
         return Err(nom::Err::Failure(Error::new(input, ErrorKind::Verify)));
     }
     let (input, cue_settings) = opt(parse_cue_settings)(input)?;
@@ -160,6 +160,10 @@ pub fn parse(text: Span) -> IResult<Span, Vtt> {
     let mut slugs = std::collections::HashMap::new();
     while !text.is_empty() {
         let (rest, line) = not_line_ending(text)?;
+        // A timing line ends the header even without a blank separator.
+        if line.contains("-->") {
+            break;
+        }
         let (rest, _) = opt(line_ending)(rest)?;
         text = rest;
         if line.is_empty() {

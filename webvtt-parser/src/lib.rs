@@ -608,6 +608,18 @@ mod tests {
     }
 
     #[test]
+    fn timing_line_terminates_header_without_blank_separator() {
+        for ending in ["\n", "\r\n"] {
+            let input =
+                "WEBVTT\nKind: captions\n00:00.000 --> 00:01.000\nHello\n".replace('\n', ending);
+            let parsed = Vtt::parse(&input).unwrap();
+            assert_eq!(parsed.slugs.get("Kind"), Some(&"captions"));
+            assert_eq!(parsed.cues.len(), 1);
+            assert_eq!(parsed.cues[0].text, "Hello");
+        }
+    }
+
+    #[test]
     fn note_blocks_and_identifiers_round_trip() {
         for ending in ["\n", "\r\n"] {
             let content = concat!(

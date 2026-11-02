@@ -606,12 +606,19 @@ impl<'de> Deserialize<'de> for CaptionTrack {
 impl CaptionTrack {
     /// Validate and own a sequence of cues. An empty track is valid.
     pub fn new(cues: impl IntoIterator<Item = CaptionCue>) -> Result<Self, CaptionError> {
+        Self::from_cues(cues, false)
+    }
+
+    fn from_cues(
+        cues: impl IntoIterator<Item = CaptionCue>,
+        source_vtt: bool,
+    ) -> Result<Self, CaptionError> {
         let mut track = Self {
             cues: cues.into_iter().collect::<Vec<_>>().into(),
             identity: Arc::new(()),
             slugs: HashMap::new(),
             style: None,
-            source_vtt: false,
+            source_vtt,
         };
         track.validate()?;
         for cue in Arc::make_mut(&mut track.cues) {
@@ -677,12 +684,16 @@ impl CaptionTrack {
     }
 
     /// Serialize the canonical JSON representation with indented formatting.
+    /// Imported zero-duration VTT cues need a duration (or removal) before JSON export.
     pub fn to_json_pretty(&self) -> Result<String, CaptionError> {
+        self.validate_cues(false)?;
         Ok(serde_json::to_string_pretty(self)?)
     }
 
     /// Import `WebVTT` through the existing parser, preserving raw payload and metadata.
     /// Word timestamps are never inferred from phrase text or inline markup.
+    /// Instantaneous VTT cues remain available to inclusive legacy lookups;
+    /// they are never active in the new half-open caption API.
     pub fn from_vtt(vtt: &str) -> Result<Self, CaptionError> {
         let parsed = webvtt_parser::Vtt::parse(normalize_input(vtt))
             .map_err(|error| CaptionError::Vtt(error.to_string()))?;
@@ -708,10 +719,9 @@ impl CaptionTrack {
             imported.cue_settings = cue.cue_settings;
             cues.push(imported);
         }
-        let mut track = Self::new(cues)?;
+        let mut track = Self::from_cues(cues, true)?;
         track.slugs = slugs;
         track.style = style;
-        track.source_vtt = true;
         Ok(track)
     }
 
@@ -743,11 +753,15 @@ impl CaptionTrack {
 
     /// Validate timing, content, ordering and optional identifiers.
     pub fn validate(&self) -> Result<(), CaptionError> {
+        self.validate_cues(self.source_vtt)
+    }
+
+    fn validate_cues(&self, allow_instant_vtt: bool) -> Result<(), CaptionError> {
         let mut cue_ids = HashSet::new();
         let mut previous_start = 0.0;
         for (cue_index, cue) in self.cues.iter().enumerate() {
             let path = format!("cues[{cue_index}]");
-            validate_interval(cue.start, cue.end, &path)?;
+            validate_interval(cue.start, cue.end, &path, allow_instant_vtt)?;
             if cue.start < previous_start {
                 return Err(CaptionError::invalid(
                     format!("{path}.start"),
@@ -785,7 +799,7 @@ impl CaptionTrack {
             let mut previous_end = cue.start;
             for (word_index, word) in cue.words.iter().enumerate() {
                 let word_path = format!("{path}.words[{word_index}]");
-                validate_interval(word.start, word.end, &word_path)?;
+                validate_interval(word.start, word.end, &word_path, false)?;
                 if word.start < cue.start || word.end > cue.end {
                     return Err(CaptionError::invalid(
                         &word_path,
@@ -824,7 +838,12 @@ fn normalize_input(content: &str) -> &str {
         .trim_start()
 }
 
-fn validate_interval(start: f64, end: f64, path: &str) -> Result<(), CaptionError> {
+fn validate_interval(
+    start: f64,
+    end: f64,
+    path: &str,
+    allow_instant: bool,
+) -> Result<(), CaptionError> {
     for (name, value) in [("start", start), ("end", end)] {
         if !value.is_finite() || value < 0.0 {
             return Err(CaptionError::invalid(
@@ -833,7 +852,7 @@ fn validate_interval(start: f64, end: f64, path: &str) -> Result<(), CaptionErro
             ));
         }
     }
-    if end <= start {
+    if end < start || (!allow_instant && end == start) {
         return Err(CaptionError::invalid(
             format!("{path}.end"),
             "end must be greater than start (intervals are end-exclusive)",

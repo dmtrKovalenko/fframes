@@ -40,7 +40,8 @@ identify edits. Use `space_before: false` for attached punctuation.
 use `[start, end)`. Legacy `frame.get_subtitle_phrase` / `get_subtitle_cue` and the
 `FFramesSubtitles` trait keep inclusive cue ends. Legacy `get_cue_stack` includes starts
 strictly before `time + overlap`. Do not update existing snapshots to conceal a change
-in those legacy behaviors.
+in those legacy behaviors. Zero-duration VTT cues remain visible only to the legacy
+lookup at their exact timestamp; JSON cues still require a positive duration.
 
 `Captions` defaults to scene-local time, matching frame animation. At video level the
 scene and global clocks coincide. Use `.clock(CaptionClock::Global)` for a whole-video

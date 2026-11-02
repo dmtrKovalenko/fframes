@@ -31,6 +31,18 @@ fn legacy_cue_boundaries_match_borrowed_and_owned_vtt() {
     let track = CaptionTrack::parse(input).unwrap();
     check(&track);
     assert_eq!(track.active_cues(3.0).count(), 0);
+
+    // A legacy zero-duration cue still draws at its one inclusive instant.
+    let instant = "WEBVTT\n\n00:01.000 --> 00:01.000\nInstant\n";
+    let borrowed = Vtt::parse(instant).unwrap();
+    let track = CaptionTrack::parse(instant).unwrap();
+    assert_eq!(borrowed.get_cue_by_time(1000).unwrap().1.text, "Instant");
+    assert_eq!(track.get_cue_by_time(1000).unwrap().1.phrase(), "Instant");
+    assert_eq!(track.active_cues(1.0).count(), 0);
+    assert!(
+        track.to_json_pretty().is_err(),
+        "JSON still requires positive durations"
+    );
 }
 
 #[test]

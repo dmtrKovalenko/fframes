@@ -93,6 +93,10 @@ jobs:
         working-directory: fframes-editor
         run: pnpm build
 
+      - name: Media loading regression test
+        working-directory: fframes-editor
+        run: node --test tests/media-loader.test.mjs
+
   build-rust:
     name: Build and Test
     continue-on-error: true

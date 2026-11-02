@@ -7,6 +7,9 @@ import { fontInfo } from "src/WasmController.gen";
 import { Input, UrlSource, ALL_FORMATS } from "mediabunny";
 import { registerVideo } from "./VideoFrameBufferManager";
 
+export const mediaErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 interface VideoMetadata {
   width: number;
   height: number;

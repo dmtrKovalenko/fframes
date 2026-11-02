@@ -21,42 +21,56 @@ function reducer(state, action) {
             mediaList: state.mediaList
           };
   }
-  if (action.TAG === /* InitMediaProcessing */0) {
-    return {
-            allMediaLoaded: state.allMediaLoaded,
-            mediaList: Belt_MapString.merge(state.mediaList, Belt_MapString.fromArray(Belt_Array.map(Object.keys(action._0), (function (relativePath) {
-                            return [
-                                    Utils.Path.getFilename(relativePath),
-                                    {
-                                      TAG: /* Loading */0,
-                                      _0: relativePath
-                                    }
-                                  ];
-                          }))), (function (param, staticVal, dynamicVal) {
-                    if (staticVal !== undefined) {
-                      if (dynamicVal !== undefined) {
-                        return dynamicVal;
-                      } else {
-                        return staticVal;
-                      }
-                    } else if (dynamicVal !== undefined) {
-                      return dynamicVal;
-                    } else {
-                      return ;
-                    }
-                  }))
-          };
+  switch (action.TAG | 0) {
+    case /* InitMediaProcessing */0 :
+        return {
+                allMediaLoaded: false,
+                mediaList: Belt_MapString.merge(state.mediaList, Belt_MapString.fromArray(Belt_Array.map(Object.keys(action._0), (function (relativePath) {
+                                return [
+                                        Utils.Path.getFilename(relativePath),
+                                        {
+                                          TAG: /* Loading */0,
+                                          _0: relativePath
+                                        }
+                                      ];
+                              }))), (function (param, staticVal, dynamicVal) {
+                        if (staticVal !== undefined) {
+                          if (dynamicVal !== undefined) {
+                            return dynamicVal;
+                          } else {
+                            return staticVal;
+                          }
+                        } else if (dynamicVal !== undefined) {
+                          return dynamicVal;
+                        } else {
+                          return ;
+                        }
+                      }))
+              };
+    case /* MediaItemProcessed */1 :
+        var media = action._1;
+        return {
+                allMediaLoaded: state.allMediaLoaded,
+                mediaList: Belt_MapString.update(state.mediaList, action._0, (function (param) {
+                        return {
+                                TAG: /* Media */1,
+                                _0: media
+                              };
+                      }))
+              };
+    case /* MediaItemFailed */2 :
+        var message = action._1;
+        return {
+                allMediaLoaded: state.allMediaLoaded,
+                mediaList: Belt_MapString.update(state.mediaList, action._0, (function (param) {
+                        return {
+                                TAG: /* Error */2,
+                                _0: message
+                              };
+                      }))
+              };
+
   }
-  var media = action._1;
-  return {
-          allMediaLoaded: state.allMediaLoaded,
-          mediaList: Belt_MapString.update(state.mediaList, action._0, (function (param) {
-                  return {
-                          TAG: /* Media */1,
-                          _0: media
-                        };
-                }))
-        };
 }
 
 var ObserverState = {
@@ -67,6 +81,10 @@ var ObserverState = {
 var MediaLoaderObserver = UseObservable.MakeObserver(ObserverState);
 
 var resolveAudio = MediaResolvers.resolveAudio;
+
+function mediaErrorMessage(prim) {
+  return MediaResolvers.mediaErrorMessage(prim);
+}
 
 var resolveSubtitles = MediaResolvers.resolveSubtitles;
 
@@ -163,10 +181,17 @@ function processDynamicMedia(imports, wasmController, options) {
                     }
                     return Belt_Option.map(tmp, (function (resolveFn) {
                                   return Curry._1(resolveFn, {
-                                              name: name,
-                                              url: moduleVal,
-                                              wasmController: wasmController,
-                                              wasmControllerOptions: options
+                                                name: name,
+                                                url: moduleVal,
+                                                wasmController: wasmController,
+                                                wasmControllerOptions: options
+                                              }).catch(function (error) {
+                                              Curry._1(MediaLoaderObserver.dispatch, {
+                                                    TAG: /* MediaItemFailed */2,
+                                                    _0: name,
+                                                    _1: MediaResolvers.mediaErrorMessage(error)
+                                                  });
+                                              return Promise.resolve(/* MediaResolved */0);
                                             });
                                 }));
                   })));
@@ -190,6 +215,7 @@ export {
   ObserverState ,
   MediaLoaderObserver ,
   resolveAudio ,
+  mediaErrorMessage ,
   resolveSubtitles ,
   resolveJson ,
   resolveFont ,
