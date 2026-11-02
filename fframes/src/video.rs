@@ -1,8 +1,9 @@
 use crate::audio_map::AudioMap;
 use crate::error::Result;
+use crate::markers::{Markers, resolve_markers};
 use crate::{
     AudioTimelineUnit, Color, Duration, FFramesContext, Frame, ResolvedAudioMap, SceneInfo, Svgr,
-    TimeBase, scenes::*,
+    TimeBase, TimelineMarker, scenes::*,
 };
 
 /// The base fframes video trait. It represents how to render a video for a struct which becomes an
@@ -63,6 +64,32 @@ pub trait Video: Sync + Sized {
     /// ```
     fn define_scenes(&self) -> Scenes<'_> {
         Scenes(None)
+    }
+
+    /// Named cue points on the timeline (`title-hit`, `cta`, ...).
+    ///
+    /// They appear in the `timeline` command, can be used as time specs (`title-hit`,
+    /// `title-hit..cta`) and are always sampled by `inspect`. From `render_frame` look them up
+    /// with [`FFramesContext::marker`].
+    ///
+    /// ```
+    /// # use fframes::{Duration, Markers, Video};
+    /// # struct Film;
+    /// # impl Video for Film {
+    /// #     const FPS: usize = 30; const WIDTH: usize = 1; const HEIGHT: usize = 1;
+    /// #     fn duration(&self) -> Duration<'_> { Duration::Seconds(10.) }
+    /// #     fn audio(&self) -> fframes::AudioMap<'_> { fframes::AudioMap::none() }
+    /// #     fn render_frame<'a>(&'a self, _: fframes::Frame, _: &fframes::FFramesContext<'a, '_>) -> fframes::Svgr<'a> { fframes::Svgr::empty() }
+    /// fn markers(&self) -> Markers<'_> {
+    ///     Markers::from([
+    ///         ("title-hit", Duration::Seconds(1.8)),
+    ///         ("cta", Duration::Seconds(12.0)),
+    ///     ])
+    /// }
+    /// # }
+    /// ```
+    fn markers(&self) -> Markers<'_> {
+        Markers::none()
     }
 
     /// This function is going to be called for each frame of the video and expects to return
@@ -140,6 +167,7 @@ pub struct ResolvedRenderingTimeline<'a, TAudioUnit: AudioTimelineUnit + std::fm
     pub audio_map: Option<ResolvedAudioMap<TAudioUnit>>,
     pub scenes: Option<ResolvedScenesTimeline<'a>>,
     pub duration_in_frames: usize,
+    pub markers: Vec<TimelineMarker>,
 }
 
 pub fn resolve_timeline<
@@ -151,6 +179,7 @@ pub fn resolve_timeline<
     scenes: &ScenesWithAudio<'a>,
     time_base: &TimeBase,
     top_level_audio_map: &AudioMap,
+    markers: &Markers<'_>,
     resolve_audio_duration: TFun,
 ) -> Result<ResolvedRenderingTimeline<'a, TAudioUnit>> {
     let (duration, resolved_scenes) = match (scenes.0.as_deref(), duration) {
@@ -193,9 +222,18 @@ pub fn resolve_timeline<
         resolved_audio_map.round_max_duration(TAudioUnit::from_frames(duration, time_base));
     }
 
+    let markers = resolve_markers(
+        markers,
+        time_base.fps,
+        top_level_audio_map,
+        &resolve_audio_duration,
+        duration,
+    )?;
+
     Ok(ResolvedRenderingTimeline {
         audio_map: resolved_audio_map,
         scenes: resolved_scenes,
         duration_in_frames: duration,
+        markers,
     })
 }

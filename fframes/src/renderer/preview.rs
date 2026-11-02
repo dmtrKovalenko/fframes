@@ -216,7 +216,7 @@ pub struct PreviewRequest {
     pub backend: String,
 }
 
-/// The resolved structure of a video: size, duration, scenes and audio tracks.
+/// The resolved structure of a video: size, duration, scenes, markers and audio tracks.
 #[derive(Debug, Clone, Serialize)]
 pub struct TimelineReport {
     pub fps: usize,
@@ -225,6 +225,7 @@ pub struct TimelineReport {
     pub duration_frames: usize,
     pub duration_seconds: f32,
     pub scenes: Vec<SceneReport>,
+    pub markers: Vec<crate::TimelineMarker>,
     pub audio: Vec<AudioTrackReport>,
 }
 
@@ -327,7 +328,8 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
             TVideo::FPS,
             runtime.timeline.duration_in_frames,
             runtime.timeline.scenes.as_ref(),
-        );
+        )
+        .with_markers(runtime.timeline.markers.clone());
 
         Ok(Self {
             video,
@@ -407,6 +409,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
                         .collect()
                 })
                 .unwrap_or_default(),
+            markers: index.markers.clone(),
         }
     }
 
@@ -729,6 +732,7 @@ impl<'p, 'media: 'p, TVideo: Video> Conversion<'p, 'media, TVideo> {
                 media_source: options.media,
                 duration_in_frames: runtime.timeline.duration_in_frames,
                 scenes: runtime.timeline.scenes.as_ref(),
+                markers: &runtime.timeline.markers,
                 font_source: Some(&runtime.font_source),
                 abort_signal: None,
                 current_video_size: size.clone(),

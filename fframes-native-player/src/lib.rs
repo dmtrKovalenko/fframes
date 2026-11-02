@@ -117,6 +117,7 @@ pub fn play<'a, 'media: 'a, TVideo: Video + Sync>(
         media_source: options.media,
         duration_in_frames: timeline.duration_in_frames,
         scenes: timeline.scenes.as_ref(),
+        markers: &timeline.markers,
         font_source: Some(&font_source),
         abort_signal: None,
         current_video_size: VideoSize {
