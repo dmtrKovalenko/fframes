@@ -22,6 +22,7 @@
 //! premultiplied sRGB pixels.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 
 use bytemuck::{Pod, Zeroable};
@@ -375,6 +376,18 @@ pub(crate) struct Gpu {
     available: Condvar,
     /// The textures that frames render into as layers of the backend's frames.
     layers: Mutex<Vec<LayerTarget>>,
+    /// The frames between the start of their GPU work and its end, see
+    /// [`Gpu::frames_in_flight`].
+    in_flight: Arc<AtomicUsize>,
+}
+
+/// Counts a frame in [`Gpu::frames_in_flight`] until it is dropped.
+pub(crate) struct InFlight(Arc<AtomicUsize>);
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
 }
 
 /// A texture that a frame renders into for `fframes::wgpu_layer`. It is free again when
@@ -961,7 +974,23 @@ impl Gpu {
             }),
             available: Condvar::new(),
             layers: Mutex::new(Vec::new()),
+            in_flight: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    /// Counts a frame in [`Gpu::frames_in_flight`] until the result is dropped.
+    pub(crate) fn count_in_flight(&self) -> InFlight {
+        self.in_flight.fetch_add(1, Ordering::Relaxed);
+        InFlight(Arc::clone(&self.in_flight))
+    }
+
+    /// The frames that render on the GPU now, for [`crate::Hybrid`].
+    pub(crate) fn frames_in_flight(&self) -> usize {
+        // Runs the callbacks of the finished layers. A poll reads the fence of wgpu and frees
+        // the resources of finished submissions. It does not use the queue, so it needs no
+        // queue lock on a device that the backend shares.
+        let _ = self.device.poll(wgpu::PollType::Poll);
+        self.in_flight.load(Ordering::Relaxed)
     }
 
     /// Submits `commands`. Holds the queue lock of the backend when the queue is shared.
@@ -1366,6 +1395,7 @@ impl Gpu {
 
     /// Renders the moments (one, or more for motion blur) and returns the pixels.
     pub(crate) fn render(&self, renderer: &Renderer, moments: &[(&Scene, &Camera)]) -> Pixels {
+        let _in_flight = self.count_in_flight();
         let context = self.render_moments(renderer, moments);
         let pixels = self.finish(&context, renderer);
         self.give_back(context);
@@ -1380,6 +1410,7 @@ impl Gpu {
         moments: &[(&Scene, &Camera)],
         shared: &SharedGpu,
     ) -> fframes_media::ImageData<'static> {
+        let in_flight = self.count_in_flight();
         let context = self.render_moments(renderer, moments);
         let (slot, texture, view) = self.take_layer(context.width, context.height);
         let mut encoder = self
@@ -1388,6 +1419,8 @@ impl Gpu {
         self.post_process(&context, renderer, &mut encoder, &view);
         wgpu_layer::finish_wgpu_layer(&mut encoder, &texture);
         self.submit(encoder.finish());
+        // The frame counts until the GPU finishes it.
+        self.queue.on_submitted_work_done(move || drop(in_flight));
         self.give_back(context);
         let image = wgpu_layer::wgpu_layer(shared, &texture);
         let mut layers = lock(&self.layers);
