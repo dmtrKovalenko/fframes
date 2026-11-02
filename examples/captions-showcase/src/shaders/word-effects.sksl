@@ -1,0 +1,565 @@
+// Samples the real white glyph alpha. The texture includes padding for displaced edges.
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uEffect;
+uniform float uProgress;
+uniform float uAge;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uSeed;
+uniform float uDirected;
+uniform float uEntrance;
+uniform float uHero;
+uniform float uWarm;
+uniform float uVariation;
+uniform float uDistanceRange;
+uniform float2 uWordSize;
+uniform float uPadding;
+
+float hash(float2 p) {
+    return fract(sin(dot(p,float2(127.1,311.7)) + uSeed*13.4)*43758.5453);
+}
+float noise(float2 p) {
+    float2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+    return mix(mix(hash(i),hash(i+float2(1,0)),f.x),
+               mix(hash(i+float2(0,1)),hash(i+float2(1,1)),f.x),f.y);
+}
+float glyph(float2 p) {
+    if (p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return 0.0;
+    return float(uGlyph.eval(p).a);
+}
+half4 colored(float a, half3 color) { return half4(color*a,a); }
+
+// A cached distance field from the real font raster supplies bevel normals, contour
+// spacing and prism rims. R is distance; GB is its unit gradient toward the interior.
+float distanceAt(float2 p) {
+    if (p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return -uDistanceRange;
+    return (float(uField.eval(p).r)-0.5)*2.0*uDistanceRange;
+}
+float3 bevelAt(float2 p, float width) {
+    half4 field=uField.eval(p);
+    float d=(float(field.r)-0.5)*2.0*uDistanceRange;
+    float2 gradient=float2(field.gb)*2.0-1.0;
+    float magnitude=length(gradient);
+    gradient=magnitude<0.02 ? float2(0) : gradient/magnitude;
+    float slope=0.92*(1.0-smoothstep(0.0,width,max(d,0.0)));
+    return normalize(float3(-gradient*slope,sqrt(max(0.05,1.0-slope*slope))));
+}
+float2 turn(float2 p,float a) {
+    float c=cos(a),s=sin(a);
+    return float2(c*p.x-s*p.y,s*p.x+c*p.y);
+}
+float cloud(float2 p) {
+    float v=noise(p)*0.57;
+    v+=noise(p*2.03+17.1)*0.28;
+    v+=noise(p*4.09-7.3)*0.15;
+    return v;
+}
+float3 spectral(float phase) {
+    return 0.55+0.45*cos(phase+float3(0.0,2.1,4.2));
+}
+// Original analytic studio lighting: two long softboxes, a dark flag and a blue bounce.
+float3 polished(float3 n,float fold,float tone) {
+    float3 r=reflect(float3(0,0,-1),n);
+    float horizon=0.5+0.5*sin(r.y*5.0+r.x*1.4+fold);
+    float strip=pow(0.5+0.5*cos(r.y*8.0-r.x*2.0+fold),14.0);
+    float pin=pow(max(dot(n,normalize(float3(-0.45,-0.65,1.0))),0.0),38.0);
+    float luma=0.26+0.49*smoothstep(0.12,0.8,horizon)+strip*0.62+pin*0.72;
+    float3 tint=mix(float3(0.68,0.83,1.0),float3(0.95,0.96,1.0),tone);
+    return min(tint*luma,float3(1.0));
+}
+half4 material(float a,float3 color) {
+    return colored(clamp(a,0.0,1.0),half3(clamp(color,0.0,1.0)));
+}
+
+// All colors below are premultiplied before compositing. The exact source glyph
+// remains an opaque, light face; animation is a separate layer around that face.
+float4 paint(float4 under,float alpha,float3 color) {
+    alpha=clamp(alpha,0.0,1.0);
+    return float4(clamp(color,0.0,1.0)*alpha,alpha)+under*(1.0-alpha);
+}
+float lineAt(float2 p,float2 a,float2 b,float width) {
+    float2 ab=b-a;
+    float t=clamp(dot(p-a,ab)/max(dot(ab,ab),0.01),0.0,1.0);
+    return 1.0-smoothstep(width,width+1.0,length(p-a-ab*t));
+}
+float starAt(float2 p,float radius) {
+    p=abs(p)/max(radius,1.0);
+    float rays=max(exp(-p.x*2.4-p.y*22.0),exp(-p.y*2.4-p.x*22.0));
+    return clamp(rays+exp(-length(p)*12.0),0.0,1.0)*
+        (1.0-smoothstep(0.8,1.15,max(p.x,p.y)));
+}
+float ringAt(float2 p,float2 radii,float width) {
+    return 1.0-smoothstep(width,width+1.0,abs(length(p/radii)-1.0)*min(radii.x,radii.y));
+}
+float discAt(float2 p,float radius) {
+    return 1.0-smoothstep(radius-0.8,radius+0.8,length(p));
+}
+float3 candy(float index) { return spectral(index*2.39996)*0.82+0.18; }
+
+// surfaceNormal, studioRadiance and displayRadiance adapt the photographic studio
+// environment in examples/shader-mode/src/shaders/source-effects.sksl.
+// MIT License — Copyright (c) 2026 Shader Effects Inc.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+float3 displayRadiance(float3 color) {
+    color=max(color,0.0);
+    float x=min(color.r,min(color.g,color.b));
+    color-=x<.08 ? x-6.25*x*x : .04;
+    float peak=max(color.r,max(color.g,color.b));
+    if(peak>.76) {
+        float mapped=1.0-.24*.24/(peak+.24-.76);
+        color*=mapped/peak;
+        color=mix(color,float3(mapped),1.0-1.0/(.15*(peak-mapped)+1.0));
+    }
+    return pow(max(color,0.0),float3(.454545));
+}
+float3 studioRadiance(float3 r,float roughness) {
+    float3 warm=float3(1,.46,.12),cool=float3(.15,.38,.83);
+    float up=smoothstep(-.65,1.0,r.y);
+    float3 env=mix(float3(.012,.019,.036),float3(.56,.59,.64),up*up);
+    env+=float3(.55,.56,.59)*smoothstep(.3,.9,r.y);
+    env+=cool*exp(-pow((r.y+.45)/.2,2.0))*.16;
+    float facing=1.0-smoothstep(-.1,.18,r.z);
+    float2 p=r.xy/max(.32-r.z,.06);
+    float2 box=abs(p-float2(0,.3))-float2(.62,.28);
+    float sd=length(max(box,0.0))+min(max(box.x,box.y),0.0);
+    // Broad photographic softboxes remain continuous under the small angular
+    // quantization of a raster-derived normal field.
+    float soft=.14+roughness*.35;
+    env+=float3(2.9,2.87,2.82)*(1.0-smoothstep(-soft*.6,soft,sd))*facing;
+    env*=mix(1.0,.12,smoothstep(.5,.92,abs(r.x)));
+    env+=warm*exp(-pow(max(sd,0.0)/(.11+roughness*.08),2.0))*smoothstep(-.10,.18,sd)*.28*facing;
+    box=abs(p-float2(0,-.78))-float2(.7,.045);
+    sd=length(max(box,0.0))+min(max(box.x,box.y),0.0);
+    env+=float3(.58,.66,.82)*(1.0-smoothstep(-soft*.6,soft,sd))*facing;
+    float strip=exp(-pow((dot(r,normalize(float3(.65,.7,-.15)))-.42)/(.11+roughness*.16),2.0));
+    return env+float3(1.35,1.45,1.6)*strip;
+}
+float3 surfaceNormal(float2 p,float2 uv,float s,float t,float phase,float fold) {
+    // GB is prefiltered once in the cached glyph field. One sample gives a
+    // smooth bevel normal without blurring font coverage or paying extra taps
+    // for every output pixel and frame. R retains the exact signed distance.
+    half4 field=uField.eval(p);
+    float d=(float(field.r)-.5)*2.0*uDistanceRange;
+    float2 grad=float2(field.gb)*2.0-1.0;
+    grad/=max(length(grad),.001);
+    float f=clamp(max(d,0.0)/(2.4*s),0.0,1.0);
+    // A continuously rounded fillet avoids a flat machined facet whose entire
+    // width flips light/dark under tiny normal changes along diagonal edges.
+    float slope=.66*cos(f*1.5707963);
+    float3 n=float3(-grad*slope,-sqrt(max(.001,1.0-slope*slope)));
+    // Broad curvature continues across the front face: reflected flags describe
+    // a solid object rather than a flat gradient pasted inside a text mask.
+    n.xy+=float2(sin(uv.x*3.5+uv.y*1.3+phase)*.13,
+                  sin(uv.y*5.8+uv.x*.7+t*.63+phase)*.18)*fold;
+    return normalize(n);
+}
+float3 litMetal(float2 p,float3 tint,float roughness,float fold,float phase) {
+    if(glyph(p)<.001) return float3(0);
+    float h=uWordSize.y,s=max(h/210.0,.45);
+    float2 uv=(p-iResolution.xy*.5)/h;
+    float3 n=surfaceNormal(p,uv,s,uLightAge,phase,fold);
+    float3 view=normalize(float3(uv*.045,1.0));
+    float3 r=reflect(view,n);
+    r.xy=turn(float2(r.x,-r.y),-.34+.13*sin(uLightAge*.75+phase));
+    r.yz=turn(r.yz,.20+.16*sin(uLightAge*.56+phase*.3));
+    float3 env=studioRadiance(r,roughness);
+    // A broad black studio flag crosses the curved front, separating polished
+    // highlights from reflected darkness even when a letter has a wide flat face.
+    float flag=.05+.95*smoothstep(-.60,.60,sin(r.y*6.0+r.x*1.8+phase*.17));
+    env*=flag;
+    // A long reflected dark flag sweeps the front independently of the narrow
+    // bevel. This supplies real light/dark separation instead of a uniformly
+    // white plate when a low-curvature material faces the camera directly.
+    float plate=sin(uv.y*6.2+uv.x*1.1+phase*.31+uLightAge*.48);
+    float frontFlag=.045+.955*smoothstep(-.35,.45,plate);
+    env*=mix(1.0,frontFlag,(1.0-roughness)*.88);
+    float fresnel=pow(1.0-max(-dot(n,view),0.0),4.0);
+    float3 radiance=env*(tint*.86+.09)+float3(.055,.061,.078);
+    radiance+=env*.18*fresnel;
+    float3 color=displayRadiance(radiance);
+    // Controlled reflected bounce keeps even the short words readable over film.
+    return .18+.82*color;
+}
+float3 sphereLight(float2 q,float radius,float3 tint) {
+    float2 xy=q/max(radius,1.0);
+    float z=sqrt(max(0.0,1.0-dot(xy,xy)));
+    float3 n=normalize(float3(xy,-z));
+    float diffuse=max(dot(n,normalize(float3(-.4,-.6,-1))),0.0);
+    float spec=pow(max(dot(n,normalize(float3(-.35,-.55,-1))),0.0),24.0);
+    return displayRadiance(tint*(.06+diffuse*.6)+float3(1.4)*spec);
+}
+float softStar(float2 p,float radius) {
+    float2 q=p/max(radius,1.0);
+    float core=exp(-dot(q,q)*40.0);
+    float rays=exp(-abs(q.x)*2.5-abs(q.y)*35.0)+exp(-abs(q.y)*5.0-abs(q.x)*35.0);
+    return clamp(core+rays*.65,0.0,1.0)*(1.0-smoothstep(.8,1.8,length(q)));
+}
+float bloomLine(float d,float width) { return exp(-abs(d)/width); }
+// The cached SDF saturates at -uDistanceRange outside its narrow band. Never
+// interpret that sentinel as a real contour, especially on giant hero glyphs.
+float sdfGlow(float distance,float offset,float width) {
+    float support=smoothstep(-uDistanceRange+.5,-uDistanceRange+3.0,distance);
+    return bloomLine(distance+min(offset,uDistanceRange-5.0),width)*support;
+}
+
+// V6 material library. The exact glyph is retained; only radiance and a narrow
+// field around its edge change. These are optical materials, not toy ornaments.
+float sweepLight(float2 uv,float time,float phase,float width) {
+    float x=uv.x*.48+uv.y*.85-sin(time*.72+phase)*.62;
+    return exp(-x*x/(width*width));
+}
+float cellularStars(float2 p,float depth,float time) {
+    p=p*depth+float2(time*.11,-time*.04);
+    float2 cell=floor(p),q=fract(p)-.5;
+    float seed=hash(cell+depth);
+    float r=dot(q,q);
+    return step(.965,seed)*exp(-r*(150.0+seed*210.0))*(.65+.35*sin(seed*29.0+time));
+}
+float opticalEdge(float d,float2 uv,float time,float phase) {
+    float scan=.28+.72*pow(.5+.5*sin(uv.x*4.1+uv.y*5.0-time*2.6+phase),5.0);
+    return sdfGlow(d,7.0+min(uWordSize.y/210.0,3.0),.85)*scan;
+}
+float3 restrainedSpectrum(float phase) {
+    return mix(float3(.42,.68,.88),float3(.96,.79,.58),.5+.5*sin(phase));
+}
+
+half4 directedWord(float2 coord) {
+    float tail=clamp(uTail,0.0,1.0),life=1.0-tail*mix(.72,1.0,uHero);
+    float h=uWordSize.y,s=max(h/210.0,.45),t=uLightAge;
+    float phase=uVariation*6.283185+uSeed*.031;
+    float2 center=iResolution.xy*.5,local=coord-center,uv=local/h;
+    float d=distanceAt(coord);
+    // The SDF is a narrow band, never an infinite shape. Far transparent pixels
+    // need neither material noise nor fake saturated-distance contours.
+    if(d < -uDistanceRange+1.0) return half4(0);
+    float actual=glyph(coord);
+    float3 face=float3(.86),edgeColor=float3(.61,.79,.94);
+    float4 back=float4(0);
+    float3 titanium=float3(.68,.78,.90);
+
+    // 0 — PLASMA SHEATH. A film of advected combustion follows the real outline.
+    // A white-hot filament, carbon-blue body and sparse orange thermal fractures
+    // replace the cartoon flame crown. Intensity is spatial, never a global flash.
+    if(uEffect<.5) {
+        float2 q=uv*7.0+float2(phase,-t*1.7);
+        float curl=cloud(q+float2(noise(q*.6+t*.17),noise(q*.7+4.0))*2.0);
+        float flame=cloud(uv*float2(13.0,5.0)+float2(phase+t*.27,-t*3.5));
+        float sheath=exp(-abs(d+5.0*s+curl*9.0*s)/(1.2*s+.7));
+        float heat=pow(smoothstep(.25,.85,flame),1.5);
+        float glow=sdfGlow(d,6.0*s,6.0*s)*(.2+.6*heat);
+        back=paint(back,glow*.42,float3(.18,.39,.64));
+        back=paint(back,sheath*(.35+.65*heat),mix(float3(.35,.64,.90),float3(1.0,.72,.34),heat));
+        float filament=sdfGlow(d,2.2*s,.65*s)*(.38+.62*heat);
+        back=paint(back,filament,float3(.91,.96,1.0));
+        face=litMetal(coord,titanium,.19,.75,phase)*.55+float3(.055,.085,.13);
+        float fracture=exp(-abs(curl-.49)*64.0);
+        float thermal=sweepLight(uv,t,phase,.13);
+        face=face*(.86+.14*curl);
+        face=mix(face,float3(.98,.64,.25),fracture*(.45+.55*heat));
+        face+=pow(fracture,2.0)*float3(.16,.18,.19);
+        face+=thermal*float3(.14,.21,.27);
+        edgeColor=mix(float3(.52,.74,.94),float3(.97,.64,.28),heat);
+    }
+    // 1 — DEEP FIELD. Independently drifting nebular layers and sparse pinpoints
+    // live under the glass face. There are no decorative stars outside the word.
+    else if(uEffect<1.5) {
+        float mist=cloud(uv*4.0+float2(t*.13,phase));
+        float deeper=cloud(uv*7.5+float2(-t*.08,phase+mist*1.7));
+        face=litMetal(coord,float3(.48,.66,.86),.18,.65,phase);
+        face=face*(.46+.34*mist)+float3(.04,.075,.12);
+        float seam=exp(-abs(mist+deeper*.32-.65)*18.0);
+        face+=seam*float3(.16,.32,.44);
+        face+=float3(.45,.54,.61)*(cellularStars(uv,26.0,t)+cellularStars(uv,47.0,-t*.7)*.5);
+        float halo=sdfGlow(d,3.0*s,2.0*s)*(.2+.4*deeper);
+        back=paint(back,halo,float3(.22,.47,.72));
+    }
+    // 2 — DIFFRACTION. Fine coherent wave intersections travel through silver.
+    // Their caustic bands are continuous and stay inside the actual typography.
+    else if(uEffect<2.5) {
+        float a=sin(uv.x*15.0+uv.y*6.0-t*1.7+phase);
+        float b=sin(uv.y*18.0-uv.x*3.0+t*.95);
+        float caustic=exp(-abs(a+b*.63)*19.0);
+        face=litMetal(coord,float3(.78,.86,.93),.12,.25,phase);
+        face*=.78+.22*smoothstep(-.5,.7,a*b);
+        face+=caustic*float3(.24,.29,.32);
+        back=paint(back,sdfGlow(d,4.5*s,.8*s)*(.3+.6*caustic),float3(.81,.89,.96));
+    }
+    // 3 — LASER ETCH. Two hairline construction contours reveal with a measured
+    // moving light, leaving a clean matte face and sharp architectural silhouette.
+    else if(uEffect<3.5) {
+        face=litMetal(coord,float3(.89,.91,.93),.65,.10,phase);
+        float scan=.5+.5*sin(uv.x*2.0-t*2.2+phase);
+        float reveal=smoothstep(.22,.72,scan);
+        back=paint(back,sdfGlow(d,4.0*s,.65*s)*reveal,float3(.90,.94,.97));
+        back=paint(back,sdfGlow(d,11.0*s,.55*s)*(.18+.58*reveal),float3(.39,.63,.80));
+        face+=sweepLight(uv,t*1.5,phase,.035)*.16;
+    }
+    // 4 — GRAVITATIONAL INTERFERENCE. The slowly moving origin bends wavefronts
+    // through the face. No objects bounce and the complete word remains fixed.
+    else if(uEffect<4.5) {
+        float2 lens=uv-float2(sin(t*.5+phase)*.55,cos(t*.43+phase)*.12);
+        float radius=length(lens*float2(.75,1.5));
+        float warp=1.0/(.2+radius);
+        float waves=sin(radius*24.0-warp*2.2-t*2.0);
+        float caustic=pow(.5+.5*waves,12.0);
+        face=litMetal(coord,float3(.72,.81,.89),.18,.20,phase+warp*.07);
+        face=face*(.83+.17*waves)+caustic*float3(.14,.19,.23);
+        back=paint(back,sdfGlow(d,4.0*s+caustic*3.0*s,.7*s)*.6,float3(.60,.78,.91));
+    }
+    // 5 — DISCHARGE. Branching field lines and fine edge arcs, driven by a
+    // continuously moving flow field rather than whole-word jitter or flicker.
+    else if(uEffect<5.5) {
+        float flow=noise(float2(uv.y*5.0+t*.8,phase))*2.4;
+        float branch=sin(uv.x*16.0+flow+sin(uv.y*12.0-t*2.0)*.6);
+        float arc=exp(-abs(branch)*42.0);
+        float energy=.6+.4*noise(float2(t*2.0,phase));
+        face=litMetal(coord,float3(.60,.77,.91),.25,.15,phase);
+        face+=arc*energy*float3(.20,.29,.35);
+        float contour=sdfGlow(d,5.0*s+noise(uv*9.0+t)*3.0*s,.7*s);
+        back=paint(back,contour*(.45+.55*arc),float3(.60,.82,1.0));
+        back=paint(back,sdfGlow(d,3.0*s,3.0*s)*arc*.3,float3(.16,.35,.58));
+    }
+    // 6 — LIGHT SHEAR. A narrow slanted exposure crosses a brushed surface;
+    // displaced exterior contour lines describe optical dispersion, not orbiting dots.
+    else if(uEffect<6.5) {
+        float sweep=sweepLight(uv,t*1.2,phase,.08);
+        face=litMetal(coord,float3(.76,.84,.90),.40,.10,phase);
+        face=face*(.91+.09*sin(coord.y/(1.3*s)))+sweep*float3(.23,.27,.30);
+        float shifted=distanceAt(coord+float2(2.5,-.7)*s);
+        back=paint(back,sdfGlow(shifted,6.0*s,.75*s)*(.20+.75*sweep),float3(.64,.81,.94));
+    }
+    // 7 — MERCURY. Moving normal ripples bend a broad reflected light. The alpha
+    // edge never swims, so flowing fluid can be used on short spoken words too.
+    else if(uEffect<7.5) {
+        float liquid=sin(uv.y*11.0+sin(uv.x*5.0+t*.8)*1.6-t*1.65+phase);
+        float ripple=cos(uv.x*9.0-uv.y*4.0+t*.6+phase);
+        face=litMetal(coord,float3(.70,.85,.90),.07,.72,phase+liquid*.18);
+        face*=.77+.23*smoothstep(-.6,.7,liquid);
+        face+=pow(.5+.5*sin(liquid*3.0+ripple),10.0)*float3(.23,.28,.30);
+        back=paint(back,sdfGlow(d,4.0*s+liquid*1.2*s,.85*s)*(.4+.3*ripple),float3(.53,.76,.86));
+    }
+    // 8 — SPECTRAL FRACTURE. Angular internal planes refract soft light. All
+    // fragments remain part of the word, with no confetti emitted into the shot.
+    else if(uEffect<8.5) {
+        float2 grid=uv*float2(8.0,12.0);
+        float facet=noise(floor(grid)+phase);
+        float plane=fract(grid.x+grid.y*.63+facet*.3);
+        float seam=exp(-min(plane,1.0-plane)*55.0);
+        face=litMetal(coord,float3(.73,.81,.90),.18,.15,phase+facet*.9);
+        face*=.76+.24*smoothstep(.0,1.0,facet);
+        face+=seam*(.12+.16*sin(t*1.4+facet*6.0))*float3(.70,.84,.94);
+        back=paint(back,sdfGlow(d,5.0*s,.7*s)*(.25+.55*sin(t+phase+uv.x*3.0)*sin(t+phase+uv.x*3.0)),float3(.68,.82,.94));
+    }
+    // 9 — SCAN GLASS. A luminous scan plane rolls through thin optical layers.
+    // Microscopic interference remains local; no RGB glitch breaks the letters.
+    else if(uEffect<9.5) {
+        float scan=sweepLight(uv,t*.9,phase,.055);
+        float lines=.94+.06*sin(coord.y/(.75*s)+t*2.5);
+        face=litMetal(coord,float3(.55,.73,.88),.14,.24,phase)*lines;
+        face+=scan*float3(.22,.29,.34);
+        back=paint(back,sdfGlow(d,4.0*s,.65*s)*(.30+.70*scan),float3(.72,.88,1.0));
+        back=paint(back,sdfGlow(d,10.0*s,.55*s)*(.12+.40*scan),float3(.32,.57,.77));
+    }
+    // 10 — TOPOGRAPHIC ENGRAVING. Concentric, measured surface lines are carved
+    // into a ceramic plate and picked out by a raking white light.
+    else if(uEffect<10.5) {
+        float terrain=cloud(uv*5.0+float2(phase,t*.06));
+        float contour=pow(.5+.5*cos(terrain*77.0),22.0);
+        face=litMetal(coord,float3(.90,.90,.86),.74,.08,phase);
+        face*=1.0-contour*.18;
+        face+=sweepLight(uv,t,phase,.12)*contour*.20;
+        back=paint(back,sdfGlow(d,4.5*s,.7*s)*(.3+.5*sweepLight(uv,t,phase,.35)),float3(.82,.88,.91));
+    }
+    // 11 — WAVEFRONT. Coherent pressure fronts pass through the metal while
+    // only their near-field energy escapes the edges.
+    else if(uEffect<11.5) {
+        float radius=length(uv-float2(sin(phase)*.6,-.3));
+        float wave=sin(radius*23.0-t*3.1+phase);
+        float crest=pow(.5+.5*wave,18.0);
+        face=litMetal(coord,float3(.73,.83,.91),.16,.25,phase);
+        face*=.86+.14*wave;
+        face+=crest*float3(.18,.24,.28);
+        back=paint(back,sdfGlow(d,4.0*s+crest*4.0*s,.8*s)*(.25+.7*crest),float3(.59,.80,.94));
+    }
+    // 12 — LUNAR QUARTZ. A restrained machined rim encloses stratified optical
+    // depth. A broad light-sheet exposes fine lunar-like striations under the face.
+    else if(uEffect<12.5) {
+        float strata=cloud(uv*float2(5.0,16.0)+float2(phase,-t*.10));
+        float refract=sin(uv.y*12.0+strata*3.0+sin(uv.x*4.0+t*.3));
+        float sheet=sweepLight(uv,t*.85,phase*.35,.11);
+        float reflected=sin(uv.y*5.8+uv.x*1.0+strata*.30+t*.30+phase*.16);
+        float reflectedBand=smoothstep(-.38,.42,reflected);
+        float3 opticalBase=mix(float3(.25,.34,.43),float3(.70,.82,.90),reflectedBand);
+        face=opticalBase*.68+litMetal(coord,float3(.68,.82,.94),.075,1.15,phase*.35)*.32;
+        face*=.86+.14*smoothstep(-.6,.7,refract);
+        face+=sheet*float3(.30,.34,.38);
+        face+=pow(.5+.5*refract,16.0)*float3(.10,.18,.25);
+        face+=exp(-max(d-1.1*s,0.0)/(1.1*s))*float3(.20,.23,.25);
+        back=paint(back,sdfGlow(d,3.0*s,1.2*s)*(.20+.55*sheet),float3(.53,.74,.90));
+        back=paint(back,sdfGlow(d,9.0*s,.65*s)*(.15+.60*sheet),float3(.81,.89,.94));
+    }
+    // 13 — CRYSTAL. Fine branching mineral veins and diffuse internal refraction;
+    // no snowflakes or falling glass diamonds.
+    else if(uEffect<13.5) {
+        float warp=noise(float2(uv.y*7.0+t*.12,phase))*3.0;
+        float a=sin(uv.x*18.0+warp),b=sin(uv.y*13.0+uv.x*8.0+phase);
+        float veins=exp(-abs(a+b*.27)*35.0);
+        face=litMetal(coord,float3(.67,.84,.93),.34,.18,phase);
+        face*=.82+.18*noise(uv*8.0+phase);
+        face+=veins*float3(.22,.28,.31);
+        back=paint(back,sdfGlow(d,4.0*s,.9*s)*(.25+.65*veins),float3(.58,.81,.96));
+    }
+    // 14 — POLARIZED FILM. Narrow-band blue/amber interference is part of the
+    // surface response; thin reflected contours remain anchored to the lettering.
+    else if(uEffect<14.5) {
+        float bands=sin(uv.x*6.0+uv.y*9.0+sin(uv.x*2.0+t*.5)+phase-t*.65);
+        float3 tint=restrainedSpectrum(bands*1.4+phase*.3);
+        face=litMetal(coord,mix(float3(.75,.82,.87),tint,.4),.18,.22,phase);
+        face+=pow(.5+.5*bands,18.0)*tint*.24;
+        back=paint(back,sdfGlow(d,4.0*s+bands*.8*s,.7*s)*(.30+.50*pow(.5+.5*bands,3.0)),tint);
+    }
+    // 15 — PLATINUM HORIZON. A pale final object with one warm horizon reflected
+    // through it. The held word breathes with a slow light field, without glitter.
+    else {
+        float horizon=uv.y*.8+uv.x*.12-.10*sin(t*.45+phase*.15);
+        float line=exp(-horizon*horizon/.0018);
+        float transition=smoothstep(-.16,.16,horizon);
+        float3 horizonMetal=mix(float3(.27,.34,.40),float3(.80,.85,.87),transition);
+        face=horizonMetal*.76+litMetal(coord,float3(.80,.87,.90),.12,.85,phase*.15)*.24;
+        face+=line*float3(.30,.25,.16);
+        float light=sweepLight(uv,t*.55,phase*.15,.16);
+        face+=light*.11;
+        face+=exp(-max(d-1.1*s,0.0)/(1.1*s))*float3(.18,.21,.23);
+        edgeColor=mix(float3(.63,.79,.88),float3(.95,.81,.59),line);
+        back=paint(back,sdfGlow(d,3.5*s,.9*s)*(.22+.68*line),edgeColor);
+        back=paint(back,sdfGlow(d,10.0*s,.65*s)*(.18+.45*light),float3(.76,.85,.91));
+    }
+
+    // A shared precision rim travels around the true outline. Its finite support
+    // preserves counters and gives each optical material a small near-field presence.
+    back=paint(back,opticalEdge(d,uv,t,phase)*.70,edgeColor);
+    float shadow=smoothstep(-2.8*s,.5*s,distanceAt(coord-float2(.8,1.4)*s))*.42*(1.0-actual);
+    back=paint(back,shadow,float3(.008,.012,.018));
+    float keyline=smoothstep(-.85*s,-.1*s,d);
+    float4 result=paint(back,keyline,float3(.018,.026,.036));
+    // A light material floor keeps very short connectors legible without flattening
+    // the specular structures. Glyph alpha is never eroded by the material.
+    result=paint(result,actual,clamp(max(face,float3(.34)),0.0,1.0));
+    return half4(result*life);
+}
+
+half4 main(float2 coord) {
+    if (uDirected>0.5) return directedWord(coord);
+    float2 uv=coord/iResolution.xy;
+    float enter=1.0-smoothstep(0.0,0.22,uProgress);
+    float tail=clamp(uTail,0.0,1.0);
+    half3 ivory=half3(1.0,0.98,0.90);
+    half3 cyan=half3(0.25,0.93,1.0);
+    half3 amber=half3(1.0,0.54,0.18);
+    float trace=1.0-tail*0.72;
+
+    // Liquid: both letter contours and their specular bands undulate.
+    if (uEffect<0.5) {
+        float amplitude=(4.0+enter*22.0+tail*28.0)*(iResolution.y/300.0);
+        float2 warp=float2(sin(coord.y*0.050-uAge*17.0+uSeed),
+                          sin(coord.x*0.027+uAge*10.0+sin(coord.y*0.031)));
+        float2 p=coord+warp*amplitude;
+        p.y += tail*18.0;
+        float a=glyph(p);
+        float ridge=0.5+0.5*sin(coord.y*0.043+warp.x*1.4-uAge*4.0);
+        half3 color=mix(cyan,ivory,smoothstep(0.15,0.75,ridge));
+        float shine=max(0.0,glyph(p+float2(0,2.0))-glyph(p+float2(0,-2.0)));
+        color=mix(color,half3(1.0),shine);
+        return colored(a*trace,color);
+    }
+
+    // Digital: separate color channels and shear only selected horizontal rows.
+    if (uEffect<1.5) {
+        float row=floor(coord.y/10.0);
+        float tick=floor(uAge*24.0);
+        float h=hash(float2(row,tick));
+        float burst=max(enter,step(0.88,h)*0.45)+tail;
+        float dx=(h-0.5)*52.0*burst;
+        float2 p=coord+float2(dx,0.0);
+        float split=2.0+burst*8.0;
+        float ar=glyph(p+float2(split,0));
+        float ag=glyph(p);
+        float ab=glyph(p-float2(split,0));
+        float scan=0.87+0.13*step(1.0,mod(coord.y,4.0));
+        float alpha=max(ar,max(ag,ab))*scan*trace;
+        half3 color=half3(ar,ag,ab)*scan*trace;
+        return half4(min(color,half3(alpha)),alpha);
+    }
+
+    // Pixel materialization: coarse fragments become crisp glyphs during the readable hold.
+    if (uEffect<2.5) {
+        float block=1.0+floor(enter*13.0+tail*10.0);
+        float2 cell=floor(coord/block);
+        float2 p=(cell+0.5)*block;
+        float n=hash(floor(coord/8.0));
+        float reveal=smoothstep(0.0,0.22,uProgress);
+        float visible=step(n,reveal)*(1.0-step(1.0-tail,n));
+        float a=glyph(p)*visible;
+        half3 color=mix(cyan,ivory,reveal);
+        return colored(a,color);
+    }
+
+    // Dust: the same tiled noise erodes the glyph and advects its remaining fragments.
+    if (uEffect<3.5) {
+        float erosion=max(tail,smoothstep(0.78,1.0,uProgress)*0.26);
+        float2 cell=floor(coord/7.0);
+        float n=hash(cell);
+        float2 drift=float2(18.0+hash(cell+5.0)*32.0,-12.0-hash(cell+17.0)*40.0)*erosion;
+        float2 p=coord-drift;
+        float a=glyph(p);
+        float threshold=erosion*1.12;
+        float keep=smoothstep(threshold-0.045,threshold+0.045,n);
+        float edge=1.0-smoothstep(0.0,0.10,abs(n-threshold));
+        half3 color=mix(ivory,amber,edge);
+        a*=keep*(1.0-tail);
+        return colored(a,color);
+    }
+
+    // Hologram: scanning light and a faint offset reconstruction, inside letter silhouettes.
+    if (uEffect<4.5) {
+        float scanY=fract(uAge*1.7+uSeed)*iResolution.y;
+        float scan=exp(-abs(coord.y-scanY)*0.10);
+        float stripe=0.74+0.26*step(1.0,mod(coord.y,4.0));
+        float reveal=smoothstep(0.0,0.18,uProgress);
+        float mask=1.0-smoothstep(reveal,reveal+0.06,1.0-uv.y);
+        float a=glyph(coord)*stripe*mask;
+        float echo=glyph(coord+float2(3.0*sin(uAge*17.0),0.0))*0.15;
+        a=max(a,echo)*trace;
+        return colored(a,mix(cyan,ivory,scan));
+    }
+
+    // Elastic echo: spring-like scale, displaced spectral copies, then a restrained trace.
+    float scale=1.0+0.16*exp(-uAge*20.0)*cos(uAge*28.0);
+    float2 center=iResolution.xy*0.5;
+    float2 p=(coord-center)/scale+center;
+    float separation=enter*15.0+tail*22.0;
+    float a=glyph(p);
+    float ar=glyph(p+float2(separation,-separation*0.22))*0.48;
+    float ab=glyph(p-float2(separation,-separation*0.22))*0.48;
+    float alpha=max(a,max(ar,ab))*trace;
+    half3 color=(ivory*a + half3(1.0,0.23,0.49)*ar + cyan*ab)*trace;
+    return half4(min(color,half3(alpha)),alpha);
+}

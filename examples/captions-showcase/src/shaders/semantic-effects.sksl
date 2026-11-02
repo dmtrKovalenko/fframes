@@ -1,0 +1,199 @@
+// Semantic caption transformations. Original shader implementations inspired by
+// the structural reveal of Wide Open, coherent transport in Max Cooper's Waves /
+// onformative's IBM FLUX, and photoelastic visualizations of loaded structures.
+// These are authored analytic fields, not a physical simulation or copied film.
+// Every silhouette, counter and boundary comes from FFrames' actual glyph raster.
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uEffect;
+uniform float uProgress;
+uniform float uAge;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uSeed;
+uniform float uDirected;
+uniform float uEntrance;
+uniform float uHero;
+uniform float uWarm;
+uniform float uVariation;
+uniform float uDistanceRange;
+uniform float2 uWordSize;
+uniform float uPadding;
+
+float glyph(float2 p) {
+    if(p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return 0.0;
+    return float(uGlyph.eval(p).a);
+}
+float distanceAt(float2 p) {
+    if(p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return -uDistanceRange;
+    return (float(uField.eval(p).r)-.5)*2.0*uDistanceRange;
+}
+float2 gradientAt(float2 p) {
+    float2 g=float2(uField.eval(p).gb)*2.0-1.0;
+    return g/max(length(g),.001);
+}
+float hash(float2 p) {
+    float3 q=fract(float3(p.xyx)*.1031);
+    q+=dot(q,q.yzx+33.33+uSeed*.001);
+    return fract((q.x+q.y)*q.z);
+}
+float4 over(float4 back,float a,float3 color) {
+    a=clamp(a,0.0,1.0);
+    return float4(clamp(color,0.0,1.0)*a,a)+back*(1.0-a);
+}
+float band(float d,float center,float width) {
+    float support=smoothstep(-uDistanceRange+.5,-uDistanceRange+2.5,d);
+    return exp(-abs(d-center)/max(width,.1))*support;
+}
+
+// Triangulated structural cells. Three rod directions and small, lit nodes make
+// an actual open structure rather than a grid painted on a solid letter.
+float trussDistance(float2 p,float cell) {
+    float2 q=mod(p+cell*.5,cell)-cell*.5;
+    float vertical=abs(q.x);
+    float horizontal=abs(q.y);
+    float diagonal=abs(q.x-q.y)*.70710678;
+    return min(min(vertical,horizontal),diagonal);
+}
+float truss(float2 p,float cell,float radius) {
+    return 1.0-smoothstep(radius-.55,radius+.55,trussDistance(p,cell));
+}
+float3 rodLight(float2 p,float cell,float radius,float depth,float phase) {
+    float d=trussDistance(p,cell);
+    float roundness=sqrt(max(0.0,1.0-pow(clamp(d/max(radius,.1),0.0,1.0),2.0)));
+    float along=.80+.20*sin((p.x+p.y)/cell*.55+phase);
+    float light=(.34+.66*roundness)*along;
+    return mix(float3(.30,.39,.43),float3(.91,.91,.84),light)*depth;
+}
+
+half4 main(float2 coord) {
+    float h=uWordSize.y,s=max(h/210.0,.42),t=uLightAge;
+    float phase=uVariation*6.283185;
+    float2 uv=(coord-iResolution.xy*.5)/h;
+    float d=distanceAt(coord),a=glyph(coord),tail=clamp(uTail,0.0,1.0);
+    float4 result=float4(0);
+
+    // 22 LATTICE — a solid ivory object opens into an engineered cellular body.
+    // Front, middle and rear trusses have distinct projected depth and occlude
+    // one another. Its true glyph boundary stays continuous through the reveal.
+    if(uEffect<.5) {
+        if(d < -uDistanceRange+1.0) return half4(0);
+        // Readable primary bays, about40px at260px type. The foreground rods
+        // carry the silhouette; finer structure is subordinate to this scaffold.
+        float cell=32.0*s;
+        float radius=1.45*s+.45;
+        float rearCell=cell*1.90,middleCell=cell*1.50;
+        float2 p=coord-uPadding;
+        // Perspective shifts the rear structure smoothly by a few pixels; the
+        // front frame stays fixed, so the open holes expose changing parallax.
+        float2 depth=float2(7.5+1.8*sin(t*.72+phase),5.2+.8*cos(t*.65+phase))*s;
+        depth=min(depth,float2(18.0,14.0));
+        float2 front=p;
+        float2 middle=p-depth*.5;
+        float2 rear=p-depth;
+        float3 solid=float3(.91,.90,.83);
+        float reveal=smoothstep(.08,.70,t);
+        float x=(coord.x-uPadding)/max(uWordSize.x,1.0);
+        float opening=smoothstep(x-.16,x+.16,reveal*1.35-.12);
+        // Keep solid for the first spoken frames; opening then travels through
+        // the letters as one causal operation, not unrelated random erasures.
+        float face=a*(1.0-opening);
+        // Keep depth inside the front silhouette so the outer frame never turns
+        // into three competing outlines when the film is viewed at a small size.
+        float backMask=glyph(coord-depth)*a;
+        float middleMask=glyph(coord-depth*.5)*a;
+        float rearRod=truss(rear+cell*.21,rearCell,radius*.65)*backMask;
+        float middleRod=truss(middle+float2(cell*.43,0),middleCell,radius*.70)*middleMask;
+        float frontRod=truss(front,cell,radius)*a;
+        float frameWidth=clamp(2.5*s,2.2,4.0);
+        float boundary=a*(1.0-smoothstep(frameWidth-.65,frameWidth+.65,max(d,0.0)));
+        // First expose the main load-bearing frame. Secondary inner braces
+        // resolve afterwards at reduced opacity, rather than appearing as hatch.
+        float secondary=smoothstep(.22,.64,t)*smoothstep(.40,1.0,opening);
+        // Dark rear cavities make the depth readable over bright launch footage;
+        // most cell centers are genuinely open to the underlying image.
+        result=over(result,a*opening*.10,float3(.015,.025,.032));
+        result=over(result,rearRod*secondary*.28,rodLight(rear+cell*.21,rearCell,radius,.48,phase));
+        result=over(result,middleRod*secondary*.36,rodLight(middle+float2(cell*.43,0),middleCell,radius,.69,phase));
+        // Small connectors between projected layers make each triangle a volume.
+        float connector=truss(p-depth*.25+cell*.10,cell*2.0,radius*.65)*a*.12;
+        result=over(result,connector*secondary,float3(.60,.72,.77));
+        result=over(result,frontRod*opening,rodLight(front,cell,radius,1.0,phase));
+        result=over(result,face,solid);
+        result=over(result,boundary,solid);
+        // A measured blue inspection light crosses the exposed structure once.
+        float scan=exp(-pow((x-fract(t*.24+phase*.03))/.045,2.0));
+        result=over(result,(frontRod+boundary)*scan*opening*.34,float3(.56,.83,.93));
+        result=over(result,band(d,-.8*s,.65*s)*.64,float3(.09,.14,.18));
+    }
+    // 23 FLUX — propagating packets carry energy across a stationary field.
+    // Flow follows a broad traveling wave and bends around the actual glyph
+    // boundary. Bright crests and short particle trains share that same phase.
+    else if(uEffect<1.5) {
+        if(d < -uDistanceRange+1.0) return half4(0);
+        float2 grad=gradientAt(coord),tangent=float2(-grad.y,grad.x);
+        float boundaryWeight=1.0-smoothstep(2.0*s,17.0*s,max(d,0.0));
+        float arc=uv.x+.22*sin(uv.y*3.6+phase)+boundaryWeight*.045*dot(tangent,float2(1,.7));
+        float wave=sin(arc*10.0-t*4.8+phase);
+        float packet=pow(.5+.5*wave,5.0);
+        float carrier=uv.y*37.0+sin(uv.x*4.0-t*.72+phase)*2.2;
+        carrier+=boundaryWeight*dot(grad,float2(1.4,-.9));
+        float filament=exp(-abs(sin(carrier))*10.0);
+        float standing=pow(.5+.5*sin(uv.y*12.0+phase)*cos(uv.x*7.0),4.0);
+        float3 face=mix(float3(.13,.28,.34),float3(.34,.54,.57),standing);
+        face+=packet*float3(.15,.25,.25);
+        face+=filament*(.32+.68*packet)*float3(.30,.57,.55);
+        // Points remain spatially organized; only their carrier phase advances.
+        float pulse=pow(.5+.5*sin(arc*68.0-t*13.0+phase),16.0)*filament;
+        face+=pulse*packet*float3(.65,.61,.43);
+        float exterior=band(d,-3.5*s,1.1*s)*packet;
+        result=over(result,exterior*.75,float3(.48,.85,.81));
+        result=over(result,band(d,-8.0*s,3.0*s)*packet*.18,float3(.17,.46,.52));
+        result=over(result,smoothstep(-1.8*s,-.1*s,d),float3(.014,.031,.037));
+        // A neutral face at onset becomes the field; never flash an empty word.
+        float developed=smoothstep(.0,.24,t);
+        result=over(result,a,mix(float3(.83,.91,.88),face,developed));
+        result=over(result,a*band(d,.75*s,.70*s)*.88,float3(.83,.94,.90));
+        result=over(result,a*filament*pulse*packet*.44,float3(1.0,.87,.57));
+    }
+    // 24 STRESS — a loaded plate flexes coherently while analytic strain bands
+    // expose internal structure. The dark blue / amber photoelastic response is
+    // shared across the word, not independent noisy textures on each letter.
+    else {
+        float x=(coord.x-uPadding)/max(uWordSize.x,1.0)*2.0-1.0;
+        float load=smoothstep(0.0,.26,t)*(.82+.18*sin(t*1.2+phase));
+        float beam=max(0.0,1.0-x*x);
+        float travel=sin(x*3.5-t*2.5+phase)*.30;
+        float deflection=min(10.0*s,24.0)*beam*load;
+        float shear=min(3.0*s,8.0)*load*sin(uv.y*4.0+x*2.5);
+        float2 p=coord+float2(shear,-deflection*(.78+travel));
+        float actual=glyph(p),dist=distanceAt(p);
+        if(dist < -uDistanceRange+1.0) return half4(0);
+        float2 grad=gradientAt(p);
+        float boundary=1.0-smoothstep(0.0,11.0*s,max(dist,0.0));
+        // Bending and local boundary direction form one smooth strain field.
+        float strain=beam*(.70+.30*cos(uv.y*3.0))+uv.y*.30;
+        strain+=sin(x*4.0+uv.y*2.4-t*.45+phase)*.16;
+        strain+=boundary*(grad.x*.13-grad.y*.09);
+        float iso=sin(strain*25.0-load*4.0);
+        float darkBand=smoothstep(-.75,-.28,iso);
+        float3 face=mix(float3(.19,.29,.40),float3(.63,.75,.80),darkBand);
+        float hot=exp(-abs(iso-.20)*20.0);
+        face=mix(face,float3(.98,.66,.34),hot*.78);
+        float highlight=pow(.5+.5*cos(strain*13.0+phase),8.0);
+        face+=highlight*float3(.10,.13,.14);
+        // Thin fracture-like interfaces are tied to the strain gradient; all
+        // remain in the body. No random shards or confetti are emitted.
+        float facets=abs(fract(strain*8.0+uv.x*.9)-.5);
+        face+=exp(-facets*100.0)*float3(.12,.17,.20)*load;
+        float onset=smoothstep(0.0,.22,t);
+        face=mix(float3(.90,.90,.84),face,onset);
+        result=over(result,band(dist,-3.0*s,.7*s)*.5,float3(.53,.72,.83));
+        result=over(result,smoothstep(-1.5*s,-.1*s,dist),float3(.018,.027,.035));
+        result=over(result,actual,face);
+        result=over(result,actual*band(dist,.8*s,.8*s)*.86,float3(.88,.94,.94));
+    }
+    return half4(result*(1.0-tail));
+}

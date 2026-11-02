@@ -1,0 +1,221 @@
+// Nebula from shaders.com / Shader Effects Inc. (MIT).
+// Copyright (c) 2026 Shader Effects Inc.
+// Upstream: shader-effects-inc/shaders, commit 9eb037d8db63a0783f67d58ce7291726d698933f.
+// Source recipe: packages/core/src/shaders/Nebula/index.ts and std/paint/volume.ts.
+// Retained: six-sample front-to-back emission/absorption, domain-warped three-octave
+// gas, cavity/ridge/dust terms, two occluded star planes, shell refraction, five-bank
+// studio reflection, dual-lobe glint and neutral tone curve.
+// Adapters: cached flat-font SDF/coverage instead of a sphere; float-only gradient
+// noise and Worley hashes instead of uint MaterialX hashes; linear-sRGB color ramp;
+// glyph-height domain and caption-local time. No numerical pixel-equivalence claim.
+
+// MIT License
+//
+// Copyright (c) 2026 Shader Effects Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float2 uWordSize;
+uniform float uPadding;
+uniform float uDistanceRange;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uVariation;
+uniform float3 uCoreColor;
+uniform float3 uGasColor;
+uniform float3 uVeilColor;
+uniform float uOpticalDepth;
+uniform float uDensity;
+uniform float uCavity;
+uniform float uDust;
+uniform float uGasScale;
+uniform float uBillow;
+uniform float uGlow;
+uniform float uSeed;
+uniform float uStars;
+uniform float uStarScale;
+uniform float uTwinkle;
+uniform float uRefraction;
+uniform float uEnvironment;
+uniform float uHighlight;
+uniform float uHighlightSoftness;
+uniform float uLightAngle;
+uniform float uSpeed;
+
+float3 hash33(float3 p) {
+    p=fract(p*float3(.1031,.1030,.0973));
+    p+=dot(p,p.yxz+33.33);
+    return fract((p.xxy+p.yxx)*p.zyx);
+}
+float hash12(float2 p) {return hash33(float3(p,17.31)).x;}
+float fade(float t) {return t*t*t*(t*(t*6.0-15.0)+10.0);}
+float grad(float3 cell,float3 delta) {
+    return dot(hash33(cell)*2.0-1.0,delta);
+}
+// Quintic gradient-noise interpolation; the seed hash is the ES2 adaptation.
+float gasNoise(float3 p) {
+    float3 cell=floor(p),f=fract(p);
+    float3 u=float3(fade(f.x),fade(f.y),fade(f.z));
+    float a=grad(cell,f),b=grad(cell+float3(1,0,0),f-float3(1,0,0));
+    float c=grad(cell+float3(0,1,0),f-float3(0,1,0));
+    float d=grad(cell+float3(1,1,0),f-float3(1,1,0));
+    float e=grad(cell+float3(0,0,1),f-float3(0,0,1));
+    float g=grad(cell+float3(1,0,1),f-float3(1,0,1));
+    float h=grad(cell+float3(0,1,1),f-float3(0,1,1));
+    float j=grad(cell+float3(1,1,1),f-float3(1,1,1));
+    return mix(mix(mix(a,b,u.x),mix(c,d,u.x),u.y),
+               mix(mix(e,g,u.x),mix(h,j,u.x),u.y),u.z)*.982;
+}
+float surfaceNoise(float2 p) {return gasNoise(float3(p,.371));}
+float3 medium(float3 p,float frequency,float drift,float seed) {
+    float3 q=float3(p.x*frequency+drift+seed,
+        p.y*frequency-drift*.7+seed*.53,
+        p.z*frequency*1.25+drift*1.3+seed*.79);
+    float warp=gasNoise(q*.5+float3(drift*1.4,0,-drift*.9));
+    float3 qw=q+float3(warp,-warp*.73,warp*.41)*(uBillow*.55);
+    float mid=gasNoise(qw*2.13+float3(5.2,1.3,8.4));
+    float fine=gasNoise(qw*4.31+float3(9.1,3.7,1.2));
+    float density=(gasNoise(qw)+mid*.5+fine*.27)*.57;
+    return float3(density,mid,fine);
+}
+float cellDistance(float2 p) {
+    float2 cell=floor(p),f=fract(p);
+    float nearest=10.0;
+    for(int y=-1;y<=1;++y) {
+        for(int x=-1;x<=1;++x) {
+            float2 offset=float2(float(x),float(y));
+            float2 feature=hash33(float3(cell+offset,13.7)).xy;
+            float2 delta=offset+feature-f;
+            nearest=min(nearest,dot(delta,delta));
+        }
+    }
+    return nearest;
+}
+float3 starsAt(float2 p,float time,bool nearPlane) {
+    float variation=surfaceNoise(p*(nearPlane?.11:.13))*.5+.5;
+    float radius=(nearPlane?.003:.004)+variation*(nearPlane?.01:.013);
+    float glint=(1.0-smoothstep(.0005,radius,cellDistance(p)))
+        *smoothstep(nearPlane?.45:.35,nearPlane?.8:.75,variation);
+    float shimmer=1.0-uTwinkle*.5+uTwinkle*.5*sin(time*(nearPlane?2.3:1.7)+variation*(nearPlane?34.0:40.0));
+    float brightness=(nearPlane?.35:.3)+variation*variation*(nearPlane?1.3:1.2);
+    float3 cool=nearPlane?float3(.75,.85,1):float3(.72,.82,1);
+    float3 warm=nearPlane?float3(1,.95,.88):float3(1,.92,.82);
+    return mix(cool,warm,variation)*glint*brightness*shimmer*uStars*(nearPlane?1.8:1.6);
+}
+float softbox(float2 p,float2 center,float radius,float gain) {
+    return (1.0-smoothstep(radius*.2,radius,length(p-center)))*gain*uEnvironment;
+}
+float studio(float2 reflected,float2 rotation) {
+    float2 p=float2(reflected.x*rotation.x-reflected.y*rotation.y,
+                    reflected.x*rotation.y+reflected.y*rotation.x);
+    float sky=smoothstep(-.7,.85,p.y);
+    return sky*sky*.32
+        +softbox(p,float2(0,.55),.2,1.7)
+        +softbox(p,float2(-.55,.18),.23,1.05)
+        +softbox(p,float2(.55,.1),.2,1.0)
+        +softbox(p,float2(.2,-.5),.26,.7)
+        +softbox(p,float2(-.35,-.25),.22,.85);
+}
+float3 neutralTone(float3 color) {
+    float x=min(color.x,min(color.y,color.z));
+    float offset=x<.08?x-6.25*x*x:.04;
+    float3 c=color-offset;
+    float peak=max(c.x,max(c.y,c.z));
+    if(peak<.76) return c;
+    float newPeak=1.0-(.24*.24)/(peak+.24-.76);
+    c*=newPeak/peak;
+    float g=1.0-1.0/(.15*(peak-newPeak)+1.0);
+    return mix(c,float3(newPeak),g);
+}
+float srgb(float value) {
+    value=clamp(value,0.0,1.0);
+    return value<=.0031308?12.92*value:1.055*pow(value,1.0/2.4)-.055;
+}
+half4 main(float2 coord) {
+    float coverage=float(uGlyph.eval(coord).a);
+    if(coverage<=0.0) return half4(0);
+    float4 field=float4(uField.eval(coord));
+    float distance=max((field.r-.5)*2.0*uDistanceRange,0.0);
+    float height=max(uWordSize.y,1.0);
+    float2 centered=(coord-float2(uPadding)-uWordSize*.5)/height;
+    float2 outward=-(field.gb*2.0-1.0);
+    float bevelPixels=min(.09*height,uDistanceRange-2.0);
+    float tilt=min(1.0-clamp(distance/max(bevelPixels,1.0),0.0,1.0),.9995);
+    float3 normal=float3(outward/max(length(outward),.0001)*tilt,-sqrt(max(1.0-tilt*tilt,0.0)));
+    float3 view=normalize(float3(centered*.6,1.0));
+    float2 interior=centered+normal.xy*(uRefraction*.16);
+    // A rounded glyph stem replaces the source sphere's optical chord. Distance
+    // is measured across the same rounded edge used by the shell normal, not
+    // divided by the height of the whole word: that would flatten a thin letter
+    // so much that the source's wall fade suppresses the gas volume entirely.
+    // The half-chord sqrt(1-x*x) closes at the edge and reaches authored optical
+    // depth at the stem centre. This changes depth, never font coverage/counters.
+    float stemRadius=max(bevelPixels,1.0);
+    float radial=1.0-clamp(distance/stemRadius,0.0,1.0);
+    float pathLen=sqrt(max(1.0-radial*radial,0.0))*uOpticalDepth;
+    float time=uLightAge*uSpeed,drift=time*.14,seed=uSeed*7.31;
+    float jitter=hash12(interior*float2(311.7,173.3))*.025;
+    float macro=surfaceNoise(float2(centered.x*1.3+drift*.6+seed*.37,centered.y*1.3+seed*.61))*.5;
+    float cavity=mix(-.35,.5,uCavity);
+    float eGain=.3+pathLen*.9;
+    float aGain=(.5+pathLen*2.2)*uDensity*.5;
+    float3 color=float3(0),transmit=float3(1);
+    for(int i=0;i<6;++i) {
+        float fraction=(float(i)+.5)/6.0;
+        float z=pathLen*(fraction+jitter);
+        float2 pos=interior+view.xy*(.55*z);
+        float3 gas=medium(float3(pos,z),uGasScale*3.1,drift,seed);
+        float wall=smoothstep(0.0,.11,pathLen*min(fraction,1.0-fraction));
+        float ridge=1.0-clamp(abs(gas.z)*1.6,0.0,1.0);
+        float density=smoothstep(0.0,.5,gas.x+macro-cavity)*wall*(.65+ridge*.7);
+        float dust=smoothstep(.45,.75,gas.y)*wall*uDust;
+        float3 ramp=mix(mix(uVeilColor,uGasColor,smoothstep(.05,.75,density)),uCoreColor,smoothstep(.68,1.0,density));
+        float dim=1.0-fraction*.45;
+        float haze=smoothstep(-.7,.3,gas.x)*.05*wall;
+        float3 emit=ramp*density*dim+uCoreColor*pow(density,3.0)*uGlow*1.2*dim+uVeilColor*haze*dim;
+        float3 absorb=float3(density*aGain)+float3(1.5,1.0,.55)*dust*aGain*2.2;
+        color+=emit*transmit*eGain;
+        transmit*=exp(-absorb);
+    }
+    float starFrequency=uStarScale*34.0;
+    float2 far=(interior+view.xy*(.55*pathLen*1.1))*starFrequency;
+    float2 near=(interior+view.xy*(.55*pathLen*.25))*(starFrequency*.56)+float2(7.3,2.9);
+    color+=mix(uVeilColor,uGasColor,.25)*.06*transmit;
+    color+=starsAt(far,time,false)*transmit;
+    color+=starsAt(near,time,true)*mix(transmit,float3(1),.35);
+    float angle=uLightAngle*.017453292519943295;
+    float2 lightDirection=float2(cos(angle),sin(angle));
+    float3 light=normalize(float3(lightDirection,-.7));
+    float3 halfway=normalize(light+float3(0,0,-1));
+    float ndh=clamp(dot(normal,halfway),0.0,1.0);
+    // Source dualLobeGlint: softness widens both lobes while conserving its recipe.
+    float widen=exp2(mix(2.0,-2.0,uHighlightSoftness));
+    float tight=140.0*widen;
+    float broad=22.0*widen;
+    float spec=(pow(ndh,tight)*1.3+pow(ndh,broad)*.14)*uHighlight;
+    color+=float3(.85,.92,1.08)*studio(reflect(view,normal).xy,lightDirection)*.38;
+    color+=float3(1,.98,.95)*spec;
+    color=neutralTone(color);
+    color=float3(srgb(color.r),srgb(color.g),srgb(color.b));
+    float alpha=coverage*(1.0-clamp(uTail,0.0,1.0));
+    return half4(color*alpha,alpha);
+}

@@ -1,0 +1,71 @@
+// Original picture treatment for the spaceflight edit. The source is an actual
+// decoded FFrames image, not a shader marker or a generated environment.
+// Inspired by the source-coordinate passes in fframes-intro. The sober mission
+// grade keeps neutral highlights and source detail, with restrained chroma and
+// a cool separation in the midtones. This is a creative SDR grade, not an HDR
+// conversion or an attempt to recover detail from the archival recordings.
+uniform shader uSource;
+uniform float2 uSourceSize;
+uniform float2 uCenter;
+uniform float uZoom;
+uniform float uRoll;
+uniform float uGrade;
+uniform float uOptical;
+uniform float3 iResolution;
+uniform int iFrame;
+
+float grainHash(float2 p) {
+    p=fract(p*float2(443.897,441.423));
+    p+=dot(p,p.yx+19.19);
+    return fract((p.x+p.y)*p.x);
+}
+
+float2 sourcePoint(float2 screen) {
+    float2 q=screen/iResolution.xy-.5;
+    float cs=cos(uRoll), sn=sin(uRoll);
+    q=float2(cs*q.x+sn*q.y,-sn*q.x+cs*q.y);
+    float sourceAspect=uSourceSize.x/uSourceSize.y;
+    float frameAspect=iResolution.x/iResolution.y;
+    float2 cover=sourceAspect>frameAspect ? float2(frameAspect/sourceAspect,1.)
+                                         : float2(1.,sourceAspect/frameAspect);
+    float2 uv=uCenter+q*cover/uZoom;
+    return clamp(uv*uSourceSize,float2(.5),uSourceSize-.5);
+}
+
+float3 samplePicture(float2 p) { return float3(uSource.eval(sourcePoint(p)).rgb); }
+
+half4 main(float2 p) {
+    float2 uv=p/iResolution.xy;
+    float3 c=samplePicture(p);
+    float luma=dot(c,float3(.2126,.7152,.0722));
+    // Shape luminance rather than clipping channels with a contrast offset.
+    // The toe keeps the archival launch structure readable; the shoulder
+    // preserves luminous exhaust and does not claim to recover clipped detail.
+    float shaped=luma+.16*(luma-.43)*luma*(1.-luma);
+    c*=shaped/max(luma,.0001);
+    if(uGrade>.5 && uGrade<1.5) {
+        // Restored lunar television stays neutral monochrome.
+        c=float3(dot(c,float3(.2126,.7152,.0722)));
+    } else {
+        // Cool the amber midtone cast, not the source's actual white-hot plume.
+        // Neutral objects remain nearly neutral; this is not a teal/orange LUT.
+        float mid=smoothstep(.035,.22,luma)*(1.-smoothstep(.48,.86,luma));
+        float warmCast=max(c.r-c.b,0.0)*mid;
+        c+=warmCast*float3(-.16,-.025,.13);
+        float saturation=uGrade>2.5 ? .90 : (uGrade>1.5 ? .82 : .78);
+        saturation=mix(saturation,.96,smoothstep(.58,.92,luma));
+        float gray=dot(c,float3(.2126,.7152,.0722));
+        c=mix(float3(gray),c,saturation);
+        // A small luminance-scaled steel bounce avoids tinting true black.
+        float shadow=(1.-smoothstep(.10,.48,luma))*luma;
+        c+=shadow*float3(-.022,.003,.035);
+    }
+    // Three major cuts receive a very small neutral exposure response. No
+    // radial zoom, colored streak or extra source fetch competes with the type.
+    c+=float3(.025)*smoothstep(.58,.98,luma)*uOptical;
+    float2 vignette=(uv-.5)*float2(1.,.82);
+    c*=1.-smoothstep(.28,.70,length(vignette))*.16;
+    float grain=(grainHash(floor(p*.86)+float(iFrame)*float2(17.13,3.71))-.5);
+    c+=grain*.008*(.3+.7*sqrt(clamp(luma,0.,1.)));
+    return half4(half3(clamp(c,0.,1.)),1.);
+}

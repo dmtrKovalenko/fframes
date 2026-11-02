@@ -1,0 +1,1663 @@
+{
+  "cues": [
+    {
+      "id": "handwritten-commitment",
+      "speaker": "John F. Kennedy",
+      "start": 0.14,
+      "end": 1.72,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04}},
+      "words": [
+        {
+          "text": "WE",
+          "start": 0.14,
+          "end": 0.5,
+          "id": "w01",
+          "metadata": {"layout":{"font_size":120,"center_x":532,"baseline":400},"motion":{"enter_seconds":0.14}}
+        },
+        {
+          "text": "CHOOSE",
+          "start": 0.5,
+          "end": 0.9,
+          "id": "w02",
+          "metadata": {
+            "layout": {"font_size":250,"center_x":971,"baseline":400},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "accents": [{"kind":"circle","color":"#ef6847","start":0.53,"duration":0.36,"width":7,"padding":16,"seed":254}]
+          }
+        },
+        {
+          "text": "TO",
+          "start": 0.9,
+          "end": 1.26,
+          "id": "w03",
+          "metadata": {"layout":{"font_size":120,"center_x":1399,"baseline":400},"motion":{"enter_seconds":0.14}}
+        },
+        {
+          "text": "GO",
+          "start": 1.26,
+          "end": 1.44,
+          "id": "w04",
+          "metadata": {
+            "layout": {"font_size":360,"center_x":781,"baseline":800},
+            "motion": {"entrance":"stamp"},
+            "accents": [{"kind":"double-underline","color":"#ef6847","start":1.3,"duration":0.22,"width":5,"padding":12,"seed":508}]
+          }
+        },
+        {
+          "text": "TO",
+          "start": 1.44,
+          "end": 1.6,
+          "id": "w05",
+          "metadata": {"layout":{"font_size":130,"center_x":1039,"baseline":800},"motion":{"enter_seconds":0.14}}
+        },
+        {
+          "text": "THE",
+          "start": 1.6,
+          "end": 1.72,
+          "id": "w06",
+          "metadata": {"layout":{"font_size":130,"center_x":1218,"baseline":800},"motion":{"enter_seconds":0.14}}
+        }
+      ]
+    },
+    {
+      "id": "cosmic-destination",
+      "speaker": "John F. Kennedy",
+      "start": 1.72,
+      "end": 2.9,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04}},
+      "words": [
+        {
+          "text": "MOON",
+          "start": 1.72,
+          "end": 2.02,
+          "id": "w07",
+          "metadata": {
+            "layout": {"font_size":550,"center_x":960,"baseline":745},
+            "motion": {"entrance":"stamp","enter_seconds":0.36},
+            "material": {
+              "effect": "glass-nebula",
+              "variation": 0.211,
+              "hold_until": 2.9,
+              "glass_nebula": {
+                "density": 0.8,
+                "cavity": 0.28,
+                "dust": 0.45,
+                "gas_scale": 0.9,
+                "billow": 0.8,
+                "glow": 0.2,
+                "seed": 3,
+                "stars": 0.3,
+                "speed": 2,
+                "environment": 0.2,
+                "highlight": 0.4,
+                "optical_depth": 0.65
+              }
+            }
+          }
+        },
+        {
+          "text": "IN",
+          "start": 2.02,
+          "end": 2.28,
+          "id": "w08",
+          "metadata": {"layout":{"font_size":95,"center_x":650,"baseline":945},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "THIS",
+          "start": 2.28,
+          "end": 2.5,
+          "id": "w09",
+          "metadata": {"layout":{"font_size":95,"center_x":790,"baseline":945},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "DECADE",
+          "start": 2.5,
+          "end": 2.9,
+          "id": "w10",
+          "metadata": {"layout":{"font_size":150,"center_x":1101,"baseline":945},"motion":{"entrance":"none","enter_seconds":0.14}}
+        }
+      ]
+    },
+    {
+      "id": "glyph-relay",
+      "speaker": "John F. Kennedy",
+      "start": 2.9,
+      "end": 4.56,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04,"graphics":[]}},
+      "words": [
+        {
+          "text": "AND",
+          "start": 2.9,
+          "end": 3.22,
+          "id": "w11",
+          "metadata": {"layout":{"font_size":110,"center_x":320,"baseline":430},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "DO",
+          "start": 3.22,
+          "end": 3.38,
+          "id": "w12",
+          "metadata": {
+            "layout": {"font_size":400,"center_x":650,"baseline":430},
+            "appearance": {"fill":"#efcbb0"},
+            "motion": {
+              "entrance": "choreograph",
+              "start": 3.16,
+              "enter_seconds": 0.4,
+              "choreography": [
+                {
+                  "index": 0,
+                  "delay": 0,
+                  "duration": 0.34,
+                  "from": {"x":-55,"y":30,"rotate":-3,"scale":0.98,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-50,8],
+                  "control2": [-8,0]
+                },
+                {
+                  "index": 1,
+                  "delay": 0.018,
+                  "duration": 0.34,
+                  "from": {"x":-55,"y":30,"rotate":-3,"scale":0.98,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-50,8],
+                  "control2": [-8,0]
+                }
+              ]
+            },
+            "replicas": [
+              {
+                "offset": [-82,50],
+                "start": 3.16,
+                "duration": 0.5,
+                "collapse": true,
+                "color": "#9bbfcb",
+                "opacity": 0.68,
+                "stroke_width": 2.6,
+                "scale": 1,
+                "rotate": 0,
+                "hold_seconds": 0.18,
+                "fill": "#173e50"
+              },
+              {
+                "offset": [-41,25],
+                "start": 3.195,
+                "duration": 0.47,
+                "collapse": true,
+                "color": "#dcac77",
+                "opacity": 0.88,
+                "stroke_width": 2.8,
+                "scale": 1,
+                "rotate": 0,
+                "hold_seconds": 0.18,
+                "fill": "#9d4d35"
+              }
+            ]
+          }
+        },
+        {
+          "text": "THE",
+          "start": 3.38,
+          "end": 3.56,
+          "id": "w13",
+          "metadata": {"layout":{"font_size":100,"center_x":380,"baseline":730},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "OTHER",
+          "start": 3.56,
+          "end": 3.78,
+          "id": "w14",
+          "metadata": {
+            "layout": {"font_size":260,"center_x":890,"baseline":730},
+            "motion": {
+              "entrance": "choreograph",
+              "start": 3.5,
+              "enter_seconds": 0.4,
+              "choreography": [
+                {
+                  "index": 0,
+                  "delay": 0,
+                  "duration": 0.42,
+                  "from": {"x":-66,"y":34,"rotate":-2,"scale":1,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-53,18],
+                  "control2": [-12,0]
+                },
+                {
+                  "index": 1,
+                  "delay": 0.012,
+                  "duration": 0.42,
+                  "from": {"x":-66,"y":34,"rotate":-2,"scale":1,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-53,18],
+                  "control2": [-12,0]
+                },
+                {
+                  "index": 2,
+                  "delay": 0.024,
+                  "duration": 0.42,
+                  "from": {"x":-66,"y":34,"rotate":-2,"scale":1,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-53,18],
+                  "control2": [-12,0]
+                },
+                {
+                  "index": 3,
+                  "delay": 0.036,
+                  "duration": 0.42,
+                  "from": {"x":-66,"y":34,"rotate":-2,"scale":1,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-53,18],
+                  "control2": [-12,0]
+                },
+                {
+                  "index": 4,
+                  "delay": 0.048,
+                  "duration": 0.42,
+                  "from": {"x":-66,"y":34,"rotate":-2,"scale":1,"opacity":0.85},
+                  "easing": [0.22,0.75,0.24,1],
+                  "control1": [-53,18],
+                  "control2": [-12,0]
+                }
+              ]
+            },
+            "replicas": [
+              {
+                "offset": [-82,50],
+                "start": 3.5,
+                "duration": 0.5,
+                "collapse": true,
+                "color": "#9bbfcb",
+                "opacity": 0.68,
+                "stroke_width": 2.6,
+                "scale": 1,
+                "rotate": 0,
+                "hold_seconds": 0.18,
+                "fill": "#173e50"
+              },
+              {
+                "offset": [-41,25],
+                "start": 3.535,
+                "duration": 0.47,
+                "collapse": true,
+                "color": "#dcac77",
+                "opacity": 0.88,
+                "stroke_width": 2.8,
+                "scale": 1,
+                "rotate": 0,
+                "hold_seconds": 0.18,
+                "fill": "#9d4d35"
+              }
+            ]
+          }
+        },
+        {
+          "text": "THINGS",
+          "start": 3.78,
+          "end": 4.08,
+          "id": "w15",
+          "metadata": {
+            "layout": {"font_size":280,"center_x":1280,"baseline":980},
+            "motion": {"start":3.78},
+            "material": {
+              "effect": "goo",
+              "variation": 0.3,
+              "hold_until": 4.56,
+              "exit_seconds": 0.12,
+              "goo": {
+                "goo_color": "#41c879",
+                "containment": 0.82,
+                "blob_scale": 0.33,
+                "spread": 0.85,
+                "merge": 0.85,
+                "threshold": 0.45,
+                "bulge": 1.15,
+                "wetness": 2.5,
+                "speed": 2,
+                "wobble": 0.8,
+                "breathe": 0.55,
+                "ambient": 0.2,
+                "light_angle": 240
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "liquid-ease",
+      "speaker": "John F. Kennedy",
+      "start": 4.64,
+      "end": 6.56,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04,"graphics":[]}},
+      "words": [
+        {
+          "text": "NOT",
+          "start": 4.64,
+          "end": 4.9,
+          "id": "w16",
+          "metadata": {"layout":{"font_size":210,"center_x":756,"baseline":320},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "BECAUSE",
+          "start": 4.9,
+          "end": 5.32,
+          "id": "w17",
+          "metadata": {"layout":{"font_size":120,"center_x":1125,"baseline":320},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "THEY",
+          "start": 5.32,
+          "end": 5.68,
+          "id": "w18",
+          "metadata": {"layout":{"font_size":110,"center_x":571,"baseline":500},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ARE",
+          "start": 5.68,
+          "end": 5.86,
+          "id": "w19",
+          "metadata": {"layout":{"font_size":110,"center_x":776,"baseline":500},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "EASY",
+          "start": 5.86,
+          "end": 6.1,
+          "id": "w20",
+          "metadata": {
+            "layout": {"font_size":520,"center_x":1080,"baseline":900},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "material": {
+              "effect": "liquid-metal",
+              "variation": 0.32,
+              "exit_seconds": 0.2,
+              "hold_until": 6.56,
+              "liquid": {
+                "turbulence": 1.35,
+                "ripple": 1.6,
+                "warp": 1.25,
+                "speed": 4,
+                "sharpness": 0.62,
+                "environment": 1.3,
+                "env_rotation": 18,
+                "dispersion": 0.15,
+                "bevel_width": 0.04,
+                "dark_color": "#263443"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "combustion",
+      "speaker": "John F. Kennedy",
+      "start": 6.56,
+      "end": 8.6,
+      "metadata": {
+        "editorial": {
+          "enter_seconds": 0.14,
+          "exit_seconds": 0.04,
+          "graphics": [
+            {
+              "kind": "path",
+              "points": [[650,953],[650,967]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.58,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[712,953],[712,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.588,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[774,953],[774,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.596,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[836,953],[836,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.604,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[898,953],[898,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.612,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[960,953],[960,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.62,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1022,953],[1022,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.628,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1084,953],[1084,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.636,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1146,953],[1146,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.644,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1208,953],[1208,960]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.652,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1270,953],[1270,967]],
+              "cubic": false,
+              "color": "#c29876",
+              "width": 2.2,
+              "start": 7.66,
+              "duration": 0.18,
+              "opacity": 0.77,
+              "keyline": true
+            }
+          ]
+        }
+      },
+      "words": [
+        {
+          "text": "BUT",
+          "start": 6.56,
+          "end": 6.66,
+          "id": "w21",
+          "metadata": {"layout":{"font_size":100,"center_x":724,"baseline":260},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "BECAUSE",
+          "start": 6.66,
+          "end": 7.1,
+          "id": "w22",
+          "metadata": {"layout":{"font_size":140,"center_x":1045,"baseline":260},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "THEY",
+          "start": 7.1,
+          "end": 7.34,
+          "id": "w23",
+          "metadata": {"layout":{"font_size":110,"center_x":1361,"baseline":430},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ARE",
+          "start": 7.34,
+          "end": 7.48,
+          "id": "w24",
+          "metadata": {"layout":{"font_size":110,"center_x":1566,"baseline":430},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "HARD",
+          "start": 7.48,
+          "end": 7.78,
+          "id": "w25",
+          "metadata": {
+            "layout": {"font_size":530,"center_x":960,"baseline":880},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "material": {"effect":"combustion","variation":0.325,"warm":true,"exit_seconds":0.2,"hold_until":8.6}
+          }
+        }
+      ]
+    },
+    {
+      "id": "drafted-purpose",
+      "speaker": "John F. Kennedy",
+      "start": 8.66,
+      "end": 11.1,
+      "metadata": {
+        "editorial": {
+          "enter_seconds": 0.14,
+          "exit_seconds": 0.04,
+          "graphics": [
+            {
+              "kind": "path",
+              "points": [[180,390],[400,370],[550,430],[859.5,430]],
+              "cubic": true,
+              "color": "#e8c7a0",
+              "width": 3.3,
+              "start": 8.93,
+              "duration": 0.45,
+              "opacity": 0.77,
+              "arrow": false,
+              "hold_until": 9.95,
+              "fade_out": 0.6,
+              "keyline": true,
+              "trace": {"head_radius":5.5,"tail":0.18,"linger":0.16,"color":"#fff1d7","construction":false,"arrival_ring":false}
+            },
+            {
+              "kind": "path",
+              "points": [[180,472],[400,418],[550,430],[859.5,430]],
+              "cubic": true,
+              "color": "#e8c7a0",
+              "width": 3.3,
+              "start": 8.97,
+              "duration": 0.41,
+              "opacity": 0.77,
+              "arrow": false,
+              "hold_until": 9.95,
+              "fade_out": 0.6,
+              "keyline": true,
+              "trace": {"head_radius":5.5,"tail":0.18,"linger":0.16,"color":"#fff1d7","construction":false,"arrival_ring":false}
+            },
+            {
+              "kind": "path",
+              "points": [[180,554],[400,466],[550,430],[859.5,430]],
+              "cubic": true,
+              "color": "#e8c7a0",
+              "width": 3.3,
+              "start": 9.01,
+              "duration": 0.37,
+              "opacity": 0.77,
+              "arrow": false,
+              "hold_until": 9.95,
+              "fade_out": 0.6,
+              "keyline": true,
+              "trace": {"head_radius":5.5,"tail":0.18,"linger":0.16,"color":"#fff1d7","construction":false,"arrival_ring":false}
+            },
+            {
+              "kind": "path",
+              "points": [[180,636],[400,514],[550,430],[859.5,430]],
+              "cubic": true,
+              "color": "#e8c7a0",
+              "width": 3.3,
+              "start": 9.05,
+              "duration": 0.33,
+              "opacity": 0.77,
+              "arrow": false,
+              "hold_until": 9.95,
+              "fade_out": 0.6,
+              "keyline": true,
+              "trace": {"head_radius":5.5,"tail":0.18,"linger":0.16,"color":"#fff1d7","construction":false,"arrival_ring":false}
+            },
+            {
+              "kind": "path",
+              "points": [[1521.5,442],[1780,440],[1780,720],[1584.5,785]],
+              "cubic": true,
+              "color": "#edcda1",
+              "width": 3.8,
+              "start": 9.84,
+              "duration": 0.94,
+              "opacity": 0.85,
+              "arrow": false,
+              "keyline": true,
+              "trace": {
+                "head_radius": 10,
+                "tail": 0.24,
+                "linger": 0.18,
+                "color": "#ffedd0",
+                "construction": true,
+                "construction_opacity": 0.32,
+                "arrival_ring": true
+              }
+            }
+          ]
+        }
+      },
+      "words": [
+        {
+          "text": "BECAUSE",
+          "start": 8.66,
+          "end": 8.96,
+          "id": "w26",
+          "metadata": {"layout":{"font_size":100,"center_x":534,"baseline":280},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "THAT",
+          "start": 8.96,
+          "end": 9.38,
+          "id": "w27",
+          "metadata": {"layout":{"font_size":110,"center_x":823,"baseline":280},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "GOAL",
+          "start": 9.38,
+          "end": 9.68,
+          "id": "w28",
+          "metadata": {
+            "layout": {"font_size":340,"center_x":1190,"baseline":560},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "accents": [{"kind":"corner-frame","color":"#b8dbea","start":9.38,"duration":0.32,"width":2,"padding":17,"seed":3556}],
+            "material": {"effect":"contour","variation":0.844,"exit_seconds":0.2,"hold_until":11.1}
+          }
+        },
+        {
+          "text": "WILL",
+          "start": 9.68,
+          "end": 10.78,
+          "id": "w29",
+          "metadata": {"layout":{"font_size":180,"center_x":430,"baseline":800},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "SERVE",
+          "start": 10.78,
+          "end": 11.1,
+          "id": "w30",
+          "metadata": {
+            "layout": {"font_size":320,"center_x":1210,"baseline":890},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "material": {"effect":"contour","variation":0.78,"exit_seconds":0.2,"hold_until":11.1}
+          }
+        }
+      ]
+    },
+    {
+      "id": "mechanical-assembly",
+      "speaker": "John F. Kennedy",
+      "start": 11.1,
+      "end": 12.5,
+      "metadata": {
+        "editorial": {
+          "enter_seconds": 0.14,
+          "exit_seconds": 0.04,
+          "graphics": [
+            {
+              "kind": "measure",
+              "from": [590.5,457],
+              "to": [1441.5,457],
+              "offset": 60,
+              "label": "851 px",
+              "font_size": 33,
+              "color": "#bed5dd",
+              "width": 3,
+              "start": 11.3,
+              "duration": 0.72,
+              "opacity": 0.93,
+              "keyline": true,
+              "caliper": {"from_extra":190,"moving_end":"to","lock_fraction":0.86,"jaw_size":34,"tick_count":7,"unit":"px","precision":0}
+            },
+            {
+              "kind": "measure",
+              "from": [703.5,807],
+              "to": [1444.5,807],
+              "offset": 60,
+              "label": "741 px",
+              "font_size": 33,
+              "color": "#bed5dd",
+              "width": 3,
+              "start": 11.93,
+              "duration": 0.41,
+              "opacity": 0.93,
+              "keyline": true,
+              "caliper": {"from_extra":145,"moving_end":"from","lock_fraction":0.86,"jaw_size":34,"tick_count":7,"unit":"px","precision":0}
+            },
+            {
+              "kind": "label",
+              "text": "1969·07·20",
+              "x": 1444.5,
+              "y": 924,
+              "start": 12.06,
+              "duration": 0.15,
+              "font_size": 19,
+              "font_family": "IBM Plex Mono",
+              "font_weight": 400,
+              "color": "#bfd2d8",
+              "opacity": 0.63,
+              "align": "end"
+            }
+          ]
+        }
+      },
+      "words": [
+        {
+          "text": "TO",
+          "start": 11.1,
+          "end": 11.4,
+          "id": "w31",
+          "metadata": {"layout":{"font_size":110,"center_x":508,"baseline":450},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ORGANIZE",
+          "start": 11.4,
+          "end": 11.8,
+          "id": "w32",
+          "metadata": {
+            "layout": {"font_size":250,"center_x":1016,"baseline":450},
+            "motion": {
+              "entrance": "choreograph",
+              "start": 11.24,
+              "enter_seconds": 0.4,
+              "choreography": [
+                {
+                  "index": 0,
+                  "delay": 0,
+                  "duration": 0.57,
+                  "from": {"x":-48,"y":-78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [-44,-78],
+                  "control2": [0,-15]
+                },
+                {
+                  "index": 1,
+                  "delay": 0.015,
+                  "duration": 0.57,
+                  "from": {"x":-48,"y":-78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [-44,-78],
+                  "control2": [0,-15]
+                },
+                {
+                  "index": 2,
+                  "delay": 0.03,
+                  "duration": 0.57,
+                  "from": {"x":-48,"y":-78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [-44,-78],
+                  "control2": [0,-15]
+                },
+                {
+                  "index": 3,
+                  "delay": 0.045,
+                  "duration": 0.57,
+                  "from": {"x":-48,"y":-78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [-44,-78],
+                  "control2": [0,-15]
+                },
+                {
+                  "index": 4,
+                  "delay": 0.06,
+                  "duration": 0.57,
+                  "from": {"x":48,"y":78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [44,78],
+                  "control2": [0,15]
+                },
+                {
+                  "index": 5,
+                  "delay": 0.075,
+                  "duration": 0.57,
+                  "from": {"x":48,"y":78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [44,78],
+                  "control2": [0,15]
+                },
+                {
+                  "index": 6,
+                  "delay": 0.09,
+                  "duration": 0.57,
+                  "from": {"x":48,"y":78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [44,78],
+                  "control2": [0,15]
+                },
+                {
+                  "index": 7,
+                  "delay": 0.105,
+                  "duration": 0.57,
+                  "from": {"x":48,"y":78,"rotate":0,"scale":1,"opacity":0.84},
+                  "easing": [0.48,0.02,0.42,1],
+                  "control1": [44,78],
+                  "control2": [0,15]
+                }
+              ]
+            },
+            "replicas": [
+              {
+                "offset": [0,0],
+                "start": 11.24,
+                "duration": 0.67,
+                "collapse": true,
+                "color": "#95aeb9",
+                "opacity": 0.32,
+                "stroke_width": 1.5,
+                "scale": 1,
+                "rotate": 0
+              }
+            ]
+          }
+        },
+        {
+          "text": "AND",
+          "start": 11.8,
+          "end": 12.32,
+          "id": "w33",
+          "metadata": {"layout":{"font_size":110,"center_x":593,"baseline":800},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "MEASURE",
+          "start": 12.32,
+          "end": 12.5,
+          "id": "w34",
+          "metadata": {
+            "layout": {"font_size":230,"center_x":1074,"baseline":800},
+            "motion": {
+              "entrance": "choreograph",
+              "start": 11.93,
+              "enter_seconds": 0.4,
+              "choreography": [
+                {
+                  "index": 0,
+                  "delay": 0,
+                  "duration": 0.3,
+                  "from": {"x":52,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [45,0],
+                  "control2": [4,0]
+                },
+                {
+                  "index": 1,
+                  "delay": 0.012,
+                  "duration": 0.3,
+                  "from": {"x":46,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [40,0],
+                  "control2": [4,0]
+                },
+                {
+                  "index": 2,
+                  "delay": 0.024,
+                  "duration": 0.3,
+                  "from": {"x":40,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [35,0],
+                  "control2": [4,0]
+                },
+                {
+                  "index": 3,
+                  "delay": 0.036,
+                  "duration": 0.3,
+                  "from": {"x":34,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [30,0],
+                  "control2": [4,0]
+                },
+                {
+                  "index": 4,
+                  "delay": 0.048,
+                  "duration": 0.3,
+                  "from": {"x":28,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [25,0],
+                  "control2": [4,0]
+                },
+                {
+                  "index": 5,
+                  "delay": 0.06,
+                  "duration": 0.3,
+                  "from": {"x":22,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [20,0],
+                  "control2": [4,0]
+                },
+                {
+                  "index": 6,
+                  "delay": 0.072,
+                  "duration": 0.3,
+                  "from": {"x":16,"y":0,"rotate":0,"scale":1,"opacity":0.5},
+                  "easing": [0.2,0.7,0.2,1],
+                  "control1": [15,0],
+                  "control2": [4,0]
+                }
+              ]
+            },
+            "replicas": [
+              {
+                "offset": [0,0],
+                "start": 11.93,
+                "duration": 0.37,
+                "collapse": true,
+                "color": "#95bed2",
+                "opacity": 0.34,
+                "stroke_width": 1,
+                "scale": 1,
+                "rotate": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "optical-energy",
+      "speaker": "John F. Kennedy",
+      "start": 12.5,
+      "end": 15.58,
+      "metadata": {
+        "editorial": {
+          "enter_seconds": 0.14,
+          "exit_seconds": 0.04,
+          "graphics": [
+            {
+              "kind": "path",
+              "points": [[1076.5,215],[1270,210],[1510,410],[1568.5,433.6]],
+              "cubic": true,
+              "color": "#a1d4db",
+              "width": 2.2,
+              "start": 13.2,
+              "duration": 0.82,
+              "opacity": 0.672,
+              "flow": {"count":2,"speed":0.46,"phase":0,"radius":2.8,"tail":0.1125},
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1681.5,560],[1805,650],[1750,810],[1719,855]],
+              "cubic": true,
+              "color": "#c7dbdf",
+              "width": 2.2,
+              "start": 14.36,
+              "duration": 0.47,
+              "opacity": 0.77,
+              "flow": {"count":1,"speed":0.7,"phase":0,"radius":3.36,"tail":0.125},
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1076.5,235],[1270,240],[1510,425],[1568.5,443.6]],
+              "cubic": true,
+              "color": "#a1d4db",
+              "width": 2.79,
+              "start": 13.255,
+              "duration": 0.82,
+              "opacity": 0.672,
+              "flow": {"count":2,"speed":0.46,"phase":0.12,"radius":4.2,"tail":0.1125},
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1681.5,578],[1805,664],[1750,820],[1719,865]],
+              "cubic": true,
+              "color": "#c7dbdf",
+              "width": 2.2,
+              "start": 14.395,
+              "duration": 0.47,
+              "opacity": 0.77,
+              "flow": {"count":1,"speed":0.7,"phase":0.2,"radius":3.36,"tail":0.125},
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1076.5,255],[1270,270],[1510,440],[1568.5,453.6]],
+              "cubic": true,
+              "color": "#a1d4db",
+              "width": 2.2,
+              "start": 13.31,
+              "duration": 0.82,
+              "opacity": 0.672,
+              "flow": {"count":2,"speed":0.46,"phase":0.24,"radius":2.8,"tail":0.1125},
+              "keyline": true
+            },
+            {
+              "kind": "path",
+              "points": [[1681.5,596],[1805,678],[1750,830],[1719,875]],
+              "cubic": true,
+              "color": "#c7dbdf",
+              "width": 2.2,
+              "start": 14.43,
+              "duration": 0.47,
+              "opacity": 0.77,
+              "flow": {"count":1,"speed":0.7,"phase":0.4,"radius":3.36,"tail":0.125},
+              "keyline": true
+            }
+          ]
+        }
+      },
+      "words": [
+        {
+          "text": "THE",
+          "start": 12.5,
+          "end": 12.86,
+          "id": "w35",
+          "metadata": {"layout":{"font_size":90,"center_x":381,"baseline":360},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "BEST",
+          "start": 12.86,
+          "end": 13.16,
+          "id": "w36",
+          "metadata": {
+            "layout": {"font_size":330,"center_x":767,"baseline":360},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "material": {
+              "effect": "irradiance",
+              "variation": 0.14,
+              "exit_seconds": 0.2,
+              "hold_until": 15.58,
+              "rest_at": 13.65,
+              "rest_seconds": 0.24,
+              "irradiance": {
+                "body_color": "#71859b",
+                "body_light": 1,
+                "core": 1.8,
+                "speed": 2,
+                "orbit": 0.25,
+                "lights": [{"position":[0.12,-0.25],"color":"#ffb347","intensity":5},{"position":[0.9,1.25],"color":"#7a5cff","intensity":4}]
+              }
+            }
+          }
+        },
+        {
+          "text": "OF",
+          "start": 13.16,
+          "end": 14.02,
+          "id": "w37",
+          "metadata": {"layout":{"font_size":90,"center_x":474,"baseline":650},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "OUR",
+          "start": 14.02,
+          "end": 14.18,
+          "id": "w38",
+          "metadata": {"layout":{"font_size":100,"center_x":615,"baseline":650},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ENERGIES",
+          "start": 14.18,
+          "end": 14.5,
+          "id": "w39",
+          "metadata": {
+            "layout": {"font_size":280,"center_x":1191,"baseline":650},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "material": {
+              "effect": "photonic",
+              "variation": 0.61,
+              "exit_seconds": 0.2,
+              "hold_until": 15.58,
+              "rest_at": 14.96,
+              "rest_seconds": 0.34,
+              "relief": {"depth":1,"detail_scale":1,"speed":1,"light":1}
+            }
+          }
+        },
+        {
+          "text": "AND",
+          "start": 14.5,
+          "end": 14.78,
+          "id": "w40",
+          "metadata": {"layout":{"font_size":90,"center_x":993,"baseline":930},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "SKILLS",
+          "start": 14.78,
+          "end": 15.1,
+          "id": "w41",
+          "metadata": {
+            "layout": {"font_size":260,"center_x":1400,"baseline":930},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "material": {"effect":"lattice","variation":0.45,"exit_seconds":0.2,"hold_until":15.58}
+          }
+        }
+      ]
+    },
+    {
+      "id": "aperture",
+      "speaker": "John F. Kennedy",
+      "start": 15.74,
+      "end": 17.14,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04,"graphics":[]}},
+      "words": [
+        {
+          "text": "BECAUSE",
+          "start": 15.74,
+          "end": 16.3,
+          "id": "w42",
+          "metadata": {"layout":{"font_size":110,"center_x":414,"baseline":320},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "THAT",
+          "start": 16.3,
+          "end": 16.64,
+          "id": "w43",
+          "metadata": {"layout":{"font_size":110,"center_x":719,"baseline":320},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "CHALLENGE",
+          "start": 16.64,
+          "end": 17.14,
+          "id": "w44",
+          "metadata": {
+            "layout": {"font_size":300,"center_x":960,"baseline":800},
+            "motion": {"entrance":"none","start":16.28,"enter_seconds":0.14},
+            "replicas": [
+              {
+                "offset": [22,-14],
+                "start": 16.28,
+                "duration": 0.68,
+                "collapse": true,
+                "color": "#99bac9",
+                "opacity": 0.26,
+                "stroke_width": 1.2,
+                "scale": 1.015,
+                "rotate": 0
+              }
+            ],
+            "plane": {
+              "start": 16.28,
+              "duration": 0.72,
+              "corners": [[-0.1,0.24],[0.075,-0.34],[0.025,0.17],[-0.055,-0.04]],
+              "easing": [0.4,0.03,0.35,1],
+              "wire_color": "#c5dde5",
+              "wire_width": 2.5,
+              "wire_opacity": 0.7,
+              "handles": false,
+              "wire_fade": 0.12
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "spatial-procession",
+      "speaker": "John F. Kennedy",
+      "start": 17.14,
+      "end": 18.48,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04,"graphics":[]}},
+      "words": [
+        {
+          "text": "IS",
+          "start": 17.14,
+          "end": 17.42,
+          "id": "w45",
+          "metadata": {
+            "layout": {"font_size":120,"center_x":330,"baseline":350},
+            "appearance": {"fill":"#dcebf1"},
+            "motion": {"entrance":"none","enter_seconds":0.14}
+          }
+        },
+        {
+          "text": "ONE",
+          "start": 17.42,
+          "end": 17.7,
+          "id": "w46",
+          "metadata": {
+            "layout": {"font_size":290,"center_x":730,"baseline":510},
+            "appearance": {"fill":"#dcebf1"},
+            "motion": {"entrance":"none","enter_seconds":0.14}
+          }
+        },
+        {
+          "text": "THAT",
+          "start": 17.7,
+          "end": 17.96,
+          "id": "w47",
+          "metadata": {
+            "layout": {"font_size":100,"center_x":560,"baseline":710},
+            "appearance": {"fill":"#dcebf1"},
+            "motion": {"entrance":"none","enter_seconds":0.14}
+          }
+        },
+        {
+          "text": "WE'RE",
+          "start": 17.96,
+          "end": 18.2,
+          "id": "w48",
+          "metadata": {
+            "layout": {"font_size":150,"center_x":930,"baseline":660},
+            "appearance": {"fill":"#dcebf1"},
+            "motion": {"entrance":"none","enter_seconds":0.14}
+          }
+        },
+        {
+          "text": "WILLING",
+          "start": 18.2,
+          "end": 18.48,
+          "id": "w49",
+          "metadata": {
+            "layout": {"font_size":260,"center_x":1350,"baseline":900},
+            "appearance": {"fill":"#dcebf1"},
+            "motion": {
+              "entrance": "choreograph",
+              "start": 17.96,
+              "enter_seconds": 0.4,
+              "choreography": [
+                {
+                  "index": 0,
+                  "delay": 0,
+                  "duration": 0.32,
+                  "from": {"x":72.49,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.42,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [47.8434,-6.1],
+                  "control2": [15.9478,-2]
+                },
+                {
+                  "index": 1,
+                  "delay": 0.018,
+                  "duration": 0.32,
+                  "from": {"x":17.53,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.48,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [11.5698,-6.1],
+                  "control2": [3.8566,-2]
+                },
+                {
+                  "index": 2,
+                  "delay": 0.036,
+                  "duration": 0.32,
+                  "from": {"x":-12.16,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.54,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [-8.0256,-6.1],
+                  "control2": [-2.6752,-2]
+                },
+                {
+                  "index": 3,
+                  "delay": 0.054,
+                  "duration": 0.32,
+                  "from": {"x":-48.17,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.6,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [-31.7922,-6.1],
+                  "control2": [-10.5974,-2]
+                },
+                {
+                  "index": 4,
+                  "delay": 0.072,
+                  "duration": 0.32,
+                  "from": {"x":-69.43,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.66,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [-45.8238,-6.1],
+                  "control2": [-15.2746,-2]
+                },
+                {
+                  "index": 5,
+                  "delay": 0.09,
+                  "duration": 0.32,
+                  "from": {"x":-87.63,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.72,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [-57.8358,-6.1],
+                  "control2": [-19.2786,-2]
+                },
+                {
+                  "index": 6,
+                  "delay": 0.108,
+                  "duration": 0.32,
+                  "from": {"x":-109.17,"y":-9.1,"rotate":0,"scale":1,"scale_x":0.78,"scale_y":1.1,"opacity":1},
+                  "easing": [0.32,0.02,0.22,1],
+                  "control1": [-72.0522,-6.1],
+                  "control2": [-24.0174,-2]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "printed-consent",
+      "speaker": "John F. Kennedy",
+      "start": 18.48,
+      "end": 19.54,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04,"graphics":[]}},
+      "words": [
+        {
+          "text": "TO",
+          "start": 18.48,
+          "end": 18.66,
+          "id": "w50",
+          "metadata": {"layout":{"font_size":110,"center_x":330,"baseline":570},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ACCEPT",
+          "start": 18.66,
+          "end": 19.06,
+          "id": "w51",
+          "metadata": {
+            "layout": {"font_size":320,"center_x":1080,"baseline":745,"font_family":"DM Sans","font_weight":500},
+            "appearance": {"fill":"#edf0e7","outline":"#101a20","outline_width":1.4,"background_padding":32},
+            "motion": {"entrance":"none","start":18.52,"enter_seconds":0.1},
+            "plane": {
+              "start": 18.52,
+              "duration": 0.6,
+              "panels": [
+                {"range":[0,0.5],"corners":[[0.095,0.25],[0,0],[0,0],[0.095,-0.25]],"shade":0.68},
+                {"range":[0.5,1],"corners":[[0,0],[-0.095,0.25],[-0.095,-0.25],[0,0]],"shade":0.96}
+              ],
+              "wire_color": "#d3a76a",
+              "wire_width": 2.8,
+              "wire_opacity": 0.55,
+              "wire_fade": 0.12,
+              "easing": [0.5,0.02,0.35,1]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "digital-refusal",
+      "speaker": "John F. Kennedy",
+      "start": 19.78,
+      "end": 22.4,
+      "metadata": {
+        "editorial": {
+          "enter_seconds": 0.14,
+          "exit_seconds": 0.37,
+          "graphics": [
+            {
+              "kind": "path",
+              "points": [[1696.5,850],[1790,850],[1790,470],[1533,470]],
+              "cubic": true,
+              "color": "#8ec3cb",
+              "width": 2.2,
+              "start": 21.58,
+              "duration": 0.37,
+              "opacity": 0.742,
+              "arrow": true,
+              "hold_until": 22.05,
+              "fade_out": 0.3,
+              "flow": {"count":1,"speed":1.1,"phase":0,"radius":3.64,"tail":0.15},
+              "keyline": true
+            },
+            {
+              "kind": "label",
+              "text": "1202",
+              "x": 1748,
+              "y": 760,
+              "start": 21.6,
+              "duration": 0.08,
+              "font_size": 22,
+              "font_family": "IBM Plex Mono",
+              "font_weight": 400,
+              "color": "#bfd2d8",
+              "opacity": 0.7,
+              "align": "end",
+              "hold_until": 21.92,
+              "fade_out": 0.12
+            },
+            {
+              "kind": "label",
+              "text": "GO",
+              "x": 1748,
+              "y": 760,
+              "start": 22.02,
+              "duration": 0.07,
+              "font_size": 22,
+              "font_family": "IBM Plex Mono",
+              "font_weight": 400,
+              "color": "#d6e5d9",
+              "opacity": 0.7,
+              "align": "end",
+              "hold_until": 22.24,
+              "fade_out": 0.12
+            }
+          ]
+        }
+      },
+      "words": [
+        {
+          "text": "ONE",
+          "start": 19.78,
+          "end": 20.1,
+          "id": "w52",
+          "metadata": {"layout":{"font_size":100,"center_x":497,"baseline":300},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "WE",
+          "start": 20.1,
+          "end": 20.34,
+          "id": "w53",
+          "metadata": {"layout":{"font_size":100,"center_x":653,"baseline":300},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ARE",
+          "start": 20.34,
+          "end": 20.56,
+          "id": "w54",
+          "metadata": {"layout":{"font_size":100,"center_x":806,"baseline":300},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "UNWILLING",
+          "start": 20.56,
+          "end": 20.86,
+          "id": "w55",
+          "metadata": {
+            "layout": {"font_size":280,"center_x":960,"baseline":570},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "accents": [{"kind":"rule","color":"#a7d9d6","start":20.56,"duration":0.28,"width":2.5,"padding":15,"seed":6985}]
+          }
+        },
+        {
+          "text": "TO",
+          "start": 20.86,
+          "end": 21.24,
+          "id": "w56",
+          "metadata": {"layout":{"font_size":100,"center_x":400,"baseline":880},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "POSTPONE",
+          "start": 21.24,
+          "end": 21.58,
+          "id": "w57",
+          "metadata": {
+            "layout": {"font_size":290,"center_x":1150,"baseline":900},
+            "motion": {"entrance":"none","enter_seconds":0.14},
+            "replicas": [
+              {
+                "offset": [56,-30],
+                "start": 21.24,
+                "duration": 0.5,
+                "collapse": true,
+                "color": "#c1e1df",
+                "opacity": 0.62,
+                "stroke_width": 3,
+                "scale": 1,
+                "rotate": 0,
+                "hold_seconds": 0.24,
+                "fill": "#153947"
+              },
+              {
+                "offset": [112,-60],
+                "start": 21.31,
+                "duration": 0.45,
+                "collapse": true,
+                "color": "#87bcc5",
+                "opacity": 0.45,
+                "stroke_width": 3,
+                "scale": 1,
+                "rotate": 0,
+                "hold_seconds": 0.24,
+                "fill": "#153947"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tracking-dock",
+      "speaker": "John F. Kennedy",
+      "start": 22.5,
+      "end": 23.78,
+      "metadata": {"editorial":{"enter_seconds":0.14,"exit_seconds":0.04,"graphics":[]}},
+      "words": [
+        {
+          "text": "AND",
+          "start": 22.5,
+          "end": 22.76,
+          "id": "w58",
+          "metadata": {"layout":{"font_size":100,"center_x":472,"baseline":420},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "ONE",
+          "start": 22.76,
+          "end": 22.98,
+          "id": "w59",
+          "metadata": {"layout":{"font_size":260,"center_x":757,"baseline":420},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "WE",
+          "start": 22.98,
+          "end": 23.22,
+          "id": "w60",
+          "metadata": {"layout":{"font_size":100,"center_x":550,"baseline":810},"motion":{"entrance":"none","enter_seconds":0.14}}
+        },
+        {
+          "text": "INTEND",
+          "start": 23.22,
+          "end": 23.42,
+          "id": "w61",
+          "metadata": {
+            "layout": {"font_size":280,"center_x":1200,"baseline":810},
+            "motion": {
+              "entrance": "choreograph",
+              "start": 22.98,
+              "enter_seconds": 0.4,
+              "choreography": [
+                {
+                  "index": 0,
+                  "delay": 0,
+                  "duration": 0.5,
+                  "from": {"x":-220,"y":100,"rotate":-3,"scale":1,"opacity":0.72},
+                  "easing": [0.45,0.02,0.25,1],
+                  "control1": [-175,36],
+                  "control2": [-25,0]
+                },
+                {
+                  "index": 1,
+                  "delay": 0.014,
+                  "duration": 0.5,
+                  "from": {"x":-211,"y":92,"rotate":-3,"scale":1,"opacity":0.72},
+                  "easing": [0.45,0.02,0.25,1],
+                  "control1": [-168,36],
+                  "control2": [-25,0]
+                },
+                {
+                  "index": 2,
+                  "delay": 0.028,
+                  "duration": 0.5,
+                  "from": {"x":-202,"y":84,"rotate":-3,"scale":1,"opacity":0.72},
+                  "easing": [0.45,0.02,0.25,1],
+                  "control1": [-161,36],
+                  "control2": [-25,0]
+                },
+                {
+                  "index": 3,
+                  "delay": 0.042,
+                  "duration": 0.5,
+                  "from": {"x":-193,"y":76,"rotate":-3,"scale":1,"opacity":0.72},
+                  "easing": [0.45,0.02,0.25,1],
+                  "control1": [-154,36],
+                  "control2": [-25,0]
+                },
+                {
+                  "index": 4,
+                  "delay": 0.056,
+                  "duration": 0.5,
+                  "from": {"x":-184,"y":68,"rotate":-3,"scale":1,"opacity":0.72},
+                  "easing": [0.45,0.02,0.25,1],
+                  "control1": [-147,36],
+                  "control2": [-25,0]
+                },
+                {
+                  "index": 5,
+                  "delay": 0.07,
+                  "duration": 0.5,
+                  "from": {"x":-175,"y":60,"rotate":-3,"scale":1,"opacity":0.72},
+                  "easing": [0.45,0.02,0.25,1],
+                  "control1": [-140,36],
+                  "control2": [-25,0]
+                }
+              ],
+              "echoes": [
+                {"future_seconds":0.0175,"opacity":0.16,"fill":"#e3dfd0","retire_seconds":0.18},
+                {"future_seconds":0.035,"opacity":0.155,"fill":"#d6d7ca","retire_seconds":0.18},
+                {"future_seconds":0.0525,"opacity":0.15,"fill":"#c9cfc4","retire_seconds":0.18},
+                {"future_seconds":0.07,"opacity":0.145,"fill":"#b9c6c0","retire_seconds":0.18},
+                {"future_seconds":0.0875,"opacity":0.14,"fill":"#a9bdbc","retire_seconds":0.18},
+                {"future_seconds":0.105,"opacity":0.135,"fill":"#96aeb3","retire_seconds":0.18},
+                {"future_seconds":0.1225,"opacity":0.13,"fill":"#7f9da5","retire_seconds":0.18},
+                {"future_seconds":0.14,"opacity":0.125,"fill":"#6a8a96","retire_seconds":0.18},
+                {"future_seconds":0.1575,"opacity":0.12,"fill":"#567583","retire_seconds":0.18},
+                {"future_seconds":0.175,"opacity":0.115,"fill":"#436271","retire_seconds":0.18},
+                {"future_seconds":0.1925,"opacity":0.11,"fill":"#365260","retire_seconds":0.18},
+                {"future_seconds":0.21,"opacity":0.105,"fill":"#29434f","retire_seconds":0.18}
+              ]
+            }
+          }
+        },
+        {
+          "text": "TO",
+          "start": 23.42,
+          "end": 23.78,
+          "id": "w62",
+          "metadata": {"layout":{"font_size":100,"center_x":1715,"baseline":810},"motion":{"entrance":"none","enter_seconds":0.14}}
+        }
+      ]
+    },
+    {
+      "id": "optical-resolve",
+      "speaker": "John F. Kennedy",
+      "start": 23.78,
+      "end": 24.3,
+      "metadata": {
+        "editorial": {"enter_seconds":0.14,"exit_seconds":0.04},
+        "output": {"picture_fade_seconds":0.066667,"voice_fade_seconds":0.1,"music_fade_seconds":0.24}
+      },
+      "words": [
+        {
+          "text": "WIN",
+          "start": 23.78,
+          "end": 24,
+          "id": "w63",
+          "metadata": {
+            "layout": {"font_size":620,"center_x":960,"baseline":820},
+            "motion": {"entrance":"stamp"},
+            "material": {"effect":"horizon","variation":0.63,"warm":true,"exit_seconds":0.04,"hold_until":24.3}
+          }
+        }
+      ]
+    }
+  ]
+}

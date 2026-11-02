@@ -1,0 +1,230 @@
+// Six separate visual techniques, rather than recolorings of a shared metal.
+// Authored for the caption showcase. Geometry is always the cached real glyph.
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uEffect;
+uniform float uProgress;
+uniform float uAge;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uSeed;
+uniform float uDirected;
+uniform float uEntrance;
+uniform float uHero;
+uniform float uWarm;
+uniform float uVariation;
+uniform float uDistanceRange;
+uniform float2 uWordSize;
+uniform float uPadding;
+
+// Hash without trigonometry keeps spatial choices stable across CPU/GPU backends.
+float hash(float2 p) {
+    float3 q=fract(float3(p.xyx)*.1031);
+    q+=dot(q,q.yzx+33.33+uSeed*.001);
+    return fract((q.x+q.y)*q.z);
+}
+float noise(float2 p) {
+    float2 i=floor(p),f=fract(p);
+    f=f*f*(3.0-2.0*f);
+    return mix(mix(hash(i),hash(i+float2(1,0)),f.x),
+               mix(hash(i+float2(0,1)),hash(i+float2(1,1)),f.x),f.y);
+}
+float fbm(float2 p) {
+    return noise(p)*.57+noise(p*2.03+17.1)*.28+noise(p*4.09-7.3)*.15;
+}
+float glyph(float2 p) {
+    if(p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return 0.0;
+    return float(uGlyph.eval(p).a);
+}
+float distanceAt(float2 p) {
+    if(p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return -uDistanceRange;
+    return (float(uField.eval(p).r)-.5)*2.0*uDistanceRange;
+}
+float band(float d,float center,float width) {
+    // A saturated SDF is an absence of geometry, not another contour.
+    float support=smoothstep(-uDistanceRange+.5,-uDistanceRange+2.5,d);
+    return exp(-abs(d-center)/max(width,.1))*support;
+}
+float4 over(float4 back,float a,float3 color) {
+    a=clamp(a,0.0,1.0);
+    return float4(clamp(color,0.0,1.0)*a,a)+back*(1.0-a);
+}
+float star(float2 p,float r) {
+    p/=r;
+    float rays=exp(-abs(p.x)*2.0-abs(p.y)*24.0)+exp(-abs(p.y)*3.0-abs(p.x)*24.0);
+    return clamp(exp(-dot(p,p)*12.0)+rays*.5,0.0,1.0);
+}
+
+half4 main(float2 coord) {
+    float h=uWordSize.y,s=max(h/210.0,.42),t=uLightAge;
+    float2 uv=(coord-iResolution.xy*.5)/h;
+    float phase=uVariation*6.283185+uSeed*.019;
+    float d=distanceAt(coord),a=glyph(coord),tail=clamp(uTail,0.0,1.0);
+    float4 result=float4(0);
+
+    // 16 ASTRAL: moving deep-blue clouds, bright nebular filaments and distinct
+    // star points inside the face. A few close stars extend into the near field.
+    // This deliberately has no metal bevel, studio reflection or common rim.
+    if(uEffect<.5) {
+        if(d < -uDistanceRange+1.0) return half4(0);
+        float2 flow=float2(fbm(uv*2.7+float2(t*.08,phase)),fbm(uv*2.7+8.0-t*.05));
+        float n=fbm(uv*4.2+flow*2.9+float2(t*.10,-t*.06));
+        float filament=pow(clamp(1.0-abs(n-.53)*5.0,0.0,1.0),5.0);
+        float3 color=mix(float3(.19,.25,.51),float3(.40,.73,.90),smoothstep(.20,.76,n));
+        color=mix(color,float3(.80,.60,.86),smoothstep(.45,.80,flow.y)*.5);
+        color+=filament*float3(.33,.36,.37);
+        float2 grid=coord/(31.0*s),cell=floor(grid),q=fract(grid)-.5;
+        float seed=hash(cell+phase);
+        float spark=star(q*31.0*s,(2.7+seed*3.5)*s)*step(.84,seed);
+        float twinkle=.58+.42*sin(t*.85+seed*23.0)*sin(t*.85+seed*23.0);
+        color+=spark*twinkle*float3(.62,.68,.70);
+        float halo=band(d,-4.0*s,6.0*s)*(.20+.16*filament);
+        result=over(result,halo,float3(.23,.43,.70));
+        result=over(result,spark*twinkle*band(d,-8.0*s,9.0*s)*.8,float3(.80,.89,1.0));
+        result=over(result,smoothstep(-1.8*s,-.3*s,d),float3(.025,.035,.075));
+        result=over(result,a,color);
+        result=over(result,band(d,.7*s,.75*s)*a*.84,float3(.87,.93,1.0));
+    }
+    // 17 COMBUSTION: ivory letters stay still while real glyph-shaped plumes
+    // rise 20–60px above them. Copper folds and sparse embers make a readable
+    // incandescent object; the fire is allowed to escape the letter silhouette.
+    else if(uEffect<1.5) {
+        float2 q=uv*float2(8.0,5.0)+float2(phase,-t*1.5);
+        float curl=fbm(q+float2(noise(q*.7+t*.2),noise(q*.8+6.0))*2.0);
+        float2 drift=float2(sin(uv.y*7.0+curl*4.0+t)*min(7.0*s,16.0),0);
+        float plume=0.0;
+        plume=max(plume,glyph(coord+drift+float2(0,min(12.0*s,22.0)))*.74);
+        plume=max(plume,glyph(coord+drift*1.5+float2(0,min(27.0*s,44.0)))*.48);
+        plume=max(plume,glyph(coord+drift*2.0+float2(0,min(46.0*s,64.0)))*.22);
+        float channels=smoothstep(.27,.77,curl);
+        plume*=channels*(1.0-a)*(.60+.40*noise(q*2.4));
+        float3 heat=mix(float3(.65,.16,.055),float3(1.0,.65,.24),channels);
+        result=over(result,plume*.85,heat);
+        float near=band(d,-4.0*s,4.8*s);
+        result=over(result,near*(.18+.28*channels),float3(.88,.32,.09));
+        float2 grid=coord/(23.0*s),cell=floor(grid),part=fract(grid+float2(t*.12,t*.65))-.5;
+        float ember=exp(-dot(part,part)*190.0)*step(.94,hash(cell));
+        result=over(result,ember*band(d,-16.0*s,12.0*s)*.8,float3(1.0,.68,.29));
+        result=over(result,smoothstep(-2.0*s,-.3*s,d),float3(.09,.035,.02));
+        float edge=1.0-smoothstep(0.0,6.0*s,max(d,0.0));
+        float3 face=mix(float3(.95,.90,.77),float3(.88,.47,.20),edge*(.40+.42*channels));
+        // Thin hot currents run through the warm solid face, without eroding it.
+        float current=exp(-abs(curl-.51)*75.0);
+        face+=current*float3(.05,.08,.12);
+        result=over(result,a,face);
+    }
+    // 18 FLUID: a bounded physical displacement changes the silhouette, while
+    // broad silver/black reflected ribbons flow through the same deformed face.
+    // Amplitude is small enough to preserve every counter and consonant.
+    else if(uEffect<2.5) {
+        float wave=sin(uv.y*8.2+sin(uv.x*3.7+t*.9)*1.8-t*1.3+phase);
+        float cross=sin(uv.x*7.5+uv.y*2.0+t*.8+phase);
+        float amplitude=(2.0+1.5*(1.0-uEntrance))*s;
+        float2 warp=float2(wave,cross*.60)*amplitude;
+        float2 p=coord+warp;
+        float actual=glyph(p),dist=distanceAt(p);
+        if(dist < -uDistanceRange+1.0) return half4(0);
+        float ribbon=sin(uv.y*5.5+wave*.58+uv.x*.55+t*.35);
+        float plate=smoothstep(-.38,.42,ribbon);
+        float3 face=mix(float3(.24,.29,.33),float3(.91,.95,.96),plate);
+        float shine=exp(-pow((ribbon-.13)/.12,2.0));
+        face+=shine*float3(.30,.32,.34);
+        float edge=band(dist,.85*s,1.0*s);
+        result=over(result,band(dist,-2.2*s,1.4*s)*.55,float3(.26,.44,.52));
+        result=over(result,smoothstep(-1.3*s,-.1*s,dist),float3(.015,.022,.025));
+        result=over(result,actual,face);
+        result=over(result,edge*actual*.74,float3(.93,.97,1.0));
+    }
+    // 19 RASTER: horizontal scan reconstruction, discrete pixel cells, a quiet
+    // telemetry scan during the hold, and spatially released fragments on exit.
+    // The short entrance keeps a faint complete glyph underneath the assembly.
+    else if(uEffect<3.5) {
+        float enter=1.0-smoothstep(0.0,.26,t);
+        float block=(1.0+floor(enter*7.0+tail*5.0))*s;
+        float2 tile=floor(coord/(9.0*s));
+        float seed=hash(tile+phase);
+        float2 drift=float2((seed-.35)*36.0,-12.0-hash(tile+4.0)*28.0)*s*tail;
+        float2 p=coord-drift;
+        p=(floor(p/block)+.5)*block;
+        float actual=glyph(p);
+        float assembly=smoothstep(0.0,.26,t);
+        float gate=step(seed,.45+.55*assembly)*(1.0-smoothstep(seed-.09,seed+.09,tail));
+        float scanY=mod(t*53.0*s+phase*15.0,h+30.0*s)+uPadding;
+        float scan=exp(-abs(coord.y-scanY)/(3.0*s));
+        float line=.87+.13*step(.7,mod(coord.y,3.0*s)/s);
+        float3 face=mix(float3(.57,.86,.88),float3(.92,.98,.94),assembly)*line;
+        face+=scan*float3(.18,.17,.10);
+        // Thin warm registration bands are an accent, not continuous RGB damage.
+        float register=step(.94,hash(float2(floor(coord.y/(8.0*s)),3.0)))*enter;
+        result=over(result,glyph(coord+float2(4.5*s,0))*register*.35,float3(.94,.44,.23));
+        result=over(result,a*.27*enter*(1.0-tail),float3(.58,.78,.78));
+        result=over(result,actual*gate*(1.0-tail*.45),face);
+    }
+    // 20 CONTOUR: a moving drafting light writes two clean real-glyph outlines.
+    // Ceramic fill follows behind the light; the contrast between wire and solid
+    // is intentional and confined to this cue, rather than shared by all effects.
+    else if(uEffect<4.5) {
+        if(d < -uDistanceRange+1.0) return half4(0);
+        float progress=smoothstep(0.0,.65,t)*1.15;
+        float write=(coord.x-uPadding)/max(uWordSize.x,1.0);
+        float reveal=1.0-smoothstep(progress-.025,progress+.025,write);
+        float light=exp(-pow((write-progress)/.022,2.0));
+        float inner=band(d,1.0*s,.8*s)*a;
+        float outer=band(d,-4.5*s,.6*s);
+        // A quiet complete face remains readable even when a short spoken word
+        // ends before the drafting light reaches its final letter.
+        result=over(result,a*.64,float3(.78,.84,.87));
+        result=over(result,inner*.92,float3(.91,.96,.97));
+        result=over(result,outer*(.25+.65*reveal),float3(.37,.70,.79));
+        float filled=smoothstep(.02,.14,progress-write);
+        result=over(result,a*filled,float3(.92,.94,.90));
+        result=over(result,(inner+outer)*light,float3(1.0,.73,.40));
+        result=over(result,a*light*.25,float3(1.0,.88,.65));
+    }
+    // 21 PRISM: a light slit refracts through a translucent icy face, producing
+    // offset spectral edge images. Broad matte fields keep this unlike chrome.
+    else {
+        if(d < -uDistanceRange+1.0) return half4(0);
+        float diagonal=uv.x*.45+uv.y*.85;
+        float sweep=.65*sin(t*.63+phase*.24);
+        float slit=exp(-pow((diagonal-sweep)/.065,2.0));
+        float wide=exp(-pow((diagonal-sweep)/.23,2.0));
+        float spectrum=.5+.5*sin(diagonal*7.0-t*.7+phase);
+        float3 face=mix(float3(.44,.60,.76),float3(.81,.77,.88),spectrum);
+        face=mix(face,float3(.88,.96,.96),wide*.50);
+        face+=slit*float3(.20,.22,.24);
+        float split=(2.0+wide*3.0)*s;
+        float red=glyph(coord+float2(split,-.6*s));
+        float blue=glyph(coord-float2(split,-.6*s));
+        result=over(result,red*.42,float3(.88,.55,.40));
+        result=over(result,blue*.48,float3(.40,.70,.96));
+        result=over(result,band(d,-5.0*s,.8*s)*(.24+.46*wide),float3(.64,.82,.95));
+        result=over(result,smoothstep(-1.0*s,-.1*s,d),float3(.04,.07,.11));
+        result=over(result,a,face);
+        result=over(result,band(d,.7*s,.6*s)*a*.80,float3(.94,.96,1.0));
+        // Sparse four-point specular glints belong to the glyph's actual edge.
+        // Project a few stable cell centers onto its distance field; their slow
+        // envelopes never blink or shower unrelated stars across the picture.
+        float2 cellSize=float2(max(uWordSize.x/7.0,80.0*s),80.0*s);
+        float2 cell=floor(coord/cellSize),site=(cell+.5)*cellSize;
+        half4 field=uField.eval(site);
+        float siteDistance=(float(field.r)-.5)*2.0*uDistanceRange;
+        float2 gradient=float2(field.gb)*2.0-1.0;
+        float gradientLength=length(gradient);
+        float seed=hash(cell+phase);
+        if(seed>.69 && siteDistance>-uDistanceRange+2.0 && gradientLength>.05) {
+            float2 anchor=site-gradient/gradientLength*siteDistance;
+            float2 anchorUv=(anchor-iResolution.xy*.5)/h;
+            float alignment=exp(-pow((anchorUv.x*.45+anchorUv.y*.85-sweep)/.40,2.0));
+            float breath=.42+.58*pow(.5+.5*sin(t*2.2+seed*9.0),2.0);
+            float spark=star(coord-anchor,14.0*s)*breath*(.60+.40*alignment);
+            result=over(result,spark*.94,float3(1.0,.96,.86));
+        }
+    }
+    float life=1.0-tail;
+    // Raster owns its geometric departure; all other families release cleanly.
+    if(uEffect>2.5 && uEffect<3.5) life=1.0;
+    return half4(result*life);
+}

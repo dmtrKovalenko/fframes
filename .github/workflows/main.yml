@@ -4,8 +4,8 @@ on:
     branches: [ main ]
     # A v1.2.3 tag from scripts/release.sh publishes that version, see the publish job
     tags: [ "v*" ]
+  # Include stacked feature PRs so their visual changes are checked before retargeting.
   pull_request:
-    branches: [ main ]
   # GitHub evicts caches that were not used for 7 days, rebuild them before that
   # happens so the first PR after a quiet week does not rebuild Skia and FFmpeg.
   schedule:
