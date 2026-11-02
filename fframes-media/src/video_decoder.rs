@@ -1069,6 +1069,54 @@ impl FFmpegDecoder {
         unsafe { self.decode_up_to_pts(self.offset_pts(offset)) }
     }
 
+    /// Decodes the frame at `seconds` of the stream, independent of the target fps and
+    /// the playback speed. The time is rounded to a microsecond first, so a time like
+    /// `19.2` shows the frame at 19.2 s and not the frame after it.
+    /// # Safety
+    /// Generally safe but uses libav functions
+    pub unsafe fn decode_at_seconds(&mut self, seconds: f64) -> Result<bool> {
+        unsafe {
+            let micros = (seconds.max(0.0) * 1_000_000.0).round() as i64;
+            let pts = av_rescale_q(
+                micros,
+                AVRational {
+                    num: 1,
+                    den: 1_000_000,
+                },
+                self.video_stream_info.time_base,
+            );
+            self.decode_up_to_pts(pts)
+        }
+    }
+
+    /// [`Self::decode_at_seconds`] for a part of the stream from `loop_start` to its end
+    /// that plays again after the end: `seconds` past the end wrap to `loop_start`.
+    /// # Safety
+    /// Generally safe but uses libav functions
+    pub unsafe fn decode_at_seconds_looping(
+        &mut self,
+        seconds: f64,
+        loop_start: f64,
+    ) -> Result<bool> {
+        unsafe {
+            // An unknown duration can't be looped over.
+            let Some(duration) = self.stream_duration() else {
+                return self.decode_at_seconds(seconds);
+            };
+            let length = duration as f64 * av_q2d(self.video_stream_info.time_base) - loop_start;
+            if length <= 0.0 {
+                return self.decode_at_seconds(seconds);
+            }
+
+            let seconds = loop_start + (seconds - loop_start).rem_euclid(length);
+            if self.decode_at_seconds(seconds)? {
+                return Ok(true);
+            }
+            // The frames end before the stream's duration: start the next loop.
+            self.decode_at_seconds(loop_start)
+        }
+    }
+
     unsafe fn decode_up_to_pts(&mut self, target_pts: i64) -> Result<bool> {
         unsafe {
             if (*self.frame_buf.latest_av_frame).pts == target_pts {

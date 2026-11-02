@@ -17,6 +17,13 @@ use std::{
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
 
+/// A decoded frame of a video file.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) type SourceFrame<'media> = Arc<crate::media::FFmpegFrameBuf>;
+/// A decoded frame of a video file: the editor's frame or the fallback image.
+#[cfg(target_arch = "wasm32")]
+pub(crate) type SourceFrame<'media> = Arc<WasmEditorVideoFrameFallback<'media>>;
+
 /// Data returned by the video frame resolver callback.
 #[cfg(target_arch = "wasm32")]
 pub struct VideoFrameData {
@@ -70,8 +77,8 @@ pub trait FFramesSyncedVideoFrame<'media> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyncVideoFrameInput<'media> {
-    /// The seconds timestamp in seconds to start playing the video from
-    /// If not provided starts playing from the beginning of the video or scene.
+    /// The second of the video (or scene) when the file starts playing from its beginning.
+    /// It is not a position in the file: to play a part of a file use [`Clip`](crate::Clip).
     pub start_from: f32,
     /// If `true` the video playback will be looped and will start from the beginning on the end.
     /// Also if `true` the `get_synced_video_frame` API should never return None, only in case of
@@ -213,31 +220,50 @@ struct DecoderEntry {
     slot: DecoderSlot,
 }
 
-/// Each decoder keeps the file open and its frames in memory. A file played at more
-/// speeds closes the idle decoder that was used least recently.
+/// What a decoder of a file is used for. Each key has its own decoder, so two uses of
+/// one file at different positions do not seek the same decoder back and forth.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecoderKey {
+    /// `get_synced_video_frame` at a playback speed.
+    Speed(PlaybackSpeed),
+    /// `video_frame_at` with this key (one per `Clip`).
+    Source(u64),
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<PlaybackSpeed> for DecoderKey {
+    fn from(speed: PlaybackSpeed) -> Self {
+        Self::Speed(speed)
+    }
+}
+
+/// Each decoder keeps the file open and its frames in memory. A file used with more
+/// keys closes the idle decoder that was used least recently.
 #[cfg(not(target_arch = "wasm32"))]
 const MAX_DECODERS_PER_VIDEO: usize = 4;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 struct DecoderPool {
-    /// The decoders of each file, one per playback speed: offsets of different speeds
-    /// point to different parts of the file.
-    sources: HashMap<PathBuf, Vec<(PlaybackSpeed, DecoderEntry)>>,
+    /// The decoders of each file, one per playback speed and one per clip: offsets of
+    /// different speeds and clips point to different parts of the file.
+    sources: HashMap<PathBuf, Vec<(DecoderKey, DecoderEntry)>>,
     generation: u64,
     accesses: u64,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl DecoderPool {
-    fn slot(&mut self, path: &Path, speed: PlaybackSpeed) -> DecoderSlot {
+    fn slot(&mut self, path: &Path, key: impl Into<DecoderKey>) -> DecoderSlot {
+        let key = key.into();
         self.accesses += 1;
         let decoders = if let Some(decoders) = self.sources.get_mut(path) {
             decoders
         } else {
             self.sources.entry(path.to_owned()).or_default()
         };
-        let index = if let Some(index) = decoders.iter().position(|(s, _)| *s == speed) {
+        let index = if let Some(index) = decoders.iter().position(|(k, _)| *k == key) {
             index
         } else {
             if decoders.len() >= MAX_DECODERS_PER_VIDEO
@@ -250,7 +276,7 @@ impl DecoderPool {
             {
                 decoders.remove(idle);
             }
-            decoders.push((speed, DecoderEntry::default()));
+            decoders.push((key, DecoderEntry::default()));
             decoders.len() - 1
         };
         let entry = &mut decoders[index].1;
@@ -259,7 +285,7 @@ impl DecoderPool {
         Arc::clone(&entry.slot)
     }
 
-    /// The decoders of `path` at every speed. A bare file name finds an unambiguous source.
+    /// The decoders of `path` at every speed and of every clip. A bare file name finds an unambiguous source.
     fn slots_of(&self, path: &Path) -> Vec<DecoderSlot> {
         let decoders = self.sources.get(path).or_else(|| {
             let mut matches = self
@@ -366,9 +392,7 @@ impl VideoDecodersWorker {
         offset: i64,
         ctx: &FFramesContext<'_, 'media>,
         options: &SyncVideoFrameInput<'media>,
-    ) -> crate::error::Result<Option<Arc<impl FFramesSyncedVideoFrame<'media> + 'media>>> {
-        use crate::media::{ImageMetadata, OwnedSharedString};
-
+    ) -> crate::error::Result<Option<SourceFrame<'media>>> {
         let Some(metadata) = media_ref.metadata else {
             return Ok(None);
         };
@@ -383,46 +407,50 @@ impl VideoDecodersWorker {
             return Ok(None);
         }
 
-        // Call into JS to get a decoded video frame from the buffer manager.
-        // The callback is synchronous — it returns a buffered frame or None.
-        if let Some(filename) = media_ref.path.file_name().map(|f| f.to_string_lossy()) {
-            let is_preview = matches!(ctx.mode, crate::FFramesMode::EditorTimelinePreview);
-            let frame_data = VIDEO_FRAME_RESOLVER.with(|resolver| {
-                resolver
-                    .get()
-                    .and_then(|resolve| resolve(&filename, offset, is_preview))
-            });
+        Ok(editor_frame(
+            media_ref,
+            metadata,
+            offset,
+            ctx,
+            options.editor_fallback_image,
+        ))
+    }
 
-            if let Some(data) = frame_data {
-                // preview_url (data URL) is used for timeline canvas rendering
-                // where SVG-as-image blocks blob URL resolution.
-                // Falls back to the main url if no preview_url is provided.
-                let preview_source = data.preview_url.as_deref().unwrap_or(&data.url);
-
-                return Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
-                    fallback_image: ImageData::new_from_web_source(
-                        OwnedSharedString::new_owned(preview_source.to_owned()),
-                        data.url,
-                        format!("__video_frame_{}_{}", filename, offset),
-                        ImageMetadata {
-                            width: data.width,
-                            height: data.height,
-                        },
-                    ),
-                    video_metadata: metadata,
-                })));
-            }
-        }
-
-        // Fall back to static fallback image (no decoded frames available yet)
-        let Some(fallback_image) = options.editor_fallback_image else {
+    /// The frame at `seconds` of the file in the editor: the frame of the decode queue
+    /// on the grid of the video's fps, or the fallback image. With a `loop_start`,
+    /// seconds past the end of the file wrap to it.
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn get_frame_at_source<'f>(
+        &self,
+        media_ref: &VideoMedia,
+        seconds: f64,
+        loop_start: Option<f64>,
+        _key: u64,
+        ctx: &FFramesContext<'_, '_>,
+        editor_fallback_image: Option<&'f ImageData<'f>>,
+    ) -> crate::error::Result<Option<SourceFrame<'f>>> {
+        let Some(metadata) = media_ref.metadata else {
             return Ok(None);
         };
+        let duration = f64::from(metadata.duration);
+        let seconds = match loop_start {
+            Some(loop_start) if duration > loop_start => {
+                loop_start + (seconds - loop_start).rem_euclid(duration - loop_start)
+            }
+            _ => seconds,
+        };
+        if seconds >= duration {
+            return Ok(None);
+        }
 
-        Ok(Some(Arc::new(WasmEditorVideoFrameFallback {
-            fallback_image: fallback_image.clone(),
-            video_metadata: metadata,
-        })))
+        let offset = (seconds * ctx.time_base.fps as f64).round() as i64;
+        Ok(editor_frame(
+            media_ref,
+            metadata,
+            offset,
+            ctx,
+            editor_fallback_image,
+        ))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -478,6 +506,88 @@ impl VideoDecodersWorker {
             Ok(has_frame.then(|| decoder.retained_frame()).transpose()?)
         }
     }
+
+    /// The frame at `seconds` of the file, decoded by the decoder of `key`. With a
+    /// `loop_start`, seconds past the end of the file wrap to it.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn get_frame_at_source<'f>(
+        &self,
+        VideoMedia { path, .. }: &VideoMedia,
+        seconds: f64,
+        loop_start: Option<f64>,
+        key: u64,
+        ctx: &FFramesContext<'_, '_>,
+        _editor_fallback_image: Option<&'f ImageData<'f>>,
+    ) -> Result<Option<SourceFrame<'f>>> {
+        let slot = self.pool.lock()?.slot(path, DecoderKey::Source(key));
+        let mut guard = slot.lock()?;
+        unsafe {
+            let decoder = match guard.as_mut() {
+                Some(decoder) => decoder,
+                None => guard.insert(fframes_media::FFmpegDecoder::new_with_mode(
+                    path,
+                    ctx.time_base.fps,
+                    self.buffer_size,
+                    self.mode,
+                )?),
+            };
+            let has_frame = match loop_start {
+                Some(loop_start) => decoder.decode_at_seconds_looping(seconds, loop_start)?,
+                None => decoder.decode_at_seconds(seconds)?,
+            };
+            Ok(has_frame.then(|| decoder.retained_frame()).transpose()?)
+        }
+    }
+}
+
+/// The frame at `offset` (frames of the video's fps) from the editor's decode queue, or
+/// the fallback image while it is not decoded.
+#[cfg(target_arch = "wasm32")]
+fn editor_frame<'f>(
+    media_ref: &VideoMedia,
+    metadata: GeneralVideoFileMetadata,
+    offset: i64,
+    ctx: &FFramesContext<'_, '_>,
+    editor_fallback_image: Option<&'f ImageData<'f>>,
+) -> Option<SourceFrame<'f>> {
+    use crate::media::{ImageMetadata, OwnedSharedString};
+
+    // Call into JS to get a decoded video frame from the buffer manager.
+    // The callback is synchronous — it returns a buffered frame or None.
+    if let Some(filename) = media_ref.path.file_name().map(|f| f.to_string_lossy()) {
+        let is_preview = matches!(ctx.mode, crate::FFramesMode::EditorTimelinePreview);
+        let frame_data = VIDEO_FRAME_RESOLVER.with(|resolver| {
+            resolver
+                .get()
+                .and_then(|resolve| resolve(&filename, offset, is_preview))
+        });
+
+        if let Some(data) = frame_data {
+            // preview_url (data URL) is used for timeline canvas rendering
+            // where SVG-as-image blocks blob URL resolution.
+            // Falls back to the main url if no preview_url is provided.
+            let preview_source = data.preview_url.as_deref().unwrap_or(&data.url);
+
+            return Some(Arc::new(WasmEditorVideoFrameFallback {
+                fallback_image: ImageData::new_from_web_source(
+                    OwnedSharedString::new_owned(preview_source.to_owned()),
+                    data.url,
+                    format!("__video_frame_{}_{}", filename, offset),
+                    ImageMetadata {
+                        width: data.width,
+                        height: data.height,
+                    },
+                ),
+                video_metadata: metadata,
+            }));
+        }
+    }
+
+    // Fall back to static fallback image (no decoded frames available yet)
+    Some(Arc::new(WasmEditorVideoFrameFallback {
+        fallback_image: editor_fallback_image?.clone(),
+        video_metadata: metadata,
+    }))
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -527,11 +637,11 @@ mod decoder_pool_tests {
         drop(normal);
         // A fifth speed closes the idle decoder used least recently, not the one in use.
         pool.slot(clip, PlaybackSpeed::new(3.0));
-        let speeds: Vec<_> = pool.sources[clip]
-            .iter()
-            .map(|(speed, _)| speed.thousandths())
-            .collect();
-        assert_eq!(speeds, [2000, 500, 1500, 3000]);
+        let keys: Vec<_> = pool.sources[clip].iter().map(|(key, _)| *key).collect();
+        assert_eq!(
+            keys,
+            [2.0, 0.5, 1.5, 3.0].map(|speed| DecoderKey::Speed(PlaybackSpeed::new(speed)))
+        );
         assert_eq!(pool.slots_of(Path::new("clip.mp4")).len(), 4);
         drop(held);
     }
