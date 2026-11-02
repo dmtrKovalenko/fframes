@@ -122,15 +122,15 @@ struct IconPaths {
 /// Where everything sits for a given window size, in physical pixels.
 pub(crate) struct ControlsLayout {
     scale: f32,
-    pub(crate) bar: Rect,
-    pub(crate) back: Rect,
-    pub(crate) play: Rect,
-    pub(crate) forward: Rect,
+    bar: Rect,
+    back: Rect,
+    play: Rect,
+    forward: Rect,
     current_time: Point,
-    pub(crate) track: Rect,
+    track: Rect,
     total_time: Point,
-    pub(crate) looping: Rect,
-    pub(crate) fullscreen: Rect,
+    looping: Rect,
+    fullscreen: Rect,
 }
 
 impl ControlsLayout {
@@ -673,7 +673,7 @@ mod tests {
     use fframes_skia_renderer::skia_safe::{AlphaType, ColorType, ImageInfo, surfaces};
 
     use super::*;
-    use crate::motion::Intent;
+    use crate::motion::{Intent, Motion, Timing};
 
     #[test]
     fn draws_the_primary_action_and_progress_in_the_brand_color() {
@@ -686,14 +686,19 @@ mod tests {
             duration_in_frames: 900,
             fps: 30,
             fullscreen: false,
-            motion: Sample::settled(Intent {
-                studio: false,
-                dock: true,
-                playing: false,
-                looping: true,
-                hovered: None,
-                pressed: None,
-            }),
+            motion: Motion::new(
+                Intent {
+                    studio: false,
+                    dock: true,
+                    playing: false,
+                    looping: true,
+                    hovered: None,
+                    pressed: None,
+                },
+                Timing::DEFAULT,
+                std::time::Instant::now(),
+            )
+            .sample(std::time::Instant::now()),
         };
         controls.draw(surface.canvas(), &layout, &state);
 

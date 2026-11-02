@@ -40,8 +40,6 @@ mod icons;
 mod motion;
 mod options;
 mod presenter;
-#[cfg(test)]
-mod review_film;
 mod scheduler;
 mod studio;
 

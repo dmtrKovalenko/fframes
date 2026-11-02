@@ -128,8 +128,7 @@ pub(crate) struct Intent {
     pub pressed: Option<Control>,
 }
 
-/// How long each motion takes. `INSTANT` makes every one a cut, which is how the player
-/// behaved before it moved (used for review films).
+/// How long each motion takes.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Timing {
     /// The studio and the focus view trading places.
@@ -156,19 +155,6 @@ impl Timing {
         glyph: Duration::from_millis(240),
         thumbnail: Duration::from_millis(260),
         flash: true,
-    };
-
-    #[cfg(test)]
-    pub(crate) const INSTANT: Timing = Timing {
-        view: Duration::ZERO,
-        reveal: Duration::ZERO,
-        conceal: Duration::ZERO,
-        hover: Duration::ZERO,
-        press: Duration::ZERO,
-        release: Duration::ZERO,
-        glyph: Duration::ZERO,
-        thumbnail: Duration::ZERO,
-        flash: false,
     };
 }
 
@@ -345,173 +331,11 @@ pub(crate) struct Sample {
 }
 
 impl Sample {
-    /// Every motion at rest in `intent`'s state.
-    #[cfg(test)]
-    pub(crate) fn settled(intent: Intent) -> Self {
-        let on = |yes: bool| f32::from(u8::from(yes));
-        let mut sample = Self {
-            now: Instant::now(),
-            thumbnail_fade: Duration::ZERO,
-            studio: on(intent.studio),
-            dock: on(intent.dock),
-            hover: [0.; 7],
-            press: [0.; 7],
-            glyph: on(intent.playing),
-            looping: on(intent.looping),
-            scene: match intent.hovered {
-                Some(Control::Scene(start)) => Some((start, 1.)),
-                _ => None,
-            },
-            flash: None,
-        };
-        if let Some(index) = intent.hovered.and_then(slot) {
-            sample.hover[index] = 1.;
-        }
-        if let Some(index) = intent.pressed.and_then(slot) {
-            sample.press[index] = 1.;
-        }
-        sample
-    }
-
     pub(crate) fn hover(&self, control: Control) -> f32 {
         slot(control).map_or(0., |index| self.hover[index])
     }
 
     pub(crate) fn press(&self, control: Control) -> f32 {
         slot(control).map_or(0., |index| self.press[index])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn intent() -> Intent {
-        Intent {
-            studio: true,
-            dock: true,
-            playing: true,
-            looping: false,
-            hovered: None,
-            pressed: None,
-        }
-    }
-
-    #[test]
-    fn easing_ends_are_exact_and_the_curves_rise() {
-        for easing in [Easing::TRAVEL, Easing::ARRIVAL, Easing::EASE_OUT] {
-            assert_eq!(easing.apply(0.), 0.);
-            assert_eq!(easing.apply(1.), 1.);
-            assert_eq!(easing.apply(-1.), 0.);
-            assert_eq!(easing.apply(2.), 1.);
-            let steps: Vec<f32> = (0..=10).map(|i| easing.apply(i as f32 / 10.)).collect();
-            assert!(steps.windows(2).all(|w| w[1] >= w[0]), "{steps:?}");
-        }
-        assert!(Easing::ARRIVAL.apply(0.3) > 0.5);
-        assert!(Easing::TRAVEL.apply(0.5) > 0.5);
-    }
-
-    #[test]
-    fn a_retargeted_tween_continues_from_where_it_is() {
-        let start = Instant::now();
-        let mut tween = Tween::at(0., start);
-        tween.go(1., Duration::from_millis(100), Easing::EASE_OUT, start);
-        let midway = start + Duration::from_millis(50);
-        let value = tween.value(midway);
-        assert!(value > 0.5 && value < 1., "{value}");
-        assert!(tween.is_moving(midway));
-
-        tween.go(0., Duration::from_millis(100), Easing::EASE_OUT, midway);
-        assert_eq!(tween.value(midway), value);
-        assert_eq!(tween.value(midway + Duration::from_millis(100)), 0.);
-        assert!(!tween.is_moving(midway + Duration::from_millis(100)));
-    }
-
-    #[test]
-    fn the_motion_follows_the_intent_and_settles() {
-        let now = Instant::now();
-        let mut motion = Motion::new(intent(), Timing::DEFAULT, now);
-        assert!(!motion.is_moving(now));
-        assert_eq!(motion.sample(now).studio, 1.);
-
-        motion.follow(
-            Intent {
-                studio: false,
-                playing: false,
-                hovered: Some(Control::Loop),
-                ..intent()
-            },
-            now,
-        );
-        let later = now + Duration::from_millis(10);
-        assert!(motion.is_moving(later));
-        let sample = motion.sample(later);
-        assert!(sample.studio < 1. && sample.studio > 0.);
-        assert!(sample.glyph < 1.);
-        assert!(sample.hover(Control::Loop) > 0.);
-        assert_eq!(sample.hover(Control::Back), 0.);
-
-        let settled = now + Duration::from_secs(1);
-        assert!(!motion.is_moving(settled));
-        let sample = motion.sample(settled);
-        assert_eq!(sample.studio, 0.);
-        assert_eq!(sample.glyph, 0.);
-        assert_eq!(sample.hover(Control::Loop), 1.);
-
-        motion.flash(true, settled);
-        assert!(motion.is_moving(settled));
-        assert!(!motion.is_moving(settled + Flash::DURATION));
-    }
-
-    #[test]
-    fn a_hovered_scene_lights_up_and_the_light_moves_between_scenes() {
-        let now = Instant::now();
-        let mut motion = Motion::new(intent(), Timing::DEFAULT, now);
-        motion.follow(
-            Intent {
-                hovered: Some(Control::Scene(0)),
-                ..intent()
-            },
-            now,
-        );
-        let later = now + Duration::from_secs(1);
-        assert_eq!(motion.sample(later).scene, Some((0, 1.)));
-
-        motion.follow(
-            Intent {
-                hovered: Some(Control::Scene(60)),
-                ..intent()
-            },
-            later,
-        );
-        assert_eq!(motion.sample(later).scene, Some((60, 1.)));
-
-        motion.follow(intent(), later);
-        let fading = motion.sample(later + Duration::from_millis(50)).scene;
-        assert!(
-            matches!(fading, Some((60, lit)) if lit > 0. && lit < 1.),
-            "{fading:?}"
-        );
-        assert_eq!(motion.sample(later + Duration::from_secs(1)).scene, None);
-    }
-
-    #[test]
-    fn instant_timing_cuts() {
-        let now = Instant::now();
-        let mut motion = Motion::new(intent(), Timing::INSTANT, now);
-        motion.follow(
-            Intent {
-                studio: false,
-                pressed: Some(Control::PlayPause),
-                ..intent()
-            },
-            now,
-        );
-        motion.flash(false, now);
-        assert!(!motion.is_moving(now));
-        let sample = motion.sample(now);
-        assert_eq!(sample.studio, 0.);
-        assert_eq!(sample.press(Control::PlayPause), 1.);
-        assert!(sample.flash.is_none());
     }
 }

@@ -196,7 +196,7 @@ const STUDIO_MATTE: Color = Color::from_rgb(14, 14, 14);
 
 /// Where the video sits, in physical pixels: letterboxed into the window in the focus
 /// view, into the stage of the studio, and in between while the view changes.
-pub(crate) fn video_rect(
+fn video_rect(
     video: Option<fframes::usvgr::Size>,
     window: Rect,
     view: Option<&StudioLayout>,

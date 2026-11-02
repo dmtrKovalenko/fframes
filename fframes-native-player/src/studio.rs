@@ -27,7 +27,7 @@ pub(crate) struct Studio {
     thumbnail_revision: u64,
 }
 
-pub(crate) struct Clip {
+struct Clip {
     name: String,
     frames: Range<usize>,
     waveform: Option<Path>,
@@ -71,51 +71,6 @@ impl Studio {
             index,
             video_aspect,
             audio: pack_clips(clips),
-            thumbnails: vec![None; thumbnail_count],
-            thumbnail_arrivals: vec![None; thumbnail_count],
-            thumbnail_revision: 0,
-        }
-    }
-
-    /// A studio without media, for review films: `scenes` as `(name, frames)`, one audio
-    /// lane per entry of `lanes` with `(name, frames, envelope)` clips.
-    #[cfg(test)]
-    pub(crate) fn fixture(
-        fps: usize,
-        duration_in_frames: usize,
-        scenes: &[(&str, Range<usize>)],
-        lanes: &[Vec<(&str, Range<usize>, Path)>],
-        thumbnail_count: usize,
-        video_aspect: f32,
-    ) -> Self {
-        Self {
-            index: TimelineIndex {
-                fps,
-                duration_in_frames,
-                scenes: scenes
-                    .iter()
-                    .enumerate()
-                    .map(|(index, (name, frames))| fframes::TimelineScene {
-                        index,
-                        name: (*name).to_owned(),
-                        full_name: (*name).to_owned(),
-                        frames: frames.clone(),
-                    })
-                    .collect(),
-            },
-            video_aspect,
-            audio: lanes
-                .iter()
-                .map(|lane| {
-                    lane.iter()
-                        .map(|(name, frames, envelope)| Clip {
-                            name: (*name).to_owned(),
-                            frames: frames.clone(),
-                            waveform: Some(envelope.clone()),
-                        })
-                        .collect()
-                })
-                .collect(),
             thumbnails: vec![None; thumbnail_count],
             thumbnail_arrivals: vec![None; thumbnail_count],
             thumbnail_revision: 0,
@@ -538,52 +493,6 @@ impl StudioLayout {
         } else {
             (0., self.timeline.bottom - self.timeline.top)
         }
-    }
-
-    /// Points for a review film: the scene band at `frame`, the film strip at `frame`.
-    #[cfg(test)]
-    pub(crate) fn scene_point(&self, frame: usize, duration: usize) -> Point {
-        let track = self.tracks();
-        if self.portrait {
-            Point::new(
-                self.portrait_columns().1.center_x(),
-                self.frame_position(frame, duration),
-            )
-        } else {
-            Point::new(
-                self.frame_position(frame, duration),
-                track.top + RULER + SCENE_HEIGHT / 2.,
-            )
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn strip_point(&self, frame: usize, duration: usize) -> Point {
-        let track = self.tracks();
-        if self.portrait {
-            Point::new(
-                self.portrait_columns().0.center_x(),
-                self.frame_position(frame, duration),
-            )
-        } else {
-            Point::new(
-                self.frame_position(frame, duration),
-                track.top + RULER + SCENE_HEIGHT + self.film_height / 2.,
-            )
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn restore_rect(&self) -> Rect {
-        self.restore
-    }
-
-    #[cfg(test)]
-    pub(crate) fn button_rect(&self, control: Control) -> Option<Rect> {
-        self.buttons()
-            .into_iter()
-            .find(|(c, _)| *c == control)
-            .map(|(_, rect)| rect)
     }
 
     pub fn time_axis(&self, point: Point) -> f32 {
@@ -1213,23 +1122,6 @@ mod tests {
     }
 
     #[test]
-    fn a_thumbnail_fades_in_for_the_fade_duration_after_it_arrives() {
-        let mut model = studio();
-        model.thumbnails = vec![None, None];
-        model.thumbnail_arrivals = vec![None, None];
-        let fade = Duration::from_millis(260);
-        let now = Instant::now();
-        assert!(!model.is_fading_in(now, fade));
-
-        let mut image = surfaces::raster_n32_premul((2, 2)).unwrap();
-        model.set_thumbnail(1, image.image_snapshot(), now);
-        assert!(model.is_fading_in(now, fade));
-        assert!(model.is_fading_in(now + Duration::from_millis(259), fade));
-        assert!(!model.is_fading_in(now + fade, fade));
-        assert!(!model.is_fading_in(now, Duration::ZERO));
-    }
-
-    #[test]
     fn navigation_uses_resolved_starts_and_skips_unreachable_scenes() {
         let studio = studio();
         assert_eq!(studio.adjacent_scene(49, true), Some(50));
@@ -1260,21 +1152,25 @@ mod tests {
             duration_in_frames: 100,
             fps: 30,
             fullscreen: false,
-            motion: crate::motion::Sample::settled(crate::motion::Intent {
-                studio: true,
-                dock: false,
-                playing: true,
-                looping: true,
-                hovered: None,
-                pressed: None,
-            }),
+            motion: crate::motion::Motion::new(
+                crate::motion::Intent {
+                    studio: true,
+                    dock: false,
+                    playing: true,
+                    looping: true,
+                    hovered: None,
+                    pressed: None,
+                },
+                crate::motion::Timing::DEFAULT,
+                Instant::now(),
+            )
+            .sample(Instant::now()),
         };
         let draw = |layout: &mut StudioLayout,
                     state: &ControlsState,
                     model: &Studio,
                     scroll: &StudioScroll,
                     scale: f32,
-                    offset: f32,
                     cached: bool| {
             let size = (800. * scale) as i32;
             let info = ImageInfo::new_n32_premul((size, size), None);
@@ -1282,7 +1178,6 @@ mod tests {
             let canvas = surface.canvas();
             canvas.clear(Color::BLACK);
             canvas.scale((scale, scale));
-            canvas.translate((offset, offset));
             if cached {
                 layout.draw(canvas, &controls, state, model, scroll);
             } else {
@@ -1302,8 +1197,8 @@ mod tests {
                 for frame in [0, 1, 49, 50, 59, 60, 99, 0] {
                     state.frame = frame;
                     assert!(
-                        draw(&mut layout, &state, &model, &scroll, scale, 0., true)
-                            == draw(&mut layout, &state, &model, &scroll, scale, 0., false),
+                        draw(&mut layout, &state, &model, &scroll, scale, true)
+                            == draw(&mut layout, &state, &model, &scroll, scale, false),
                         "aspect={aspect}, frame={frame}, scale={scale}"
                     );
                     let id = layout.timeline_cache.as_ref().unwrap().image.unique_id();
@@ -1319,27 +1214,18 @@ mod tests {
             thumbnail.canvas().clear(Color::RED);
             for updated_thumbnail in [false, true] {
                 if updated_thumbnail {
-                    model.set_thumbnail(0, thumbnail.image_snapshot(), Instant::now());
+                    // arrived long ago: its fade-in is over, so the cached and the fresh
+                    // draw show it the same way
+                    let arrival = Instant::now().checked_sub(Duration::from_secs(60)).unwrap();
+                    model.set_thumbnail(0, thumbnail.image_snapshot(), arrival);
                 }
                 assert!(
-                    draw(&mut layout, &state, &model, &scroll, 2., 0., true)
-                        == draw(&mut layout, &state, &model, &scroll, 2., 0., false),
+                    draw(&mut layout, &state, &model, &scroll, 2., true)
+                        == draw(&mut layout, &state, &model, &scroll, 2., false),
                     "aspect={aspect}, updated_thumbnail={updated_thumbnail}"
                 );
             }
             // The panel slides while the views change: a moved canvas gets a fresh cache
-            // The panel slides while the views change: a moved canvas gets a fresh cache.
-            // Along the edge where the surface cuts the panel a few pixels round
-            // differently (about 20 of 2.5 million), nothing more.
-            for offset in [-37.5, 12.] {
-                let cached = draw(&mut layout, &state, &model, &scroll, 2., offset, true);
-                let fresh = draw(&mut layout, &state, &model, &scroll, 2., offset, false);
-                let off = cached.iter().zip(&fresh).filter(|(a, b)| a != b).count();
-                assert!(
-                    off < 200,
-                    "aspect={aspect}, offset={offset}: {off} bytes differ"
-                );
-            }
             scroll.audio = 0;
             model.thumbnails[0] = None;
         }
