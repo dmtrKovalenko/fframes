@@ -115,9 +115,9 @@ mod clip;
 mod color;
 mod duration;
 mod fframes_context;
+mod fit;
 mod font_data;
 mod frame;
-mod layout;
 #[cfg(feature = "lottie")]
 mod lottie;
 mod media_provider;
@@ -159,9 +159,9 @@ pub use clip::*;
 pub use color::*;
 pub use duration::*;
 pub use fframes_context::*;
+pub use fit::*;
 pub use font_data::*;
 pub use frame::*;
-pub use layout::*;
 #[cfg(feature = "lottie")]
 pub use lottie::*;
 #[cfg(all(feature = "wgpu", not(target_arch = "wasm32")))]
