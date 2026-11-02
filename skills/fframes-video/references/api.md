@@ -186,7 +186,7 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   `self.face.image(&frame, ctx)` (or `image_at_width(&frame, ctx, 440)` for a small picture in
   picture), an `Option<ImageData>` drawn as `<image href={image.href()} ...>` with any
   transform, filter, mask or shader. `{option_of_svgr}` in `svgr!` draws nothing for `None`.
-  `self.face.place(&frame, ctx, Rect::new(x, y, w, h))` gives its `x`, `y`, `width` and `height`
+  `self.face.place(&frame, ctx, Rect::from_xywh(x, y, w, h).unwrap())` gives its `x`, `y`, `width` and `height`
   in a box from the size of the decoded frame, with `.fit` or `.pan_zoom` over the clip's length.
   Put the voice of the clip into the scene's `audio` with `.offset(...)` into the audio file,
   so it moves with the scene. Cut a phrase by splitting the clip into two clips, never by

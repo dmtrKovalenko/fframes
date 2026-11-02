@@ -2,7 +2,7 @@
 //!
 //! ```ignore
 //! let photo = ctx.get_image("still.jpg")?;
-//! let dest = Rect::from_size(1920.0, 1080.0);
+//! let dest = Rect::from_xywh(0.0, 0.0, 1920.0, 1080.0).unwrap();
 //! let placed = Fit::Cover.place(
 //!     photo.metadata.width as f32,
 //!     photo.metadata.height as f32,
@@ -25,50 +25,7 @@
 use std::fmt;
 
 /// Axis-aligned rectangle in the video's SVG coordinates.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Rect {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
-
-impl Rect {
-    /// A rectangle with its top-left corner at (`x`, `y`).
-    pub const fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-
-    /// A rectangle at the origin.
-    pub const fn from_size(width: f32, height: f32) -> Self {
-        Self::new(0.0, 0.0, width, height)
-    }
-
-    /// The x coordinate of the right edge.
-    pub fn right(self) -> f32 {
-        self.x + self.width
-    }
-
-    /// The y coordinate of the bottom edge.
-    pub fn bottom(self) -> f32 {
-        self.y + self.height
-    }
-
-    /// The centre point as `(x, y)`.
-    pub fn center(self) -> (f32, f32) {
-        (self.x + self.width * 0.5, self.y + self.height * 0.5)
-    }
-
-    /// True when the width or the height is zero or negative.
-    pub fn is_empty(self) -> bool {
-        self.width <= 0.0 || self.height <= 0.0
-    }
-}
+pub use usvgr::Rect;
 
 /// How a source rectangle is mapped into [`Rect`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -103,8 +60,8 @@ pub struct Placement {
 
 impl Placement {
     /// The drawn area as a [`Rect`], which can extend past [`Placement::clip`].
-    pub fn rect(self) -> Rect {
-        Rect::new(self.x, self.y, self.width, self.height)
+    pub fn rect(self) -> Option<Rect> {
+        Rect::from_xywh(self.x, self.y, self.width, self.height)
     }
 }
 
@@ -113,10 +70,10 @@ impl Fit {
     pub fn place(self, src_width: f32, src_height: f32, dest: Rect) -> Placement {
         if dest.is_empty() {
             return Placement {
-                x: dest.x,
-                y: dest.y,
-                width: dest.width.max(0.0),
-                height: dest.height.max(0.0),
+                x: dest.x(),
+                y: dest.y(),
+                width: dest.width(),
+                height: dest.height(),
                 clip: dest,
                 scale_x: 1.0,
                 scale_y: 1.0,
@@ -124,10 +81,10 @@ impl Fit {
         }
         if src_width <= 0.0 || src_height <= 0.0 {
             return Placement {
-                x: dest.x,
-                y: dest.y,
-                width: dest.width,
-                height: dest.height,
+                x: dest.x(),
+                y: dest.y(),
+                width: dest.width(),
+                height: dest.height(),
                 clip: dest,
                 scale_x: 1.0,
                 scale_y: 1.0,
@@ -136,26 +93,26 @@ impl Fit {
 
         match self {
             Fit::Fill => Placement {
-                x: dest.x,
-                y: dest.y,
-                width: dest.width,
-                height: dest.height,
+                x: dest.x(),
+                y: dest.y(),
+                width: dest.width(),
+                height: dest.height(),
                 clip: dest,
-                scale_x: dest.width / src_width,
-                scale_y: dest.height / src_height,
+                scale_x: dest.width() / src_width,
+                scale_y: dest.height() / src_height,
             },
             Fit::None => centered(src_width, src_height, 1.0, 1.0, dest),
             Fit::Cover => {
-                let scale = (dest.width / src_width).max(dest.height / src_height);
+                let scale = (dest.width() / src_width).max(dest.height() / src_height);
                 scaled(src_width, src_height, scale, dest)
             }
             Fit::Contain => {
-                let scale = (dest.width / src_width).min(dest.height / src_height);
+                let scale = (dest.width() / src_width).min(dest.height() / src_height);
                 scaled(src_width, src_height, scale, dest)
             }
             Fit::ScaleDown => {
-                let scale = (dest.width / src_width)
-                    .min(dest.height / src_height)
+                let scale = (dest.width() / src_width)
+                    .min(dest.height() / src_height)
                     .min(1.0);
                 scaled(src_width, src_height, scale, dest)
             }
@@ -171,8 +128,8 @@ fn centered(src_width: f32, src_height: f32, scale_x: f32, scale_y: f32, dest: R
     let width = src_width * scale_x;
     let height = src_height * scale_y;
     Placement {
-        x: dest.x + (dest.width - width) * 0.5,
-        y: dest.y + (dest.height - height) * 0.5,
+        x: dest.x() + (dest.width() - width) * 0.5,
+        y: dest.y() + (dest.height() - height) * 0.5,
         width,
         height,
         clip: dest,
@@ -267,16 +224,19 @@ impl PanZoom {
         let focus_x = lerp(self.from_focus.x, self.to_focus.x, t).clamp(0.0, 1.0);
         let focus_y = lerp(self.from_focus.y, self.to_focus.y, t).clamp(0.0, 1.0);
 
-        let cover = (dest.width / src_width).max(dest.height / src_height);
+        let cover = (dest.width() / src_width).max(dest.height() / src_height);
         let scale = cover * zoom;
         let width = src_width * scale;
         let height = src_height * scale;
-        let (cx, cy) = dest.center();
+        let (cx, cy) = (
+            dest.x() + dest.width() * 0.5,
+            dest.y() + dest.height() * 0.5,
+        );
         let mut x = cx - focus_x * width;
         let mut y = cy - focus_y * height;
 
-        x = clamp_axis(x, width, dest.x, dest.width);
-        y = clamp_axis(y, height, dest.y, dest.height);
+        x = clamp_axis(x, width, dest.x(), dest.width());
+        y = clamp_axis(y, height, dest.y(), dest.height());
 
         Placement {
             x,

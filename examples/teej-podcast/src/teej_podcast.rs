@@ -107,8 +107,9 @@ impl Video for TeejPodcast<'_> {
         // The editor shows left.jpg and right.jpg until it has decoded the frames.
         let left_frame = self.left.image(&frame, ctx);
         let right_frame = self.right.image(&frame, ctx);
-        let left_placed = Self::place_clip(&self.left, "left.jpg", &frame, ctx, LEFT_FRAME);
-        let right_placed = Self::place_clip(&self.right, "right.jpg", &frame, ctx, RIGHT_FRAME);
+        let left_placed = Self::place_clip(&self.left, "left.jpg", &frame, ctx, left_frame_rect());
+        let right_placed =
+            Self::place_clip(&self.right, "right.jpg", &frame, ctx, right_frame_rect());
 
         // The chapter whose time range contains the current frame; the last
         // chapter stays active until the end.
