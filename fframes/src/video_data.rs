@@ -417,12 +417,14 @@ impl VideoDecodersWorker {
     }
 
     /// The frame at `seconds` of the file in the editor: the frame of the decode queue
-    /// on the grid of the video's fps, or the fallback image.
+    /// on the grid of the video's fps, or the fallback image. With a `loop_start`,
+    /// seconds past the end of the file wrap to it.
     #[cfg(target_arch = "wasm32")]
     pub(crate) fn get_frame_at_source<'f>(
         &self,
         media_ref: &VideoMedia,
         seconds: f64,
+        loop_start: Option<f64>,
         _key: u64,
         ctx: &FFramesContext<'_, '_>,
         editor_fallback_image: Option<&'f ImageData<'f>>,
@@ -430,7 +432,14 @@ impl VideoDecodersWorker {
         let Some(metadata) = media_ref.metadata else {
             return Ok(None);
         };
-        if seconds >= f64::from(metadata.duration) {
+        let duration = f64::from(metadata.duration);
+        let seconds = match loop_start {
+            Some(loop_start) if duration > loop_start => {
+                loop_start + (seconds - loop_start).rem_euclid(duration - loop_start)
+            }
+            _ => seconds,
+        };
+        if seconds >= duration {
             return Ok(None);
         }
 
@@ -498,12 +507,14 @@ impl VideoDecodersWorker {
         }
     }
 
-    /// The frame at `seconds` of the file, decoded by the decoder of `key`.
+    /// The frame at `seconds` of the file, decoded by the decoder of `key`. With a
+    /// `loop_start`, seconds past the end of the file wrap to it.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn get_frame_at_source<'f>(
         &self,
         VideoMedia { path, .. }: &VideoMedia,
         seconds: f64,
+        loop_start: Option<f64>,
         key: u64,
         ctx: &FFramesContext<'_, '_>,
         _editor_fallback_image: Option<&'f ImageData<'f>>,
@@ -520,7 +531,10 @@ impl VideoDecodersWorker {
                     self.mode,
                 )?),
             };
-            let has_frame = decoder.decode_at_seconds(seconds)?;
+            let has_frame = match loop_start {
+                Some(loop_start) => decoder.decode_at_seconds_looping(seconds, loop_start)?,
+                None => decoder.decode_at_seconds(seconds)?,
+            };
             Ok(has_frame.then(|| decoder.retained_frame()).transpose()?)
         }
     }

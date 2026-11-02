@@ -484,21 +484,23 @@ impl Frame {
         seconds: f64,
         editor_fallback_image: Option<&'f crate::media::ImageData<'f>>,
     ) -> Option<Arc<impl FFramesSyncedVideoFrame<'f> + use<'f>>> {
-        self.video_frame_at_keyed(ctx, file_name, seconds, 0, editor_fallback_image)
+        self.video_frame_at_keyed(ctx, file_name, seconds, None, 0, editor_fallback_image)
     }
 
     /// `video_frame_at` with the decoder of `key`. Different keys never share a decoder.
+    /// With a `loop_start`, seconds past the end of the file wrap to it.
     pub(crate) fn video_frame_at_keyed<'f>(
         &self,
         ctx: &crate::FFramesContext<'_, '_>,
         file_name: &str,
         seconds: f64,
+        loop_start: Option<f64>,
         key: u64,
         editor_fallback_image: Option<&'f crate::media::ImageData<'f>>,
     ) -> Option<crate::video_data::SourceFrame<'f>> {
         let video = ctx.get_video(file_name)?;
         self.worker_local_video_decoders
-            .get_frame_at_source(video, seconds, key, ctx, editor_fallback_image)
+            .get_frame_at_source(video, seconds, loop_start, key, ctx, editor_fallback_image)
             .map_err(|e| {
                 crate::log!("Error while decoding video frame: {:?}", e);
             })

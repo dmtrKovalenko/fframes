@@ -93,7 +93,8 @@ pub struct Clip<'a> {
     pub speed: f32,
     /// Plays the clip backwards, from the end of `source` to its start. Needs an end.
     pub reverse: bool,
-    /// Starts the clip again after its end, for as long as the scene shows it.
+    /// Starts the clip again after its end, for as long as the scene shows it. A clip to the
+    /// end of the file starts again at the end of the file.
     pub looping: bool,
     /// The image the editor shows until the frame is decoded.
     pub editor_fallback_image: Option<&'a ImageData<'a>>,
@@ -214,10 +215,14 @@ impl<'a> Clip<'a> {
         let start_frame = (f64::from(self.at) * frame.fps as f64).round() as usize;
         let index = frame.index.checked_sub(start_frame)?;
         let seconds = self.source_seconds(index, frame.fps)?;
+        // The end of an open clip is known to the decoder only, so it wraps the time there.
+        let loop_start =
+            (self.looping && !self.source.end.is_finite()).then_some(self.source.start);
         frame.video_frame_at_keyed(
             ctx,
             self.video,
             seconds,
+            loop_start,
             self.decoder_key(),
             self.editor_fallback_image,
         )
