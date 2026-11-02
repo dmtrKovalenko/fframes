@@ -1,6 +1,6 @@
 [package]
 name = "fframes-media"
-version = "1.3.0"
+version = "1.4.1"
 description = "Media loaders used by different fframes packages. This crate is not meant to be used directly."
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2024"
