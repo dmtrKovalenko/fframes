@@ -18,6 +18,10 @@
 //! [`Fit::Cover`] draws larger than `dest`; clip to [`Placement::clip`] if the overflow
 //! should not show. [`PanZoom`] animates a cover-based crop: drive `t` with
 //! `frame.animate` from 0 to 1.
+//!
+//! A [`Clip`](crate::Clip) takes both with `.fit()` and `.pan_zoom()`, and
+//! [`Clip::place`](crate::Clip::place) calls them with the size of the decoded frame and,
+//! for [`PanZoom`], the progress of the clip.
 use std::fmt;
 
 /// Axis-aligned rectangle in the video's SVG coordinates.

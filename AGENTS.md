@@ -482,6 +482,9 @@ let image = video_frame.into_image(); // <image href={image.href()} .../>
 // so a clip and a picture in picture of the same file do not slow each other down. Store clips
 // in the scene, `duration` = `clip.duration()`. The clip gives an image of the current frame:
 // draw it with your own size, crop, transform, filter, mask, or pass it to a shader.
+// `.fit(Fit::Contain)` (default Cover) or `.pan_zoom(PanZoom::new().zoom(1.0, 1.35))`, and
+// `plan.place(&frame, ctx, dest)` gives the Placement in a `Rect` from the decoded frame's
+// size; a PanZoom follows the progress of the clip. See examples/teej-podcast.
 let plan = fframes::Clip::new("screen.mov", 19.2..24.7).at(1.2).editor_fallback_image(ctx.get_image("poster.jpg"));
 let pip = plan.image_at_width(&frame, ctx, 440).map(|image| svgr!( // decoded at the shown size
     <image href={image.href()} x="580" y="1180" width="440" height="660" preserveAspectRatio="xMidYMid slice" />

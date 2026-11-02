@@ -7,7 +7,8 @@ use std::sync::Arc;
 use crate::media::ImageData;
 use crate::video_data::FFramesSyncedVideoFrame;
 use crate::{
-    Duration, FFramesContext, Frame, FrameConvertOptions, PlaybackSpeed, ResizeVideoFrame,
+    Duration, FFramesContext, Fit, Frame, FrameConvertOptions, PanZoom, Placement, PlaybackSpeed,
+    Rect, ResizeVideoFrame,
 };
 
 /// Added to the length of a clip before it is cut to whole frames, so a length like
@@ -76,6 +77,21 @@ const FRAME_EPSILON_SECONDS: f64 = 1e-4;
 /// };
 /// ```
 ///
+/// [`Clip::place`] finds where to draw that image in a box, with the [`Fit`] or the
+/// [`PanZoom`] of the clip and the size of the decoded frame:
+///
+/// ```rust,ignore
+/// let clip = Clip::new("IMG_0926.mov", 19.2..24.7)
+///     .pan_zoom(PanZoom::new().zoom(1.0, 1.35).focus((0.4, 0.5), (0.65, 0.4)));
+///
+/// let dest = Rect::new(40.0, 40.0, 640.0, 1000.0);
+/// let (image, placed) = (clip.image(&frame, ctx)?, clip.place(&frame, ctx, dest)?);
+/// fframes::svgr!(
+///     <image href={image.href()} x={placed.x} y={placed.y}
+///            width={placed.width} height={placed.height} clip-path="url(#box)" />
+/// )
+/// ```
+///
 /// Each clip decodes with its own decoder, so a clip and a picture in picture of the
 /// same file do not slow each other down. A reversed clip seeks back on every frame:
 /// with long keyframe intervals (phone footage) it is slow to render.
@@ -98,6 +114,10 @@ pub struct Clip<'a> {
     pub looping: bool,
     /// The image the editor shows until the frame is decoded.
     pub editor_fallback_image: Option<&'a ImageData<'a>>,
+    /// How [`Clip::place`] maps the frame into a box. Default [`Fit::Cover`].
+    pub fit: Fit,
+    /// A crop [`Clip::place`] moves over the length of the clip, used instead of `fit`.
+    pub pan_zoom: Option<PanZoom>,
 }
 
 impl<'a> Clip<'a> {
@@ -121,6 +141,8 @@ impl<'a> Clip<'a> {
             reverse: false,
             looping: false,
             editor_fallback_image: None,
+            fit: Fit::default(),
+            pan_zoom: None,
         }
     }
 
@@ -151,6 +173,20 @@ impl<'a> Clip<'a> {
     #[must_use]
     pub fn editor_fallback_image(mut self, image: Option<&'a ImageData<'a>>) -> Self {
         self.editor_fallback_image = image;
+        self
+    }
+
+    #[must_use]
+    pub fn fit(mut self, fit: Fit) -> Self {
+        self.fit = fit;
+        self
+    }
+
+    /// Moves the crop from `t = 0` on the first frame of the clip to `t = 1` on its last,
+    /// on every loop of a looping clip. Replaces [`Clip::fit`].
+    #[must_use]
+    pub fn pan_zoom(mut self, pan_zoom: PanZoom) -> Self {
+        self.pan_zoom = Some(pan_zoom);
         self
     }
 
@@ -212,8 +248,7 @@ impl<'a> Clip<'a> {
         frame: &Frame,
         ctx: &FFramesContext<'_, '_>,
     ) -> Option<Arc<impl FFramesSyncedVideoFrame<'a> + use<'a>>> {
-        let start_frame = (f64::from(self.at) * frame.fps as f64).round() as usize;
-        let index = frame.index.checked_sub(start_frame)?;
+        let index = frame.index.checked_sub(self.start_frame(frame.fps))?;
         let seconds = self.source_seconds(index, frame.fps)?;
         // The end of an open clip is known to the decoder only, so it wraps the time there.
         let loop_start =
@@ -252,6 +287,50 @@ impl<'a> Clip<'a> {
                 height: height.max(1),
             },
         })
+    }
+
+    /// Where to draw the clip on `frame` of the scene in `dest`, for the `x`, `y`, `width`
+    /// and `height` of the `<image>`. It uses the size of the decoded frame, with non-square
+    /// pixels stretched to square ones. Clip the drawing to [`Placement::clip`] when it
+    /// overflows, and draw [`Fit::Fill`] with `preserveAspectRatio="none"`. `None` when
+    /// [`Clip::frame`] is.
+    pub fn place(
+        &self,
+        frame: &Frame,
+        ctx: &FFramesContext<'_, '_>,
+        dest: Rect,
+    ) -> Option<Placement> {
+        let video_frame = self.frame(frame, ctx)?;
+        let (width, height) = (video_frame.width() as f32, video_frame.height() as f32);
+        Some(match self.pan_zoom {
+            Some(pan_zoom) => pan_zoom.place(width, height, dest, self.progress(frame, ctx)),
+            None => self.fit.place(width, height, dest),
+        })
+    }
+
+    /// How far the clip has played on `frame` of the scene, from 0 on its first frame to 1
+    /// on its last. 0 for a clip to the end of a file of unknown length.
+    fn progress(&self, frame: &Frame, ctx: &FFramesContext<'_, '_>) -> f32 {
+        let index = frame.index.saturating_sub(self.start_frame(frame.fps));
+        let frames = if self.source.end.is_finite() {
+            self.frames(frame.fps)
+        } else {
+            let Some(metadata) = ctx.get_video(self.video).and_then(|video| video.metadata) else {
+                return 0.0;
+            };
+            let seconds = (f64::from(metadata.duration) - self.source.start).max(0.0);
+            (seconds / self.speed_value() * frame.fps as f64) as usize
+        };
+        let index = if self.looping {
+            index.checked_rem(frames).unwrap_or(0)
+        } else {
+            index
+        };
+        index as f32 / frames.saturating_sub(1).max(1) as f32
+    }
+
+    fn start_frame(&self, fps: usize) -> usize {
+        (f64::from(self.at) * fps as f64).round() as usize
     }
 
     /// Clips that show the same source second on every frame share a decoder, other clips
