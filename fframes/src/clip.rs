@@ -230,7 +230,8 @@ impl<'a> Clip<'a> {
         })
     }
 
-    /// Clips that play the same thing share a decoder, other clips never do.
+    /// Clips that show the same source second on every frame share a decoder, other clips
+    /// never do.
     fn decoder_key(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         self.video.hash(&mut hasher);
@@ -240,6 +241,8 @@ impl<'a> Clip<'a> {
             .thousandths()
             .hash(&mut hasher);
         self.reverse.hash(&mut hasher);
+        self.looping.hash(&mut hasher);
+        self.at.to_bits().hash(&mut hasher);
         // 0 is the key of `Frame::video_frame_at`
         hasher.finish().max(1)
     }
@@ -350,5 +353,8 @@ mod tests {
         );
         assert_ne!(face.decoder_key(), face.clone().speed(2.0).decoder_key());
         assert_ne!(face.decoder_key(), face.clone().reverse().decoder_key());
+        assert_ne!(face.decoder_key(), face.clone().looping().decoder_key());
+        // a delayed copy of the same take shows another second on the same frame
+        assert_ne!(face.decoder_key(), face.clone().at(0.5).decoder_key());
     }
 }
