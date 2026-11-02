@@ -21,9 +21,10 @@
 //! - `j`/`k` or `↓`/`↑` (also `,`/`.`): step one frame back/forward, pauses
 //! - `g`/`G` or `Home`/`End`: first/last frame, `0`-`9`: jump to 0-90%
 //! - the studio under the video: playback controls, the time ruler, scenes, a film strip
-//!   and the audio lanes (a window too small for it gets a floating dock instead)
+//!   and the audio lanes. The focus view (the viewfinder button, or `t`) shows the video
+//!   alone with a floating dock while paused or on pointer activity; `b` hides the dock.
 //! - click a scene to jump to its start, or drag across the timeline to scrub
-//! - `[` / `]`: previous/next scene start
+//! - `[` / `]`: previous/next scene start, `t`: switch between the studio and the focus view
 //! - scroll the audio lanes to browse overlapping clips
 //! - `r`: toggle looping, `f`: full screen, `q`/`Esc`: quit
 //!

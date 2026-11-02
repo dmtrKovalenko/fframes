@@ -1,6 +1,6 @@
-//! A review film of the player's chrome: a scripted pointer uses the studio over real
-//! footage and every frame is written as a PNG, to watch the chrome move without a window.
-//! Not part of the test suite:
+//! A review film of the player's chrome: a scripted pointer uses the studio and the focus
+//! view over real footage and every frame is written as a PNG, to watch the chrome move
+//! without a window. Not part of the test suite:
 //!
 //! `FFRAMES_PLAYER_FOOTAGE=frames FFRAMES_PLAYER_OUT=film cargo test --release \
 //!   -p fframes_native_player review_film -- --ignored`
@@ -19,12 +19,13 @@ use fframes_skia_renderer::skia_safe::{
     PathBuilder, Point, Rect, SamplingOptions, surfaces,
 };
 
-use crate::controls::{Control, Controls, ControlsState};
+use crate::controls::{Control, Controls, ControlsLayout, ControlsState, format_time, mix};
 use crate::motion::{Easing, Intent, Motion, Timing};
 use crate::studio::{Studio, StudioLayout, StudioScroll};
 
 const FPS: usize = 60;
-const LENGTH: f32 = 15.;
+const IDLE_TIMEOUT: f32 = 2.5;
+const LENGTH: f32 = 18.;
 const THUMBNAILS: usize = 14;
 
 /// What the pointer does, in logical pixels and seconds.
@@ -38,12 +39,14 @@ enum Event {
 }
 
 enum Target {
-    /// A button of the studio transport.
+    /// A button of the studio transport or the focus dock.
     Button(Control),
     /// The scene band at a frame.
     Scene(usize),
     /// The film strip at a frame.
     Strip(usize),
+    /// The "Studio · T" pill of the focus view.
+    Restore,
     Point(Point),
 }
 
@@ -60,19 +63,20 @@ fn script() -> Vec<(f32, Event)> {
         (6.0, Event::MoveTo(Target::Button(Control::PlayPause), 6.8)),
         (7.1, Event::Press),
         (7.22, Event::Release),
-        (7.6, Event::MoveTo(Target::Button(Control::Loop), 8.4)),
+        (7.6, Event::MoveTo(Target::Button(Control::Focus), 8.4)),
         (8.7, Event::Press),
         (8.82, Event::Release),
+        (9.2, Event::MoveTo(Target::Button(Control::Loop), 10.0)),
+        (10.3, Event::Press),
+        (10.42, Event::Release),
         (
-            9.2,
-            Event::MoveTo(Target::Point(Point::new(640., 250.)), 10.0),
+            10.8,
+            Event::MoveTo(Target::Point(Point::new(640., 300.)), 11.6),
         ),
-        (10.4, Event::Press),
-        (10.52, Event::Release),
-        (11.4, Event::Space),
-        (12.0, Event::MoveTo(Target::Scene(100), 12.8)),
-        (13.3, Event::Press),
-        (13.42, Event::Release),
+        (14.6, Event::Space),
+        (15.4, Event::MoveTo(Target::Restore, 16.2)),
+        (16.5, Event::Press),
+        (16.62, Event::Release),
     ]
 }
 
@@ -80,6 +84,7 @@ fn script() -> Vec<(f32, Event)> {
 struct Player {
     playing: bool,
     looping: bool,
+    studio_open: bool,
     /// The playhead, in frames of the footage.
     position: f64,
     last_frame: usize,
@@ -87,12 +92,36 @@ struct Player {
     hovered: Option<Control>,
     pressed: Option<Control>,
     drag: Option<Control>,
+    last_activity: f32,
+    controls_visible: bool,
     travel: Option<(Point, Point, f32, f32)>,
 }
 
 impl Player {
-    fn control_under_cursor(&self, studio: &StudioLayout, model: &Studio) -> Option<Control> {
-        studio.hit(self.pointer?, model)
+    fn controls_should_be_visible(&self, t: f32) -> bool {
+        !self.playing
+            || self.drag.is_some()
+            || self.hovered.is_some()
+            || t - self.last_activity < IDLE_TIMEOUT
+    }
+
+    fn control_under_cursor(
+        &self,
+        studio: &StudioLayout,
+        model: &Studio,
+        dock: &ControlsLayout,
+        scale: f32,
+    ) -> Option<Control> {
+        let point = self.pointer?;
+        if self.studio_open {
+            return studio.hit(point, model);
+        }
+        if self.controls_visible
+            && let Some(control) = dock.hit(point.x * scale, point.y * scale)
+        {
+            return Some(control);
+        }
+        (self.controls_visible && studio.focus_hit(point)).then_some(Control::Focus)
     }
 
     fn toggle_play(&mut self) {
@@ -102,11 +131,18 @@ impl Player {
         self.playing = !self.playing;
     }
 
-    /// A drag across the timeline scrubs: the frame under the pointer, paused.
-    fn seek_to_pointer(&mut self, studio: &StudioLayout) {
+    /// A drag across the timeline scrubs the frame under the pointer, paused; a drag of
+    /// the dock's slider seeks.
+    fn seek_to_pointer(&mut self, studio: &StudioLayout, dock: &ControlsLayout, scale: f32) {
         let Some(pointer) = self.pointer else { return };
-        self.position = studio.frame_at(studio.time_axis(pointer), self.last_frame + 1) as f64;
-        self.playing = false;
+        if self.drag == Some(Control::Timeline) {
+            self.position = studio.frame_at(studio.time_axis(pointer), self.last_frame + 1) as f64;
+            self.playing = false;
+        } else {
+            self.position = (dock.progress_at(pointer.x * scale) * self.last_frame as f32)
+                .round()
+                .into();
+        }
     }
 }
 
@@ -189,24 +225,40 @@ fn review_film() {
     );
 
     let controls = Controls::new();
+    let dock = ControlsLayout::new(
+        &controls,
+        &format_time(duration_in_frames, FPS),
+        width as f32,
+        height as f32,
+        scale,
+    );
     let mut studio =
         StudioLayout::new(logical_width, logical_height, lanes.len(), aspect).expect("layout");
 
     let mut player = Player {
         playing: true,
         looping: false,
+        studio_open: true,
         position: 0.,
         last_frame,
         pointer: None,
         hovered: None,
         pressed: None,
         drag: None,
+        last_activity: -10.,
+        controls_visible: false,
         travel: None,
     };
     let intent_of = |player: &Player| Intent {
+        studio: player.studio_open,
+        dock: player.controls_visible && !player.studio_open,
         playing: player.playing,
         looping: player.looping,
-        hovered: player.hovered,
+        hovered: if player.drag == Some(Control::Seek) {
+            Some(Control::Seek)
+        } else {
+            player.hovered
+        },
         pressed: player.pressed,
     };
 
@@ -259,8 +311,9 @@ fn review_film() {
             );
             if player.pointer != Some(at) {
                 player.pointer = Some(at);
-                if player.drag == Some(Control::Timeline) {
-                    player.seek_to_pointer(&studio);
+                player.last_activity = t;
+                if matches!(player.drag, Some(Control::Seek | Control::Timeline)) {
+                    player.seek_to_pointer(&studio, &dock, scale);
                 }
             }
             if t >= end {
@@ -271,7 +324,10 @@ fn review_film() {
         while script.peek().is_some_and(|(at, _)| *at <= t) {
             let (_, event) = script.next().unwrap();
             match event {
-                Event::Enter(point) => player.pointer = Some(point),
+                Event::Enter(point) => {
+                    player.pointer = Some(point);
+                    player.last_activity = t;
+                }
                 Event::MoveTo(target, end) => {
                     // Off the glyph, like a hand that does not cover what it presses
                     let off_glyph = |rect: Rect| {
@@ -281,18 +337,31 @@ fn review_film() {
                         )
                     };
                     let to = match target {
-                        Target::Button(control) => {
+                        Target::Button(control) if player.studio_open => {
                             off_glyph(studio.button_rect(control).expect("transport button"))
+                        }
+                        Target::Button(control) => {
+                            let rect = match control {
+                                Control::PlayPause => dock.play,
+                                Control::Loop => dock.looping,
+                                Control::Back => dock.back,
+                                Control::Forward => dock.forward,
+                                Control::Fullscreen => dock.fullscreen,
+                                _ => dock.track,
+                            };
+                            let p = off_glyph(rect);
+                            Point::new(p.x / scale, p.y / scale)
                         }
                         Target::Scene(frame) => studio.scene_point(frame, duration_in_frames),
                         Target::Strip(frame) => studio.strip_point(frame, duration_in_frames),
+                        Target::Restore => off_glyph(studio.restore_rect()),
                         Target::Point(point) => point,
                     };
                     let from = player.pointer.unwrap_or(to);
                     player.travel = Some((from, to, t, end));
                 }
                 Event::Press => {
-                    let control = player.control_under_cursor(&studio, &model);
+                    let control = player.control_under_cursor(&studio, &model, &dock, scale);
                     player.pressed = control.filter(|c| {
                         matches!(
                             c,
@@ -301,15 +370,21 @@ fn review_film() {
                                 | Control::Forward
                                 | Control::Loop
                                 | Control::Fullscreen
+                                | Control::Focus
                         )
                     });
                     match control {
                         Some(Control::PlayPause) => player.toggle_play(),
-                        Some(control @ Control::Timeline) => {
+                        Some(control @ (Control::Seek | Control::Timeline)) => {
                             player.drag = Some(control);
-                            player.seek_to_pointer(&studio);
+                            player.seek_to_pointer(&studio, &dock, scale);
                         }
                         Some(control @ Control::Scene(_)) => player.drag = Some(control),
+                        Some(Control::Focus) => {
+                            player.studio_open = !player.studio_open;
+                            player.hovered = None;
+                            player.last_activity = t;
+                        }
                         Some(Control::Loop) => player.looping = !player.looping,
                         Some(_) => {}
                         None => {
@@ -322,7 +397,8 @@ fn review_film() {
                     player.pressed = None;
                     let drag = player.drag.take();
                     if let Some(control @ Control::Scene(start)) = drag
-                        && player.control_under_cursor(&studio, &model) == Some(control)
+                        && player.control_under_cursor(&studio, &model, &dock, scale)
+                            == Some(control)
                     {
                         player.position = start as f64;
                         player.playing = false;
@@ -335,7 +411,9 @@ fn review_film() {
             }
         }
 
-        player.hovered = player.control_under_cursor(&studio, &model);
+        player.controls_visible = player.controls_should_be_visible(t);
+        player.hovered = player.control_under_cursor(&studio, &model, &dock, scale);
+        player.controls_visible = player.controls_should_be_visible(t);
         motion.follow(intent_of(&player), now);
 
         let frame = player.position as usize;
@@ -350,6 +428,7 @@ fn review_film() {
         draw_frame(
             surface.canvas(),
             &controls,
+            &dock,
             &mut studio,
             &model,
             &scroll,
@@ -358,7 +437,9 @@ fn review_film() {
             video_size,
             scale,
         );
-        if let Some(pointer) = player.pointer {
+
+        let cursor_hidden = with_motion && !player.studio_open && !player.controls_visible;
+        if let (Some(pointer), false) = (player.pointer, cursor_hidden) {
             draw_cursor(
                 surface.canvas(),
                 Point::new(pointer.x * scale, pointer.y * scale),
@@ -391,6 +472,7 @@ fn review_film() {
 fn draw_frame(
     canvas: &Canvas,
     controls: &Controls,
+    dock: &ControlsLayout,
     studio: &mut StudioLayout,
     model: &Studio,
     scroll: &StudioScroll,
@@ -399,10 +481,11 @@ fn draw_frame(
     video_size: usvgr::Size,
     scale: f32,
 ) {
-    canvas.clear(Color::from_rgb(14, 14, 14));
+    let view = state.motion.studio;
+    canvas.clear(mix(Color::BLACK, Color::from_rgb(14, 14, 14), view));
     let size = canvas.base_layer_size();
     let window = Rect::from_iwh(size.width, size.height);
-    let picture = crate::presenter::video_rect(Some(video_size), window, Some(studio), scale)
+    let picture = crate::presenter::video_rect(Some(video_size), window, Some(studio), view, scale)
         .expect("video rect");
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
@@ -419,8 +502,21 @@ fn draw_frame(
 
     canvas.save();
     canvas.scale((scale, scale));
-    studio.draw(canvas, controls, state, model, scroll);
+    if view > 0. {
+        let (dx, dy) = studio.closed_offset();
+        canvas.save();
+        canvas.translate((dx * (1. - view), dy * (1. - view)));
+        studio.draw(canvas, controls, state, model, scroll);
+        canvas.restore();
+    }
+    studio.draw_restore(
+        canvas,
+        controls,
+        state.motion.hover(Control::Focus),
+        state.motion.dock * (1. - view),
+    );
     canvas.restore();
+    controls.draw(canvas, dock, state);
 }
 
 /// A clip envelope in unit coordinates, like `studio::waveform` makes from samples.

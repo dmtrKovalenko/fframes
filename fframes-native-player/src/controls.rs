@@ -2,10 +2,10 @@
 //! pill with quiet round buttons, one solid primary action and the system slider, using the
 //! dark tokens of the `ChatGPT` design system (`@openai/apps-sdk-ui`) and the system font.
 //!
-//! The studio draws its transport with the same buttons; the pill itself is the fallback
-//! for a window too small for the studio. Nothing on it pops: every state is drawn from a
-//! [`Sample`] of the player's [`Motion`], so hover fills fade, a pressed button gives and
-//! the play glyph turns into the pause glyph.
+//! The studio draws its transport with the same buttons; the pill itself is the focus
+//! view's dock. Nothing on it pops: every state is drawn from a [`Sample`] of the player's
+//! [`Motion`], so the dock rises in and drops out, hover fills fade, a pressed button gives
+//! and the play glyph turns into the pause glyph.
 
 use fframes_skia_renderer::skia_safe::{
     self, BlurStyle, Canvas, Color, Contains, Font, FontMgr, FontStyle, MaskFilter, Paint,
@@ -25,6 +25,8 @@ pub(crate) enum Control {
     Seek,
     Timeline,
     Scene(usize),
+    /// The focus view: the video alone, with the dock.
+    Focus,
     Loop,
     Fullscreen,
     /// The bar background, swallows clicks so they do not toggle playback.
@@ -78,6 +80,8 @@ const TRACK_HEIGHT: f32 = 4.;
 const THUMB_SIZE: f32 = 14.;
 /// Vertical area around the track that grabs the pointer.
 const TRACK_HIT_HEIGHT: f32 = 24.;
+/// The dock rises this far into place as it appears, and drops back out.
+const BAR_RISE: f32 = 10.;
 /// How much a button gives while it is held.
 const PRESS_SCALE: f32 = 0.08;
 /// The track thickens by this much under the pointer.
@@ -110,6 +114,7 @@ struct IconPaths {
     back: Path,
     forward: Path,
     looping: Path,
+    focus: Path,
     expand: Path,
     collapse: Path,
 }
@@ -251,6 +256,7 @@ impl Controls {
                 back: icon(icons::BACK),
                 forward: icon(icons::FORWARD),
                 looping: icon(icons::LOOP),
+                focus: icon(icons::FOCUS),
                 expand: icon(icons::EXPAND),
                 collapse: icon(icons::COLLAPSE),
             },
@@ -266,25 +272,35 @@ impl Controls {
     }
 
     pub(crate) fn draw(&self, canvas: &Canvas, layout: &ControlsLayout, state: &ControlsState) {
+        // The dock rises as the studio panel leaves, and is gone before it is back
+        let reveal = state.motion.dock * (1. - state.motion.studio);
+        if reveal <= 0. {
+            return;
+        }
+
         let scale = layout.scale;
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
+
+        // The dock rises into place as it fades in, and drops back out
+        canvas.save();
+        canvas.translate((0., (1. - reveal) * BAR_RISE * scale));
 
         // Floating pill: elevation shadow, surface and hairline border
         let radius = layout.bar.height() / 2.;
         let bar = RRect::new_rect_xy(layout.bar, radius, radius);
         let mut shadow = paint.clone();
-        shadow.set_color(Color::from_argb(77, 0, 0, 0));
+        shadow.set_color(fade(Color::from_argb(77, 0, 0, 0), reveal));
         shadow.set_mask_filter(MaskFilter::blur(BlurStyle::Normal, 8. * scale, false));
         canvas.draw_rrect(bar.with_offset((0., 8. * scale)), &shadow);
 
-        paint.set_color(SURFACE_ELEVATED);
+        paint.set_color(fade(SURFACE_ELEVATED, reveal));
         canvas.draw_rrect(bar, &paint);
 
         let mut border = paint.clone();
         border.set_style(PaintStyle::Stroke);
         border.set_stroke_width(scale.max(1.));
-        border.set_color(HAIRLINE);
+        border.set_color(fade(HAIRLINE, reveal));
         canvas.draw_rrect(bar, &border);
 
         for (control, rect) in [
@@ -294,11 +310,11 @@ impl Controls {
             (Control::Loop, layout.looping),
             (Control::Fullscreen, layout.fullscreen),
         ] {
-            self.draw_button(canvas, control, rect, state, scale);
+            self.draw_button(canvas, control, rect, state, reveal, scale);
         }
 
         let mut text = paint.clone();
-        text.set_color(TEXT);
+        text.set_color(fade(TEXT, reveal));
         draw_tabular(
             canvas,
             &format_time(state.frame, state.fps),
@@ -306,7 +322,7 @@ impl Controls {
             &self.font(true, scale),
             &text,
         );
-        text.set_color(TEXT_SECONDARY);
+        text.set_color(fade(TEXT_SECONDARY, reveal));
         draw_tabular(
             canvas,
             &format_time(state.duration_in_frames, state.fps),
@@ -321,7 +337,7 @@ impl Controls {
             let hover = state.motion.hover(Control::Seek);
             let track = layout.track.with_outset((0., hover * TRACK_GROW * scale));
             let track_radius = track.height() / 2.;
-            paint.set_color(TRACK);
+            paint.set_color(fade(TRACK, reveal));
             canvas.draw_rrect(
                 RRect::new_rect_xy(track, track_radius, track_radius),
                 &paint,
@@ -330,7 +346,7 @@ impl Controls {
             let thumb_x = track.left + track.width() * state.progress();
             let mut range = track;
             range.right = thumb_x;
-            paint.set_color(BRAND);
+            paint.set_color(fade(BRAND, reveal));
             canvas.draw_rrect(
                 RRect::new_rect_xy(range, track_radius, track_radius),
                 &paint,
@@ -339,25 +355,28 @@ impl Controls {
             let thumb_radius = THUMB_SIZE * scale / 2.;
             let center = Point::new(thumb_x, track.center_y());
             if hover > 0. {
-                paint.set_color(fade(GHOST_HOVER, hover));
+                paint.set_color(fade(GHOST_HOVER, reveal * hover));
                 canvas.draw_circle(center, thumb_radius * (1. + 0.8 * hover), &paint);
             }
-            paint.set_color(BRAND);
+            paint.set_color(fade(BRAND, reveal));
             canvas.draw_circle(center, thumb_radius, &paint);
-            paint.set_color(THUMB);
+            paint.set_color(fade(THUMB, reveal));
             canvas.draw_circle(center, thumb_radius - 2. * scale, &paint);
         }
+
+        canvas.restore();
     }
 
     /// A button of the dock or the studio transport, drawn from the motion in `state`:
     /// its hover fill, how far it is pressed in and, for the primary one, how far the play
-    /// glyph has turned into pause.
+    /// glyph has turned into pause. `reveal` fades the whole button with its surface.
     pub(crate) fn draw_button(
         &self,
         canvas: &Canvas,
         control: Control,
         rect: Rect,
         state: &ControlsState,
+        reveal: f32,
         scale: f32,
     ) {
         let motion = &state.motion;
@@ -365,11 +384,20 @@ impl Controls {
         let press = motion.press(control);
         let icon = match control {
             Control::PlayPause => {
-                return self.primary_button(canvas, rect, motion.glyph, hover, press, scale);
+                return self.primary_button(
+                    canvas,
+                    rect,
+                    motion.glyph,
+                    hover,
+                    press,
+                    reveal,
+                    scale,
+                );
             }
             Control::Back => &self.icons.back,
             Control::Forward => &self.icons.forward,
             Control::Loop => &self.icons.looping,
+            Control::Focus => &self.icons.focus,
             Control::Fullscreen => {
                 if state.fullscreen {
                     &self.icons.collapse
@@ -384,7 +412,7 @@ impl Controls {
         } else {
             0.
         };
-        self.ghost_button(canvas, rect, icon, hover, on, press, scale);
+        self.ghost_button(canvas, rect, icon, hover, on, press, reveal, scale);
     }
 
     /// A quiet round button. `hover`, `on` (a toggle that is on) and `press` are each
@@ -398,6 +426,7 @@ impl Controls {
         hover: f32,
         on: f32,
         press: f32,
+        reveal: f32,
         scale: f32,
     ) {
         let mut paint = Paint::default();
@@ -412,16 +441,17 @@ impl Controls {
             on,
         );
         if background.a() > 0 {
-            paint.set_color(background);
+            paint.set_color(fade(background, reveal));
             canvas.draw_circle(rect.center(), rect.width() / 2., &paint);
         }
 
-        paint.set_color(mix(TEXT_SECONDARY, TEXT, hover.max(on)));
+        paint.set_color(fade(mix(TEXT_SECONDARY, TEXT, hover.max(on)), reveal));
         draw_icon(canvas, icon, rect, scale, &paint);
         canvas.restore();
     }
 
     /// The solid brand button with the play glyph, `glyph` turns it into pause.
+    #[allow(clippy::too_many_arguments)]
     fn primary_button(
         &self,
         canvas: &Canvas,
@@ -429,6 +459,7 @@ impl Controls {
         glyph: f32,
         hover: f32,
         press: f32,
+        reveal: f32,
         scale: f32,
     ) {
         let mut paint = Paint::default();
@@ -436,10 +467,10 @@ impl Controls {
 
         canvas.save();
         press_into(canvas, rect, press);
-        paint.set_color(mix(BRAND, BRAND_HOVER, hover));
+        paint.set_color(fade(mix(BRAND, BRAND_HOVER, hover), reveal));
         canvas.draw_circle(rect.center(), rect.width() / 2., &paint);
 
-        paint.set_color(TEXT_ON_BRAND);
+        paint.set_color(fade(TEXT_ON_BRAND, reveal));
         draw_play_pause(canvas, rect, ICON * scale, glyph, &paint);
         canvas.restore();
     }
@@ -656,6 +687,8 @@ mod tests {
             fps: 30,
             fullscreen: false,
             motion: Sample::settled(Intent {
+                studio: false,
+                dock: true,
                 playing: false,
                 looping: true,
                 hovered: None,

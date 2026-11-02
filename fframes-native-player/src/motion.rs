@@ -1,9 +1,10 @@
-//! The motion of the player's chrome: nothing pops. Hover fills and the toggle state fade,
-//! a pressed button gives under the pointer, the play glyph turns into the pause glyph, a
-//! hovered scene lights up, thumbnails resolve as they arrive, and a play or pause toggled
-//! on the video itself (a click, the space key) flashes its glyph in the middle of the
-//! picture, where the eye is. Every value is a [`Tween`] retargeted from wherever it is,
-//! so an interrupted motion never jumps.
+//! The motion of the player's chrome: nothing pops. The studio and the focus view trade
+//! places with the video growing or shrinking into place, the focus dock rises in and drops
+//! out, hover fills and the toggle state fade, a pressed button gives under the pointer,
+//! the play glyph turns into the pause glyph, a hovered scene lights up, thumbnails resolve
+//! as they arrive, and a play or pause toggled on the video itself (a click, the space
+//! key) flashes its glyph in the middle of the picture, where the eye is. Every value is a
+//! [`Tween`] retargeted from wherever it is, so an interrupted motion never jumps.
 
 use std::time::{Duration, Instant};
 
@@ -117,6 +118,10 @@ impl Flash {
 /// What the player wants its chrome to show; the motion follows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Intent {
+    /// The studio (timeline) view rather than the focus view.
+    pub studio: bool,
+    /// The focus dock is shown.
+    pub dock: bool,
     pub playing: bool,
     pub looping: bool,
     pub hovered: Option<Control>,
@@ -127,6 +132,10 @@ pub(crate) struct Intent {
 /// behaved before it moved (used for review films).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Timing {
+    /// The studio and the focus view trading places.
+    pub view: Duration,
+    pub reveal: Duration,
+    pub conceal: Duration,
     pub hover: Duration,
     pub press: Duration,
     pub release: Duration,
@@ -138,6 +147,9 @@ pub(crate) struct Timing {
 
 impl Timing {
     pub(crate) const DEFAULT: Timing = Timing {
+        view: Duration::from_millis(340),
+        reveal: Duration::from_millis(260),
+        conceal: Duration::from_millis(220),
         hover: Duration::from_millis(140),
         press: Duration::from_millis(80),
         release: Duration::from_millis(240),
@@ -148,6 +160,9 @@ impl Timing {
 
     #[cfg(test)]
     pub(crate) const INSTANT: Timing = Timing {
+        view: Duration::ZERO,
+        reveal: Duration::ZERO,
+        conceal: Duration::ZERO,
         hover: Duration::ZERO,
         press: Duration::ZERO,
         release: Duration::ZERO,
@@ -158,13 +173,14 @@ impl Timing {
 }
 
 /// The buttons that have a hover and a press of their own.
-const BUTTONS: [Control; 6] = [
+const BUTTONS: [Control; 7] = [
     Control::Back,
     Control::PlayPause,
     Control::Forward,
     Control::Seek,
     Control::Loop,
     Control::Fullscreen,
+    Control::Focus,
 ];
 
 fn slot(control: Control) -> Option<usize> {
@@ -173,10 +189,14 @@ fn slot(control: Control) -> Option<usize> {
 
 pub(crate) struct Motion {
     timing: Timing,
+    /// The view: 0 focus, 1 studio.
+    studio: Tween,
+    /// The focus dock: 0 hidden, 1 shown.
+    dock: Tween,
     /// One per button: 0 at rest, 1 hovered.
-    hover: [Tween; 6],
+    hover: [Tween; 7],
     /// One per button: 0 at rest, 1 held down.
-    press: [Tween; 6],
+    press: [Tween; 7],
     /// The primary glyph: 0 play, 1 pause.
     glyph: Tween,
     /// The loop toggle: 0 off, 1 on.
@@ -192,8 +212,10 @@ impl Motion {
         let on = |yes: bool| Tween::at(f32::from(u8::from(yes)), now);
         let mut motion = Self {
             timing,
-            hover: [Tween::at(0., now); 6],
-            press: [Tween::at(0., now); 6],
+            studio: on(intent.studio),
+            dock: on(intent.dock),
+            hover: [Tween::at(0., now); 7],
+            press: [Tween::at(0., now); 7],
             glyph: on(intent.playing),
             looping: on(intent.looping),
             scene: None,
@@ -209,6 +231,13 @@ impl Motion {
         let t = self.timing;
         let on = |yes: bool| f32::from(u8::from(yes));
 
+        self.studio
+            .go(on(intent.studio), t.view, Easing::TRAVEL, now);
+        if intent.dock {
+            self.dock.go(1., t.reveal, Easing::ARRIVAL, now);
+        } else {
+            self.dock.go(0., t.conceal, Easing::TRAVEL, now);
+        }
         self.glyph
             .go(on(intent.playing), t.glyph, Easing::TRAVEL, now);
         self.looping
@@ -252,7 +281,9 @@ impl Motion {
 
     /// Whether another frame is needed to finish a motion.
     pub(crate) fn is_moving(&self, now: Instant) -> bool {
-        self.glyph.is_moving(now)
+        self.studio.is_moving(now)
+            || self.dock.is_moving(now)
+            || self.glyph.is_moving(now)
             || self.looping.is_moving(now)
             || self.scene_hover.is_moving(now)
             || self.hover.iter().any(|t| t.is_moving(now))
@@ -262,15 +293,17 @@ impl Motion {
 
     /// The values to draw with at `now`.
     pub(crate) fn sample(&self, now: Instant) -> Sample {
-        let mut hover = [0.; 6];
-        let mut press = [0.; 6];
-        for index in 0..6 {
+        let mut hover = [0.; 7];
+        let mut press = [0.; 7];
+        for index in 0..7 {
             hover[index] = self.hover[index].value(now);
             press[index] = self.press[index].value(now);
         }
         Sample {
             now,
             thumbnail_fade: self.timing.thumbnail,
+            studio: self.studio.value(now),
+            dock: self.dock.value(now),
             hover,
             press,
             glyph: self.glyph.value(now),
@@ -293,8 +326,11 @@ pub(crate) struct Sample {
     pub now: Instant,
     /// How long an arriving thumbnail takes to fade in.
     pub thumbnail_fade: Duration,
-    hover: [f32; 6],
-    press: [f32; 6],
+    /// 0 focus view, 1 studio view.
+    pub studio: f32,
+    pub dock: f32,
+    hover: [f32; 7],
+    press: [f32; 7],
     pub glyph: f32,
     pub looping: f32,
     /// The hovered scene's first frame and how lit it is.
@@ -311,8 +347,10 @@ impl Sample {
         let mut sample = Self {
             now: Instant::now(),
             thumbnail_fade: Duration::ZERO,
-            hover: [0.; 6],
-            press: [0.; 6],
+            studio: on(intent.studio),
+            dock: on(intent.dock),
+            hover: [0.; 7],
+            press: [0.; 7],
             glyph: on(intent.playing),
             looping: on(intent.looping),
             scene: match intent.hovered {
@@ -345,6 +383,8 @@ mod tests {
 
     fn intent() -> Intent {
         Intent {
+            studio: true,
+            dock: true,
             playing: true,
             looping: false,
             hovered: None,
@@ -387,10 +427,11 @@ mod tests {
         let now = Instant::now();
         let mut motion = Motion::new(intent(), Timing::DEFAULT, now);
         assert!(!motion.is_moving(now));
-        assert_eq!(motion.sample(now).glyph, 1.);
+        assert_eq!(motion.sample(now).studio, 1.);
 
         motion.follow(
             Intent {
+                studio: false,
                 playing: false,
                 hovered: Some(Control::Loop),
                 ..intent()
@@ -400,13 +441,15 @@ mod tests {
         let later = now + Duration::from_millis(10);
         assert!(motion.is_moving(later));
         let sample = motion.sample(later);
-        assert!(sample.glyph < 1. && sample.glyph > 0.);
+        assert!(sample.studio < 1. && sample.studio > 0.);
+        assert!(sample.glyph < 1.);
         assert!(sample.hover(Control::Loop) > 0.);
         assert_eq!(sample.hover(Control::Back), 0.);
 
         let settled = now + Duration::from_secs(1);
         assert!(!motion.is_moving(settled));
         let sample = motion.sample(settled);
+        assert_eq!(sample.studio, 0.);
         assert_eq!(sample.glyph, 0.);
         assert_eq!(sample.hover(Control::Loop), 1.);
 
@@ -453,7 +496,7 @@ mod tests {
         let mut motion = Motion::new(intent(), Timing::INSTANT, now);
         motion.follow(
             Intent {
-                playing: false,
+                studio: false,
                 pressed: Some(Control::PlayPause),
                 ..intent()
             },
@@ -462,7 +505,7 @@ mod tests {
         motion.flash(false, now);
         assert!(!motion.is_moving(now));
         let sample = motion.sample(now);
-        assert_eq!(sample.glyph, 0.);
+        assert_eq!(sample.studio, 0.);
         assert_eq!(sample.press(Control::PlayPause), 1.);
         assert!(sample.flash.is_none());
     }

@@ -259,6 +259,8 @@ pub(crate) struct StudioScroll {
 pub(crate) struct StudioLayout {
     pub stage: Rect,
     timeline: Rect,
+    /// The pill of the focus view that brings the studio back.
+    restore: Rect,
     transport: Rect,
     pub portrait: bool,
     audio_slots: usize,
@@ -269,6 +271,9 @@ pub(crate) struct StudioLayout {
 struct TimelineCache {
     image: Image,
     bounds: IRect,
+    /// Where the canvas was: the panel moves while the views change, and the cache is
+    /// made again at each position (a few frames, the studio draws in about a millisecond).
+    translation: (f32, f32),
     frames: Range<usize>,
     thumbnail_revision: u64,
     audio_scroll: usize,
@@ -280,6 +285,7 @@ impl StudioLayout {
         if width < 320. || height < 240. {
             return None;
         }
+        let restore = Rect::from_xywh(width - 112., 10., 96., 30.);
         if video_aspect < 1. {
             let panel = (width - height * video_aspect)
                 .clamp((width * 0.38).min(320.), (width * 0.60).min(416.));
@@ -294,6 +300,7 @@ impl StudioLayout {
                 stage: Rect::from_ltrb(panel, 0., width, bottom),
                 timeline: Rect::from_ltrb(0., 0., panel, bottom),
                 transport,
+                restore,
                 portrait: true,
                 audio_slots: audio_rows.min(if panel >= 260. { 3 } else { 1 }),
                 film_height: 0.,
@@ -322,6 +329,7 @@ impl StudioLayout {
         Some(Self {
             stage: Rect::from_ltrb(0., 0., width, timeline_y),
             timeline: Rect::from_ltrb(0., timeline_y, width, height),
+            restore,
             transport: Rect::from_xywh(0., timeline_y, width, TRANSPORT),
             portrait: false,
             audio_slots,
@@ -489,7 +497,7 @@ impl StudioLayout {
         }
     }
 
-    fn buttons(&self) -> [(Control, Rect); 5] {
+    fn buttons(&self) -> [(Control, Rect); 6] {
         let width = self.transport.width();
         let narrow = width < 460.;
         let size = if narrow { 26. } else { 32. };
@@ -500,14 +508,26 @@ impl StudioLayout {
         let y = self.transport.center_y();
         let button = |x, w, h| Rect::from_xywh(x, y - h / 2., w, h);
         let play = button(mid - play_size / 2., play_size, play_size);
-        let full = button(width - margin - size, size, size);
+        let focus = button(width - margin - size, size, size);
+        let full = button(focus.left - gap - size, size, size);
         [
             (Control::Back, button(play.left - gap - size, size, size)),
             (Control::PlayPause, play),
             (Control::Forward, button(play.right + gap, size, size)),
             (Control::Loop, button(full.left - gap - size, size, size)),
             (Control::Fullscreen, full),
+            (Control::Focus, focus),
         ]
+    }
+
+    /// The translation that moves the whole panel off its edge of the window, so the
+    /// studio can slide away as the focus view takes over.
+    pub fn closed_offset(&self) -> (f32, f32) {
+        if self.portrait {
+            (-self.timeline.right, 0.)
+        } else {
+            (0., self.timeline.bottom - self.timeline.top)
+        }
     }
 
     /// Points for a review film: the scene band at `frame`, the film strip at `frame`.
@@ -541,6 +561,11 @@ impl StudioLayout {
                 track.top + RULER + SCENE_HEIGHT + self.film_height / 2.,
             )
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn restore_rect(&self) -> Rect {
+        self.restore
     }
 
     #[cfg(test)]
@@ -604,6 +629,32 @@ impl StudioLayout {
                 .saturating_add_signed(steps)
                 .min(model.audio_rows().saturating_sub(self.audio_slots));
         }
+    }
+
+    pub fn focus_hit(&self, point: Point) -> bool {
+        self.restore.contains(point)
+    }
+
+    /// The pill that brings the studio back, shown with the focus dock: `reveal` fades it
+    /// with the dock, `hover` lights it.
+    pub fn draw_restore(&self, canvas: &Canvas, controls: &Controls, hover: f32, reveal: f32) {
+        if reveal <= 0. {
+            return;
+        }
+        let ui = Ink::new(canvas, controls);
+        ui.round(
+            self.restore,
+            fade(crate::controls::mix(SURFACE, LINE, hover), reveal),
+            7.,
+        );
+        ui.text(
+            "Studio  ·  T",
+            self.restore.left + 13.,
+            30.,
+            13.,
+            fade(TEXT, reveal),
+            true,
+        );
     }
 
     pub fn draw(
@@ -786,7 +837,7 @@ impl StudioLayout {
         );
 
         for (control, rect) in buttons {
-            controls.draw_button(canvas, control, rect, state, 1.);
+            controls.draw_button(canvas, control, rect, state, 1., 1.);
         }
         ui.fill(
             Rect::from_xywh(0., self.transport.bottom - 1., self.transport.width(), 1.),
@@ -804,8 +855,10 @@ impl StudioLayout {
         let canvas = ui.canvas;
         let matrix = canvas.local_to_device_as_3x3();
         let scale = (matrix.scale_x(), matrix.scale_y());
+        let translation = (matrix.translate_x(), matrix.translate_y());
         let valid = self.timeline_cache.as_ref().is_some_and(|cache| {
             cache.frames.contains(&state.frame)
+                && cache.translation == translation
                 && cache.thumbnail_revision == model.thumbnail_revision
                 && cache.audio_scroll == scroll.audio
                 && cache.scale == scale
@@ -843,6 +896,7 @@ impl StudioLayout {
                 TimelineCache {
                     image: surface.image_snapshot(),
                     bounds,
+                    translation,
                     frames,
                     thumbnail_revision: model.thumbnail_revision,
                     audio_scroll: scroll.audio,
@@ -1180,6 +1234,8 @@ mod tests {
             fps: 30,
             fullscreen: false,
             motion: crate::motion::Sample::settled(crate::motion::Intent {
+                studio: true,
+                dock: false,
                 playing: true,
                 looping: true,
                 hovered: None,
@@ -1191,6 +1247,7 @@ mod tests {
                     model: &Studio,
                     scroll: &StudioScroll,
                     scale: f32,
+                    offset: f32,
                     cached: bool| {
             let size = (800. * scale) as i32;
             let info = ImageInfo::new_n32_premul((size, size), None);
@@ -1198,6 +1255,7 @@ mod tests {
             let canvas = surface.canvas();
             canvas.clear(Color::BLACK);
             canvas.scale((scale, scale));
+            canvas.translate((offset, offset));
             if cached {
                 layout.draw(canvas, &controls, state, model, scroll);
             } else {
@@ -1217,8 +1275,8 @@ mod tests {
                 for frame in [0, 1, 49, 50, 59, 60, 99, 0] {
                     state.frame = frame;
                     assert!(
-                        draw(&mut layout, &state, &model, &scroll, scale, true)
-                            == draw(&mut layout, &state, &model, &scroll, scale, false),
+                        draw(&mut layout, &state, &model, &scroll, scale, 0., true)
+                            == draw(&mut layout, &state, &model, &scroll, scale, 0., false),
                         "aspect={aspect}, frame={frame}, scale={scale}"
                     );
                     let id = layout.timeline_cache.as_ref().unwrap().image.unique_id();
@@ -1237,9 +1295,22 @@ mod tests {
                     model.set_thumbnail(0, thumbnail.image_snapshot(), Instant::now());
                 }
                 assert!(
-                    draw(&mut layout, &state, &model, &scroll, 2., true)
-                        == draw(&mut layout, &state, &model, &scroll, 2., false),
+                    draw(&mut layout, &state, &model, &scroll, 2., 0., true)
+                        == draw(&mut layout, &state, &model, &scroll, 2., 0., false),
                     "aspect={aspect}, updated_thumbnail={updated_thumbnail}"
+                );
+            }
+            // The panel slides while the views change: a moved canvas gets a fresh cache
+            // The panel slides while the views change: a moved canvas gets a fresh cache.
+            // Along the edge where the surface cuts the panel a few pixels round
+            // differently (about 20 of 2.5 million), nothing more.
+            for offset in [-37.5, 12.] {
+                let cached = draw(&mut layout, &state, &model, &scroll, 2., offset, true);
+                let fresh = draw(&mut layout, &state, &model, &scroll, 2., offset, false);
+                let off = cached.iter().zip(&fresh).filter(|(a, b)| a != b).count();
+                assert!(
+                    off < 200,
+                    "aspect={aspect}, offset={offset}: {off} bytes differ"
                 );
             }
             scroll.audio = 0;
@@ -1263,6 +1334,8 @@ mod tests {
                     .windows(2)
                     .all(|pair| pair[0].1.right <= pair[1].1.left)
             );
+            assert!(layout.focus_hit(layout.restore.center()));
+            assert_eq!(layout.hit(layout.restore.center(), &model), None);
             assert_eq!(layout.frame_at(track.left - 1., 100), 0);
             assert_eq!(layout.frame_at(track.right, 100), 99);
             assert_eq!(layout.frame_at(track.center_x(), 100), 50);

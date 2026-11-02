@@ -15,7 +15,7 @@ use fframes_skia_renderer::render::RenderCache;
 use fframes_skia_renderer::skia_safe::{Canvas, Color, Rect};
 use winit::window::Window;
 
-use crate::controls::{Controls, ControlsLayout, ControlsState};
+use crate::controls::{Control, Controls, ControlsLayout, ControlsState, mix};
 use crate::error::PlayerResult;
 use crate::options::PlayerBackend;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
@@ -127,8 +127,9 @@ impl Presenter {
         Ok(())
     }
 
-    /// Draws the current frame, the studio around it (or the floating dock when the
-    /// window is too small for the studio) and presents the window.
+    /// Draws the current frame and the chrome around it before presenting the window.
+    /// `controls.motion.studio` places the view between focus (0) and studio (1): the
+    /// video grows or shrinks into place while the panel slides off its edge.
     pub(crate) fn present(
         &mut self,
         frame: Option<&usvgr::Tree>,
@@ -148,15 +149,18 @@ impl Presenter {
         } = self;
 
         target.present(&mut |canvas| {
+            let studio = controls.motion.studio;
             let view = studio_layout.as_ref();
-            canvas.clear(if view.is_some() {
-                STUDIO_MATTE
-            } else {
-                Color::BLACK
-            });
+            canvas.clear(mix(Color::BLACK, STUDIO_MATTE, studio));
             let size = canvas.base_layer_size();
             let window = Rect::from_iwh(size.width, size.height);
-            let picture = video_rect(frame.map(usvgr::Tree::size), window, view, pixel_scale);
+            let picture = video_rect(
+                frame.map(usvgr::Tree::size),
+                window,
+                view,
+                studio,
+                pixel_scale,
+            );
             if let (Some(tree), Some(picture)) = (frame, picture) {
                 draw_video(canvas, tree, picture, *background, render_cache);
             }
@@ -165,55 +169,74 @@ impl Presenter {
                 bar.flash(canvas, center, pixel_scale, progress, playing);
             }
 
-            match studio_layout.as_mut() {
-                Some(ui) => {
+            if let Some(ui) = studio_layout.as_mut() {
+                canvas.save();
+                canvas.scale((pixel_scale, pixel_scale));
+                if studio > 0. {
+                    let (dx, dy) = ui.closed_offset();
                     canvas.save();
-                    canvas.scale((pixel_scale, pixel_scale));
+                    canvas.translate((dx * (1. - studio), dy * (1. - studio)));
                     ui.draw(canvas, bar, controls, model, scroll);
                     canvas.restore();
                 }
-                None => bar.draw(canvas, layout, controls),
+                ui.draw_restore(
+                    canvas,
+                    bar,
+                    controls.motion.hover(Control::Focus),
+                    controls.motion.dock * (1. - studio),
+                );
+                canvas.restore();
             }
+            bar.draw(canvas, layout, controls);
         })
     }
 }
 
 const STUDIO_MATTE: Color = Color::from_rgb(14, 14, 14);
 
-/// Where the video sits, in physical pixels: letterboxed into the stage of the studio,
-/// or into the whole window without one.
+/// Where the video sits, in physical pixels: letterboxed into the window in the focus
+/// view, into the stage of the studio, and in between while the view changes.
 pub(crate) fn video_rect(
     video: Option<fframes::usvgr::Size>,
     window: Rect,
     view: Option<&StudioLayout>,
+    studio: f32,
     pixel_scale: f32,
 ) -> Option<Rect> {
     let video = video?;
-    let (viewport, top) = match view {
-        Some(ui) => {
-            let stage = ui.stage;
-            (
-                Rect::from_ltrb(
-                    stage.left * pixel_scale,
-                    stage.top * pixel_scale,
-                    stage.right * pixel_scale,
-                    stage.bottom * pixel_scale,
-                ),
-                ui.portrait,
-            )
-        }
-        None => (window, false),
+    let fit = |viewport: Rect, top: bool| {
+        let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
+        let width = video.width() * scale;
+        let height = video.height() * scale;
+        let x = viewport.center_x() - width / 2.;
+        let y = if top {
+            viewport.top
+        } else {
+            viewport.center_y() - height / 2.
+        };
+        Rect::from_xywh(x, y, width, height)
     };
-    let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
-    let width = video.width() * scale;
-    let height = video.height() * scale;
-    let x = viewport.center_x() - width / 2.;
-    let y = if top {
-        viewport.top
-    } else {
-        viewport.center_y() - height / 2.
+    let focus = fit(window, false);
+    let Some(ui) = view else {
+        return Some(focus);
     };
-    Some(Rect::from_xywh(x, y, width, height))
+    let stage = ui.stage;
+    let staged = fit(
+        Rect::from_ltrb(
+            stage.left * pixel_scale,
+            stage.top * pixel_scale,
+            stage.right * pixel_scale,
+            stage.bottom * pixel_scale,
+        ),
+        ui.portrait,
+    );
+    let lerp = |a: f32, b: f32| a + (b - a) * studio;
+    Some(Rect::from_ltrb(
+        lerp(focus.left, staged.left),
+        lerp(focus.top, staged.top),
+        lerp(focus.right, staged.right),
+        lerp(focus.bottom, staged.bottom),
+    ))
 }
 
 fn draw_video(

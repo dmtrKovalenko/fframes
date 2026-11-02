@@ -18,6 +18,8 @@ use crate::scheduler::Scheduler;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
 use fframes_skia_renderer::skia_safe::Point;
 
+/// The focus dock hides after this long without pointer movement while playing.
+const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
 /// Redraw interval while something of the chrome is moving.
 const MOTION_FRAME: Duration = Duration::from_micros(8333);
 
@@ -95,11 +97,17 @@ pub(crate) struct App<'s> {
 
     clock: Clock,
     looping: bool,
+    /// Toggled with `b`.
+    controls_enabled: bool,
+    controls_visible: bool,
     motion: Motion,
     needs_redraw: bool,
 
     cursor: PhysicalPosition<f64>,
     cursor_inside: bool,
+    /// The pointer is hidden with the dock while the video plays in the focus view.
+    cursor_hidden: bool,
+    last_pointer_activity: Instant,
     hovered: Option<Control>,
     /// The button under a held pointer.
     pressed: Option<Control>,
@@ -107,6 +115,7 @@ pub(crate) struct App<'s> {
     scene_press_axis: f32,
     /// The newest destination under the pointer while a native frame is being prepared.
     scrub_target: Option<usize>,
+    studio_open: bool,
     scroll: StudioScroll,
 
     stats_since: Instant,
@@ -143,8 +152,12 @@ impl<'s> App<'s> {
             error: None,
             clock,
             current: None,
+            controls_enabled: true,
+            controls_visible: true,
             motion: Motion::new(
                 Intent {
+                    studio: true,
+                    dock: false,
                     playing: config.autoplay,
                     looping: config.looping,
                     hovered: None,
@@ -156,11 +169,14 @@ impl<'s> App<'s> {
             needs_redraw: true,
             cursor: PhysicalPosition::default(),
             cursor_inside: false,
+            cursor_hidden: false,
+            last_pointer_activity: now,
             hovered: None,
             pressed: None,
             drag: None,
             scene_press_axis: 0.,
             scrub_target: None,
+            studio_open: true,
             scroll: StudioScroll::default(),
             stats_since: now,
             frames_shown: 0,
@@ -248,6 +264,11 @@ impl<'s> App<'s> {
             self.finish_scrub(next_frame);
         }
 
+        let controls_visible = self.controls_should_be_visible();
+        if controls_visible != self.controls_visible {
+            self.controls_visible = controls_visible;
+            self.needs_redraw = true;
+        }
         self.follow_motion();
 
         if self.needs_redraw {
@@ -356,6 +377,11 @@ impl<'s> App<'s> {
                 let playing = self.clock.is_playing();
                 self.seek_to(frame as u64, playing);
             }
+            Key::Character("b") => {
+                self.controls_enabled = !self.controls_enabled;
+                self.needs_redraw = true;
+            }
+            Key::Character("t") => self.toggle_studio(),
             Key::Character("[" | "]") => {
                 let next = event.logical_key == Key::Character("]".into());
                 if let Some(target) = self.config.studio.adjacent_scene(frame as usize, next) {
@@ -399,6 +425,15 @@ impl<'s> App<'s> {
             .set_scrubbing(matches!(drag, Some(Control::Seek | Control::Timeline)));
     }
 
+    fn toggle_studio(&mut self) {
+        self.invalidate_view();
+        self.studio_open = !self.studio_open;
+        self.set_drag(None);
+        self.hovered = None;
+        self.last_pointer_activity = Instant::now();
+        self.needs_redraw = true;
+    }
+
     fn toggle_fullscreen(&mut self) {
         let Some(window) = &self.window else { return };
         let fullscreen = match window.fullscreen() {
@@ -417,6 +452,8 @@ impl<'s> App<'s> {
     /// What the chrome should show; the motion follows it.
     fn intent(&self) -> Intent {
         Intent {
+            studio: self.studio_open,
+            dock: self.controls_visible && !self.studio_open,
             playing: self.clock.is_playing(),
             looping: self.looping,
             // A slider drag keeps its thumb lit when the pointer leaves the track
@@ -429,13 +466,21 @@ impl<'s> App<'s> {
         }
     }
 
-    /// Points every motion of the chrome at the current state and keeps redrawing while
-    /// something moves.
+    /// Points every motion of the chrome at the current state, hides the pointer with
+    /// the dock, and keeps redrawing while something moves.
     fn follow_motion(&mut self) {
         let now = Instant::now();
         self.motion.follow(self.intent(), now);
         if self.motion.is_moving(now) {
             self.needs_redraw = true;
+        }
+
+        let hide_cursor = !self.studio_open && !self.controls_visible && self.cursor_inside;
+        if hide_cursor != self.cursor_hidden {
+            self.cursor_hidden = hide_cursor;
+            if let Some(window) = &self.window {
+                window.set_cursor_visible(!hide_cursor);
+            }
         }
     }
 
@@ -447,16 +492,33 @@ impl<'s> App<'s> {
         self.needs_redraw = true;
     }
 
-    /// The studio under the pointer, or the floating dock when the window is too small
-    /// for the studio.
+    /// Always shown while paused, while playing only after recent pointer activity.
+    fn controls_should_be_visible(&self) -> bool {
+        self.controls_enabled
+            && (!self.clock.is_playing()
+                || self.drag.is_some()
+                || (self.cursor_inside && self.hovered.is_some())
+                || self.last_pointer_activity.elapsed() < CONTROLS_IDLE_TIMEOUT)
+    }
+
     fn control_under_cursor(&self) -> Option<Control> {
-        if let Some(layout) = self.studio_layout() {
-            return layout.hit(self.pointer(), &self.config.studio);
+        let point = self.pointer();
+        if self.studio_open
+            && let Some(layout) = self.studio_layout()
+        {
+            return layout.hit(point, &self.config.studio);
         }
-        self.presenter
-            .as_ref()?
-            .controls_layout()
-            .hit(self.cursor.x as f32, self.cursor.y as f32)
+        if self.controls_visible
+            && let Some(control) = self
+                .presenter
+                .as_ref()?
+                .controls_layout()
+                .hit(self.cursor.x as f32, self.cursor.y as f32)
+        {
+            return Some(control);
+        }
+        let layout = self.studio_layout()?;
+        (self.controls_visible && layout.focus_hit(point)).then_some(Control::Focus)
     }
 
     fn seek_to_cursor(&mut self) {
@@ -496,6 +558,7 @@ impl<'s> App<'s> {
     fn on_pointer_moved(&mut self, position: PhysicalPosition<f64>) {
         self.cursor = position;
         self.cursor_inside = true;
+        self.last_pointer_activity = Instant::now();
 
         if matches!(self.drag, Some(Control::Scene(_)))
             && self.studio_layout().is_some_and(|ui| {
@@ -527,6 +590,11 @@ impl<'s> App<'s> {
             }
         }
 
+        // Bring the controls back without waiting for the next frame.
+        if !self.controls_visible && self.controls_should_be_visible() {
+            self.controls_visible = true;
+            self.needs_redraw = true;
+        }
         self.follow_motion();
         if self.needs_redraw
             && let Some(window) = &self.window
@@ -548,6 +616,7 @@ impl<'s> App<'s> {
                     | Control::Forward
                     | Control::Loop
                     | Control::Fullscreen
+                    | Control::Focus
             )
         });
         match control {
@@ -563,6 +632,7 @@ impl<'s> App<'s> {
                 }
                 self.set_drag(Some(control));
             }
+            Some(Control::Focus) => self.toggle_studio(),
             Some(Control::Loop) => {
                 self.looping = !self.looping;
                 let playing = self.clock.is_playing();
@@ -690,7 +760,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
             }
             WindowEvent::KeyboardInput { event, .. } => self.handle_key(event_loop, event),
             WindowEvent::CursorMoved { position, .. } => self.on_pointer_moved(position),
-            WindowEvent::MouseWheel { delta, .. } if self.cursor_inside => {
+            WindowEvent::MouseWheel { delta, .. } if self.studio_open && self.cursor_inside => {
                 let point = self.pointer();
                 let dy = match delta {
                     MouseScrollDelta::LineDelta(_, dy) => f64::from(dy),
