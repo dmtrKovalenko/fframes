@@ -151,13 +151,13 @@ impl Video for HelloWorldVideo<'_> {
 
 The skill's guides are plain Markdown, so you can read them too:
 [the workflow](skills/fframes-video/SKILL.md), [the API cheat sheet](skills/fframes-video/references/api.md),
+[captions](skills/fframes-video/references/captions.md),
 [design](skills/fframes-video/references/design.md) and [sound](skills/fframes-video/references/audio.md).
 The full API reference is on [docs.rs/fframes](https://docs.rs/fframes).
 
 ## Examples
 
-Click a poster to watch the video, or an example name to browse its source. Each example's README also has
-the video inline.
+Click an example name to browse its source, or a poster for a preview.
 
 - [Motion and launch videos](#motion-and-launch-videos)
 - [Shaders and 3D](#shaders-and-3d)
@@ -257,6 +257,14 @@ An svgr UI on the screen of a turning 3D monitor, showing a 3D cube with the svg
 
 ### Audio and video
 
+#### [captions](examples/captions)
+
+A small example of Highlight, Karaoke, Reveal and Word modes sharing one JSON transcript. Typed per-word metadata adds circles and underlines without registration or per-frame parsing. Run with `cargo run --release -p captions-example -- render`.
+
+<a href="examples/_previews/captions.png">
+  <img alt="Caption presets and custom word highlights" src="examples/_previews/captions.png" width="640" />
+</a>
+
 #### [audio-announce](examples/audio-announce)
 
 An automated workflow to create audio visualisation with automated subtitles.
@@ -338,6 +346,19 @@ cargo install --locked cargo-fframes
 cargo fframes new my-video
 cd my-video && cargo run --release -- preview
 ```
+
+The preview timeline sits below landscape and square videos and to the left of portrait videos.
+Drag the filmstrip to scrub, or click a scene marker to pause on its first frame. Use `[` and `]`
+to jump between scenes and `,` and `.` to step one frame. Press `Space` to play or pause, or `T`
+to hide the timeline and expand the video.
+
+On macOS the studio tries VideoToolbox for supported source videos and falls back to software
+for unsupported formats. `preview --software-decode` uses the CPU for decoding while keeping
+the selected drawing backend. Playback and filmstrip workers release idle source decoders.
+The GPU preview draws each scene through Skia directly into the window drawable or swapchain.
+The default buffer holds up to four prepared scene trees, and only the frame under the pointer
+is prepared while you drag the timeline. Decoders reuse the pixel buffers of frames that no
+scene tree holds any more. The CPU backend draws directly into the window buffer.
 
 `cargo fframes new` takes `--template single-scene|multi-scene`, `--format landscape|portrait|square|uhd`, `--fps`,
 `--title` and `--backend`. On macOS and Linux (arm64, x86_64) the first build downloads prebuilt Skia and ffmpeg

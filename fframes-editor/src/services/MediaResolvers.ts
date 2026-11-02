@@ -7,6 +7,9 @@ import { fontInfo } from "src/WasmController.gen";
 import { Input, UrlSource, ALL_FORMATS } from "mediabunny";
 import { registerVideo } from "./VideoFrameBufferManager";
 
+export const mediaErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 interface VideoMetadata {
   width: number;
   height: number;
@@ -134,10 +137,13 @@ export const resolveSubtitles: MediaResolver = async ({
   wasmController,
 }) => {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Unable to load subtitle media ${name}: HTTP ${response.status}`
+    );
+  }
   const text = await response.text();
-  let phrasesCount = 0;
-
-  wasmController.add_subtitles_source(name, text);
+  const phrasesCount = wasmController.add_subtitles_source(name, text);
 
   return resolveMedia(name, {
     tag: "Subtitles",
@@ -145,13 +151,31 @@ export const resolveSubtitles: MediaResolver = async ({
   });
 };
 
-export const resolveLottie: MediaResolver = async ({
+export const resolveJson: MediaResolver = async ({
   name,
   url,
   wasmController,
 }) => {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Unable to load JSON media ${name}: HTTP ${response.status}`
+    );
+  }
   const text = await response.text();
+  const lowerName = name.toLowerCase();
+  const subtitleJson =
+    lowerName === "subtitles.json" ||
+    lowerName === "captions.json" ||
+    lowerName.endsWith(".subtitles.json") ||
+    lowerName.endsWith(".captions.json");
+  // Rust classifies and retains subtitle JSON in one pass, including its metadata.
+  const count = subtitleJson
+    ? wasmController.add_subtitles_source(name, text)
+    : wasmController.add_json_subtitles_source(name, text);
+  if (count !== undefined) {
+    return resolveMedia(name, { tag: "Subtitles", value: count });
+  }
   const duration = wasmController.add_lottie_source(name, text);
 
   return resolveMedia(name, {

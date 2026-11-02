@@ -61,8 +61,21 @@ macro_rules! internal_impl_wasm_bridge {
             }
 
             #[wasm_bindgen]
-            pub fn add_subtitles_source(&self, file: String, content: String) -> usize {
+            pub fn add_subtitles_source(
+                &self,
+                file: String,
+                content: String,
+            ) -> Result<usize, JsValue> {
                 self.0.add_subtitles_source(file, content)
+            }
+
+            #[wasm_bindgen]
+            pub fn add_json_subtitles_source(
+                &self,
+                file: String,
+                content: String,
+            ) -> Result<Option<usize>, JsValue> {
+                self.0.add_json_subtitles_source(file, content)
             }
 
             #[wasm_bindgen]

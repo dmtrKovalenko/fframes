@@ -15,9 +15,10 @@ use fframes_skia_renderer::render::RenderCache;
 use fframes_skia_renderer::skia_safe::{Canvas, Color, Rect};
 use winit::window::Window;
 
-use crate::controls::{Controls, ControlsLayout, ControlsState};
+use crate::controls::{Control, Controls, ControlsLayout, ControlsState, mix};
 use crate::error::PlayerResult;
 use crate::options::PlayerBackend;
+use crate::studio::{Studio, StudioLayout, StudioScroll};
 
 /// The images of the window that Skia draws into.
 trait WindowTarget {
@@ -32,15 +33,16 @@ trait WindowTarget {
     /// The window has a new size in physical pixels, neither is zero.
     fn resize(&mut self, width: u32, height: u32) -> PlayerResult<()>;
 
-    /// Draws the next image of the window with `draw` and shows it. Returns once the GPU is
-    /// done: video frame images point into the pixel buffers of the tree, which is dropped
-    /// as soon as the next frame replaces it.
+    /// Draws the next image of the window with `draw` and shows it. The GPU backends
+    /// return before the GPU is done: Skia copies video frame pixels into its staging
+    /// memory during the flush, so the tree can be dropped once this returns.
     fn present(&mut self, draw: &mut dyn FnMut(&Canvas)) -> PlayerResult<()>;
 }
 
 // Fields drop in declaration order: the cached Skia objects before the target that owns
 // the context and the device.
 pub(crate) struct Presenter {
+    pub studio_layout: Option<StudioLayout>,
     render_cache: RenderCache,
     target: Box<dyn WindowTarget>,
     window: Rc<Window>,
@@ -49,17 +51,19 @@ pub(crate) struct Presenter {
     layout: ControlsLayout,
     /// The longest time label, sizes the time slots of the control bar.
     duration_label: String,
+    audio_rows: usize,
+    video_aspect: f32,
 }
 
 impl Presenter {
     pub(crate) fn new(
         window: Rc<Window>,
-        backend: PlayerBackend,
-        vsync: bool,
-        background: fframes::Color,
-        duration_label: String,
+        config: &crate::app::AppConfig<'_>,
     ) -> PlayerResult<Self> {
-        let target = create_target(&window, backend, vsync)?;
+        let target = create_target(&window, config.backend, config.vsync)?;
+        let duration_label = crate::controls::format_time(config.duration_in_frames, config.fps);
+        let background = config.background;
+        let model = &config.studio;
         let controls = Controls::new();
         let size = window.inner_size();
         let layout = ControlsLayout::new(
@@ -78,6 +82,9 @@ impl Presenter {
             controls,
             layout,
             duration_label,
+            studio_layout: None,
+            audio_rows: model.audio_rows(),
+            video_aspect: model.video_aspect,
         };
 
         presenter.resize()?;
@@ -102,6 +109,13 @@ impl Presenter {
         }
 
         self.target.resize(size.width, size.height)?;
+        let logical = size.to_logical::<f32>(self.window.scale_factor());
+        self.studio_layout = StudioLayout::new(
+            logical.width,
+            logical.height,
+            self.audio_rows,
+            self.video_aspect,
+        );
         self.layout = ControlsLayout::new(
             &self.controls,
             &self.duration_label,
@@ -113,48 +127,138 @@ impl Presenter {
         Ok(())
     }
 
-    /// Renders `tree` letterboxed into the window with the controls on top and presents it.
+    /// Draws the current frame and the chrome around it before presenting the window.
+    /// `controls.motion.studio` places the view between focus (0) and studio (1): the
+    /// video grows or shrinks into place while the panel slides off its edge.
     pub(crate) fn present(
         &mut self,
-        tree: Option<&usvgr::Tree>,
+        frame: Option<&usvgr::Tree>,
         controls: &ControlsState,
+        model: &Studio,
+        scroll: &StudioScroll,
     ) -> PlayerResult<()> {
+        let pixel_scale = self.window.scale_factor() as f32;
         let Self {
             render_cache,
             target,
             background,
             controls: bar,
             layout,
+            studio_layout,
             ..
         } = self;
 
         target.present(&mut |canvas| {
+            let studio = controls.motion.studio;
+            let view = studio_layout.as_ref();
+            canvas.clear(mix(Color::BLACK, STUDIO_MATTE, studio));
             let size = canvas.base_layer_size();
-            let (width, height) = (size.width as f32, size.height as f32);
-            canvas.clear(Color::BLACK);
-
-            if let Some(tree) = tree {
-                let video = tree.size();
-                let scale = (width / video.width()).min(height / video.height());
-                let offset_x = (width - video.width() * scale) / 2.;
-                let offset_y = (height - video.height() * scale) / 2.;
-
-                canvas.save();
-                canvas.translate((offset_x, offset_y));
-                canvas.scale((scale, scale));
-                canvas.clip_rect(
-                    Rect::from_wh(video.width(), video.height()),
-                    None,
-                    Some(true),
-                );
-                canvas.draw_color(*background, None);
-                fframes_skia_renderer::render::render_tree(tree, canvas, render_cache);
-                canvas.restore();
+            let window = Rect::from_iwh(size.width, size.height);
+            let picture = video_rect(
+                frame.map(usvgr::Tree::size),
+                window,
+                view,
+                studio,
+                pixel_scale,
+            );
+            if let (Some(tree), Some(picture)) = (frame, picture) {
+                draw_video(canvas, tree, picture, *background, render_cache);
+            }
+            if let Some((progress, playing)) = controls.motion.flash {
+                let center = picture.unwrap_or(window).center();
+                bar.flash(canvas, center, pixel_scale, progress, playing);
             }
 
+            if let Some(ui) = studio_layout.as_mut() {
+                canvas.save();
+                canvas.scale((pixel_scale, pixel_scale));
+                if studio > 0. {
+                    let (dx, dy) = ui.closed_offset();
+                    canvas.save();
+                    canvas.translate((dx * (1. - studio), dy * (1. - studio)));
+                    ui.draw(canvas, bar, controls, model, scroll);
+                    canvas.restore();
+                }
+                ui.draw_restore(
+                    canvas,
+                    bar,
+                    controls.motion.hover(Control::Focus),
+                    controls.motion.dock * (1. - studio),
+                );
+                canvas.restore();
+            }
             bar.draw(canvas, layout, controls);
         })
     }
+}
+
+const STUDIO_MATTE: Color = Color::from_rgb(14, 14, 14);
+
+/// Where the video sits, in physical pixels: letterboxed into the window in the focus
+/// view, into the stage of the studio, and in between while the view changes.
+fn video_rect(
+    video: Option<fframes::usvgr::Size>,
+    window: Rect,
+    view: Option<&StudioLayout>,
+    studio: f32,
+    pixel_scale: f32,
+) -> Option<Rect> {
+    let video = video?;
+    let fit = |viewport: Rect, top: bool| {
+        let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
+        let width = video.width() * scale;
+        let height = video.height() * scale;
+        let x = viewport.center_x() - width / 2.;
+        let y = if top {
+            viewport.top
+        } else {
+            viewport.center_y() - height / 2.
+        };
+        Rect::from_xywh(x, y, width, height)
+    };
+    let focus = fit(window, false);
+    let Some(ui) = view else {
+        return Some(focus);
+    };
+    let stage = ui.stage;
+    let staged = fit(
+        Rect::from_ltrb(
+            stage.left * pixel_scale,
+            stage.top * pixel_scale,
+            stage.right * pixel_scale,
+            stage.bottom * pixel_scale,
+        ),
+        ui.portrait,
+    );
+    let lerp = |a: f32, b: f32| a + (b - a) * studio;
+    Some(Rect::from_ltrb(
+        lerp(focus.left, staged.left),
+        lerp(focus.top, staged.top),
+        lerp(focus.right, staged.right),
+        lerp(focus.bottom, staged.bottom),
+    ))
+}
+
+fn draw_video(
+    canvas: &Canvas,
+    tree: &usvgr::Tree,
+    picture: Rect,
+    background: Color,
+    cache: &mut RenderCache,
+) {
+    let video = tree.size();
+    let scale = picture.width() / video.width();
+    canvas.save();
+    canvas.translate((picture.left, picture.top));
+    canvas.scale((scale, scale));
+    canvas.clip_rect(
+        Rect::from_wh(video.width(), video.height()),
+        None,
+        Some(true),
+    );
+    canvas.draw_color(background, None);
+    fframes_skia_renderer::render::render_tree(tree, canvas, cache);
+    canvas.restore();
 }
 
 fn create_target(
@@ -165,8 +269,8 @@ fn create_target(
     match backend {
         PlayerBackend::Auto => {
             #[cfg(feature = "metal")]
-            match create_target(window, PlayerBackend::Metal, vsync) {
-                Ok(target) => return Ok(target),
+            match metal::MetalTarget::new(window, vsync) {
+                Ok(target) => return Ok(Box::new(target)),
                 Err(err) => eprintln!("fframes player: metal is not available ({err})"),
             }
 

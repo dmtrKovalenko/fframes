@@ -4,7 +4,8 @@ use fframes::{
     AudioMixOptions, AudioMixer, AudioTimelineSamples, AudioTimelineUnit, FFramesContext,
     ResolvedAudioMap,
 };
-use std::collections::VecDeque;
+use rtrb::{Consumer, Producer, RingBuffer};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 /// Samples mixed per step, same order of magnitude as an encoder audio frame.
@@ -14,30 +15,40 @@ pub(crate) struct AudioOutput {
     // Not `Send` on every platform, lives on the main thread.
     _stream: cpal::Stream,
     shared: Arc<Shared>,
+    /// The write end of the sample ring, used by the feeder thread only.
+    producer: Mutex<Producer<Sample>>,
     pub(crate) sample_rate: usize,
 }
 
+/// A mixed stereo sample, tagged with the playback it was mixed for.
+#[derive(Clone, Copy)]
+struct Sample {
+    left: f32,
+    right: f32,
+    epoch: u64,
+}
+
 struct Shared {
-    queue: Mutex<Queue>,
+    control: Mutex<Control>,
     feeder_wakeup: Condvar,
+    /// Read by the audio callback without a lock. Both change under `control`.
+    playing: AtomicBool,
+    /// Bumped on every seek. The callback discards samples of earlier epochs.
+    epoch: AtomicU64,
     /// How many mixed samples to keep queued (~100ms).
     target_len: usize,
 }
 
-struct Queue {
-    /// Stereo frames `(left, right)`.
-    samples: VecDeque<(f32, f32)>,
-    playing: bool,
+struct Control {
     looping: bool,
     /// Next position to mix, in samples since the start of the (possibly looped) playback.
     feed_position: u64,
-    epoch: u64,
     shutdown: bool,
 }
 
 impl Shared {
-    fn lock(&self) -> MutexGuard<'_, Queue> {
-        self.queue
+    fn lock(&self) -> MutexGuard<'_, Control> {
+        self.control
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
@@ -52,26 +63,37 @@ impl AudioOutput {
         let sample_rate = config.sample_rate() as usize;
         let channels = config.channels() as usize;
         let sample_format = config.sample_format();
+        let target_len = sample_rate / 10;
 
         let shared = Arc::new(Shared {
-            queue: Mutex::new(Queue {
-                samples: VecDeque::new(),
-                playing: false,
+            control: Mutex::new(Control {
                 looping: false,
                 feed_position: 0,
-                epoch: 0,
                 shutdown: false,
             }),
             feeder_wakeup: Condvar::new(),
-            target_len: sample_rate / 10,
+            playing: AtomicBool::new(false),
+            epoch: AtomicU64::new(0),
+            target_len,
         });
+        // Room for the samples of the current playback plus the ones of the playback
+        // before a seek, which the callback discards.
+        let (producer, consumer) = RingBuffer::new(2 * target_len + CHUNK);
 
         let config = config.config();
         let stream = match sample_format {
-            cpal::SampleFormat::F32 => build_stream::<f32>(&device, config, channels, &shared),
-            cpal::SampleFormat::I16 => build_stream::<i16>(&device, config, channels, &shared),
-            cpal::SampleFormat::U16 => build_stream::<u16>(&device, config, channels, &shared),
-            cpal::SampleFormat::I32 => build_stream::<i32>(&device, config, channels, &shared),
+            cpal::SampleFormat::F32 => {
+                build_stream::<f32>(&device, config, channels, &shared, consumer)
+            }
+            cpal::SampleFormat::I16 => {
+                build_stream::<i16>(&device, config, channels, &shared, consumer)
+            }
+            cpal::SampleFormat::U16 => {
+                build_stream::<u16>(&device, config, channels, &shared, consumer)
+            }
+            cpal::SampleFormat::I32 => {
+                build_stream::<i32>(&device, config, channels, &shared, consumer)
+            }
             format => return Err(format!("unsupported sample format {format}")),
         }?;
         stream.play().map_err(|e| e.to_string())?;
@@ -79,19 +101,19 @@ impl AudioOutput {
         Ok(Self {
             _stream: stream,
             shared,
+            producer: Mutex::new(producer),
             sample_rate,
         })
     }
 
     /// Restarts the audio at `position` (in frames of the player position space).
     pub(crate) fn reset(&self, position: u64, fps: usize, playing: bool, looping: bool) {
-        let mut queue = self.shared.lock();
-        queue.epoch += 1;
-        queue.samples.clear();
-        queue.feed_position = position * self.sample_rate as u64 / fps as u64;
-        queue.playing = playing;
-        queue.looping = looping;
-        drop(queue);
+        let mut control = self.shared.lock();
+        control.feed_position = position * self.sample_rate as u64 / fps as u64;
+        control.looping = looping;
+        self.shared.epoch.fetch_add(1, Ordering::AcqRel);
+        self.shared.playing.store(playing, Ordering::Release);
+        drop(control);
         self.shared.feeder_wakeup.notify_all();
     }
 
@@ -100,7 +122,7 @@ impl AudioOutput {
         self.shared.feeder_wakeup.notify_all();
     }
 
-    /// Mixes audio into the queue until `shutdown`. Runs on a scoped thread.
+    /// Mixes audio into the ring until `shutdown`. Runs on a scoped thread.
     pub(crate) fn run_feeder(
         &self,
         ctx: &FFramesContext<'_, '_>,
@@ -125,25 +147,38 @@ impl AudioOutput {
         }
         let mut left = vec![0.; CHUNK];
         let mut right = vec![0.; CHUNK];
+        let mut producer = self
+            .producer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let capacity = producer.buffer().capacity();
 
         loop {
             let (position, looping, epoch) = {
-                let mut queue = self.shared.lock();
+                let mut control = self.shared.lock();
                 loop {
-                    if queue.shutdown {
+                    if control.shutdown {
                         return;
                     }
-                    let has_more = queue.looping || queue.feed_position < total_samples;
-                    if queue.playing && has_more && queue.samples.len() < self.shared.target_len {
+                    let has_more = control.looping || control.feed_position < total_samples;
+                    let queued = capacity - producer.slots();
+                    if self.shared.playing.load(Ordering::Acquire)
+                        && has_more
+                        && queued < self.shared.target_len
+                    {
                         break;
                     }
-                    queue = self
+                    control = self
                         .shared
                         .feeder_wakeup
-                        .wait(queue)
+                        .wait(control)
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
                 }
-                (queue.feed_position, queue.looping, queue.epoch)
+                (
+                    control.feed_position,
+                    control.looping,
+                    self.shared.epoch.load(Ordering::Acquire),
+                )
             };
 
             let timeline_sample = if looping {
@@ -161,15 +196,16 @@ impl AudioOutput {
                 &mut right[..len],
             );
 
-            let mut queue = self.shared.lock();
-            if queue.epoch == epoch {
-                queue.samples.extend(
-                    left[..len]
-                        .iter()
-                        .copied()
-                        .zip(right[..len].iter().copied()),
-                );
-                queue.feed_position += len as u64;
+            let mut control = self.shared.lock();
+            // The wait above leaves at least a chunk of room in the ring.
+            if self.shared.epoch.load(Ordering::Acquire) == epoch
+                && let Ok(chunk) = producer.write_chunk_uninit(len)
+            {
+                let samples = left[..len]
+                    .iter()
+                    .zip(&right[..len])
+                    .map(|(&left, &right)| Sample { left, right, epoch });
+                control.feed_position += chunk.fill_from_iter(samples) as u64;
             }
         }
     }
@@ -180,19 +216,27 @@ fn build_stream<T: SizedSample + FromSample<f32>>(
     config: cpal::StreamConfig,
     channels: usize,
     shared: &Arc<Shared>,
+    mut consumer: Consumer<Sample>,
 ) -> Result<cpal::Stream, String> {
     let shared = Arc::clone(shared);
 
     device
         .build_output_stream(
             config,
+            // The callback never blocks: it reads the ring and two atomics.
             move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-                let mut queue = shared.lock();
-                let playing = queue.playing;
+                let epoch = shared.epoch.load(Ordering::Acquire);
+                let playing = shared.playing.load(Ordering::Acquire);
 
                 for frame in data.chunks_mut(channels) {
+                    // Samples mixed before the last seek are discarded, also while paused.
+                    while consumer.peek().is_ok_and(|sample| sample.epoch != epoch) {
+                        let _ = consumer.pop();
+                    }
                     let (left, right) = if playing {
-                        queue.samples.pop_front().unwrap_or((0.0, 0.0))
+                        consumer
+                            .pop()
+                            .map_or((0.0, 0.0), |sample| (sample.left, sample.right))
                     } else {
                         (0.0, 0.0)
                     };
@@ -208,9 +252,7 @@ fn build_stream<T: SizedSample + FromSample<f32>>(
                     }
                 }
 
-                let needs_more = playing && queue.samples.len() < shared.target_len;
-                drop(queue);
-                if needs_more {
+                if playing && consumer.slots() < shared.target_len {
                     shared.feeder_wakeup.notify_one();
                 }
             },

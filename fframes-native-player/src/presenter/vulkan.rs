@@ -1,11 +1,12 @@
 use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use fframes_skia_renderer::render::RenderCache;
 use fframes_skia_renderer::skia_safe::gpu::ganesh::vk::backend_render_targets;
 use fframes_skia_renderer::skia_safe::gpu::{
-    self, DirectContext, FlushInfo, SurfaceOrigin, SyncCpu,
+    self, DirectContext, FlushInfo, SemaphoresSubmitted, SurfaceOrigin, SyncCpu, backend_semaphores,
 };
 use fframes_skia_renderer::skia_safe::{Canvas, ColorType, Surface};
 use fframes_skia_renderer::vulkan::ash::{
@@ -27,11 +28,14 @@ type SurfaceLayer = raw_window_metal::Layer;
 #[cfg(not(target_os = "macos"))]
 type SurfaceLayer = ();
 
+const GPU_CACHE_IDLE: Duration = Duration::from_secs(1);
+
 /// Skia draws into the images of a swapchain of the window.
 pub(super) struct VulkanTarget {
     swapchain: Option<Swapchain>,
     // Dropped in `drop`, after the swapchain images it draws into.
     gpu: ManuallyDrop<DirectContext>,
+    last_cache_cleanup: Instant,
     queue: vk::Queue,
     queue_lock: QueueLock,
     surface: vk::SurfaceKHR,
@@ -51,15 +55,23 @@ struct Swapchain {
     handle: vk::SwapchainKHR,
     /// A Skia surface on every image of the swapchain.
     images: Vec<Surface>,
+    /// One per image, signaled once Skia's work on the image is done. The present of
+    /// the image waits for it, so the CPU does not have to.
+    rendered: Vec<vk::Semaphore>,
     /// The swapchain no longer matches the window and is recreated before the next frame.
     outdated: bool,
 }
 
 impl Swapchain {
-    fn destroy(self, swapchain_fn: &ash::khr::swapchain::Device) {
+    fn destroy(self, device: &ash::Device, swapchain_fn: &ash::khr::swapchain::Device) {
         // Skia's views of the images go first.
         drop(self.images);
-        unsafe { swapchain_fn.destroy_swapchain(self.handle, None) };
+        unsafe {
+            for semaphore in self.rendered {
+                device.destroy_semaphore(semaphore, None);
+            }
+            swapchain_fn.destroy_swapchain(self.handle, None);
+        }
     }
 }
 
@@ -97,6 +109,7 @@ impl VulkanTarget {
         let mut target = Self {
             swapchain: None,
             gpu: ManuallyDrop::new(gpu),
+            last_cache_cleanup: Instant::now(),
             queue,
             queue_lock,
             surface,
@@ -200,7 +213,7 @@ impl VulkanTarget {
         };
         if extent.width == 0 || extent.height == 0 {
             if let Some(old) = old {
-                old.destroy(&self.swapchain_fn);
+                old.destroy(device, &self.swapchain_fn);
             }
             return Ok(());
         }
@@ -264,7 +277,7 @@ impl VulkanTarget {
 
         // Retired by the new swapchain, or of no use if it could not be created.
         if let Some(old) = old {
-            old.destroy(&self.swapchain_fn);
+            old.destroy(device, &self.swapchain_fn);
         }
         let handle = handle.map_err(vulkan_error("can not create the swapchain"))?;
 
@@ -311,20 +324,29 @@ impl VulkanTarget {
                 .collect::<PlayerResult<Vec<_>>>()
         });
 
-        match images {
-            Ok(images) => {
-                self.swapchain = Some(Swapchain {
-                    handle,
-                    images,
-                    outdated: false,
-                });
-                Ok(())
-            }
+        let mut swapchain = match images {
+            Ok(images) => Swapchain {
+                handle,
+                images,
+                rendered: Vec::new(),
+                outdated: false,
+            },
             Err(err) => {
                 unsafe { self.swapchain_fn.destroy_swapchain(handle, None) };
-                Err(err)
+                return Err(err);
+            }
+        };
+        for _ in 0..swapchain.images.len() {
+            match unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) } {
+                Ok(semaphore) => swapchain.rendered.push(semaphore),
+                Err(err) => {
+                    swapchain.destroy(device, &self.swapchain_fn);
+                    return Err(vulkan_error("can not create a semaphore")(err));
+                }
             }
         }
+        self.swapchain = Some(swapchain);
+        Ok(())
     }
 
     /// The index of the next swapchain image, once it can be drawn into. `None` while the
@@ -401,10 +423,17 @@ impl WindowTarget for VulkanTarget {
             return Ok(());
         };
         let surface = &mut swapchain.images[index as usize];
+        let rendered = swapchain.rendered[index as usize];
 
         draw(surface.canvas());
 
         let _queue = lock_queue(Some(&self.queue_lock));
+        // Release unlocked Skia resources from earlier scenes while retaining active frames.
+        if self.last_cache_cleanup.elapsed() >= GPU_CACHE_IDLE {
+            self.gpu.perform_deferred_cleanup(GPU_CACHE_IDLE, None);
+            self.last_cache_cleanup = Instant::now();
+        }
+
         // Ask Skia for the layout the presentation engine reads. `BackendSurfaceAccess::Present`
         // changes the layout only when Skia's context lists `VK_KHR_swapchain`, and the
         // contexts of `SkiaVulkanCtx` do not.
@@ -412,17 +441,30 @@ impl WindowTarget for VulkanTarget {
             gpu::vk::ImageLayout::PRESENT_SRC_KHR,
             self.backend.queue_family_index(),
         );
-        self.gpu.flush_surface_with_texture_state(
-            surface,
-            &FlushInfo::default(),
-            Some(&present_layout),
-        );
-        self.gpu.submit(SyncCpu::Yes);
+        // SAFETY: the semaphore lives as long as the swapchain, which is destroyed after
+        // the device is idle.
+        let mut signal = [unsafe { backend_semaphores::make_vk(rendered.as_raw() as _) }];
+        let mut flush_info = FlushInfo::default();
+        // SAFETY: `signal` outlives the flush.
+        unsafe { flush_info.set_signal_semaphores(&mut signal) };
+        let signaled =
+            self.gpu
+                .flush_surface_with_texture_state(surface, &flush_info, Some(&present_layout));
+        // The flush copied image pixels into staging buffers, so the CPU does not wait for
+        // the GPU: the present does. Without a signal (nothing was drawn) it waits here.
+        let wait_semaphores: &[vk::Semaphore] = if signaled == SemaphoresSubmitted::Yes {
+            self.gpu.submit(SyncCpu::No);
+            &[rendered]
+        } else {
+            self.gpu.submit(SyncCpu::Yes);
+            &[]
+        };
 
         let presented = unsafe {
             self.swapchain_fn.queue_present(
                 self.queue,
                 &vk::PresentInfoKHR::default()
+                    .wait_semaphores(wait_semaphores)
                     .swapchains(&[swapchain.handle])
                     .image_indices(&[index]),
             )
@@ -448,7 +490,7 @@ impl Drop for VulkanTarget {
         }
 
         if let Some(swapchain) = self.swapchain.take() {
-            swapchain.destroy(&self.swapchain_fn);
+            swapchain.destroy(device, &self.swapchain_fn);
         }
 
         unsafe {

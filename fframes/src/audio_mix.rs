@@ -763,7 +763,7 @@ mod tests {
         fn resolve_image(&'a self, _: &str) -> Option<&'a crate::media::ImageData<'a>> {
             None
         }
-        fn resolve_subtitles(&'a self, _: &str) -> Option<&'a crate::media::Subtitles<'a>> {
+        fn resolve_subtitles(&'a self, _: &str) -> Option<&'a crate::media::Subtitles> {
             None
         }
         fn resolve_video(&'a self, _: &str) -> Option<&'a crate::media::VideoMedia> {

@@ -7,9 +7,25 @@ rendered with the {{backend_label}} backend.
 | --- | --- |
 | `src/lib.rs` | the video: scenes, animation, audio map |
 | `src/main.rs` | the command line (`fframes::cli`) |
+| `build.rs` | lets the executable find the shared engine and Rust runtime |
 | `media/` | fonts, images and audio embedded into the binary |
 
 ## Work on it
+
+Standalone projects enable incremental compilation for release builds. Use `--release`
+throughout editing so CPU rendering, scene code and GPU preparation keep release optimization.
+The first build warms the cache; subsequent edits reuse it. Keep Cargo features and the target
+directory consistent between checks. The profile uses 16 codegen units, the usual release
+count, instead of the larger incremental default. Existing workspace projects configure
+profiles in their workspace-root `Cargo.toml`.
+
+If a frame panics, rerun the command with `RUST_BACKTRACE=1` to see the functions on the
+stack. Release builds carry no debug info, which keeps the binaries small and the links short.
+
+On macOS and Linux with a dynamic C runtime, the default `dynamic-linking` feature lets
+Cargo reuse the linked fframes engine after a scene edit. For an executable you can move
+away from the build directory and Rust toolchain, build with
+`cargo build --release --no-default-features` to link the Rust libraries into the executable.
 
 ```sh
 {{run}} timeline                      # scenes, duration, audio tracks

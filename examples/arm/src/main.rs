@@ -59,12 +59,12 @@ fn main() -> ExitCode {
         ..Default::default()
     };
 
-    let cpu = args.app.cpu;
+    let needs_export_gpu = !args.app.cpu && !matches!(args.command, Some(cli::Command::Preview(_)));
     let command = cli::new(&video, options)
         .args(args)
         .preview(fframes_native_player::cli_preview)
         .default_output("out.mp4");
-    if cpu {
+    if !needs_export_gpu {
         return command.run();
     }
 

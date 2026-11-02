@@ -20,7 +20,7 @@ impl Debug for RawFontData {
 pub trait MediaProvider<'a>: Send + Sync + Debug {
     fn resolve_audio(&'a self, name: &str) -> Option<&'a AudioData<'a>>;
     fn resolve_image(&'a self, name: &str) -> Option<&'a media::ImageData<'a>>;
-    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles<'a>>;
+    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles>;
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia>;
     #[cfg(feature = "lottie")]
     fn resolve_lottie(&'a self, _name: &str) -> Option<&'a crate::Lottie> {
@@ -52,6 +52,19 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
         Vec::new()
     }
 
+    /// Whether the provider lists video files that need a decoder during playback.
+    /// A provider that can return `Some` from `resolve_video` must override this method
+    /// or `get_all_video_data`. Otherwise the native preview uses its no-video defaults:
+    /// more workers, and decoders that are not shared between them.
+    fn has_video_sources(&self) -> bool {
+        !self.get_all_video_data().is_empty()
+    }
+
+    /// All loaded subtitles, whether parsed from VTT or JSON.
+    fn get_all_subtitle_data(&self) -> Vec<(&media::Subtitles, &str)> {
+        Vec::new()
+    }
+
     #[cfg(feature = "lottie")]
     fn get_all_lottie_data(&self) -> Vec<(&crate::Lottie, &str)> {
         Vec::new()
@@ -71,7 +84,7 @@ impl<'a> MediaProvider<'a> for () {
         None
     }
 
-    fn resolve_subtitles(&'a self, _name: &str) -> Option<&'a media::Subtitles<'a>> {
+    fn resolve_subtitles(&'a self, _name: &str) -> Option<&'a media::Subtitles> {
         None
     }
 
@@ -107,7 +120,7 @@ impl StaticMediaProvider<'_> for () {
 pub struct DynamicMediaProvider<'media> {
     pub audio: HashMap<String, AudioData<'media>>,
     pub images: HashMap<String, media::ImageData<'media>>,
-    pub subtitles: HashMap<String, media::Subtitles<'media>>,
+    pub subtitles: HashMap<String, media::Subtitles>,
     pub videos: HashMap<String, media::VideoMedia>,
     pub fontdata: Vec<RawFontData>,
     #[cfg(feature = "lottie")]
@@ -119,7 +132,7 @@ impl<'media> DynamicMediaProvider<'media> {
     pub fn new(
         audio: HashMap<String, AudioData<'media>>,
         images: HashMap<String, media::ImageData<'media>>,
-        subtitles: HashMap<String, media::Subtitles<'media>>,
+        subtitles: HashMap<String, media::Subtitles>,
         videos: HashMap<String, media::VideoMedia>,
         fonts_data: Vec<RawFontData>,
     ) -> Self {
@@ -150,11 +163,7 @@ impl<'media> DynamicMediaProvider<'media> {
 
     /// Adds subtitles. `ctx.get_subtitles(name)` finds them by `name`.
     #[must_use]
-    pub fn with_subtitles(
-        mut self,
-        name: impl Into<String>,
-        subtitles: media::Subtitles<'media>,
-    ) -> Self {
+    pub fn with_subtitles(mut self, name: impl Into<String>, subtitles: media::Subtitles) -> Self {
         self.subtitles.insert(name.into(), subtitles);
         self
     }
@@ -191,7 +200,7 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
         self.images.get(name)
     }
 
-    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles<'a>> {
+    fn resolve_subtitles(&'a self, name: &str) -> Option<&'a media::Subtitles> {
         self.subtitles.get(name)
     }
 
@@ -241,8 +250,19 @@ impl<'a> MediaProvider<'a> for DynamicMediaProvider<'a> {
             .collect()
     }
 
+    fn has_video_sources(&self) -> bool {
+        !self.videos.is_empty()
+    }
+
     fn get_all_video_data(&self) -> Vec<(&fframes_media::VideoMedia, &str)> {
         self.videos
+            .iter()
+            .map(|(name, data)| (data, name.as_str()))
+            .collect()
+    }
+
+    fn get_all_subtitle_data(&self) -> Vec<(&media::Subtitles, &str)> {
+        self.subtitles
             .iter()
             .map(|(name, data)| (data, name.as_str()))
             .collect()
@@ -281,16 +301,29 @@ impl<'a, const N: usize> MediaProvider<'a> for CombinedMediaProvider<'a, N> {
             .find_map(|provider| provider.resolve_image(name))
     }
 
-    fn resolve_subtitles(&self, name: &str) -> Option<&'a media::Subtitles<'_>> {
+    fn resolve_subtitles(&self, name: &str) -> Option<&'a media::Subtitles> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_subtitles(name))
+    }
+
+    fn get_all_subtitle_data(&self) -> Vec<(&media::Subtitles, &str)> {
+        let mut names = std::collections::HashSet::new();
+        self.0
+            .iter()
+            .flat_map(|provider| provider.get_all_subtitle_data())
+            .filter(|(_, name)| names.insert(*name))
+            .collect()
     }
 
     fn resolve_video(&'a self, name: &str) -> Option<&'a media::VideoMedia> {
         self.0
             .iter()
             .find_map(|provider| provider.resolve_video(name))
+    }
+
+    fn has_video_sources(&self) -> bool {
+        self.0.iter().any(|provider| provider.has_video_sources())
     }
 
     #[cfg(feature = "lottie")]

@@ -21,6 +21,7 @@ pub fn clip_input() -> SyncVideoFrameInput<'static> {
         start_from: 0.0,
         looping: true,
         editor_fallback_image: None,
+        ..Default::default()
     }
 }
 

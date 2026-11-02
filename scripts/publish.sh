@@ -30,6 +30,7 @@ for crate in \
   fframes-editor-controller \
   fframes-skia-renderer \
   fframes-native-player \
+  fframes-dylib \
   cargo-fframes; do
   echo "Publishing $crate"
   (cd "$crate" && cargo publish --allow-dirty --no-verify)

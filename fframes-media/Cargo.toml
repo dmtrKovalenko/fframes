@@ -1,6 +1,6 @@
 [package]
 name = "fframes-media"
-version = "1.3.0"
+version = "1.4.1"
 description = "Media loaders used by different fframes packages. This crate is not meant to be used directly."
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2024"
@@ -18,6 +18,8 @@ ttf-parser = "0.25.1"
 itoa = "1.0.14"
 kamadak-exif = { workspace = true, optional = true }
 base64 = { version = "0.22.1" }
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0.154"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true
@@ -62,7 +64,9 @@ mp3lame = ["ffmpeg-sys-fframes/build-lib-mp3lame"]
 opus = ["ffmpeg-sys-fframes/build-lib-opus"]
 vpx = ["ffmpeg-sys-fframes/build-lib-vpx"]
 # enable various hardware accelerations
-videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]
+# The player opts in on macOS without changing decoding policy for exports.
+preview-videotoolbox = ["ffmpeg-sys-fframes/build-videotoolbox"]
+videotoolbox = ["preview-videotoolbox"]
 audiotoolbox = ["ffmpeg-sys-fframes/build-audiotoolbox"]
 vaapi = ["ffmpeg-sys-fframes/build-vaapi"]
 nvidia = ["ffmpeg-sys-fframes/build-nvidia"]

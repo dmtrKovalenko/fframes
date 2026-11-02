@@ -411,6 +411,7 @@ impl Frame {
     }
 
     /// Returns a cue that must be rendered by the time of the current frame
+    /// Legacy lookup includes the cue's ending timestamp.
     /// Besides text cue contains additional metadata like start/end time stamp,
     /// notes and cue settings which can be used to customise text.
     ///
@@ -424,12 +425,11 @@ impl Frame {
         subtitles.get_cue_by_time(milliseconds).map(|(_, cue)| cue)
     }
 
-    /// Returns all the cues in order which timestamp is before or equal current frame.
+    /// Returns cues whose start is strictly before the current time plus `overlap`.
     ///
     /// ### Params
     /// * `overlap` – value in milliseconds is used to control when the next cue will join the stack,
-    ///   e.g if overlap is 1000ms, the next cue will join the stack when it's timestamp is 1000ms or less
-    ///   then the time of the current frame.
+    ///   For example, 1000ms includes cues starting less than one second ahead.
     pub fn get_cue_stack<'a, TSubtitles: FFramesSubtitles<'a>>(
         &self,
         subtitles: &'a TSubtitles,
@@ -443,6 +443,7 @@ impl Frame {
     /// Returns a synced video frame of the video file media.
     /// If the video file is not found or there is no frame or error during decoding returns None.
     /// Video frame is decoded and timebase (fps) is synced with the target fframe's video frame.
+    /// Each frame shows the source frame at `(seconds - start_from) * speed`.
     ///
     /// **Make sure this function is not working in the editor for now. Editor will automatically fallback to
     /// `{your_video_file}.{your_extension}_fallback.{jpg|png}` image file for preview if it exists
@@ -461,6 +462,45 @@ impl Frame {
         let offset = self.index - start_from_frame;
         self.worker_local_video_decoders
             .get_synced_frame(video, offset as i64, ctx, input)
+            .map_err(|e| {
+                crate::log!("Error while decoding video frame: {:?}", e);
+            })
+            .ok()
+            .flatten()
+    }
+
+    /// Returns the frame at `seconds` of the video file, wherever it is on the timeline.
+    /// This is a seek into the file: `video_frame_at(ctx, "clip.mp4", 19.2, None)` is the
+    /// frame at 19.2 s of `clip.mp4` on every frame of the video (a freeze frame). To play
+    /// a part of a file, use [`Clip`](crate::Clip).
+    ///
+    /// Returns `None` if the file is not found, `seconds` is after its last frame, or the
+    /// frame fails to decode. The editor decodes on the grid of the video's fps and shows
+    /// `editor_fallback_image` until the frame is decoded.
+    pub fn video_frame_at<'f>(
+        &self,
+        ctx: &crate::FFramesContext<'_, '_>,
+        file_name: &str,
+        seconds: f64,
+        editor_fallback_image: Option<&'f crate::media::ImageData<'f>>,
+    ) -> Option<Arc<impl FFramesSyncedVideoFrame<'f> + use<'f>>> {
+        self.video_frame_at_keyed(ctx, file_name, seconds, None, 0, editor_fallback_image)
+    }
+
+    /// `video_frame_at` with the decoder of `key`. Different keys never share a decoder.
+    /// With a `loop_start`, seconds past the end of the file wrap to it.
+    pub(crate) fn video_frame_at_keyed<'f>(
+        &self,
+        ctx: &crate::FFramesContext<'_, '_>,
+        file_name: &str,
+        seconds: f64,
+        loop_start: Option<f64>,
+        key: u64,
+        editor_fallback_image: Option<&'f crate::media::ImageData<'f>>,
+    ) -> Option<crate::video_data::SourceFrame<'f>> {
+        let video = ctx.get_video(file_name)?;
+        self.worker_local_video_decoders
+            .get_frame_at_source(video, seconds, loop_start, key, ctx, editor_fallback_image)
             .map_err(|e| {
                 crate::log!("Error while decoding video frame: {:?}", e);
             })

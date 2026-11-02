@@ -30,6 +30,7 @@ impl Scene for PixelSingleVideoScene<'_> {
                 start_from: 0.,
                 looping: false,
                 editor_fallback_image: ctx.get_image("10.jpg"),
+                ..Default::default()
             },
         ) else {
             return Svgr::empty();

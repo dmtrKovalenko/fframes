@@ -1,0 +1,30 @@
+{
+  "cues": [
+    {
+      "start": 0, "end": 3.6,
+      "words": [
+        {"text": "One", "start": 0, "end": 0.5},
+        {"text": "track,", "start": 0.5, "end": 1.2, "metadata": {"effect": "underline", "color": "#77e6cf"}},
+        {"text": "four", "start": 1.2, "end": 2.1, "metadata": {"effect": "circle", "color": "#f0bc78"}},
+        {"text": "ways", "start": 2.1, "end": 2.8},
+        {"text": "to", "start": 2.8, "end": 3.1},
+        {"text": "read.", "start": 3.1, "end": 3.6}
+      ]
+    },
+    {
+      "start": 4, "end": 7.6,
+      "words": [
+        {"text": "Highlight", "start": 4, "end": 4.6},
+        {"text": "the", "start": 4.6, "end": 4.9},
+        {"text": "words", "start": 4.9, "end": 5.5, "metadata": {"effect": "underline", "color": "#77e6cf"}},
+        {"text": "that", "start": 5.5, "end": 6},
+        {"text": "matter.", "start": 6, "end": 6.8, "metadata": {"effect": "circle", "color": "#f0bc78"}}
+      ]
+    },
+    {
+      "speaker": "Second speaker",
+      "start": 6.8, "end": 7.6,
+      "text": "Keep both voices visible."
+    }
+  ]
+}

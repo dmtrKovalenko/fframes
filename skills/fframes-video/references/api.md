@@ -1,5 +1,9 @@
 # fframes API cheat sheet
 
+For VTT/JSON subtitles, typed word metadata, reusable highlights and caching, see
+[captions.md](captions.md). The `captions` feature adds SVG rendering; subtitle parsing
+and media loading remain available without it.
+
 Examples in the fframes repository worth reading: [beta](https://github.com/dmtrKovalenko/fframes/tree/main/examples/beta) (scenes, images), [audio-announce](https://github.com/dmtrKovalenko/fframes/tree/main/examples/audio-announce)
 (audio visualisation, video sources), [teej-podcast](https://github.com/dmtrKovalenko/fframes/tree/main/examples/teej-podcast) (Skia backend, stereo
 media loaded at runtime), [shaders](https://github.com/dmtrKovalenko/fframes/tree/main/examples/shaders) and [neon-triangle](https://github.com/dmtrKovalenko/fframes/tree/main/examples/neon-triangle) (GPU
@@ -172,8 +176,20 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   `include_media_dir!(pub struct MyMedia, "media", stereo)` keeps stereo files stereo.
 - Large or stereo files: `let dir = MediaDirectory::read_folder("assets")?; let media = dir.process_media_source()?;`
   and combine providers with `CombinedMediaProvider::from([&static_media as &dyn MediaProvider, &media])`.
-- Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, editor_fallback_image })`
+- Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, speed, editor_fallback_image })`
+  (`speed: 2.0` plays twice as fast, `..Default::default()` keeps 1.0)
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
+  `start_from` is when the video starts on the timeline, not a position in the file.
+- Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file,
+  `Clip::new("cam.mp4", 0.0..)` the whole file (`.at(1.2)` starts it at 1.2 s of the scene, `.speed(1.5)`, `.reverse()`, `.looping()`).
+  In a scene, `fn duration` returns `self.face.duration()` and `render_frame` takes
+  `self.face.image(&frame, ctx)` (or `image_at_width(&frame, ctx, 440)` for a small picture in
+  picture), an `Option<ImageData>` drawn as `<image href={image.href()} ...>` with any
+  transform, filter, mask or shader. `{option_of_svgr}` in `svgr!` draws nothing for `None`.
+  Put the voice of the clip into the scene's `audio` with `.offset(...)` into the audio file,
+  so it moves with the scene. Cut a phrase by splitting the clip into two clips, never by
+  cutting the file.
+- One frame of a file: `frame.video_frame_at(ctx, "IMG_0926.mov", 21.0, None)` (seconds of the file).
 - Subtitles: `ctx.get_subtitles("subs.vtt").and_then(|s| frame.get_subtitle_phrase(s))`.
 - Audio spectrum: `frame.visualize_audio_frame(VisualizeFrameInput { audio, sample_size: SampleSize::S256, smooth_level: 4, window: Some(WindowFunction::Hann) })`.
 
@@ -233,7 +249,7 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
   green-screen key (bind the `SyncVideoFrameInput` to a variable first, the frame borrows it):
 
 ```rust
-let input = SyncVideoFrameInput { start_from: 0., looping: false, editor_fallback_image: None };
+let input = SyncVideoFrameInput { start_from: 0., looping: false, ..Default::default() };
 let Some(clip) = frame.get_synced_video_frame(ctx, "clip.mp4", &input) else { return Svgr::empty() };
 let layer = self.chroma.draw(&frame, ShaderUniforms::new()
     .image("uSrc", &clip.into_image())
