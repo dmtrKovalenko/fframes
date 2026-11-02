@@ -477,8 +477,8 @@ let Some(video_frame) = frame.get_synced_video_frame(ctx, "clip.mp4", &fframes::
 }) else { return Svgr::empty() };
 let image = video_frame.into_image(); // <image href={image.href()} .../>
 
-// A part of a file (footage): seconds 19.2..24.7 of the file, from second 1.2 of the scene
-// (`.at`, default 0). `.speed(1.5)`, `.reverse()`, `.looping()`. Each clip has its own decoder,
+// A part of a file (footage): seconds 19.2..24.7 of the file (`0.0..` to its end), from
+// second 1.2 of the scene (`.at`, default 0). `.speed(1.5)`, `.reverse()`, `.looping()`. Each clip has its own decoder,
 // so a clip and a picture in picture of the same file do not slow each other down. Store clips
 // in the scene, `duration` = `clip.duration()`. The clip gives an image of the current frame:
 // draw it with your own size, crop, transform, filter, mask, or pass it to a shader.

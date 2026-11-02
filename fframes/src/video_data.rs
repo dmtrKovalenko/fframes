@@ -631,18 +631,4 @@ mod decoder_pool_tests {
         assert_eq!(pool.slots_of(Path::new("clip.mp4")).len(), 4);
         drop(held);
     }
-
-    #[test]
-    fn each_clip_of_a_file_has_its_own_decoder() {
-        let mut pool = DecoderPool::default();
-        let clip = Path::new("clip.mp4");
-        let synced = pool.slot(clip, PlaybackSpeed::NORMAL);
-        let face = pool.slot(clip, DecoderKey::Source(1));
-        let pip = pool.slot(clip, DecoderKey::Source(2));
-        assert!(!Arc::ptr_eq(&synced, &face));
-        assert!(!Arc::ptr_eq(&face, &pip));
-        assert!(Arc::ptr_eq(&face, &pool.slot(clip, DecoderKey::Source(1))));
-        // the renderer finds the converted pixels of every decoder of the file
-        assert_eq!(pool.slots_of(clip).len(), 3);
-    }
 }

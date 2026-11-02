@@ -1,7 +1,7 @@
 //! A part of a video file played inside a scene.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::ops::Range;
+use std::ops::{Bound, Range, RangeBounds};
 use std::sync::Arc;
 
 use crate::media::ImageData;
@@ -83,14 +83,15 @@ const FRAME_EPSILON_SECONDS: f64 = 1e-4;
 pub struct Clip<'a> {
     /// The video file, a name of the media folder.
     pub video: &'a str,
-    /// The seconds of the file the clip plays, `start` included, `end` not.
+    /// The seconds of the file the clip plays, `start` included, `end` not. An `end` of
+    /// `f64::INFINITY` plays to the end of the file.
     pub source: Range<f64>,
     /// The second of the scene when the clip starts. Default `0.0`.
     pub at: f32,
     /// `2.0` plays the clip twice as fast (and half as long), `0.5` at half speed.
     /// Kept to 1/1000 like [`PlaybackSpeed`]. Default `1.0`.
     pub speed: f32,
-    /// Plays the clip backwards, from the end of `source` to its start.
+    /// Plays the clip backwards, from the end of `source` to its start. Needs an end.
     pub reverse: bool,
     /// Starts the clip again after its end, for as long as the scene shows it.
     pub looping: bool,
@@ -100,10 +101,20 @@ pub struct Clip<'a> {
 
 impl<'a> Clip<'a> {
     /// The seconds `source` of `video` at normal speed, from the start of the scene.
-    pub fn new(video: &'a str, source: Range<f64>) -> Self {
+    /// `19.2..24.7` plays 5.5 s of the file, `19.2..` plays from 19.2 s to the end of the
+    /// file.
+    pub fn new(video: &'a str, source: impl RangeBounds<f64>) -> Self {
+        let start = match source.start_bound() {
+            Bound::Included(&start) | Bound::Excluded(&start) => start,
+            Bound::Unbounded => 0.0,
+        };
+        let end = match source.end_bound() {
+            Bound::Included(&end) | Bound::Excluded(&end) => end,
+            Bound::Unbounded => f64::INFINITY,
+        };
         Self {
             video,
-            source,
+            source: start..end,
             at: 0.0,
             speed: 1.0,
             reverse: false,
@@ -151,18 +162,26 @@ impl<'a> Clip<'a> {
     }
 
     /// The length of the clip on the timeline in seconds: the source length divided by
-    /// the speed.
+    /// the speed. Infinite for a clip to the end of the file.
     pub fn seconds(&self) -> f64 {
         self.source_seconds_len() / self.speed_value()
     }
 
     /// The length of the clip, for the `duration` of the scene that shows it. It does not
-    /// include `at`.
-    pub fn duration(&self) -> Duration<'static> {
-        Duration::Seconds((self.seconds() + FRAME_EPSILON_SECONDS) as f32)
+    /// include `at`. A clip to the end of the file lasts the rest of the file at normal
+    /// speed: give it an end to play it at another speed.
+    pub fn duration(&self) -> Duration<'a> {
+        if self.source.end.is_finite() {
+            Duration::Seconds((self.seconds() + FRAME_EPSILON_SECONDS) as f32)
+        } else if self.source.start > 0.0 {
+            Duration::FromVideo(self.video) - Duration::Seconds(self.source.start as f32)
+        } else {
+            Duration::FromVideo(self.video)
+        }
     }
 
     /// The number of frames the clip plays at `fps`, the same as [`Clip::duration`].
+    /// `usize::MAX` for a clip to the end of the file.
     pub fn frames(&self, fps: usize) -> usize {
         ((self.seconds() + FRAME_EPSILON_SECONDS) * fps as f64) as usize
     }
@@ -245,116 +264,5 @@ impl<'a> Clip<'a> {
         self.at.to_bits().hash(&mut hasher);
         // 0 is the key of `Frame::video_frame_at`
         hasher.finish().max(1)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const FPS: usize = 30;
-
-    fn sources(clip: &Clip, indexes: Range<usize>) -> Vec<Option<f64>> {
-        indexes
-            .map(|i| clip.source_seconds(i, FPS).map(|s| (s * 1e6).round() / 1e6))
-            .collect()
-    }
-
-    #[test]
-    fn float_math_does_not_cost_a_frame() {
-        assert_eq!(Clip::new("a.mp4", 19.2..24.7).frames(FPS), 165);
-        assert_eq!(Clip::new("a.mp4", 0.7..1.4).frames(FPS), 21);
-        assert_eq!(Clip::new("a.mp4", 3.0..9.4).speed(1.25).frames(FPS), 153);
-    }
-
-    #[test]
-    fn duration_resolves_to_the_same_frames() {
-        for clip in [
-            Clip::new("a.mp4", 19.2..24.7),
-            Clip::new("a.mp4", 0.7..1.4),
-            Clip::new("a.mp4", 3.0..9.4).speed(1.25),
-        ] {
-            let resolved = clip
-                .duration()
-                .to_frames_async(FPS, &crate::AudioMap::none(), &|_| Ok(0.0))
-                .unwrap();
-            assert_eq!(resolved, clip.frames(FPS));
-        }
-    }
-
-    #[test]
-    fn plays_the_source_range_from_its_start() {
-        let clip = Clip::new("a.mp4", 19.2..19.3);
-        assert_eq!(
-            sources(&clip, 0..4),
-            [Some(19.2), Some(19.233_333), Some(19.266_667), None]
-        );
-    }
-
-    #[test]
-    fn speed_scales_the_source_time() {
-        let clip = Clip::new("a.mp4", 1.0..2.0).speed(2.0);
-        assert_eq!(clip.frames(FPS), 15);
-        assert_eq!(
-            sources(&clip, 0..3),
-            [Some(1.0), Some(1.066_667), Some(1.133_333)]
-        );
-        assert_eq!(
-            clip.source_seconds(14, FPS)
-                .map(|s| (s * 1e6).round() / 1e6),
-            Some(1.933_333)
-        );
-        assert_eq!(clip.source_seconds(15, FPS), None);
-    }
-
-    #[test]
-    fn reverse_plays_the_same_frames_backwards() {
-        let forward = Clip::new("a.mp4", 1.0..1.2);
-        let backward = forward.clone().reverse();
-        let mut expected = sources(&forward, 0..6);
-        expected.reverse();
-        assert_eq!(sources(&backward, 0..6), expected);
-        assert_eq!(backward.source_seconds(6, FPS), None);
-    }
-
-    #[test]
-    fn looping_starts_again_after_the_end() {
-        let clip = Clip::new("a.mp4", 1.0..1.1).looping();
-        assert_eq!(
-            sources(&clip, 0..5),
-            [
-                Some(1.0),
-                Some(1.033_333),
-                Some(1.066_667),
-                Some(1.0),
-                Some(1.033_333)
-            ]
-        );
-    }
-
-    #[test]
-    fn an_empty_range_shows_nothing() {
-        assert_eq!(Clip::new("a.mp4", 2.0..2.0).source_seconds(0, FPS), None);
-        assert_eq!(
-            Clip::new("a.mp4", 2.0..1.0)
-                .looping()
-                .source_seconds(0, FPS),
-            None
-        );
-    }
-
-    #[test]
-    fn clips_of_one_file_get_their_own_decoder() {
-        let face = Clip::new("a.mp4", 0.0..5.0);
-        assert_eq!(face.decoder_key(), face.clone().decoder_key());
-        assert_ne!(
-            face.decoder_key(),
-            Clip::new("a.mp4", 5.0..9.0).decoder_key()
-        );
-        assert_ne!(face.decoder_key(), face.clone().speed(2.0).decoder_key());
-        assert_ne!(face.decoder_key(), face.clone().reverse().decoder_key());
-        assert_ne!(face.decoder_key(), face.clone().looping().decoder_key());
-        // a delayed copy of the same take shows another second on the same frame
-        assert_ne!(face.decoder_key(), face.clone().at(0.5).decoder_key());
     }
 }

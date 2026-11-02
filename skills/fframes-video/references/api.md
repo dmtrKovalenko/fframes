@@ -176,8 +176,8 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   (`speed: 2.0` plays twice as fast, `..Default::default()` keeps 1.0)
   then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
   `start_from` is when the video starts on the timeline, not a position in the file.
-- Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file
-  (`.at(1.2)` starts it at 1.2 s of the scene, `.speed(1.5)`, `.reverse()`, `.looping()`).
+- Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file,
+  `Clip::new("cam.mp4", 0.0..)` the whole file (`.at(1.2)` starts it at 1.2 s of the scene, `.speed(1.5)`, `.reverse()`, `.looping()`).
   In a scene, `fn duration` returns `self.face.duration()` and `render_frame` takes
   `self.face.image(&frame, ctx)` (or `image_at_width(&frame, ctx, 440)` for a small picture in
   picture), an `Option<ImageData>` drawn as `<image href={image.href()} ...>` with any

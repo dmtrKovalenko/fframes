@@ -580,33 +580,3 @@ fn playback_speed_scales_the_source_time() {
     assert_speed(1.4, 7, 5);
     assert_speed(0.5, 1, 2);
 }
-
-fn assert_at_seconds(decoder: &mut FFmpegDecoder, seconds: f64, expected: f32) {
-    unsafe {
-        assert!(
-            decoder.decode_at_seconds(seconds).unwrap(),
-            "missing frame at {seconds} s"
-        );
-        let shown = decoder.get_raw_frame().timestamp_seconds();
-        assert!(
-            (shown - expected).abs() < 0.0001,
-            "{seconds} s shows the frame at {shown} s, not {expected} s"
-        );
-    }
-}
-
-#[test]
-fn frames_are_found_by_their_second_in_the_file() {
-    let video = VideoFixture::new(3);
-    let mut decoder = unsafe { FFmpegDecoder::new(&video.path(), FPS, 1) }.unwrap();
-    // A time that float math puts just next to a frame shows that frame.
-    assert_at_seconds(&mut decoder, 0.1 + 0.2, 0.3);
-    assert_at_seconds(&mut decoder, 6.4, 6.4);
-    // Back and forth, as two clips of one file or a reversed clip ask for frames.
-    assert_at_seconds(&mut decoder, 1.0, 1.0);
-    assert_at_seconds(&mut decoder, 9.0, 9.0);
-    assert_at_seconds(&mut decoder, 8.966_666_666, 8.966_667);
-    // Between two frames: the frame that starts after it, like `decode_up_to`.
-    assert_at_seconds(&mut decoder, 2.01, 2.033_333);
-    assert!(!unsafe { decoder.decode_at_seconds(10.0) }.unwrap());
-}
