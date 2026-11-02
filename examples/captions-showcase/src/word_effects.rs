@@ -539,8 +539,12 @@ impl WordEffects {
                 .float("uProgress", scope.word.progress)
                 .float("uAge", shader_age as f32)
                 .float("uLightAge", age as f32)
-                .float("uTail", tail as f32)
-                .float("uSeed", seed)
+                .float("uTail", tail as f32);
+            // Goo and glass nebula bind their validated material seed below.
+            if !(direction.is_some() && matches!(effect, 29 | 30)) {
+                uniforms = uniforms.float("uSeed", seed);
+            }
+            uniforms = uniforms
                 .float("uDirected", if direction.is_some() { 1.0 } else { 0.0 })
                 .float("uEntrance", (age / entrance).clamp(0.0, 1.0) as f32)
                 .float("uHero", if hero { 1.0 } else { 0.0 })

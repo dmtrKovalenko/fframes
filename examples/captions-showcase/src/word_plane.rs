@@ -2,7 +2,7 @@
 //!
 //! The source is the actual caption drawing, captured once through `FFrames`. A
 //! homography changes the plane, not the spelling, font metrics or speech clock.
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::sync::{LazyLock, OnceLock};
 
 use fframes::{
     FFramesContext, Shader, ShaderUniforms, Svgr,
@@ -483,13 +483,13 @@ struct SourceTexture {
 
 /// One immutable word drawing, shared by arbitrary frame order and render workers.
 pub struct PlaneRenderer {
-    source: Mutex<Option<SourceTexture>>,
+    source: OnceLock<SourceTexture>,
 }
 
 impl PlaneRenderer {
     pub fn new() -> Self {
         Self {
-            source: Mutex::new(None),
+            source: OnceLock::new(),
         }
     }
 
@@ -537,8 +537,7 @@ impl PlaneRenderer {
         let Some(prepared) = prepared else {
             return text.clone();
         };
-        let mut source = self.source.lock().unwrap_or_else(PoisonError::into_inner);
-        if source.is_none() {
+        if self.source.get().is_none() {
             let texture_width = (width + 2.0 * SOURCE_PADDING).ceil() as u32;
             let texture_height = (height + 2.0 * SOURCE_PADDING).ceil() as u32;
             let Some(image) = ctx.render_svgr(svgr!(
@@ -549,13 +548,15 @@ impl PlaneRenderer {
                     </g>
                 </svg>
             ), texture_width, texture_height) else { return text.clone(); };
-            *source = Some(SourceTexture {
+            // Concurrent first captures are identical. Cache only a successful
+            // capture, so missing fonts can retry without locking panel draws.
+            let _ = self.source.set(SourceTexture {
                 image,
                 width: texture_width,
                 height: texture_height,
             });
         }
-        let Some(texture) = source.as_ref() else {
+        let Some(texture) = self.source.get() else {
             return text.clone();
         };
         let images: Vec<_> = prepared.into_iter().map(|(range, shade, matrix, [origin_x, origin_y, end_x, end_y])| {
@@ -590,7 +591,6 @@ impl PlaneRenderer {
         );
         svgr!(<image href={image.href()} x={origin_x} y={origin_y} width={end_x-origin_x} height={end_y-origin_y} />)
         }).collect();
-        drop(source);
         let elapsed = time - motion.start;
         let wire_opacity = motion.wire_opacity
             * (1.0 - ((elapsed - motion.settle_after()) / motion.wire_fade).clamp(0.0, 1.0));
