@@ -1,6 +1,6 @@
 [package]
 name = "audio-announce-editor-bridge-example"
-version = "1.2.0"
+version = "1.4.0"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 edition = "2024"
 

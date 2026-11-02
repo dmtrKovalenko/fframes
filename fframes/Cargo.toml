@@ -1,6 +1,6 @@
 [package]
 name = "fframes"
-version = "1.2.0"
+version = "1.4.0"
 edition = "2024"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 license = "MIT"

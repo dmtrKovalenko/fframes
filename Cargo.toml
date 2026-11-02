@@ -114,12 +114,12 @@ kamadak-exif = "0.6.1"
 
 # fframes internal deps
 fframes_renderer = { path = "fframes-renderer", version = "1.0.0-beta.6.rc-3.2" }
-fframes-media = { path = "fframes-media", version = "1.2.0" }
-svgr-macro = { path = "svgr-macro", version = "1.2.0" }
-fframes-media-dir-macro = { path = "media-dir-macro", version = "1.2.0" }
-fframes = { path = "fframes", version = "1.2.0" }
-webvtt-parser = { path = "webvtt-parser", version = "1.2.0" }
-fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.2.0" }
+fframes-media = { path = "fframes-media", version = "1.4.0" }
+svgr-macro = { path = "svgr-macro", version = "1.4.0" }
+fframes-media-dir-macro = { path = "media-dir-macro", version = "1.4.0" }
+fframes = { path = "fframes", version = "1.4.0" }
+webvtt-parser = { path = "webvtt-parser", version = "1.4.0" }
+fframes_skia_renderer = { path = "fframes-skia-renderer", version = "1.4.0" }
 # Members pick metal or vulkan: both at once match no prebuilt Skia and build it from source.
-fframes_native_player = { path = "fframes-native-player", version = "1.2.0", default-features = false }
-fframes-3d = { path = "fframes-3d", version = "1.2.0" }
+fframes_native_player = { path = "fframes-native-player", version = "1.4.0", default-features = false }
+fframes-3d = { path = "fframes-3d", version = "1.4.0" }

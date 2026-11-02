@@ -1,6 +1,6 @@
 [package]
 name = "fframes-intro"
-version = "1.2.0"
+version = "1.4.0"
 edition = "2024"
 publish = false
 
