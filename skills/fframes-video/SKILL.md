@@ -310,12 +310,9 @@ impl Video for MyVideo<'_> {
 - Measure text rather than guess: `frame.text_width`, `frame.text_fit(.., TextOverflow::Ellipsis)`,
   `frame.text_break_lines` for paragraphs. `inspect` catches text leaving the canvas, not text
   leaving its own box, so check boxes in a `frame` PNG.
-- For subtitles or timed lyrics, read `references/captions.md`. Load VTT/JSON through
-  FFrames media once, declare application metadata as Serde structs/enums, and keep the
-  `Captions` component on the video. `typed::<T>()` decodes lazily and caches by type;
-  no registration is needed. Never parse JSON or rebuild tracks per frame.
-  The small captions example shows presets and typed word effects. This is an
-  optional caption workflow, not a requirement for motion graphics or 3D scenes.
+- For subtitles or timed lyrics, read `references/captions.md`: a VTT or JSON track in
+  `media/`, one `Captions` component kept on the video, `metadata.typed::<T>()` for
+  per-word effects. Never parse JSON or rebuild tracks per frame.
 - Camera or phone footage plays through `fframes::Clip` inside scenes (see the rules at the
   top). `frame.video_frame_at(ctx, file, seconds, None)` is one frame of a file (a freeze frame).
 - GPU shaders (SkSL or Shadertoy GLSL) run on the Skia backend through `fframes::Shader`; they
