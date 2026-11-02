@@ -37,6 +37,8 @@ pub enum MediaKind {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Diagnostic {
+    /// A caption cannot be laid out or rendered with the requested settings.
+    CaptionError { message: String },
     /// `ctx.get_image/get_audio/get_video/get_subtitles` did not find the file.
     MissingMedia { media: MediaKind, name: String },
     /// No font in the database matches the requested family, the text is drawn with a fallback.
@@ -70,6 +72,7 @@ impl Diagnostic {
     pub fn severity(&self) -> Severity {
         match self {
             Diagnostic::Panic { .. }
+            | Diagnostic::CaptionError { .. }
             | Diagnostic::MissingMedia { .. }
             | Diagnostic::MissingGlyph { .. }
             | Diagnostic::InvalidTransform { .. } => Severity::Error,
@@ -94,6 +97,7 @@ impl std::fmt::Display for Diagnostic {
                 write!(f, "{media:?} \"{name}\" is not in the media provider")
             }
             Diagnostic::MissingFont { message }
+            | Diagnostic::CaptionError { message }
             | Diagnostic::MissingGlyph { message }
             | Diagnostic::RendererWarning { message } => write!(f, "{message}"),
             Diagnostic::TextClipped { text, .. } => write!(

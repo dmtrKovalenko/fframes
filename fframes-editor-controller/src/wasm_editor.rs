@@ -89,14 +89,21 @@ pub struct WasmEditor<T: Video, TMedia: StaticMediaProvider<'static> + 'static> 
 impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<TVideo, TMedia> {
     pub fn new(video: TVideo, static_media: &'static TMedia) -> Self {
         fframes::set_video_frame_resolver(resolve_video_frame);
-        #[cfg(not(feature = "lottie"))]
         let media_provider = fframes::DynamicMediaProvider::default();
         // `render_frame` reads media from this provider. The static animations go into it too.
         #[cfg(feature = "lottie")]
-        let media_provider = static_media.get_all_lottie_data().into_iter().fold(
-            fframes::DynamicMediaProvider::default(),
-            |provider, (lottie, name)| provider.with_lottie(name, lottie.clone()),
-        );
+        let media_provider = static_media
+            .get_all_lottie_data()
+            .into_iter()
+            .fold(media_provider, |provider, (lottie, name)| {
+                provider.with_lottie(name, lottie.clone())
+            });
+        let media_provider = static_media
+            .get_all_subtitle_data()
+            .into_iter()
+            .fold(media_provider, |provider, (subtitles, name)| {
+                provider.with_subtitles(name, subtitles.clone())
+            });
 
         Self {
             video_ctx: RefCell::new(VideoCtx::new(video)),
@@ -178,10 +185,12 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             .insert(file.clone(), fframes::AudioData::Preloaded(audio_data));
     }
 
-    pub fn add_subtitles_source(&self, file: String, content: String) -> usize {
+    /// Parse VTT or JSON through the shared subtitle parser and register the owned result.
+    pub fn add_subtitles_source(&self, file: String, content: String) -> Result<usize, JsValue> {
         use fframes::media::FFramesSubtitles;
 
-        let parsed_subtitle = fframes::media::Subtitles::parse(&content).unwrap();
+        let parsed_subtitle = fframes::media::CaptionTrack::parse(&content)
+            .map_err(|error| JsValue::from_str(&format!("{file}: {error}")))?;
         let phrases_count = (&parsed_subtitle).cues_count();
 
         self.media_provider
@@ -190,7 +199,41 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             .subtitles
             .insert(file, parsed_subtitle);
 
-        phrases_count
+        Ok(phrases_count)
+    }
+
+    /// Classify and retain subtitle JSON in one parse. Other JSON returns `None` for Lottie.
+    pub fn add_json_subtitles_source(
+        &self,
+        file: String,
+        content: String,
+    ) -> Result<Option<usize>, JsValue> {
+        let lower_file = file.to_ascii_lowercase();
+        let named = lower_file == "subtitles.json"
+            || lower_file == "captions.json"
+            || lower_file.ends_with(".subtitles.json")
+            || lower_file.ends_with(".captions.json");
+        let track = match fframes::media::Subtitles::parse_json_document(&content) {
+            Ok(track) => track,
+            Err(fframes::media::CaptionError::Json(error))
+                if !named && (error.is_syntax() || error.is_eof()) =>
+            {
+                // Match native loading: unrelated malformed JSON can still take
+                // the Lottie path, which reports it without aborting media loading.
+                return Ok(None);
+            }
+            Err(error) => return Err(JsValue::from_str(&format!("{file}: {error}"))),
+        };
+        let Some(track) = track else {
+            return Ok(None);
+        };
+        let count = track.cues().len();
+        self.media_provider
+            .lock()
+            .unwrap()
+            .subtitles
+            .insert(file, track);
+        Ok(Some(count))
     }
 
     /// Parses a Lottie file of the dynamic media folder and returns its length in seconds.

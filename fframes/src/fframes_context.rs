@@ -69,7 +69,7 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         audio
     }
 
-    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> Option<&'media Subtitles<'media>> {
+    pub fn get_subtitles(&self, filename: impl AsRef<str>) -> Option<&'media Subtitles> {
         let filename = filename.as_ref();
         let subtitles = self
             .media_source

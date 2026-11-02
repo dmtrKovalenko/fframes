@@ -77,7 +77,8 @@ pub trait FFramesSyncedVideoFrame<'media> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyncVideoFrameInput<'media> {
-    /// The second of the video (or scene) when the file starts playing from its beginning.
+    /// Timeline delay in seconds, relative to the scene when called inside a scene.
+    /// Source playback starts at frame zero after this delay. Defaults to no delay.
     /// It is not a position in the file: to play a part of a file use [`Clip`](crate::Clip).
     pub start_from: f32,
     /// If `true` the video playback will be looped and will start from the beginning on the end.

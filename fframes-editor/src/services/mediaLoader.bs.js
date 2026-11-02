@@ -70,7 +70,7 @@ var resolveAudio = MediaResolvers.resolveAudio;
 
 var resolveSubtitles = MediaResolvers.resolveSubtitles;
 
-var resolveLottie = MediaResolvers.resolveLottie;
+var resolveJson = MediaResolvers.resolveJson;
 
 var resolveFont = MediaResolvers.resolveFont;
 
@@ -121,12 +121,12 @@ function processDynamicMedia(imports, wasmController, options) {
                                 })), false)) {
                       return ;
                     }
-                    var match = Utils.$$Array.last(name.split("."));
+                    var match = Utils.$$Array.last(name.toLowerCase().split("."));
                     var tmp;
                     if (match !== undefined) {
                       switch (match) {
                         case "json" :
-                            tmp = resolveLottie;
+                            tmp = resolveJson;
                             break;
                         case "jpeg" :
                         case "jpg" :
@@ -191,7 +191,7 @@ export {
   MediaLoaderObserver ,
   resolveAudio ,
   resolveSubtitles ,
-  resolveLottie ,
+  resolveJson ,
   resolveFont ,
   resolveImage ,
   resolveVideo ,
