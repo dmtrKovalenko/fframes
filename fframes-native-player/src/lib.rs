@@ -20,10 +20,10 @@
 //! - `h`/`l` or `←`/`→`: seek one second back/forward
 //! - `j`/`k` or `↓`/`↑` (also `,`/`.`): step one frame back/forward, pauses
 //! - `g`/`G` or `Home`/`End`: first/last frame, `0`-`9`: jump to 0-90%
-//! - Studio keeps playback controls above the timeline. Focus mode shows a floating
-//!   dock with a seek slider while paused or on pointer activity; `b` hides the dock.
+//! - the studio under the video: playback controls, the time ruler, scenes, a film strip
+//!   and the audio lanes (a window too small for it gets a floating dock instead)
 //! - click a scene to jump to its start, or drag across the timeline to scrub
-//! - `[` / `]`: previous/next scene start, `t`: switch between the studio and video-only views
+//! - `[` / `]`: previous/next scene start
 //! - scroll the audio lanes to browse overlapping clips
 //! - `r`: toggle looping, `f`: full screen, `q`/`Esc`: quit
 //!
@@ -36,8 +36,11 @@ mod audio;
 mod controls;
 mod error;
 mod icons;
+mod motion;
 mod options;
 mod presenter;
+#[cfg(test)]
+mod review_film;
 mod scheduler;
 mod studio;
 

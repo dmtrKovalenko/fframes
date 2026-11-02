@@ -1,13 +1,20 @@
 //! The playback control bar drawn over the video. It mirrors the web editor dock: a floating
 //! pill with quiet round buttons, one solid primary action and the system slider, using the
 //! dark tokens of the `ChatGPT` design system (`@openai/apps-sdk-ui`) and the system font.
+//!
+//! The studio draws its transport with the same buttons; the pill itself is the fallback
+//! for a window too small for the studio. Nothing on it pops: every state is drawn from a
+//! [`Sample`] of the player's [`Motion`], so hover fills fade, a pressed button gives and
+//! the play glyph turns into the pause glyph.
 
 use fframes_skia_renderer::skia_safe::{
     self, BlurStyle, Canvas, Color, Contains, Font, FontMgr, FontStyle, MaskFilter, Paint,
-    PaintStyle, Path, PathFillType, Point, RRect, Rect, Typeface, font_style,
+    PaintCap, PaintJoin, PaintStyle, Path, PathBuilder, PathFillType, Point, RRect, Rect, Typeface,
+    font_style,
 };
 
 use crate::icons::{self, Icon};
+use crate::motion::{Easing, Sample};
 
 /// What a click on the bar does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,7 +25,6 @@ pub(crate) enum Control {
     Seek,
     Timeline,
     Scene(usize),
-    Focus,
     Loop,
     Fullscreen,
     /// The bar background, swallows clicks so they do not toggle playback.
@@ -27,14 +33,13 @@ pub(crate) enum Control {
 
 /// Everything the bar shows, gathered by the app every frame.
 pub(crate) struct ControlsState {
-    pub visible: bool,
     pub frame: usize,
     pub duration_in_frames: usize,
     pub fps: usize,
-    pub playing: bool,
-    pub looping: bool,
     pub fullscreen: bool,
-    pub hovered: Option<Control>,
+    /// Where every motion of the chrome is right now: the view, the dock, playback,
+    /// looping, hover and press of every button.
+    pub motion: Sample,
 }
 
 impl ControlsState {
@@ -73,6 +78,15 @@ const TRACK_HEIGHT: f32 = 4.;
 const THUMB_SIZE: f32 = 14.;
 /// Vertical area around the track that grabs the pointer.
 const TRACK_HIT_HEIGHT: f32 = 24.;
+/// How much a button gives while it is held.
+const PRESS_SCALE: f32 = 0.08;
+/// The track thickens by this much under the pointer.
+const TRACK_GROW: f32 = 1.;
+/// The glyph flashed in the middle of the picture: its plate and the glyph on it.
+const FLASH: Color = Color::from_argb(178, 0x1c, 0x1c, 0x1e);
+const FLASH_PLATE: f32 = 88.;
+const FLASH_ICON: f32 = 40.;
+const FLASH_GROW: f32 = 0.25;
 
 /// Same preference order as the `--font-sans` stack of the design system.
 const SYSTEM_FONTS: &[&str] = &[
@@ -93,8 +107,6 @@ pub(crate) struct Controls {
 }
 
 struct IconPaths {
-    play: Path,
-    pause: Path,
     back: Path,
     forward: Path,
     looping: Path,
@@ -105,15 +117,15 @@ struct IconPaths {
 /// Where everything sits for a given window size, in physical pixels.
 pub(crate) struct ControlsLayout {
     scale: f32,
-    bar: Rect,
-    back: Rect,
-    play: Rect,
-    forward: Rect,
+    pub(crate) bar: Rect,
+    pub(crate) back: Rect,
+    pub(crate) play: Rect,
+    pub(crate) forward: Rect,
     current_time: Point,
-    track: Rect,
+    pub(crate) track: Rect,
     total_time: Point,
-    looping: Rect,
-    fullscreen: Rect,
+    pub(crate) looping: Rect,
+    pub(crate) fullscreen: Rect,
 }
 
 impl ControlsLayout {
@@ -236,8 +248,6 @@ impl Controls {
             medium: typeface(font_style::Weight::MEDIUM),
             frame_mark,
             icons: IconPaths {
-                play: icon(icons::PLAY),
-                pause: icon(icons::PAUSE),
                 back: icon(icons::BACK),
                 forward: icon(icons::FORWARD),
                 looping: icon(icons::LOOP),
@@ -256,10 +266,6 @@ impl Controls {
     }
 
     pub(crate) fn draw(&self, canvas: &Canvas, layout: &ControlsLayout, state: &ControlsState) {
-        if !state.visible {
-            return;
-        }
-
         let scale = layout.scale;
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
@@ -280,8 +286,6 @@ impl Controls {
         border.set_stroke_width(scale.max(1.));
         border.set_color(HAIRLINE);
         canvas.draw_rrect(bar, &border);
-
-        let hovered = |control| state.hovered == Some(control);
 
         for (control, rect) in [
             (Control::Back, layout.back),
@@ -311,17 +315,20 @@ impl Controls {
             &text,
         );
 
-        // System slider: soft track, then the played range and the thumb ring in the brand color
+        // System slider: soft track, then the played range and the thumb ring in the brand
+        // color. Under the pointer the track thickens and a halo grows around the thumb.
         if layout.track.width() > 0. {
-            let track_radius = layout.track.height() / 2.;
+            let hover = state.motion.hover(Control::Seek);
+            let track = layout.track.with_outset((0., hover * TRACK_GROW * scale));
+            let track_radius = track.height() / 2.;
             paint.set_color(TRACK);
             canvas.draw_rrect(
-                RRect::new_rect_xy(layout.track, track_radius, track_radius),
+                RRect::new_rect_xy(track, track_radius, track_radius),
                 &paint,
             );
 
-            let thumb_x = layout.track.left + layout.track.width() * state.progress();
-            let mut range = layout.track;
+            let thumb_x = track.left + track.width() * state.progress();
+            let mut range = track;
             range.right = thumb_x;
             paint.set_color(BRAND);
             canvas.draw_rrect(
@@ -330,10 +337,10 @@ impl Controls {
             );
 
             let thumb_radius = THUMB_SIZE * scale / 2.;
-            let center = Point::new(thumb_x, layout.track.center_y());
-            if hovered(Control::Seek) {
-                paint.set_color(GHOST_HOVER);
-                canvas.draw_circle(center, thumb_radius * 1.8, &paint);
+            let center = Point::new(thumb_x, track.center_y());
+            if hover > 0. {
+                paint.set_color(fade(GHOST_HOVER, hover));
+                canvas.draw_circle(center, thumb_radius * (1. + 0.8 * hover), &paint);
             }
             paint.set_color(BRAND);
             canvas.draw_circle(center, thumb_radius, &paint);
@@ -342,6 +349,9 @@ impl Controls {
         }
     }
 
+    /// A button of the dock or the studio transport, drawn from the motion in `state`:
+    /// its hover fill, how far it is pressed in and, for the primary one, how far the play
+    /// glyph has turned into pause.
     pub(crate) fn draw_button(
         &self,
         canvas: &Canvas,
@@ -350,15 +360,12 @@ impl Controls {
         state: &ControlsState,
         scale: f32,
     ) {
-        let hovered = state.hovered == Some(control);
+        let motion = &state.motion;
+        let hover = motion.hover(control);
+        let press = motion.press(control);
         let icon = match control {
             Control::PlayPause => {
-                let icon = if state.playing {
-                    &self.icons.pause
-                } else {
-                    &self.icons.play
-                };
-                return self.primary_button(canvas, rect, icon, hovered, scale);
+                return self.primary_button(canvas, rect, motion.glyph, hover, press, scale);
             }
             Control::Back => &self.icons.back,
             Control::Forward => &self.icons.forward,
@@ -372,55 +379,199 @@ impl Controls {
             }
             _ => return,
         };
-        self.ghost_button(
-            canvas,
-            rect,
-            icon,
-            hovered,
-            control == Control::Loop && state.looping,
-            scale,
-        );
+        let on = if control == Control::Loop {
+            motion.looping
+        } else {
+            0.
+        };
+        self.ghost_button(canvas, rect, icon, hover, on, press, scale);
     }
 
+    /// A quiet round button. `hover`, `on` (a toggle that is on) and `press` are each
+    /// `0.0..=1.0`; the fill steps up from hover to on so the two never read alike.
+    #[allow(clippy::too_many_arguments)]
     fn ghost_button(
         &self,
         canvas: &Canvas,
         rect: Rect,
         icon: &Path,
-        hovered: bool,
-        pressed: bool,
+        hover: f32,
+        on: f32,
+        press: f32,
         scale: f32,
     ) {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
 
-        let background = match (hovered, pressed) {
-            (true, true) => Some(GHOST_ACTIVE),
-            (true, false) | (false, true) => Some(GHOST_HOVER),
-            (false, false) => None,
-        };
-        if let Some(background) = background {
+        canvas.save();
+        press_into(canvas, rect, press);
+
+        let background = mix(
+            mix(TRANSPARENT, GHOST_HOVER, hover),
+            mix(GHOST_HOVER, GHOST_ACTIVE, hover),
+            on,
+        );
+        if background.a() > 0 {
             paint.set_color(background);
             canvas.draw_circle(rect.center(), rect.width() / 2., &paint);
         }
 
-        paint.set_color(if hovered || pressed {
-            TEXT
-        } else {
-            TEXT_SECONDARY
-        });
+        paint.set_color(mix(TEXT_SECONDARY, TEXT, hover.max(on)));
         draw_icon(canvas, icon, rect, scale, &paint);
+        canvas.restore();
     }
 
-    fn primary_button(&self, canvas: &Canvas, rect: Rect, icon: &Path, hovered: bool, scale: f32) {
+    /// The solid brand button with the play glyph, `glyph` turns it into pause.
+    fn primary_button(
+        &self,
+        canvas: &Canvas,
+        rect: Rect,
+        glyph: f32,
+        hover: f32,
+        press: f32,
+        scale: f32,
+    ) {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
-        paint.set_color(if hovered { BRAND_HOVER } else { BRAND });
+
+        canvas.save();
+        press_into(canvas, rect, press);
+        paint.set_color(mix(BRAND, BRAND_HOVER, hover));
         canvas.draw_circle(rect.center(), rect.width() / 2., &paint);
 
         paint.set_color(TEXT_ON_BRAND);
-        draw_icon(canvas, icon, rect, scale, &paint);
+        draw_play_pause(canvas, rect, ICON * scale, glyph, &paint);
+        canvas.restore();
     }
+
+    /// Playback toggled on the video itself: its glyph on a dark plate in the middle of
+    /// the picture, growing as it fades, so the eye needs no bar to see what happened.
+    pub(crate) fn flash(
+        &self,
+        canvas: &Canvas,
+        center: Point,
+        scale: f32,
+        progress: f32,
+        playing: bool,
+    ) {
+        let grow = 1. + FLASH_GROW * Easing::ARRIVAL.apply(progress);
+        let alpha = 1. - Easing::EASE_OUT.apply((progress - 0.2) / 0.8);
+        let size = FLASH_PLATE * scale * grow;
+        let plate = Rect::from_xywh(center.x - size / 2., center.y - size / 2., size, size);
+
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(fade(FLASH, alpha));
+        canvas.draw_circle(plate.center(), size / 2., &paint);
+        paint.set_color(fade(TEXT, alpha));
+        draw_play_pause(
+            canvas,
+            plate,
+            FLASH_ICON * scale * grow,
+            f32::from(u8::from(!playing)),
+            &paint,
+        );
+    }
+}
+
+const TRANSPARENT: Color = Color::from_argb(0, 255, 255, 255);
+
+/// `color` at `alpha` times its own alpha.
+pub(crate) fn fade(color: Color, alpha: f32) -> Color {
+    let a = (f32::from(color.a()) * alpha.clamp(0., 1.)).round() as u8;
+    Color::from_argb(a, color.r(), color.g(), color.b())
+}
+
+/// `a` at `t == 0`, `b` at `t == 1`, with the alpha mixed too (a fully transparent end
+/// keeps the other end's hue, so fading in never passes through black).
+pub(crate) fn mix(a: Color, b: Color, t: f32) -> Color {
+    let t = t.clamp(0., 1.);
+    let channel = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
+    let (ra, ga, ba) = if a.a() == 0 {
+        (b.r(), b.g(), b.b())
+    } else {
+        (a.r(), a.g(), a.b())
+    };
+    let (rb, gb, bb) = if b.a() == 0 {
+        (a.r(), a.g(), a.b())
+    } else {
+        (b.r(), b.g(), b.b())
+    };
+    Color::from_argb(
+        channel(a.a(), b.a()),
+        channel(ra, rb),
+        channel(ga, gb),
+        channel(ba, bb),
+    )
+}
+
+/// Shrinks what is drawn next around the middle of `rect` by how far it is pressed.
+fn press_into(canvas: &Canvas, rect: Rect, press: f32) {
+    if press <= 0. {
+        return;
+    }
+    let s = 1. - PRESS_SCALE * press;
+    let center = rect.center();
+    canvas.translate((center.x, center.y));
+    canvas.scale((s, s));
+    canvas.translate((-center.x, -center.y));
+}
+
+/// The play triangle and the pause bars are one shape: two quads on the 24 grid whose
+/// corners travel between the two, so the glyph turns into the other instead of being
+/// swapped. `t` is 0 for play, 1 for pause.
+fn draw_play_pause(canvas: &Canvas, rect: Rect, size: f32, t: f32, paint: &Paint) {
+    const PLAY: [[f32; 2]; 8] = [
+        [7., 5.9],
+        [12.4, 8.92],
+        [12.4, 15.08],
+        [7., 18.1],
+        [12.4, 8.92],
+        [17.9, 11.85],
+        [17.9, 12.15],
+        [12.4, 15.08],
+    ];
+    const PAUSE: [[f32; 2]; 8] = [
+        [6.5, 6.5],
+        [10.5, 6.5],
+        [10.5, 17.5],
+        [6.5, 17.5],
+        [13.5, 6.5],
+        [17.5, 6.5],
+        [17.5, 17.5],
+        [13.5, 17.5],
+    ];
+    let t = t.clamp(0., 1.);
+    let point = |i: usize| {
+        Point::new(
+            PLAY[i][0] + (PAUSE[i][0] - PLAY[i][0]) * t,
+            PLAY[i][1] + (PAUSE[i][1] - PLAY[i][1]) * t,
+        )
+    };
+
+    let mut path = PathBuilder::new();
+    for quad in [0, 4] {
+        path.move_to(point(quad));
+        for i in 1..4 {
+            path.line_to(point(quad + i));
+        }
+        path.close();
+    }
+    let path = path.detach();
+
+    // Stroked and filled in one pass: the round join rounds the corners and the union
+    // of both contours closes the seam between the two halves of the triangle
+    let mut rounded = paint.clone();
+    rounded.set_style(PaintStyle::StrokeAndFill);
+    rounded.set_stroke_join(PaintJoin::Round);
+    rounded.set_stroke_cap(PaintCap::Round);
+    rounded.set_stroke_width(2.);
+
+    canvas.save();
+    canvas.translate((rect.center_x() - size / 2., rect.center_y() - size / 2.));
+    canvas.scale((size / 24., size / 24.));
+    canvas.draw_path(&path, &rounded);
+    canvas.restore();
 }
 
 /// Icons are drawn on a 24x24 grid, centered in `rect` at the icon size.
@@ -491,6 +642,7 @@ mod tests {
     use fframes_skia_renderer::skia_safe::{AlphaType, ColorType, ImageInfo, surfaces};
 
     use super::*;
+    use crate::motion::Intent;
 
     #[test]
     fn draws_the_primary_action_and_progress_in_the_brand_color() {
@@ -499,14 +651,16 @@ mod tests {
         let layout = ControlsLayout::new(&controls, "00:30", width as f32, height as f32, 1.);
         let mut surface = surfaces::raster_n32_premul((width, height)).expect("raster surface");
         let state = ControlsState {
-            visible: true,
             frame: 450,
             duration_in_frames: 900,
             fps: 30,
-            playing: false,
-            looping: true,
             fullscreen: false,
-            hovered: None,
+            motion: Sample::settled(Intent {
+                playing: false,
+                looping: true,
+                hovered: None,
+                pressed: None,
+            }),
         };
         controls.draw(surface.canvas(), &layout, &state);
 

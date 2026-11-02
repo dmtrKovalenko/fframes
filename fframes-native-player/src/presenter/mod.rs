@@ -127,14 +127,14 @@ impl Presenter {
         Ok(())
     }
 
-    /// Draws the current frame and overlays the controls before presenting the window.
+    /// Draws the current frame, the studio around it (or the floating dock when the
+    /// window is too small for the studio) and presents the window.
     pub(crate) fn present(
         &mut self,
         frame: Option<&usvgr::Tree>,
         controls: &ControlsState,
         model: &Studio,
         scroll: &StudioScroll,
-        studio_open: bool,
     ) -> PlayerResult<()> {
         let pixel_scale = self.window.scale_factor() as f32;
         let Self {
@@ -148,76 +148,85 @@ impl Presenter {
         } = self;
 
         target.present(&mut |canvas| {
-            let view = studio_layout.as_ref().filter(|_| studio_open);
-            canvas.clear(matte(view));
-            if let Some(tree) = frame {
-                draw_video(canvas, tree, view, pixel_scale, *background, render_cache);
+            let view = studio_layout.as_ref();
+            canvas.clear(if view.is_some() {
+                STUDIO_MATTE
+            } else {
+                Color::BLACK
+            });
+            let size = canvas.base_layer_size();
+            let window = Rect::from_iwh(size.width, size.height);
+            let picture = video_rect(frame.map(usvgr::Tree::size), window, view, pixel_scale);
+            if let (Some(tree), Some(picture)) = (frame, picture) {
+                draw_video(canvas, tree, picture, *background, render_cache);
+            }
+            if let Some((progress, playing)) = controls.motion.flash {
+                let center = picture.unwrap_or(window).center();
+                bar.flash(canvas, center, pixel_scale, progress, playing);
             }
 
-            let show_bar = view.is_none();
-            if let Some(ui) = studio_layout.as_mut() {
-                canvas.save();
-                canvas.scale((pixel_scale, pixel_scale));
-                if studio_open {
+            match studio_layout.as_mut() {
+                Some(ui) => {
+                    canvas.save();
+                    canvas.scale((pixel_scale, pixel_scale));
                     ui.draw(canvas, bar, controls, model, scroll);
-                } else if controls.visible {
-                    ui.draw_restore(
-                        canvas,
-                        bar,
-                        controls.hovered == Some(crate::controls::Control::Focus),
-                    );
+                    canvas.restore();
                 }
-                canvas.restore();
-            }
-            if show_bar {
-                bar.draw(canvas, layout, controls);
+                None => bar.draw(canvas, layout, controls),
             }
         })
     }
 }
 
-fn matte(view: Option<&StudioLayout>) -> Color {
-    if view.is_some() {
-        Color::from_rgb(14, 14, 14)
+const STUDIO_MATTE: Color = Color::from_rgb(14, 14, 14);
+
+/// Where the video sits, in physical pixels: letterboxed into the stage of the studio,
+/// or into the whole window without one.
+pub(crate) fn video_rect(
+    video: Option<fframes::usvgr::Size>,
+    window: Rect,
+    view: Option<&StudioLayout>,
+    pixel_scale: f32,
+) -> Option<Rect> {
+    let video = video?;
+    let (viewport, top) = match view {
+        Some(ui) => {
+            let stage = ui.stage;
+            (
+                Rect::from_ltrb(
+                    stage.left * pixel_scale,
+                    stage.top * pixel_scale,
+                    stage.right * pixel_scale,
+                    stage.bottom * pixel_scale,
+                ),
+                ui.portrait,
+            )
+        }
+        None => (window, false),
+    };
+    let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
+    let width = video.width() * scale;
+    let height = video.height() * scale;
+    let x = viewport.center_x() - width / 2.;
+    let y = if top {
+        viewport.top
     } else {
-        Color::BLACK
-    }
+        viewport.center_y() - height / 2.
+    };
+    Some(Rect::from_xywh(x, y, width, height))
 }
 
 fn draw_video(
     canvas: &Canvas,
     tree: &usvgr::Tree,
-    view: Option<&StudioLayout>,
-    pixel_scale: f32,
+    picture: Rect,
     background: Color,
     cache: &mut RenderCache,
 ) {
-    let size = canvas.base_layer_size();
-    let viewport = view.map_or_else(
-        || Rect::from_iwh(size.width, size.height),
-        |ui| {
-            let stage = ui.stage;
-            Rect::from_ltrb(
-                stage.left * pixel_scale,
-                stage.top * pixel_scale,
-                stage.right * pixel_scale,
-                stage.bottom * pixel_scale,
-            )
-        },
-    );
     let video = tree.size();
-    let scale = (viewport.width() / video.width()).min(viewport.height() / video.height());
-    let width = video.width() * scale;
-    let height = video.height() * scale;
-    let x = viewport.center_x() - width / 2.;
-    let y = if view.is_some_and(|ui| ui.portrait) {
-        viewport.top
-    } else {
-        viewport.center_y() - height / 2.
-    };
-
+    let scale = picture.width() / video.width();
     canvas.save();
-    canvas.translate((x, y));
+    canvas.translate((picture.left, picture.top));
     canvas.scale((scale, scale));
     canvas.clip_rect(
         Rect::from_wh(video.width(), video.height()),
