@@ -101,6 +101,9 @@ pub(crate) struct App<'s> {
     controls_enabled: bool,
     controls_visible: bool,
     motion: Motion,
+    /// Something of the chrome moved at the last check: one more frame then draws the
+    /// settled values, even when that frame was late.
+    was_animating: bool,
     needs_redraw: bool,
 
     cursor: PhysicalPosition<f64>,
@@ -166,6 +169,7 @@ impl<'s> App<'s> {
                 Timing::DEFAULT,
                 now,
             ),
+            was_animating: false,
             needs_redraw: true,
             cursor: PhysicalPosition::default(),
             cursor_inside: false,
@@ -471,9 +475,11 @@ impl<'s> App<'s> {
     fn follow_motion(&mut self) {
         let now = Instant::now();
         self.motion.follow(self.intent(), now);
-        if self.motion.is_moving(now) {
+        let animating = self.is_animating(now);
+        if animating || self.was_animating {
             self.needs_redraw = true;
         }
+        self.was_animating = animating;
 
         let hide_cursor = !self.studio_open && !self.controls_visible && self.cursor_inside;
         if hide_cursor != self.cursor_hidden {
@@ -482,6 +488,16 @@ impl<'s> App<'s> {
                 window.set_cursor_visible(!hide_cursor);
             }
         }
+    }
+
+    /// Whether another frame is needed: a motion of the chrome, or a thumbnail that is
+    /// still fading in (its fade is kept by the studio, not by the motion).
+    fn is_animating(&self, now: Instant) -> bool {
+        self.motion.is_moving(now)
+            || self
+                .config
+                .studio
+                .is_fading_in(now, self.motion.thumbnail_fade())
     }
 
     /// Playback toggled on the video itself (a click, the space key): flash the new state
@@ -805,7 +821,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
         self.tick();
 
         let now = Instant::now();
-        let next_motion_frame = self.motion.is_moving(now).then(|| now + MOTION_FRAME);
+        let next_motion_frame = self.is_animating(now).then(|| now + MOTION_FRAME);
         event_loop.set_control_flow(match (self.clock.next_frame_at(), next_motion_frame) {
             (Some(next_frame), Some(motion)) => ControlFlow::WaitUntil(next_frame.min(motion)),
             (Some(next_frame), None) => ControlFlow::WaitUntil(next_frame),

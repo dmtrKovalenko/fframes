@@ -518,21 +518,21 @@ pub(crate) fn fade(color: Color, alpha: f32) -> Color {
 pub(crate) fn mix(a: Color, b: Color, t: f32) -> Color {
     let t = t.clamp(0., 1.);
     let channel = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
-    let (ra, ga, ba) = if a.a() == 0 {
+    let (red_a, green_a, blue_a) = if a.a() == 0 {
         (b.r(), b.g(), b.b())
     } else {
         (a.r(), a.g(), a.b())
     };
-    let (rb, gb, bb) = if b.a() == 0 {
+    let (red_b, green_b, blue_b) = if b.a() == 0 {
         (a.r(), a.g(), a.b())
     } else {
         (b.r(), b.g(), b.b())
     };
     Color::from_argb(
         channel(a.a(), b.a()),
-        channel(ra, rb),
-        channel(ga, gb),
-        channel(ba, bb),
+        channel(red_a, red_b),
+        channel(green_a, green_b),
+        channel(blue_a, blue_b),
     )
 }
 

@@ -2,7 +2,7 @@
 //! coordinates here are logical pixels, regardless of the window's backing scale.
 
 use std::ops::Range;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use fframes::{
     AudioData, AudioTimelineSamples, AudioTimelineUnit, MediaProvider, ResolvedRenderingTimeline,
@@ -126,6 +126,16 @@ impl Studio {
         self.thumbnails[slot] = Some(image);
         self.thumbnail_arrivals[slot] = Some(now);
         self.thumbnail_revision += 1;
+    }
+
+    /// Whether a thumbnail that arrived less than `fade` ago is still fading in.
+    pub fn is_fading_in(&self, now: Instant, fade: Duration) -> bool {
+        !fade.is_zero()
+            && self
+                .thumbnail_arrivals
+                .iter()
+                .flatten()
+                .any(|arrival| now.saturating_duration_since(*arrival) < fade)
     }
 
     /// How far each thumbnail has faded in at `now`, `1.0` once it is fully there.
@@ -1200,6 +1210,23 @@ mod tests {
             thumbnail_arrivals: vec![],
             thumbnail_revision: 0,
         }
+    }
+
+    #[test]
+    fn a_thumbnail_fades_in_for_the_fade_duration_after_it_arrives() {
+        let mut model = studio();
+        model.thumbnails = vec![None, None];
+        model.thumbnail_arrivals = vec![None, None];
+        let fade = Duration::from_millis(260);
+        let now = Instant::now();
+        assert!(!model.is_fading_in(now, fade));
+
+        let mut image = surfaces::raster_n32_premul((2, 2)).unwrap();
+        model.set_thumbnail(1, image.image_snapshot(), now);
+        assert!(model.is_fading_in(now, fade));
+        assert!(model.is_fading_in(now + Duration::from_millis(259), fade));
+        assert!(!model.is_fading_in(now + fade, fade));
+        assert!(!model.is_fading_in(now, Duration::ZERO));
     }
 
     #[test]

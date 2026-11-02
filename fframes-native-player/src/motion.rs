@@ -269,6 +269,11 @@ impl Motion {
         }
     }
 
+    /// How long an arriving thumbnail takes to fade in.
+    pub(crate) fn thumbnail_fade(&self) -> Duration {
+        self.timing.thumbnail
+    }
+
     /// Playback was toggled somewhere other than a play button.
     pub(crate) fn flash(&mut self, playing: bool, now: Instant) {
         if self.timing.flash {
