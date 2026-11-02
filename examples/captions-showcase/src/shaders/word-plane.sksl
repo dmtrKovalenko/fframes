@@ -1,0 +1,30 @@
+// Inverse projective mapping of one cached, styled caption drawing.
+// Input/output are premultiplied RGBA. Transparent texture padding preserves
+// antialiasing and the original outline beyond the nominal advance rectangle.
+uniform shader uSource;
+uniform float2 uWordSize;
+uniform float2 uTextureSize;
+uniform float2 uOrigin;
+uniform float uPadding;
+uniform float2 uSourceRange;
+uniform float uShade;
+uniform float3 uInverse0;
+uniform float3 uInverse1;
+uniform float3 uInverse2;
+
+half4 main(float2 coord) {
+    float2 normalized = (coord + uOrigin) / uWordSize;
+    float3 position = float3(normalized, 1.0);
+    float denominator = dot(uInverse2, position);
+    if (abs(denominator) < 0.000001) return half4(0.0);
+    float2 uv = float2(dot(uInverse0, position), dot(uInverse1, position)) / denominator;
+    // Clip in original source coordinates, after inverse projection. A screen
+    // mask would cut the wrong glyph fragment as a plane moves. Intervals are
+    // half-open; outer panels retain their original padded font overhang.
+    if (uSourceRange.x > 0.0 && uv.x < uSourceRange.x) return half4(0.0);
+    if (uSourceRange.y < 1.0 && uv.x >= uSourceRange.y) return half4(0.0);
+    float2 source = uv * uWordSize + uPadding;
+    if (source.x < 0.0 || source.y < 0.0 || source.x >= uTextureSize.x || source.y >= uTextureSize.y) return half4(0.0);
+    half4 rgba = uSource.eval(source);
+    return half4(rgba.rgb * uShade, rgba.a);
+}

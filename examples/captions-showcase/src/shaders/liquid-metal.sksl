@@ -1,0 +1,159 @@
+// LiquidMetal from shaders.com / Shader Effects Inc. (MIT).
+// Copyright (c) 2026 Shader Effects Inc.
+// Source: github.com/shader-effects-inc/shaders, commit 9eb037d8db63a0783f67d58ce7291726d698933f
+// SkSL port of the upstream flat-shape material: analytic Perlin slope, flow warp,
+// bevel normal, three-bank studio, sharp glint and two-tap chromatic dispersion.
+// Adaptations: FFrames' cached positive-inside glyph SDF/normal and exact glyph
+// coverage replace upstream shape routing; glyph-height coordinates replace its
+// square shape viewport; the caption clock controls flow and release. Color uses
+// linear sRGB (rather than the upstream default P3) before display encoding.
+
+// MIT License
+//
+// Copyright (c) 2026 Shader Effects Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float2 uWordSize;
+uniform float uPadding;
+uniform float uDistanceRange;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uVariation;
+uniform float uTurbulence;
+uniform float uRipple;
+uniform float uWarp;
+uniform float uSpeed;
+uniform float uSharpness;
+uniform float uEnvironment;
+uniform float uEnvRotation;
+uniform float uDispersion;
+uniform float uLightAngle;
+uniform float uBevelWidth;
+uniform float uBevelShape;
+uniform float3 uLightColor;
+uniform float3 uDarkColor;
+
+// The upstream hash uses uint bitcasts unavailable in portable SkSL runtime effects.
+// Use the example's deterministic float-only hash family here. This changes the
+// noise realization, while retaining the analytic Perlin derivative and material
+// equations below; this adaptation does not claim pixel identity to WGSL.
+float2 hash22(float2 p) {
+    float3 q=fract(float3(p.xyx)*float3(.1031,.1030,.0973));
+    q+=dot(q,q.yzx+33.33);
+    return fract((q.xx+q.yz)*q.zy);
+}
+
+float3 perlin12d(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    float2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
+    float2 du = f*f*(f*(f-2.0)+1.0)*30.0;
+    float2 ga = hash22(i)*2.0-1.0;
+    float2 gb = hash22(i+float2(1,0))*2.0-1.0;
+    float2 gc = hash22(i+float2(0,1))*2.0-1.0;
+    float2 gd = hash22(i+float2(1,1))*2.0-1.0;
+    float va = dot(ga,f), vb = dot(gb,f-float2(1,0));
+    float vc = dot(gc,f-float2(0,1)), vd = dot(gd,f-float2(1,1));
+    float k = va-vb-vc+vd;
+    float value = va+u.x*(vb-va)+u.y*(vc-va)+u.x*u.y*k;
+    float2 deriv = ga+(gb-ga)*u.x+(gc-ga)*u.y+(ga-gb-gc+gd)*(u.x*u.y)
+        +du*(float2(u.y,u.x)*k+float2(vb,vc)-va);
+    return float3(value,deriv);
+}
+
+float2 flowWarp(float2 p, float time) {
+    return float2(
+        sin(p.x*1.7+time*.7+1.7)*cos(p.y*1.3+time*.5+2.3),
+        cos(p.x*1.4+time*.9+8.7)*sin(p.y*1.6+time*.6+5.1));
+}
+
+float bevelSin(float t) {
+    float roundProfile = 1.0-t;
+    float k1 = smoothstep(0.0,.14,t), k2 = smoothstep(.68,.92,t);
+    float machined = mix(1.0,.72*(1.0-k2),k1);
+    return mix(roundProfile,machined,uBevelShape);
+}
+
+float studio(float2 reflection, float2 env, float keyRadius, float drift) {
+    float2 p = float2(reflection.x*env.x-reflection.y*env.y,
+                      reflection.x*env.y+reflection.y*env.x);
+    float sky = smoothstep(-.7,.85,p.y);
+    float lum = sky*sky*.4;
+    float r0 = keyRadius*1.05, r1 = keyRadius*1.25, r2 = keyRadius*1.15;
+    // Invert an increasing smoothstep to preserve the original reversed-edge
+    // softbox formula without relying on undefined GLSL smoothstep edge order.
+    lum += (1.0-smoothstep(r0*.2,r0,length(p-float2(drift,.55))))*1.75*uEnvironment;
+    lum += (1.0-smoothstep(r1*.2,r1,length(p-float2(-.45+drift,-.4))))*1.15*uEnvironment;
+    lum += (1.0-smoothstep(r2*.2,r2,length(p-float2(.55+drift,.1))))*1.1*uEnvironment;
+    return lum;
+}
+
+float srgb(float value) {
+    value = clamp(value,0.0,1.0);
+    return value <= .0031308 ? value*12.92 : 1.055*pow(value,1.0/2.4)-.055;
+}
+
+half4 main(float2 coord) {
+    float coverage = float(uGlyph.eval(coord).a);
+    if (coverage <= 0.0) return half4(0);
+    float4 field = float4(uField.eval(coord));
+    float distance = (field.r-.5)*2.0*uDistanceRange;
+    float height = max(uWordSize.y,1.0);
+    // Negate the stored inward gradient to match upstream's outward normal.
+    float2 outward = -(field.gb*2.0-1.0);
+    float bevelPixels = min(max(uBevelWidth*height,1.0),uDistanceRange-2.0);
+    float rim = clamp(distance/bevelPixels,0.0,1.0);
+    float tilt = min(bevelSin(rim),.9995);
+    float2 edge = outward/max(length(outward),.0001)*tilt;
+    float3 geometric = float3(edge,-sqrt(max(1.0-tilt*tilt,0.0)));
+
+    float2 pat = (coord-float2(uPadding)-uWordSize*.5)/height;
+    float time = uLightAge*uSpeed;
+    float2 q = pat*(uRipple*2.6)+float2(uVariation*2.1,uVariation*.7);
+    float2 warped = q+flowWarp(q*.6,time*.12)*(uWarp*.9);
+    float2 slope = clamp(perlin12d(warped).yz*.62,-4.0,4.0);
+    float relief = uTurbulence*.5;
+    float3 normal = normalize(float3(geometric.xy-slope*relief,geometric.z));
+    float3 view = normalize(float3(pat*.6,1.0));
+    float3 reflected = reflect(view,normal);
+    float sharp = clamp(uSharpness,0.0,1.0);
+    float keyRadius = mix(.5,.18,sharp);
+    float drift = sin(time*.07)*.05;
+    float envAngle = uEnvRotation*.017453292519943295;
+    float2 env = float2(cos(envAngle),sin(envAngle));
+    float lightAngle = uLightAngle*.017453292519943295;
+    float3 light = normalize(float3(cos(lightAngle),sin(lightAngle),-.7));
+    float3 halfway = normalize(light+float3(0,0,-1));
+    float ndh = clamp(dot(normal,halfway),0.0,1.0);
+    float spec = pow(ndh,mix(60.0,900.0,sharp))*mix(.4,1.4,sharp);
+    float lumG = studio(reflected.xy,env,keyRadius,drift)+spec;
+    float grazing = 1.0-clamp(-normal.z,0.0,1.0);
+    float dispersion = uDispersion*.09*(.4+grazing*1.3);
+    float2 dispersed = float2(reflected.x+reflected.y*dispersion,
+                              reflected.y-reflected.x*dispersion);
+    float lumB = studio(dispersed,env,keyRadius,drift)+spec;
+    float lumR = 2.0*lumG-lumB;
+    float3 linear = mix(uDarkColor,uLightColor,clamp(float3(lumR,lumG,lumB),0.0,1.8));
+    float3 color = float3(srgb(linear.r),srgb(linear.g),srgb(linear.b));
+    float alpha = coverage*(1.0-clamp(uTail,0.0,1.0));
+    return half4(color*alpha,alpha);
+}

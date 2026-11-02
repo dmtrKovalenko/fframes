@@ -18,6 +18,7 @@ members = [
     "cargo-fframes",
     # Examples
     "examples/captions",
+    "examples/captions-showcase",
     "examples/podcast",
     "examples/podcast/editor/editor-bridge",
     "examples/audio-announce",

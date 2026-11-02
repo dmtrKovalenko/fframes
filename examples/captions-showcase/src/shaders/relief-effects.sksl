@@ -1,0 +1,199 @@
+// Original glyph-volume studies for the caption showcase. Both effects raycast
+// a shallow extrusion of the cached font SDF: ribs and channels are geometry,
+// with a shared light direction, surface normals, cavity occlusion and side faces.
+// Inspiration: Universal Everything / Walking City, GMUNK / BOX, Jan Tomas /
+// Ignite, and the real ribbon geometry in this repository's shader-mode example.
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uEffect;
+uniform float uProgress;
+uniform float uAge;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uSeed;
+uniform float uDirected;
+uniform float uEntrance;
+uniform float uHero;
+uniform float uWarm;
+uniform float uVariation;
+uniform float uDistanceRange;
+uniform float2 uWordSize;
+uniform float uPadding;
+uniform float uDepth;
+uniform float uDetailScale;
+uniform float uSpeed;
+uniform float uLight;
+
+float glyph(float2 p) {
+    if(p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return 0.0;
+    return float(uGlyph.eval(p).a);
+}
+float distanceAt(float2 p) {
+    if(p.x<0.0 || p.y<0.0 || p.x>=iResolution.x || p.y>=iResolution.y) return -uDistanceRange;
+    return (float(uField.eval(p).r)-.5)*2.0*uDistanceRange;
+}
+float2 gradientAt(float2 p) {
+    float2 g=float2(uField.eval(p).gb)*2.0-1.0;
+    return g/max(length(g),.001);
+}
+float reliefScale() {return clamp(uWordSize.y/210.0,.42,1.7);}
+float phase() {return uVariation*6.283185;}
+float artTime() {return uLightAge*uSpeed;}
+
+float lamellaWave(float2 p) {
+    float s=max(uWordSize.y/210.0,.42);
+    float2 uv=(p-iResolution.xy*.5)/uWordSize.y;
+    // One slow curvature field bends all ribs together. Broad, rounded bands
+    // preserve even the thinnest serif; no horizontal strip is removed.
+    float curved=p.y+sin(uv.x*3.5+artTime()*.55+phase())*8.0*s;
+    return cos(curved/(42.0*s*uDetailScale)*6.283185);
+}
+float channelPosition(float2 p) {
+    float s=max(uWordSize.y/210.0,.42);
+    float2 uv=(p-iResolution.xy*.5)/uWordSize.y;
+    // Fixed engraved paths. Only the energy packets move through this geometry.
+    return p.y*.82+p.x*.43+sin(uv.x*2.7+uv.y*1.4+phase())*20.0*s;
+}
+float channelDistance(float2 p) {
+    float s=max(uWordSize.y/210.0,.42),pitch=43.0*s*uDetailScale;
+    return abs(mod(channelPosition(p)+pitch*.5,pitch)-pitch*.5);
+}
+float heightAt(float2 p) {
+    float s=reliefScale();
+    if(uEffect<.5) {
+        float develop=smoothstep(.02,.38,artTime());
+        float wave=lamellaWave(p);
+        float rib=.5+.5*wave;
+        return (24.0*s+(rib-.5)*24.0*s*develop)*uDepth;
+    }
+    float distance=channelDistance(p);
+    float groove=exp(-pow(distance/(2.3*s+.5),2.0));
+    return (17.0*s-groove*6.0*s)*uDepth;
+}
+float smoothMaximum(float a,float b,float width) {
+    float h=clamp(.5+.5*(a-b)/width,0.0,1.0);
+    return mix(b,a,h)+width*h*(1.0-h);
+}
+float volume(float3 p) {
+    float side=-distanceAt(p.xy);
+    float front=-heightAt(p.xy)-p.z;
+    float back=p.z-12.0*reliefScale()*uDepth;
+    return max(smoothMaximum(side,front,1.8),back)*.34;
+}
+float3 viewDirection() {
+    return normalize(uEffect<.5 ? float3(.62,.22,1.0) : float3(.42,.19,1.0));
+}
+float4 raycast(float2 coord) {
+    float3 direction=viewDirection();
+    float extent=86.0*max(uDepth,1.0);
+    float3 origin=float3(coord-direction.xy/direction.z*extent,-extent);
+    float travel=0.0;
+    for(int i=0;i<80;++i) {
+        float3 at=origin+direction*travel;
+        float d=volume(at);
+        if(d<.16) return float4(at,1.0);
+        travel+=max(d,.12);
+        if(travel>150.0*max(uDepth,1.0)) break;
+    }
+    return float4(0);
+}
+float3 normalAt(float3 p) {
+    // The cached font gradient is filtered, avoiding pixel teeth at the bevel.
+    // Height derivatives describe real front-face relief, not painted lighting.
+    float e=.8;
+    float dx=(heightAt(p.xy+float2(e,0))-heightAt(p.xy-float2(e,0)))/(2.0*e);
+    float dy=(heightAt(p.xy+float2(0,e))-heightAt(p.xy-float2(0,e)))/(2.0*e);
+    float3 front=normalize(float3(-dx,-dy,-1.0));
+    float2 g=gradientAt(p.xy);
+    float3 side=float3(-g,0.0);
+    float d=distanceAt(p.xy);
+    float face=smoothstep(.0,2.8,d);
+    return normalize(mix(side,front,face));
+}
+float occlusion(float3 p,float3 n) {
+    // Two probes are enough for these shallow grooves. Cavity darkness follows
+    // actual geometry and remains stable when the highlights move.
+    float a=max(2.5-volume(p+n*2.5)/.34,0.0);
+    float b=max(6.0-volume(p+n*6.0)/.34,0.0);
+    return clamp(1.0-a*.10-b*.035,.48,1.0);
+}
+float3 studio(float3 n,float3 view) {
+    float3 light=normalize(float3(-.55,-.72,-1.0));
+    float diffuse=max(dot(n,light),0.0);
+    float3 halfVector=normalize(light+view);
+    float broad=pow(max(dot(n,halfVector),0.0),16.0);
+    float thin=pow(max(dot(n,normalize(float3(.55,-.25,-1.0))),0.0),35.0);
+    // One broad softbox and a small cool edge light; never a full-word flash.
+    return float3(.22+.63*diffuse)+broad*float3(.27,.27,.24)+thin*float3(.10,.14,.19);
+}
+float4 over(float4 back,float a,float3 color) {
+    a=clamp(a,0.0,1.0);
+    return float4(clamp(color,0.0,1.0)*a,a)+back*(1.0-a);
+}
+
+half4 main(float2 coord) {
+    // The distance texture saturates at32px; testing only coord would cut off
+    // the new deeper sides. Sample a capsule covering the projected volume.
+    float envelope=max(distanceAt(coord+float2(8,3)*uDepth),distanceAt(coord));
+    envelope=max(envelope,distanceAt(coord-float2(22,8)*uDepth));
+    envelope=max(envelope,distanceAt(coord-float2(44,16)*uDepth));
+    if(envelope < -18.0) return half4(0);
+    float4 hit=raycast(coord);
+    if(hit.w<.5) return half4(0);
+    float3 p=hit.xyz,n=normalAt(p);
+    float3 view=-viewDirection();
+    float cavity=occlusion(p,n);
+    float3 lighting=studio(n,view);
+    float3 color;
+    if(uEffect<.5) {
+        // 25 LAMELLA. A softly reflective ivory body, with darker real side faces
+        // and broad curved ribbons cut into its continuous connected surface.
+        float3 ivory=mix(float3(.91,.93,.92),float3(.98,.86,.71),uWarm*.32);
+        float rib=lamellaWave(p.xy);
+        float face=smoothstep(.08,.72,-n.z);
+        float3 body=mix(float3(.023,.047,.068),ivory,face);
+        color=body*lighting*cavity;
+        float fresnel=pow(1.0-max(dot(n,view),0.0),3.0);
+        color+=float3(.08,.13,.16)*fresnel;
+        color+=float3(.04,.035,.025)*smoothstep(.2,.9,rib);
+        // Fine parallel machining marks are subservient to the large relief.
+        float detail=sin(p.x*.19+p.y*.07)*.012;
+        color+=detail*max(-n.z,0.0);
+    } else {
+        // 26 PHOTONIC. Energy charges machined recesses in dark titanium. The
+        // bright physical bevel preserves the source glyph over archival film.
+        float s=reliefScale(),d=channelDistance(p.xy);
+        float channel=exp(-pow(d/(2.3*s+.5),2.0));
+        float core=exp(-pow(d/(.75*s+.25),2.0));
+        float2 uv=(p.xy-iResolution.xy*.5)/uWordSize.y;
+        float row=floor(channelPosition(p.xy)/(43.0*max(uWordSize.y/210.0,.42)*uDetailScale)+.5);
+        float path=(uv.x*.82-uv.y*.24)+row*.12-artTime()*.62+phase()*.06;
+        float packet=exp(-pow((fract(path)-.5)/.10,2.0));
+        float leading=exp(-pow((fract(path+.07)-.5)/.028,2.0));
+        float x=(p.x-uPadding)/max(uWordSize.x,1.0);
+        float charged=artTime()/.68-x+row*.018;
+        float chargeHead=exp(-pow(charged/.08,2.0));
+        float chargeTail=smoothstep(-.015,.04,charged)*(1.0-smoothstep(.04,.24,charged));
+        float3 titanium=mix(float3(.045,.058,.073),float3(.012,.022,.028),channel);
+        color=titanium*lighting*cavity;
+        float bevel=1.0-smoothstep(1.1*s,3.3*s,distanceAt(p.xy));
+        color=mix(color,float3(.56,.69,.74)*(.65+lighting*.30),bevel*.93);
+        float3 cold=float3(.32,.73,.83),warm=float3(1.0,.68,.29);
+        float3 energy=mix(cold,warm,uWarm*.75);
+        float transport=chargeHead*.95+chargeTail*.32+packet*.08;
+        color+=channel*(.008+transport)*energy;
+        color+=core*(.008+transport*1.2+leading*.045)*float3(.80,.96,1.0);
+        // A contained bounce on the adjacent wall reinforces depth of emission.
+        color+=exp(-d/(6.0*s))*transport*energy*.22;
+    }
+    // Geometry stays opaque. A narrow AA band at the exact font boundary avoids
+    // crisp square pixels without blurring the relief or closing glyph counters.
+    // Lighting is evaluated in linear radiance; display encoding retains a pale
+    // readable face while preserving the darker side faces and recessed floors.
+    color=pow(clamp(color*uLight,0.0,1.0),float3(.454545));
+    float alpha=clamp(distanceAt(p.xy)+.8,.0,1.0);
+    float4 result=over(float4(0),alpha,color);
+    return half4(result*(1.0-clamp(uTail,0.0,1.0)));
+}

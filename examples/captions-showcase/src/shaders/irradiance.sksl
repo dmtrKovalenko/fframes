@@ -1,0 +1,190 @@
+// Irradiance from shaders.com / Shader Effects Inc. (MIT).
+// Copyright (c) 2026 Shader Effects Inc.
+// Source: github.com/shader-effects-inc/shaders at
+// 9eb037d8db63a0783f67d58ce7291726d698933f, Irradiance/index.ts,
+// std/paint/radiance.ts (gatherIrradiance + shadowVisibility) and materials.ts.
+// Adaptation: deterministic sixteen-cone fragment gather, not the upstream temporal
+// compute/denoise pass. Twelve march/shadow steps, two lights, a 28-pixel spill
+// radius inside FFrames' cached 32-pixel field. Shape alpha/normals come from the
+// actual loaded font. Optional light orbit is a caption-time addition.
+
+// MIT License
+//
+// Copyright (c) 2026 Shader Effects Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float2 uWordSize;
+uniform float uPadding;
+uniform float uDistanceRange;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uVariation;
+uniform float2 uLightPosition0;
+uniform float2 uLightPosition1;
+uniform float3 uLightColor0;
+uniform float3 uLightColor1;
+uniform float uLightIntensity0;
+uniform float uLightIntensity1;
+uniform float uIrradianceHeight;
+uniform float uIrradianceRange;
+uniform float uIrradianceReach;
+uniform float uIrradianceCore;
+uniform float uIrradianceWrap;
+uniform float uIrradianceShadows;
+uniform float uIrradianceShadowSoftness;
+uniform float3 uIrradianceBodyColor;
+uniform float uIrradianceBodyLight;
+uniform float uIrradianceBevel;
+uniform float uIrradianceSpeed;
+uniform float uIrradianceOrbit;
+
+// Match upstream negative-inside convention. The cache saturates at32px;
+// outside its rectangle there is no shape, so continue conservatively outward.
+float distanceAt(float2 p) {
+    float2 outside = max(max(-p, p-iResolution.xy), float2(0));
+    if (outside.x>0.0 || outside.y>0.0) return uDistanceRange+length(outside);
+    return (.5-float(uField.eval(p).r))*2.0*uDistanceRange;
+}
+float2 outwardAt(float2 p) {
+    float2 n=-(float2(uField.eval(p).gb)*2.0-1.0);
+    return n/max(length(n),.0001);
+}
+float2 lightPoint(float2 position, float phase) {
+    float t=uLightAge*uIrradianceSpeed+uVariation*6.2831853+phase;
+    float2 drift=float2(cos(t),sin(t*.83))*uIrradianceOrbit*uWordSize.y;
+    return float2(uPadding)+position*uWordSize+drift;
+}
+float falloff(float distance) {
+    float ratio=distance/max(uIrradianceRange*uWordSize.y,.01);
+    return 1.0/(1.0+ratio*ratio);
+}
+
+// Source shadowVisibility: distance-field penumbra, with an explicit finite
+// ray budget. A near concavity or intervening glyph blocks its light.
+float visibility(float2 from, float2 toward) {
+    if (uIrradianceShadows<.5) return 1.0;
+    float2 segment=toward-from;
+    float total=length(segment);
+    float2 direction=segment/max(total,.0001);
+    float travel=1.2, visible=1.0;
+    for(int step=0;step<12;++step) {
+        if(travel>=total) break;
+        float d=distanceAt(from+direction*travel);
+        visible=min(visible,clamp(d/max(travel*uIrradianceShadowSoftness,.6),0.0,1.0));
+        if(visible<=0.0) break;
+        travel+=max(d,.6);
+    }
+    return visible;
+}
+float3 edgeLight(float2 point, float2 normal, float2 light, float3 color, float intensity) {
+    float2 delta=light-point;
+    float distance=length(delta);
+    float struck=clamp((dot(normal,delta/max(distance,.0001))+uIrradianceWrap)/(1.0+uIrradianceWrap),0.0,1.0);
+    struck*=falloff(distance)*visibility(point+normal*2.0,light);
+    return color*(intensity*struck);
+}
+float3 emission(float2 point,float2 normal,float2 key,float2 fill) {
+    return edgeLight(point,normal,key,uLightColor0,uLightIntensity0)
+         + edgeLight(point,normal,fill,uLightColor1,uLightIntensity1);
+}
+
+// Adapted directly from gatherIrradiance's cone coverage integral. It samples
+// emitting boundaries in several directions rather than painting one nearest-
+// edge glow (which would partition letters and miss occlusion in their counters).
+float3 gather(float2 origin,float start,float2 key,float2 fill) {
+    float3 light=float3(0);
+    float reach=uIrradianceReach;
+    // Source-style fan rotation dissolves directional quadrature boundaries into
+    // fine stationary sampling grain instead of visible triangular light fans.
+    float jitter=fract(52.9829189*fract(dot(floor(origin),float2(.06711056,.00583715))));
+    for(int cone=0;cone<16;++cone) {
+        float angle=(float(cone)+jitter)*.3926990817;
+        float2 direction=float2(cos(angle),sin(angle));
+        float travel=max(start,.6),best=1.0,bestT=travel,bestD=0.0;
+        for(int step=0;step<12;++step) {
+            float2 point=origin+direction*travel;
+            float d=distanceAt(point);
+            float clear=d/max(travel*.19891236738,.01);
+            if(clear<best) {best=clear;bestT=travel;bestD=d;}
+            if(d<.6) break;
+            travel+=max(d,.6);
+            if(travel>reach) break;
+        }
+        float coverage=1.0-clamp(best,0.0,1.0);
+        if(coverage>.002) {
+            float2 at=origin+direction*bestT;
+            float2 normal=outwardAt(at);
+            float2 boundary=at-normal*max(bestD,0.0);
+            light+=emission(boundary,normal,key,fill)*coverage;
+        }
+    }
+    return light*.0625;
+}
+float3 bodyLight(float2 point,float3 normal,float2 light,float3 color,float intensity) {
+    float2 delta=light-point;
+    float3 direction=normalize(float3(delta,-uIrradianceHeight*uWordSize.y));
+    float response=falloff(length(delta))*uIrradianceBodyLight;
+    float3 halfway=normalize(direction+float3(0,0,-1));
+    float glint=pow(max(dot(normal,halfway),0.0),60.0)*.6;
+    return uIrradianceBodyColor*(max(dot(normal,direction),0.0)*response)
+         + color*(intensity*glint*response);
+}
+float3 exposed(float3 energy) {return 1.0-exp(-max(energy,float3(0)));}
+float srgb(float value) {
+    value=clamp(value,0.0,1.0);
+    return value<=.0031308 ? value*12.92 : 1.055*pow(value,1.0/2.4)-.055;
+}
+
+half4 main(float2 coord) {
+    float d=distanceAt(coord);
+    if(d>=uIrradianceReach) return half4(0);
+    float coverage=float(uGlyph.eval(coord).a);
+    float2 key=lightPoint(uLightPosition0,0.0),fill=lightPoint(uLightPosition1,3.14159265);
+    float2 outward=outwardAt(coord);
+    float3 body=float3(0),spill=float3(0);
+    if(coverage>0.0) {
+        float bevel=min(max(uIrradianceBevel*uWordSize.y,1.0),uDistanceRange-2.0);
+        float tilt=min(1.0-clamp(-d/bevel,0.0,1.0),.9995);
+        float3 normal=float3(outward*tilt,-sqrt(max(1.0-tilt*tilt,0.0)));
+        body=exposed(uIrradianceBodyColor*.3
+            +bodyLight(coord,normal,key,uLightColor0,uLightIntensity0)
+            +bodyLight(coord,normal,fill,uLightColor1,uLightIntensity1));
+    }
+    if(coverage<1.0) {
+        float3 arriving=gather(coord,max(d,.6),key,fill);
+        float rim=1.0-smoothstep(0.0,2.5,max(d,0.0));
+        if(rim>0.0) {
+            float2 boundary=coord-outward*max(d,0.0);
+            arriving+=emission(boundary,outward,key,fill)*(rim*uIrradianceCore);
+        }
+        float fade=1.0-smoothstep(uIrradianceReach*.68,uIrradianceReach,max(d,0.0));
+        spill=exposed(arriving)*fade;
+    }
+    float glowAlpha=max(max(spill.r,spill.g),spill.b);
+    float alpha=coverage+(1.0-coverage)*glowAlpha;
+    if(alpha<=.00001) return half4(0);
+    float3 straight=(body*coverage+spill*(1.0-coverage))/alpha;
+    float3 color=float3(srgb(straight.r),srgb(straight.g),srgb(straight.b));
+    alpha*=1.0-clamp(uTail,0.0,1.0);
+    return half4(color*alpha,alpha);
+}

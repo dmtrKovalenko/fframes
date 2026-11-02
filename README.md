@@ -265,6 +265,14 @@ A small example of Highlight, Karaoke, Reveal and Word modes sharing one JSON tr
   <img alt="Caption presets and custom word highlights" src="examples/_previews/captions.png" width="640" />
 </a>
 
+#### [captions-showcase](examples/captions-showcase)
+
+Words in Orbit: a cinematic Moon speech with JSON-directed typography, handwritten accents, folding word planes, and liquid metal, fire, irradiance and nebula shaders. Run the standalone typography with `cargo run --release -p captions-showcase-example -- --shader --captions-only render`. Footage and audio stay outside Git; use `--media-dir /path/to/prepared-media` for the full film. CI checks six typography frames without downloading footage.
+
+<a href="https://files.catbox.moe/5ypqpg.mp4">
+  <img alt="Words in Orbit: Moon caption shader showcase" src="examples/_previews/captions-showcase.png" width="640" />
+</a>
+
 #### [audio-announce](examples/audio-announce)
 
 An automated workflow to create audio visualisation with automated subtitles.

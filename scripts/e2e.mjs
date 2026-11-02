@@ -49,6 +49,7 @@ const allExamples = [
   { dir: "audio-announce", pkg: "audio-announce-example", bin: "audio_announce_example_bin", frames: "5s,30s" },
   { dir: "beta", pkg: "beta-example", bin: "beta_example_bin", frames: "CodeDemoScene@50%,IphoneScene@50%,BetaExamples@50%" },
   // Preset layouts, typed highlights, wrapping and simultaneous cues.
+  { dir: "captions-showcase", pkg: "captions-showcase-example", bin: "captions-showcase-example", frames: "1.4s,2.3s,4.2s,6.3s,13.3s,19s", skia: true, args: ["--shader", "--captions-only"] },
   { dir: "captions", pkg: "captions-example", bin: "captions-example", frames: "1.5s,5.2s,7s" },
   { dir: "conference-splash-screen", pkg: "conference-splash-screen-example", bin: "conference_splash_screen_bin", frames: "SponsorScene@50%,SpeakerScene@50%" },
   { dir: "fframes-intro", pkg: "fframes-intro", bin: "fframes-intro", frames: "CodeScene@50%,ShaderScene@2.6s,BenchmarkScene@12.4s,OutroScene@7s", skia: true },

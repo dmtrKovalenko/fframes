@@ -517,6 +517,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "captions-showcase-example"
+version = "1.3.0"
+dependencies = [
+ "fframes",
+ "fframes_skia_renderer",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cargo-fframes"
 version = "1.3.0"
 dependencies = [

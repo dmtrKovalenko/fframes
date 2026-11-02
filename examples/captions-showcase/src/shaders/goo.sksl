@@ -1,0 +1,152 @@
+// Goo from shaders.com / Shader Effects Inc. (MIT).
+// Copyright (c) 2026 Shader Effects Inc.
+// Source: github.com/shader-effects-inc/shaders, commit 9eb037d8db63a0783f67d58ce7291726d698933f
+// Adapted from shaders/Goo/index.ts and its
+// emitted WGSL: the seven Gaussian charges, occupancy blend, wet surface
+// surface, Beer-Lambert subsurface, wet highlight and clearcoat equations.
+// Font adaptation: the source square maps to the word box, while shape distance
+// uses glyph height. Analytic charge gradients and the cached smooth glyph normal
+// replace forward differences of an 8-bit distance texture; the x derivative is
+// scaled by height/width so the surface normal uses isotropic physical units.
+// The flat glyph has no 3D front-depth channel. High containment
+// resolves to exact font coverage; lower containment can bulge within a bounded
+// 28px SDF halo. Color is linear sRGB then display-encoded and premultiplied.
+
+// MIT License
+//
+// Copyright (c) 2026 Shader Effects Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+uniform shader uGlyph;
+uniform shader uField;
+uniform float3 iResolution;
+uniform float2 uWordSize;
+uniform float uPadding;
+uniform float uDistanceRange;
+uniform float uLightAge;
+uniform float uTail;
+uniform float uVariation;
+uniform float3 uGooColor;
+uniform float3 uSpecColor;
+uniform float uTranslucency;
+uniform float uAbsorb;
+uniform float uContainment;
+uniform float uEdgeSoftness;
+uniform float uBlobScale;
+uniform float uSpread;
+uniform float uMerge;
+uniform float uBulge;
+uniform float uThreshold;
+uniform float uLightAngle;
+uniform float uWetness;
+uniform float uFresnel;
+uniform float uAmbient;
+uniform float uSpeed;
+uniform float uWobble;
+uniform float uBreathe;
+uniform float uSeed;
+
+float distanceAt(float2 p) {
+    if (p.x < 0.0 || p.y < 0.0 || p.x >= iResolution.x || p.y >= iResolution.y)
+        return -uDistanceRange;
+    return (float(uField.eval(p).r) - .5) * 2.0 * uDistanceRange;
+}
+
+// Return potential and its analytic derivatives in the source square's x/y.
+// These are the upstream Gaussian lobes; constants below are baked by its JS hash.
+float3 charge(float2 p, float time, float4 pf, float4 ph) {
+    float spread = uSpread * .45;
+    float driftAmp = uWobble * .12;
+    float baseRadius = uBlobScale * .38 * (.65 + uMerge * .7);
+    float2 centre = pf.xy * spread + driftAmp * float2(
+        sin(time * pf.z + ph.y), cos(time * pf.w + ph.z));
+    float radius = baseRadius * (1.0 + uBreathe * sin(time * ph.x + ph.w));
+    float invRadius2 = 1.0 / max(radius * radius, .0001);
+    float2 d = p - centre;
+    float value = exp(-dot(d, d) * invRadius2);
+    return float3(value, -2.0 * d * value * invRadius2);
+}
+
+float3 potentials(float2 p, float time) {
+    float3 potential = float3(0);
+    potential += charge(p, time, float4(0.2672612419, 0.0000000000, 1.4216903898, 0.6655801301), float4(1.4951718029, 0.3595123606, 2.8492958301, 3.3905610437));
+    potential += charge(p, time, float4(-0.3413353923, 0.3126913242, 0.5572181693, 0.8291109666), float4(1.3160251931, 3.5074159627, 3.9338192086, 6.1041921356));
+    potential += charge(p, time, float4(0.0522465902, -0.5953260879, 1.0582225886, 1.0396245506), float4(0.9418164056, 2.3482381801, 1.0403706397, 5.1596862320));
+    potential += charge(p, time, float4(0.4302316313, 0.5611601763, 0.8737337143, 1.4715123531), float4(1.4268788171, 2.8492958301, 2.0678651871, 1.1249650119));
+    potential += charge(p, time, float4(-0.7895273754, -0.1396555276, 0.9534795162, 1.3211895696), float4(0.9341956140, 3.9338192086, 3.3905610437, 6.2528488430));
+    potential += charge(p, time, float4(0.7479085854, -0.4757594283, 1.1260867730, 0.6790437426), float4(1.1441862511, 1.0403706397, 6.1041921356, 5.1272374979));
+    potential += charge(p, time, float4(-0.2501596850, 0.9305866755, 0.6655801301, 1.4951718029), float4(0.8226436057, 2.0678651871, 5.1596862320, 2.7760143450));
+    return potential;
+}
+
+float srgb(float value) {
+    value = clamp(value, 0.0, 1.0);
+    return value <= .0031308 ? value * 12.92 : 1.055 * pow(value, 1.0 / 2.4) - .055;
+}
+
+half4 main(float2 coord) {
+    float d0 = distanceAt(coord);
+    // Preserve the finite glyph texture contract rather than cutting free blobs
+    // at a rectangular image boundary. At full containment this band is invisible.
+    float halo = 1.0 - smoothstep(20.0, 28.0, -d0);
+    if (halo <= 0.0) return half4(0);
+    float2 size = max(uWordSize, float2(1));
+    float2 p = (coord - float2(uPadding)) / size - .5;
+    float time = uLightAge * uSpeed + uSeed;
+    float3 potential = potentials(p, time);
+    float height = size.y;
+    float distance = d0 / height;
+    // The source SDF is negative inside; our cached field is positive inside.
+    float inside = smoothstep(-.06, .06, distance);
+    float occupation = mix(1.0, inside, uContainment);
+    float H = potential.x * occupation + inside * uContainment;
+    float softness = max(uEdgeSoftness, .001);
+    float coverage = smoothstep(uThreshold - softness, uThreshold + softness, H);
+    // A caption's full-containment endpoint must reproduce the actual font mask.
+    coverage = mix(coverage, float(uGlyph.eval(coord).a), smoothstep(.94, 1.0, uContainment));
+    float2 inward = float2(uField.eval(coord).gb) * 2.0 - 1.0;
+    float ramp = clamp((distance + .06) / .12, 0.0, 1.0);
+    float2 insideGradient = inward * (6.0 * ramp * (1.0 - ramp) / .12);
+    float2 potentialGradient = potential.yz * float2(height / size.x, 1.0);
+    float2 gradient = potentialGradient * occupation
+        + insideGradient * uContainment * (potential.x + 1.0);
+    float slope = uBulge * .12 + .03;
+    float3 normal = normalize(float3(-gradient * slope, -1.0));
+    float dome = sqrt(max(H - uThreshold, 0.0)) * uBulge;
+    float thickness = clamp(dome + max(distance, 0.0) * uContainment * 1.2, 0.0, 1.0);
+
+    float angle = uLightAngle * .017453292519943295;
+    float3 light = normalize(float3(cos(angle), sin(angle), -.8));
+    float3 halfway = normalize(light + float3(0, 0, -1));
+    float ndl = clamp(dot(normal, light), 0.0, 1.0);
+    float ndh = clamp(dot(normal, halfway), 0.0, 1.0);
+    float specCore = pow(ndh, 232.0) * 1.7;
+    float specHalo = pow(ndh, 32.0) * .25;
+    float glint = smoothstep(.992, .999, ndh) * 1.9;
+    float fresnel = pow(1.0 - clamp(-normal.z, 0.0, 1.0), 5.0) * uFresnel;
+    float3 specular = uSpecColor * (specCore + specHalo + glint + fresnel) * uWetness;
+    float transmit = exp(-uAbsorb * (1.0 - thickness));
+    float3 subsurface = uGooColor * (uTranslucency * transmit) * (ndl * .5 + .5);
+    float3 body = uGooColor * (uAmbient + ndl * .7);
+    float3 linear = body + subsurface + specular;
+    float3 color = float3(srgb(linear.r), srgb(linear.g), srgb(linear.b));
+    float alpha = coverage * halo * (1.0 - clamp(uTail, 0.0, 1.0));
+    return half4(color * alpha, alpha);
+}
