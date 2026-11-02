@@ -115,6 +115,7 @@ mod clip;
 mod color;
 mod duration;
 mod fframes_context;
+mod fit;
 mod font_data;
 mod frame;
 #[cfg(feature = "lottie")]
@@ -158,6 +159,7 @@ pub use clip::*;
 pub use color::*;
 pub use duration::*;
 pub use fframes_context::*;
+pub use fit::*;
 pub use font_data::*;
 pub use frame::*;
 #[cfg(feature = "lottie")]

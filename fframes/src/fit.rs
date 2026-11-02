@@ -1,0 +1,276 @@
+//! Place a source (image, video frame) inside a destination box.
+//!
+//! ```ignore
+//! let photo = ctx.get_image("still.jpg")?;
+//! let dest = Rect::from_xywh(0.0, 0.0, 1920.0, 1080.0).unwrap();
+//! let placed = Fit::Cover.place(
+//!     photo.metadata.width as f32,
+//!     photo.metadata.height as f32,
+//!     dest,
+//! );
+//! fframes::svgr!(
+//!     <image href={photo.href()}
+//!            x={placed.x} y={placed.y}
+//!            width={placed.width} height={placed.height} />
+//! )
+//! ```
+//!
+//! [`Fit::Cover`] draws larger than `dest`; clip to [`Placement::clip`] if the overflow
+//! should not show. [`PanZoom`] animates a cover-based crop: drive `t` with
+//! `frame.animate` from 0 to 1.
+//!
+//! A [`Clip`](crate::Clip) takes both with `.fit()` and `.pan_zoom()`, and
+//! [`Clip::place`](crate::Clip::place) calls them with the size of the decoded frame and,
+//! for [`PanZoom`], the progress of the clip.
+use std::fmt;
+
+/// Axis-aligned rectangle in the video's SVG coordinates.
+pub use usvgr::Rect;
+
+/// How a source rectangle is mapped into [`Rect`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Fit {
+    /// Scale uniformly until the destination is filled; overflow is cropped.
+    #[default]
+    Cover,
+    /// Scale uniformly until the source fits inside the destination.
+    Contain,
+    /// Stretch to the destination, ignoring aspect ratio.
+    Fill,
+    /// Native size, centered on the destination. May overflow.
+    None,
+    /// Like [`Fit::Contain`], but never larger than the source.
+    ScaleDown,
+}
+
+/// Where to draw a source after a [`Fit`] or [`PanZoom`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Placement {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    /// Destination box. Clip the drawing to this when the placement overflows.
+    pub clip: Rect,
+    /// Horizontal scale of the source (`width / src_width`).
+    pub scale_x: f32,
+    /// Vertical scale of the source (`height / src_height`).
+    pub scale_y: f32,
+}
+
+impl Placement {
+    /// The drawn area as a [`Rect`], which can extend past [`Placement::clip`].
+    pub fn rect(self) -> Option<Rect> {
+        Rect::from_xywh(self.x, self.y, self.width, self.height)
+    }
+}
+
+impl Fit {
+    /// Place a source of `src_width` × `src_height` into `dest`.
+    pub fn place(self, src_width: f32, src_height: f32, dest: Rect) -> Placement {
+        if dest.is_empty() {
+            return Placement {
+                x: dest.x(),
+                y: dest.y(),
+                width: dest.width(),
+                height: dest.height(),
+                clip: dest,
+                scale_x: 1.0,
+                scale_y: 1.0,
+            };
+        }
+        if src_width <= 0.0 || src_height <= 0.0 {
+            return Placement {
+                x: dest.x(),
+                y: dest.y(),
+                width: dest.width(),
+                height: dest.height(),
+                clip: dest,
+                scale_x: 1.0,
+                scale_y: 1.0,
+            };
+        }
+
+        match self {
+            Fit::Fill => Placement {
+                x: dest.x(),
+                y: dest.y(),
+                width: dest.width(),
+                height: dest.height(),
+                clip: dest,
+                scale_x: dest.width() / src_width,
+                scale_y: dest.height() / src_height,
+            },
+            Fit::None => centered(src_width, src_height, 1.0, 1.0, dest),
+            Fit::Cover => {
+                let scale = (dest.width() / src_width).max(dest.height() / src_height);
+                scaled(src_width, src_height, scale, dest)
+            }
+            Fit::Contain => {
+                let scale = (dest.width() / src_width).min(dest.height() / src_height);
+                scaled(src_width, src_height, scale, dest)
+            }
+            Fit::ScaleDown => {
+                let scale = (dest.width() / src_width)
+                    .min(dest.height() / src_height)
+                    .min(1.0);
+                scaled(src_width, src_height, scale, dest)
+            }
+        }
+    }
+}
+
+fn scaled(src_width: f32, src_height: f32, scale: f32, dest: Rect) -> Placement {
+    centered(src_width, src_height, scale, scale, dest)
+}
+
+fn centered(src_width: f32, src_height: f32, scale_x: f32, scale_y: f32, dest: Rect) -> Placement {
+    let width = src_width * scale_x;
+    let height = src_height * scale_y;
+    Placement {
+        x: dest.x() + (dest.width() - width) * 0.5,
+        y: dest.y() + (dest.height() - height) * 0.5,
+        width,
+        height,
+        clip: dest,
+        scale_x,
+        scale_y,
+    }
+}
+
+/// A focal point in 0–1 source coordinates.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FocalPoint {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl FocalPoint {
+    /// The middle of the source.
+    pub const CENTER: Self = Self { x: 0.5, y: 0.5 };
+
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+/// A cover-based crop that moves from one focal point and zoom to another.
+///
+/// `zoom` is relative to [`Fit::Cover`]: `1.0` fills the destination, `1.2` is
+/// twenty percent closer, and values below `1.0` are treated as `1.0` so the
+/// destination stays covered. `focus` is a [`FocalPoint`] in the source, mapped to the
+/// centre of the destination.
+///
+/// Drive `t` from 0 to 1 with a timeline:
+///
+/// ```ignore
+/// let t = frame.animate(&fframes::timeline!(
+///     at 0.0 => 4.0, animate 0.0_f32 => 1.0, Easing::EaseInOut,
+/// ));
+/// let placed = PanZoom::new()
+///     .zoom(1.0, 1.35)
+///     .focus(FocalPoint::new(0.4, 0.5), FocalPoint::new(0.65, 0.4))
+///     .place(src_w, src_h, dest, t);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PanZoom {
+    pub from_zoom: f32,
+    pub to_zoom: f32,
+    pub from_focus: FocalPoint,
+    pub to_focus: FocalPoint,
+}
+
+impl Default for PanZoom {
+    fn default() -> Self {
+        Self {
+            from_zoom: 1.0,
+            to_zoom: 1.2,
+            from_focus: FocalPoint::CENTER,
+            to_focus: FocalPoint::CENTER,
+        }
+    }
+}
+
+impl PanZoom {
+    /// The default crop: centred, zooming from `1.0` to `1.2`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the zoom at `t = 0` and `t = 1`. Values below `1.0` are treated as `1.0`.
+    pub fn zoom(mut self, from: f32, to: f32) -> Self {
+        self.from_zoom = from;
+        self.to_zoom = to;
+        self
+    }
+
+    /// Set the focal point at `t = 0` and `t = 1`, in 0–1 source coordinates.
+    /// Values outside that range are clamped.
+    pub fn focus(mut self, from: FocalPoint, to: FocalPoint) -> Self {
+        self.from_focus = from;
+        self.to_focus = to;
+        self
+    }
+
+    /// Place the source at progress `t` in 0–1 (values outside are clamped).
+    pub fn place(self, src_width: f32, src_height: f32, dest: Rect, t: f32) -> Placement {
+        if dest.is_empty() || src_width <= 0.0 || src_height <= 0.0 {
+            return Fit::Fill.place(src_width, src_height, dest);
+        }
+
+        let t = t.clamp(0.0, 1.0);
+        // Below cover scale the drawing would leave part of `dest` uncovered.
+        let zoom = lerp(self.from_zoom, self.to_zoom, t).max(1.0);
+        let focus_x = lerp(self.from_focus.x, self.to_focus.x, t).clamp(0.0, 1.0);
+        let focus_y = lerp(self.from_focus.y, self.to_focus.y, t).clamp(0.0, 1.0);
+
+        let cover = (dest.width() / src_width).max(dest.height() / src_height);
+        let scale = cover * zoom;
+        let width = src_width * scale;
+        let height = src_height * scale;
+        let (cx, cy) = (
+            dest.x() + dest.width() * 0.5,
+            dest.y() + dest.height() * 0.5,
+        );
+        let mut x = cx - focus_x * width;
+        let mut y = cy - focus_y * height;
+
+        x = clamp_axis(x, width, dest.x(), dest.width());
+        y = clamp_axis(y, height, dest.y(), dest.height());
+
+        Placement {
+            x,
+            y,
+            width,
+            height,
+            clip: dest,
+            scale_x: scale,
+            scale_y: scale,
+        }
+    }
+}
+
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
+/// Keep `dest` covered when the drawing is larger; otherwise centre it.
+fn clamp_axis(origin: f32, size: f32, dest_origin: f32, dest_size: f32) -> f32 {
+    if size >= dest_size {
+        origin.clamp(dest_origin + dest_size - size, dest_origin)
+    } else {
+        dest_origin + (dest_size - size) * 0.5
+    }
+}
+
+impl fmt::Display for Fit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Fit::Cover => "cover",
+            Fit::Contain => "contain",
+            Fit::Fill => "fill",
+            Fit::None => "none",
+            Fit::ScaleDown => "scale-down",
+        })
+    }
+}

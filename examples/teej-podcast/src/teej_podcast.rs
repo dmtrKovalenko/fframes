@@ -1,7 +1,10 @@
 use crate::Chapter;
 use crate::{constants::*, create_transition_keyframes_for_chapters};
 use fframes::animation::KeyFramesAnimation;
-use fframes::{AudioMap, Clip, FFramesContext, FontQuery, Frame, TextOverflow, Transform, Video};
+use fframes::{
+    AudioMap, Clip, FFramesContext, Fit, FocalPoint, FontQuery, Frame, PanZoom, Placement, Rect,
+    TextOverflow, Transform, Video,
+};
 use std::borrow::Cow;
 use std::sync::OnceLock;
 
@@ -9,7 +12,8 @@ use std::sync::OnceLock;
 pub struct TeejPodcast<'a> {
     chapters: &'a [Chapter<'a>],
     chapters_animation: KeyFramesAnimation<f32>,
-    /// The two camera recordings, each played from its start to its end.
+    /// The two camera recordings, each played from its start to its end. The left one
+    /// stays centered in its frame, the right one slowly zooms in on the speaker.
     left: Clip<'static>,
     right: Clip<'static>,
     /// Chapter titles shortened to their rectangle, see [`Self::fit_titles`].
@@ -22,10 +26,28 @@ impl TeejPodcast<'_> {
         TeejPodcast {
             chapters,
             chapters_animation,
-            left: Clip::new("left.mp4", 0.0..),
-            right: Clip::new("right.mp4", 0.0..),
+            left: Clip::new("left.mp4", 0.0..).fit(Fit::Cover),
+            right: Clip::new("right.mp4", 0.0..).pan_zoom(
+                PanZoom::new()
+                    .zoom(1.08, 1.3)
+                    .focus(FocalPoint::new(0.5375, 0.5), FocalPoint::new(0.5375, 0.45)),
+            ),
             fitted_titles: OnceLock::new(),
         }
+    }
+
+    /// Where to draw `clip`, or `poster` until the editor has decoded the frame.
+    fn place_clip(
+        clip: &Clip<'_>,
+        poster: &str,
+        frame: &Frame,
+        ctx: &FFramesContext<'_, '_>,
+        dest: Rect,
+    ) -> Placement {
+        clip.place(frame, ctx, dest).unwrap_or_else(|| {
+            let size = ctx.get_image(poster).expect("poster not found").metadata;
+            Fit::Cover.place(size.width as f32, size.height as f32, dest)
+        })
     }
 
     /// Every chapter title cut with an ellipsis to the width left after the
@@ -85,6 +107,9 @@ impl Video for TeejPodcast<'_> {
         // The editor shows left.jpg and right.jpg until it has decoded the frames.
         let left_frame = self.left.image(&frame, ctx);
         let right_frame = self.right.image(&frame, ctx);
+        let left_placed = Self::place_clip(&self.left, "left.jpg", &frame, ctx, left_frame_rect());
+        let right_placed =
+            Self::place_clip(&self.right, "right.jpg", &frame, ctx, right_frame_rect());
 
         // The chapter whose time range contains the current frame; the last
         // chapter stays active until the end.
@@ -143,9 +168,10 @@ impl Video for TeejPodcast<'_> {
                 <use href="#left-video-frame" fill="none" stroke="#000" stroke-width="10" />
                 <image
                     id="avatar"
-                    x="-600"
-                    y="0"
-                    width="1920"
+                    x={left_placed.x}
+                    y={left_placed.y}
+                    width={left_placed.width}
+                    height={left_placed.height}
                     stroke-width="6"
                     stroke="#fff"
                     clip-path="url(#clip-left-frame)"
@@ -161,9 +187,10 @@ impl Video for TeejPodcast<'_> {
                 <use href="#right-video-frame" fill="none" stroke="#000" stroke-width="10" />
                 <image
                     id="avatar"
-                    x="8"
-                    y="0"
-                    width="1920"
+                    x={right_placed.x}
+                    y={right_placed.y}
+                    width={right_placed.width}
+                    height={right_placed.height}
                     clip-path="url(#clip-right-frame)"
                     preserveAspectRatio="xMidYMid meet"
                     href={
