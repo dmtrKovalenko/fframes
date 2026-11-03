@@ -1225,6 +1225,7 @@ dependencies = [
  "rand 0.9.1",
  "rangemap",
  "rayon",
+ "rustybuzz",
  "serde",
  "serde_json",
  "svgr",
@@ -4061,6 +4062,14 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_native_player",
+ "fframes_skia_renderer",
+]
+
+[[package]]
+name = "text-width-example"
+version = "1.4.1"
+dependencies = [
+ "fframes",
  "fframes_skia_renderer",
 ]
 

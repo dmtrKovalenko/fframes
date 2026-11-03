@@ -192,6 +192,9 @@ where
     }
 }
 
+/// Widths are tiny and a frame often measures every word.
+const TEXT_WIDTH_CACHE_MIN: usize = 1024;
+
 /// This is only fframes cache for text related processing, the actual
 /// glyph aliasing, text outlining happens in the rendering backend and
 /// can have its own cache
@@ -210,7 +213,7 @@ impl TextCache {
                     NonZeroUsize::new(size).unwrap(),
                 ))),
                 text_width_cache: Rc::new(RefCell::new(LruCache::new(
-                    NonZeroUsize::new(size).unwrap(),
+                    NonZeroUsize::new(size.max(TEXT_WIDTH_CACHE_MIN)).unwrap(),
                 ))),
             })
         } else {
@@ -344,10 +347,17 @@ fn calc_text_width(
 ) -> usize {
     match text {
         "" | "\n" | "\r" => 0,
-        text => text
-            .chars()
-            .map(|char| char_width(char, font_face, font_size, font_variant))
-            .sum(),
+        text => {
+            // Shaped width includes kerning and fractional advances.
+            if let FontVariant::Variable = font_variant
+                && let Some(width) = font_face.resolve_text_width(font_size, text)
+            {
+                return width.round() as usize;
+            }
+            text.chars()
+                .map(|char| char_width(char, font_face, font_size, font_variant))
+                .sum()
+        }
     }
 }
 

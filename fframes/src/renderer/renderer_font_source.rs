@@ -33,6 +33,15 @@ impl<'a> crate::FontFace<'a> for RendererFont<'a> {
                 / face.units_per_em() as usize,
         )
     }
+
+    fn resolve_text_width(&self, font_size: usize, text: &str) -> Option<f32> {
+        let face = rustybuzz::Face::from_slice(self.data.as_ref().as_ref(), self.index)?;
+        let mut buffer = rustybuzz::UnicodeBuffer::new();
+        buffer.push_str(text);
+        let glyphs = rustybuzz::shape(&face, &[], buffer);
+        let advance: i32 = glyphs.glyph_positions().iter().map(|p| p.x_advance).sum();
+        Some(advance as f32 * font_size as f32 / face.units_per_em() as f32)
+    }
 }
 
 #[derive(Debug)]
