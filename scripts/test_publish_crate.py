@@ -48,6 +48,41 @@ class PublishTests(unittest.TestCase):
             "cargo", "publish", "--registry", "crates-io", "--allow-dirty", "--no-verify"
         ])
         self.assertEqual(self.cargo.call_args.kwargs['cwd'], self.manifest.parent)
+        self.assertEqual(self.cargo.call_args.kwargs['timeout'], 600)
+
+    def test_timeout_after_successful_upload(self):
+        self.http.side_effect = [self.error(404), self.response()]
+        self.cargo.side_effect = subprocess.TimeoutExpired(["cargo"], 600, output=b"Uploaded\n")
+        self.run_publish()
+        self.cargo.assert_called_once()
+        self.assertEqual(self.http.call_count, 2)
+        self.sleep.assert_not_called()
+
+    def test_timeout_with_missing_version_fails_without_retry(self):
+        self.http.side_effect = self.error(404)
+        self.cargo.side_effect = subprocess.TimeoutExpired(["cargo"], 600)
+        with self.assertRaisesRegex(RuntimeError, "timed out after 600s.*fframes_three_d@1.4.1"):
+            self.run_publish()
+        self.cargo.assert_called_once()
+        self.assertEqual(self.http.call_count, 2)
+        self.sleep.assert_not_called()
+
+    def test_timeout_registry_failure_is_not_success(self):
+        self.http.side_effect = [self.error(404)] + [self.error(503)] * 5
+        self.cargo.side_effect = subprocess.TimeoutExpired(["cargo"], 600)
+        with self.assertRaises(HTTPError):
+            self.run_publish()
+        self.cargo.assert_called_once()
+        self.assertEqual(self.http.call_count, 6)
+
+    def test_timeout_preserves_partial_output(self):
+        for output, expected in [(b"partial\xff", "partial\ufffd"), ("partial", "partial"), (None, "")]:
+            with self.subTest(output=output), patch("builtins.print") as printed:
+                self.http.side_effect = self.error(404)
+                self.cargo.side_effect = subprocess.TimeoutExpired(["cargo"], 600, output=output)
+                with self.assertRaisesRegex(RuntimeError, "timed out"):
+                    self.run_publish()
+                printed.assert_any_call(expected, end="", flush=True)
 
     def test_partial_release_skips_five_then_retries_sixth(self):
         root = Path(__file__).resolve().parent.parent

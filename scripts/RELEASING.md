@@ -15,6 +15,11 @@ that succeeded before Cargo failed or a concurrent publisher. Other Cargo errors
 fail immediately if the version is still absent. Published versions are immutable;
 the check establishes existence, not that an existing package matches local files.
 
+Each Cargo invocation has a 10-minute timeout. On timeout, the helper terminates
+Cargo, prints any captured output, and checks the exact version again. A confirmed
+non-yanked version counts as success. Otherwise it stops without another upload;
+inspect registry state before resuming, since the server may still finish an upload.
+
 Run the offline regression tests without registry credentials or Cargo:
 
 ```sh

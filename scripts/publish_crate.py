@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 
 ATTEMPTS = 5
 MAX_DELAY = 3600
+PUBLISH_TIMEOUT = 600
 USER_AGENT = "fframes-release (https://github.com/dmtrKovalenko/fframes)"
 
 
@@ -88,14 +89,31 @@ def publish(manifest, version):
             print(f"Skipping {name}@{version}: already published", flush=True)
             return
         print(f"Publishing {name}@{version} (attempt {attempt + 1}/{ATTEMPTS})", flush=True)
-        result = subprocess.run(
-            ["cargo", "publish", "--registry", "crates-io", "--allow-dirty", "--no-verify"],
-            cwd=manifest.parent,
-            env={**os.environ, "CARGO_TERM_COLOR": "never"},
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                ["cargo", "publish", "--registry", "crates-io", "--allow-dirty", "--no-verify"],
+                cwd=manifest.parent,
+                env={**os.environ, "CARGO_TERM_COLOR": "never"},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=PUBLISH_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as error:
+            # run() kills and waits for Cargo before raising. Captured timeout
+            # output can be bytes even with text=True, or None if Cargo was silent.
+            output = error.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", errors="replace")
+            print(output, end="", flush=True)
+            if is_published(name, version):
+                print(f"Confirmed {name}@{version} on crates.io after Cargo timed out", flush=True)
+                return
+            # Do not retry an upload with an uncertain outcome automatically.
+            raise RuntimeError(
+                f"cargo publish timed out after {PUBLISH_TIMEOUT}s for {name}@{version}; "
+                "version not confirmed on crates.io; inspect registry state before resuming"
+            ) from error
         print(result.stdout, end="", flush=True)
         if result.returncode == 0:
             return
