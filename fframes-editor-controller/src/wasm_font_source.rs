@@ -49,6 +49,8 @@ pub struct WasmFontSource {
     pub data: HashMap<FaceInfo, Cow<'static, [u8]>>,
     /// The same fonts for measuring text the way the native renderer lays it out.
     pub fontdb: fframes::usvgr::fontdb::Database,
+    /// Faces each font added to `fontdb`, replaced when the font is inserted again.
+    face_ids: HashMap<FaceInfo, Vec<fframes::usvgr::fontdb::ID>>,
 }
 
 impl WasmFontSource {
@@ -57,6 +59,7 @@ impl WasmFontSource {
             static_fonts: vec![],
             data: HashMap::new(),
             fontdb: fframes::usvgr::fontdb::Database::new(),
+            face_ids: HashMap::new(),
         }
     }
 
@@ -84,7 +87,18 @@ impl WasmFontSource {
             })
         }
 
-        self.fontdb.load_font_data(data.to_vec());
+        // Static fonts are shared with fontdb, not copied.
+        let shared: Arc<dyn AsRef<[u8]> + Send + Sync> = match &data {
+            Cow::Borrowed(bytes) => Arc::new(*bytes),
+            Cow::Owned(bytes) => Arc::new(bytes.clone()),
+        };
+        for id in self.face_ids.remove(&face_info).into_iter().flatten() {
+            self.fontdb.remove_face(id);
+        }
+        let ids = self
+            .fontdb
+            .load_font_source(fframes::usvgr::fontdb::Source::Binary(shared));
+        self.face_ids.insert(face_info.clone(), ids.to_vec());
         self.data.insert(face_info.clone(), data);
         Some(face_info)
     }
