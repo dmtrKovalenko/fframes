@@ -220,6 +220,12 @@ impl TextCache {
             None
         }
     }
+
+    /// Forgets every measured width and wrapped text, for when a font changes.
+    pub fn clear(&self) {
+        self.breaks_cache.borrow_mut().clear();
+        self.text_width_cache.borrow_mut().clear();
+    }
 }
 
 #[derive(Debug, Clone)]
