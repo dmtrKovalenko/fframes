@@ -47,6 +47,8 @@ impl StaticFontFace {
 pub struct WasmFontSource {
     pub static_fonts: Vec<StaticFontFace>,
     pub data: HashMap<FaceInfo, Cow<'static, [u8]>>,
+    /// The same fonts for measuring text the way the native renderer lays it out.
+    pub fontdb: fframes::usvgr::fontdb::Database,
 }
 
 impl WasmFontSource {
@@ -54,6 +56,7 @@ impl WasmFontSource {
         Self {
             static_fonts: vec![],
             data: HashMap::new(),
+            fontdb: fframes::usvgr::fontdb::Database::new(),
         }
     }
 
@@ -81,6 +84,7 @@ impl WasmFontSource {
             })
         }
 
+        self.fontdb.load_font_data(data.to_vec());
         self.data.insert(face_info.clone(), data);
         Some(face_info)
     }
@@ -135,6 +139,10 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
             face,
             name: font_name.to_owned(),
         }))
+    }
+
+    fn measure_text(&self, font: &fframes::FontQuery, text: &str) -> Option<f32> {
+        fframes::measure_text_width(&self.fontdb, font, text)
     }
 
     fn add_font(&mut self, _filename: String, _font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {

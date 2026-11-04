@@ -339,25 +339,71 @@ fn char_width(
     }
 }
 
-fn calc_text_width(
+/// Width of `text` in pixels as usvgr lays it out when rendering: shaped per bidi run, with
+/// fallback fonts and the variation axes the renderer applies. The text is anchored at its end
+/// on `x = 0`, so the leftmost glyph starts at minus the advance width.
+pub fn measure_text_width(
+    fontdb: &usvgr::fontdb::Database,
+    font: &FontQuery,
     text: &str,
+) -> Option<f32> {
+    fn escape(value: &str) -> String {
+        value
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+    }
+    fn first_text(group: &usvgr::Group) -> Option<&usvgr::Text> {
+        group.children().iter().find_map(|node| match node {
+            usvgr::Node::Text(text) => Some(text.as_ref()),
+            usvgr::Node::Group(group) => first_text(group),
+            _ => None,
+        })
+    }
+
+    if text.is_empty() {
+        return Some(0.0);
+    }
+    let style = match font.style {
+        FontStyle::Normal => "normal",
+        FontStyle::Italic => "italic",
+        FontStyle::Oblique => "oblique",
+    };
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><text text-anchor="end" xml:space="preserve" font-family="{}" font-size="{}" font-weight="{}" font-style="{style}" font-stretch="{}">{}</text></svg>"#,
+        escape(font.family),
+        font.size,
+        font.weight,
+        font.stretch,
+        escape(text),
+    );
+    let tree = usvgr::Tree::from_str(&svg, &usvgr::Options::default(), fontdb).ok()?;
+    let start = first_text(tree.root())?
+        .layouted()
+        .iter()
+        .flat_map(|span| &span.positioned_glyphs)
+        .map(|glyph| glyph.transform().tx)
+        .reduce(f32::min)?;
+    Some(-start)
+}
+
+/// The renderer's width when the font source can lay text out, per-character advances
+/// otherwise.
+fn text_width_px(
+    text: &str,
+    font: &FontQuery,
+    font_source: &dyn FontSource,
     font_face: &dyn FontFace,
-    font_size: usize,
     font_variant: FontVariant,
-) -> usize {
+) -> f32 {
     match text {
-        "" | "\n" | "\r" => 0,
-        text => {
-            // Shaped width includes kerning and fractional advances.
-            if let FontVariant::Variable = font_variant
-                && let Some(width) = font_face.resolve_text_width(font_size, text)
-            {
-                return width.round() as usize;
-            }
+        "" | "\n" | "\r" => 0.0,
+        text => font_source.measure_text(font, text).unwrap_or_else(|| {
             text.chars()
-                .map(|char| char_width(char, font_face, font_size, font_variant))
-                .sum()
-        }
+                .map(|char| char_width(char, font_face, font.size, font_variant))
+                .sum::<usize>() as f32
+        }),
     }
 }
 
@@ -377,32 +423,51 @@ pub(crate) fn text_fit_impl<'a>(
         font_query.stretch,
     )?;
     let font_variant = font_face.font_variant(font_query.size)?;
-    let width =
-        |text: &str| calc_text_width(text, font_face.as_ref(), font_query.size, font_variant);
+    let max_width = max_width as f32;
+    let width = |text: &str| {
+        text_width_px(
+            text,
+            &font_query,
+            font_source,
+            font_face.as_ref(),
+            font_variant,
+        )
+    };
 
-    let marker = overflow.marker();
-    let marker_width = width(marker);
-
-    // One pass over the glyphs: `fits_end` is the end of the longest prefix
-    // that leaves room for the marker, `total` the width of the whole text.
-    let mut total = 0;
-    let mut fits_end = 0;
-    for (index, char) in value.char_indices() {
-        total += char_width(char, font_face.as_ref(), font_query.size, font_variant);
-        if total + marker_width <= max_width {
-            fits_end = index + char.len_utf8();
-        }
-    }
-
-    if total <= max_width {
+    if width(value) <= max_width {
         return Some(Cow::Borrowed(value));
     }
-    if marker_width > max_width {
+    let marker = overflow.marker();
+    if width(marker) > max_width {
         // Not even the marker fits.
         return Some(Cow::Borrowed(""));
     }
 
-    let kept = &value[..fits_end];
+    // The kept prefix and the marker are measured together, as they render. Binary search over
+    // the number of kept characters: measuring is a layout, so each probe counts.
+    let ends: Vec<usize> = value
+        .char_indices()
+        .map(|(i, c)| i + c.len_utf8())
+        .collect();
+    let fits = |end: usize| {
+        let kept = &value[..end];
+        if marker.is_empty() {
+            width(kept) <= max_width
+        } else {
+            width(&format!("{}{marker}", kept.trim_end())) <= max_width
+        }
+    };
+    let (mut low, mut high) = (0, ends.len());
+    while low < high {
+        let mid = (low + high).div_ceil(2);
+        if fits(ends[mid - 1]) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    let kept = &value[..low.checked_sub(1).map_or(0, |i| ends[i])];
     if marker.is_empty() {
         return Some(Cow::Borrowed(kept));
     }
@@ -425,12 +490,16 @@ pub(crate) fn text_get_width_impl<'a>(
     )?;
 
     let font_variant = font_face.font_variant(font_query.size)?;
-    Some(calc_text_width(
-        text,
-        font_face.as_ref(),
-        font_query.size,
-        font_variant,
-    ))
+    Some(
+        text_width_px(
+            text,
+            &font_query,
+            font_source,
+            font_face.as_ref(),
+            font_variant,
+        )
+        .round() as usize,
+    )
 }
 
 pub(crate) fn text_wrap_impl<
@@ -462,46 +531,41 @@ pub(crate) fn text_wrap_impl<
     };
 
     let font_variant = font_face.font_variant(font.size)?;
-    let space_width = match font_variant {
-        crate::FontVariant::Monospaced(mono_width) => mono_width,
-        crate::FontVariant::Variable => font_face.resolve_char_width(font.size, ' ')?,
-    };
+    let max_width = width as f32;
+    let measure =
+        |text: &str| text_width_px(text, &font, font_source, font_face.as_ref(), font_variant);
 
-    let mut structure: Vec<(Vec<String>, usize)> = vec![(vec![], 0usize)];
+    // Lines are measured joined, as they render, so spaces and kerning across words count.
+    let mut structure: Vec<(Vec<String>, f32)> = vec![(vec![], 0.0)];
     let line_height_in_px = line_height * font.size as f32;
 
     for line in value.split('\n') {
         let mut is_first_word_in_line = true;
 
         for word in line.split_whitespace() {
-            let word_width = calc_text_width(word, font_face.as_ref(), font.size, font_variant);
             let (last_line, last_line_width) = structure.last_mut()?;
-
-            // The first word of a line is never preceded by a space.
-            let separator_width = if *last_line_width == 0 {
-                0
+            let joined = if last_line.is_empty() {
+                word.to_owned()
             } else {
-                space_width
+                format!("{} {word}", last_line.join(" "))
             };
+            let joined_width = measure(&joined);
 
-            if *last_line_width + separator_width + word_width > width && !last_line.is_empty() {
-                structure.push((vec![word.to_owned()], word_width));
+            if joined_width > max_width && !last_line.is_empty() {
+                structure.push((vec![word.to_owned()], measure(word)));
             } else {
-                *last_line_width += separator_width + word_width;
+                *last_line_width = joined_width;
                 last_line.push(word.to_owned());
             }
             is_first_word_in_line = false;
         }
 
         if !is_first_word_in_line {
-            structure.push((vec![], 0usize));
+            structure.push((vec![], 0.0));
         }
     }
 
-    if let Some((last_words, last_width)) = structure.last()
-        && last_words.is_empty()
-        && *last_width == 0
-    {
+    if structure.last().is_some_and(|(words, _)| words.is_empty()) {
         structure.pop();
     }
 
@@ -509,6 +573,7 @@ pub(crate) fn text_wrap_impl<
         .into_iter()
         .enumerate()
         .map(|(index, (words, line_width))| {
+            let line_width = line_width.round() as usize;
             let dx = match align {
                 TextAlign::Left => 0,
                 TextAlign::Center => width.saturating_sub(line_width) / 2,
@@ -557,17 +622,17 @@ pub fn estimate_text_width<'a>(
         font_stretch,
     } = options;
 
-    let font_face =
-        ctx.font_source?
-            .resolve_font(font_family, font_weight, font_style, font_stretch)?;
-
-    let font_variant = font_face.font_variant(font_size)?;
-    Some(calc_text_width(
+    text_get_width_impl(
+        FontQuery {
+            family: font_family,
+            size: font_size,
+            weight: font_weight,
+            style: font_style,
+            stretch: font_stretch,
+        },
         text,
-        font_face.as_ref(),
-        font_size,
-        font_variant,
-    ))
+        ctx.font_source?,
+    )
 }
 
 #[cfg(test)]

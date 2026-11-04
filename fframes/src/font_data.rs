@@ -77,13 +77,6 @@ pub trait FontFace<'a>: Sync + Send + std::fmt::Debug {
     fn is_monospaced(&self) -> Option<bool>;
     fn resolve_char_width(&self, font_size: usize, char: char) -> Option<usize>;
 
-    /// Width of `text` in pixels after shaping (kerning, ligatures and contextual forms
-    /// included). Faces that cannot shape return `None`, and the width falls back to the sum
-    /// of per-character advances.
-    fn resolve_text_width(&self, _font_size: usize, _text: &str) -> Option<f32> {
-        None
-    }
-
     fn font_variant(&self, font_size: usize) -> Option<FontVariant> {
         let is_monospaced = self.is_monospaced()?;
 
@@ -107,4 +100,10 @@ pub trait FontSource<'a>: Sync + Send + std::fmt::Debug {
         font_style: FontStyle,
         font_stretch: FontStretch,
     ) -> Option<Box<dyn FontFace<'a> + 'a>>;
+
+    /// Width of `text` in pixels as the renderer lays it out, see
+    /// [`crate::measure_text_width`]. `None` falls back to per-character advances.
+    fn measure_text(&self, _font: &crate::FontQuery, _text: &str) -> Option<f32> {
+        None
+    }
 }

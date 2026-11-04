@@ -1,15 +1,16 @@
-use fframes::{RenderOptions, cli};
+use fframes::{CombinedMediaProvider, MediaProvider, RenderOptions, cli};
 use std::process::ExitCode;
-use text_width_example::{TextWidthMedia, TextWidthVideo};
+use text_width_example::{InterMedia, TextWidthMedia, TextWidthVideo};
 
 fn main() -> ExitCode {
-    let media = match TextWidthMedia::new() {
-        Ok(media) => media,
-        Err(error) => {
+    let (inter, own) = match (InterMedia::new(), TextWidthMedia::new()) {
+        (Ok(inter), Ok(own)) => (inter, own),
+        (Err(error), _) | (_, Err(error)) => {
             eprintln!("{error}");
             return ExitCode::FAILURE;
         }
     };
+    let media = CombinedMediaProvider::from([&inter as &dyn MediaProvider, &own]);
     let video = TextWidthVideo;
     let runner = cli::new(
         &video,

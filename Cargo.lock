@@ -1225,7 +1225,6 @@ dependencies = [
  "rand 0.9.1",
  "rangemap",
  "rayon",
- "rustybuzz",
  "serde",
  "serde_json",
  "svgr",
