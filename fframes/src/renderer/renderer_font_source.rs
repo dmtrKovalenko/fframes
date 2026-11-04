@@ -234,8 +234,8 @@ mod tests {
         let fonts = fonts(&[ARABIC]);
         let arabic = font("Noto Sans Arabic", 40, 400);
         assert_near(
-            fonts.measure_text(&arabic, "بَ").unwrap(),
-            fonts.measure_text(&arabic, "ب").unwrap(),
+            fonts.measure_text(&arabic, "اَ").unwrap(),
+            fonts.measure_text(&arabic, "ا").unwrap(),
         );
     }
 
