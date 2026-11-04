@@ -230,6 +230,16 @@ mod tests {
     }
 
     #[test]
+    fn marks_do_not_widen_text() {
+        let fonts = fonts(&[ARABIC]);
+        let arabic = font("Noto Sans Arabic", 40, 400);
+        assert_near(
+            fonts.measure_text(&arabic, "بَ").unwrap(),
+            fonts.measure_text(&arabic, "ب").unwrap(),
+        );
+    }
+
+    #[test]
     fn mixed_direction_text_is_measured_per_run() {
         let fonts = fonts(&[INTER, ARABIC]);
         let query = font("Inter 18pt", 40, 800);

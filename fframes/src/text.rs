@@ -346,8 +346,9 @@ fn char_width(
 }
 
 /// Width of `text` in pixels as usvgr lays it out when rendering: shaped per bidi run, with
-/// fallback fonts and the variation axes the renderer applies. The text is anchored at its end
-/// on `x = 0`, so the leftmost glyph starts at minus the advance width.
+/// fallback fonts and the variation axes the renderer applies. The text is laid out twice, from
+/// its start and from its end at `x = 0`: every glyph moves by exactly the advance width between
+/// the two, so glyph offsets such as mark positioning cancel out.
 pub fn measure_text_width(
     fontdb: &usvgr::fontdb::Database,
     font: &FontQuery,
@@ -360,12 +361,18 @@ pub fn measure_text_width(
             .replace('>', "&gt;")
             .replace('"', "&quot;")
     }
-    fn first_text(group: &usvgr::Group) -> Option<&usvgr::Text> {
-        group.children().iter().find_map(|node| match node {
-            usvgr::Node::Text(text) => Some(text.as_ref()),
-            usvgr::Node::Group(group) => first_text(group),
-            _ => None,
-        })
+    fn texts<'t>(group: &'t usvgr::Group, found: &mut Vec<&'t usvgr::Text>) {
+        for node in group.children() {
+            match node {
+                usvgr::Node::Text(text) => found.push(text),
+                usvgr::Node::Group(group) => texts(group, found),
+                _ => {}
+            }
+        }
+    }
+    fn first_glyph_x(text: &usvgr::Text) -> Option<f32> {
+        let glyph = text.layouted().first()?.positioned_glyphs.first()?;
+        Some(glyph.transform().tx)
     }
 
     if text.is_empty() {
@@ -376,22 +383,24 @@ pub fn measure_text_width(
         FontStyle::Italic => "italic",
         FontStyle::Oblique => "oblique",
     };
-    let svg = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><text text-anchor="end" xml:space="preserve" font-family="{}" font-size="{}" font-weight="{}" font-style="{style}" font-stretch="{}">{}</text></svg>"#,
+    let text = format!(
+        r#"xml:space="preserve" font-family="{}" font-size="{}" font-weight="{}" font-style="{style}" font-stretch="{}">{}</text>"#,
         escape(font.family),
         font.size,
         font.weight,
         font.stretch,
         escape(text),
     );
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><text text-anchor="start" {text}<text text-anchor="end" {text}</svg>"#
+    );
     let tree = usvgr::Tree::from_str(&svg, &usvgr::Options::default(), fontdb).ok()?;
-    let start = first_text(tree.root())?
-        .layouted()
-        .iter()
-        .flat_map(|span| &span.positioned_glyphs)
-        .map(|glyph| glyph.transform().tx)
-        .reduce(f32::min)?;
-    Some(-start)
+    let mut found = Vec::with_capacity(2);
+    texts(tree.root(), &mut found);
+    let [from_start, from_end] = found[..] else {
+        return None;
+    };
+    Some(first_glyph_x(from_start)? - first_glyph_x(from_end)?)
 }
 
 /// The renderer's width when the font source can lay text out, per-character advances
