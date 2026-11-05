@@ -4,6 +4,7 @@ mod error;
 mod font;
 mod images;
 mod raw_file;
+mod srt;
 pub mod subtitles;
 mod subtitles_data;
 mod video_types;

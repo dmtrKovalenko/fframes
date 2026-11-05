@@ -113,9 +113,9 @@ impl MediaDirectory {
                         "JSON is not recognized as subtitles; animations require the lottie feature",
                     ),
                     Some(
-                        "jpg" | "jpeg" | "png" | "vtt" | "mp3" | "wav" | "flac" | "aac" | "pcm"
-                        | "ogg" | "mp2" | "m4a" | "mp4" | "webm" | "mkv" | "avi" | "mov" | "flv"
-                        | "wmv" | "m4v" | "ttf" | "ttc" | "otf" | "otc",
+                        "jpg" | "jpeg" | "png" | "vtt" | "srt" | "mp3" | "wav" | "flac" | "aac"
+                        | "pcm" | "ogg" | "mp2" | "m4a" | "mp4" | "webm" | "mkv" | "avi" | "mov"
+                        | "flv" | "wmv" | "m4v" | "ttf" | "ttc" | "otf" | "otc",
                     ) => None,
                     _ => Some("unsupported media extension"),
                 }
@@ -135,7 +135,9 @@ impl MediaDirectory {
                 json
             } else {
                 DirectoryMedia::Raw(match extension.as_deref() {
-                    Some("jpg" | "jpeg" | "png" | "vtt") => RawMediaFile::Data(fs::read(&path)?),
+                    Some("jpg" | "jpeg" | "png" | "vtt" | "srt") => {
+                        RawMediaFile::Data(fs::read(&path)?)
+                    }
                     _ => RawMediaFile::Stream(path.clone()),
                 })
             };
@@ -201,7 +203,7 @@ impl MediaDirectory {
                                 crate::AudioData::Preloaded(audio_data),
                             );
                         }
-                        ("vtt", RawMediaFile::Data(bytes)) => {
+                        ("vtt" | "srt", RawMediaFile::Data(bytes)) => {
                             let subtitles = parse_subtitles(path, bytes)?;
                             subtitles_hash
                                 .lock()?

@@ -22,7 +22,7 @@ use syn::{Ident, parse_macro_input};
 /// and audio are decoded at compile time. Subtitles are parsed once when preparing media.
 /// Audio is mixed down to mono unless the
 /// `stereo` option is given; mono files stay mono either way.
-/// Subtitles can be `WebVTT` or JSON cues; both use the same owned subtitle type.
+/// Subtitles can be `WebVTT`, `SubRip` (`.srt`) or JSON cues; all use the same owned subtitle type.
 #[proc_macro]
 pub fn include_media_dir(input: TokenStream) -> TokenStream {
     let fframes_crate_ident = resolve_fframes_crate_ident();
@@ -293,7 +293,7 @@ impl MediaVariant {
             "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" => Some(MediaVariant::Audio),
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
-            "vtt" => Some(MediaVariant::Subtitles),
+            "vtt" | "srt" => Some(MediaVariant::Subtitles),
             "json" if is_subtitle_json(file_name, path) => Some(MediaVariant::Subtitles),
             "json" if cfg!(feature = "lottie") => Some(MediaVariant::Lottie),
             "json" => panic!(

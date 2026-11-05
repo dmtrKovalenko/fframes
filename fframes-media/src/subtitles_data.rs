@@ -389,7 +389,7 @@ pub struct CaptionCue {
     /// Application-defined cue data. Interpretation and validation belong to the renderer.
     #[serde(default, skip_serializing_if = "Map::is_empty")]
     pub metadata: CaptionMetadata,
-    /// The original `WebVTT` identifier. It is not required to be unique.
+    /// The original `WebVTT` identifier or SRT cue number. It is not required to be unique.
     #[serde(skip)]
     pub name: Option<String>,
     /// Raw `WebVTT` cue note, when present.
@@ -539,7 +539,16 @@ pub struct CaptionTrack {
     #[serde(skip)]
     pub style: Option<String>,
     #[serde(skip)]
-    source_vtt: bool,
+    source: CaptionSource,
+}
+
+/// The document format a track was parsed from. Subtitle formats permit
+/// instantaneous cues, which the canonical JSON representation rejects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CaptionSource {
+    Json,
+    Vtt,
+    Srt,
 }
 
 #[derive(Deserialize)]
@@ -606,19 +615,19 @@ impl<'de> Deserialize<'de> for CaptionTrack {
 impl CaptionTrack {
     /// Validate and own a sequence of cues. An empty track is valid.
     pub fn new(cues: impl IntoIterator<Item = CaptionCue>) -> Result<Self, CaptionError> {
-        Self::from_cues(cues, false)
+        Self::from_cues(cues, CaptionSource::Json)
     }
 
     fn from_cues(
         cues: impl IntoIterator<Item = CaptionCue>,
-        source_vtt: bool,
+        source: CaptionSource,
     ) -> Result<Self, CaptionError> {
         let mut track = Self {
             cues: cues.into_iter().collect::<Vec<_>>().into(),
             identity: Arc::new(()),
             slugs: HashMap::new(),
             style: None,
-            source_vtt,
+            source,
         };
         track.validate()?;
         for cue in Arc::make_mut(&mut track.cues) {
@@ -627,18 +636,21 @@ impl CaptionTrack {
         Ok(track)
     }
 
-    /// Parse ordinary JSON or `WebVTT`. The format is detected from its contents,
-    /// independent of the filename. All parsed data is owned.
+    /// Parse ordinary JSON, `WebVTT` or `SubRip` (SRT). The format is detected from its
+    /// contents, independent of the filename. All parsed data is owned.
     pub fn parse(content: &str) -> Result<Self, CaptionError> {
-        let content = normalize_input(content);
-        if content.starts_with("WEBVTT") {
-            Self::from_vtt(content)
-        } else if content.starts_with('{') {
-            Self::from_json(content)
+        let normalized = normalize_input(content);
+        if normalized.starts_with("WEBVTT") {
+            Self::from_vtt(normalized)
+        } else if normalized.starts_with('{') {
+            Self::from_json(normalized)
+        } else if crate::srt::looks_like_srt(normalized) {
+            // The original text keeps SRT error line numbers accurate.
+            Self::from_srt(content)
         } else {
             Err(CaptionError::invalid(
                 "format",
-                "expected a WEBVTT document or a JSON object with a cues array",
+                "expected a WEBVTT document, a SubRip (SRT) document or a JSON object with a cues array",
             ))
         }
     }
@@ -684,7 +696,7 @@ impl CaptionTrack {
     }
 
     /// Serialize the canonical JSON representation with indented formatting.
-    /// Imported zero-duration VTT cues need a duration (or removal) before JSON export.
+    /// Imported zero-duration VTT or SRT cues need a duration (or removal) before JSON export.
     pub fn to_json_pretty(&self) -> Result<String, CaptionError> {
         self.validate_cues(false)?;
         Ok(serde_json::to_string_pretty(self)?)
@@ -719,16 +731,50 @@ impl CaptionTrack {
             imported.cue_settings = cue.cue_settings;
             cues.push(imported);
         }
-        let mut track = Self::from_cues(cues, true)?;
+        let mut track = Self::from_cues(cues, CaptionSource::Vtt)?;
         track.slugs = slugs;
         track.style = style;
         Ok(track)
     }
 
+    /// Import `SubRip` (`.srt`) cues as plain-text cues. Multi-line cue text keeps its
+    /// line breaks, inline tags such as `<i>` stay raw, and the cue number is kept in
+    /// [`CaptionCue::name`]. Cues are ordered by start time (stable for equal starts)
+    /// and may overlap. Empty cues are dropped; instantaneous cues behave as in `WebVTT`.
+    /// Malformed lines fail with their line number. Word timestamps are never inferred.
+    ///
+    /// ```
+    /// use fframes_media::CaptionTrack;
+    ///
+    /// let track = CaptionTrack::from_srt("1\n00:00:01,000 --> 00:00:02,500\nHello\nworld\n")?;
+    /// assert_eq!(track.cues()[0].phrase(), "Hello\nworld");
+    /// assert_eq!((track.cues()[0].start, track.cues()[0].end), (1.0, 2.5));
+    /// assert!(track.is_srt());
+    /// # Ok::<(), fframes_media::CaptionError>(())
+    /// ```
+    pub fn from_srt(srt: &str) -> Result<Self, CaptionError> {
+        let mut cues = crate::srt::parse(srt)?
+            .into_iter()
+            .map(|cue| {
+                let mut imported = CaptionCue::text(cue.start, cue.end, cue.text);
+                imported.name = cue.number;
+                imported
+            })
+            .collect::<Vec<_>>();
+        cues.sort_by(|a, b| a.start.total_cmp(&b.start));
+        Self::from_cues(cues, CaptionSource::Srt)
+    }
+
     /// Whether this track was parsed from `WebVTT`. Raw payload markup/settings
     /// remain available for a renderer to interpret explicitly.
     pub fn is_vtt(&self) -> bool {
-        self.source_vtt
+        self.source == CaptionSource::Vtt
+    }
+
+    /// Whether this track was parsed from `SubRip` (SRT). Raw inline markup remains
+    /// available for a renderer to interpret explicitly.
+    pub fn is_srt(&self) -> bool {
+        self.source == CaptionSource::Srt
     }
 
     /// The ordered, validated cues. Modify through a new track so validation stays intact.
@@ -753,7 +799,7 @@ impl CaptionTrack {
 
     /// Validate timing, content, ordering and optional identifiers.
     pub fn validate(&self) -> Result<(), CaptionError> {
-        self.validate_cues(self.source_vtt)
+        self.validate_cues(self.source != CaptionSource::Json)
     }
 
     fn validate_cues(&self, allow_instant_vtt: bool) -> Result<(), CaptionError> {

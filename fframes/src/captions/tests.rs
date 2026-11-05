@@ -280,7 +280,10 @@ fn runtime_and_embedded_subtitles_use_the_same_provider_contract() {
             provider.resolve_subtitles("phrases.vtt").unwrap().cues()[0].phrase(),
             "Embedded phrase"
         );
-        assert_eq!(provider.get_all_subtitle_data().len(), 2);
+        let srt = provider.resolve_subtitles("lines.srt").unwrap();
+        assert!(srt.is_srt());
+        assert_eq!(srt.cues()[0].phrase(), "SubRip phrase\non two lines");
+        assert_eq!(provider.get_all_subtitle_data().len(), 3);
     }
     let cloned = runtime.clone();
     assert!(std::ptr::eq(

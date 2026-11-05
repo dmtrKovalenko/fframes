@@ -48,8 +48,8 @@ const allExamples = [
   { dir: "anamorphic-video", pkg: "anamorphic-video", bin: "anamorphic-video", frames: "50%" },
   { dir: "audio-announce", pkg: "audio-announce-example", bin: "audio_announce_example_bin", frames: "5s,30s" },
   { dir: "beta", pkg: "beta-example", bin: "beta_example_bin", frames: "CodeDemoScene@50%,IphoneScene@50%,BetaExamples@50%" },
-  // Preset layouts, typed highlights, wrapping and simultaneous cues.
-  { dir: "captions", pkg: "captions-example", bin: "captions-example", frames: "1.5s,5.2s,7s" },
+  // Preset layouts, typed highlights, wrapping, simultaneous cues and a two-line SRT cue.
+  { dir: "captions", pkg: "captions-example", bin: "captions-example", frames: "1.5s,5.2s,7s,7.8s" },
   { dir: "conference-splash-screen", pkg: "conference-splash-screen-example", bin: "conference_splash_screen_bin", frames: "SponsorScene@50%,SpeakerScene@50%" },
   { dir: "fframes-intro", pkg: "fframes-intro", bin: "fframes-intro", frames: "CodeScene@50%,ShaderScene@2.6s,BenchmarkScene@12.4s,OutroScene@7s", skia: true },
   { dir: "hello-world", pkg: "hello-world-example", bin: "hello_world_example_bin", frames: "5s,20s" },
