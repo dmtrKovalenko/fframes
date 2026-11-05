@@ -653,10 +653,15 @@ impl CaptionTrack {
         if normalized.starts_with('{') {
             return Self::from_json(normalized);
         }
-        #[cfg(feature = "srt")]
         if crate::srt::looks_like_srt(normalized) {
             // The original text keeps SRT error line numbers accurate.
+            #[cfg(feature = "srt")]
             return Self::from_srt(content);
+            #[cfg(not(feature = "srt"))]
+            return Err(CaptionError::invalid(
+                "format",
+                "SubRip (SRT) subtitles require the `srt` feature of fframes",
+            ));
         }
         Err(CaptionError::invalid("format", UNKNOWN_FORMAT))
     }

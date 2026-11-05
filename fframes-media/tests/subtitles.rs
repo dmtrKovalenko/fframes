@@ -325,5 +325,9 @@ fn srt_is_rejected_without_the_feature() {
     let error = Subtitles::parse("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
         .unwrap_err()
         .to_string();
+    assert!(error.contains("require the `srt` feature"), "{error}");
+    let error = Subtitles::parse("Just some text\n")
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("expected a WEBVTT document"), "{error}");
 }

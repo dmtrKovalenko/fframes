@@ -50,7 +50,7 @@ impl Video for CaptionVideo {
     const HEIGHT: usize = 1080;
 
     fn duration(&self) -> Duration<'_> {
-        Duration::Seconds(8.0)
+        Duration::Seconds(9.0)
     }
 
     fn audio(&self) -> AudioMap<'_> {
