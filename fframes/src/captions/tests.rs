@@ -309,6 +309,8 @@ mod srt_media {
             let srt = provider.resolve_subtitles("lines.srt").unwrap();
             assert!(srt.is_srt());
             assert_eq!(srt.cues()[0].phrase(), "SubRip phrase\non two lines");
+            let empty = provider.resolve_subtitles("empty.srt").unwrap();
+            assert!(empty.is_srt() && empty.cues().is_empty());
         }
     }
 }

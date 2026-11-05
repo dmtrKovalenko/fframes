@@ -315,6 +315,15 @@ impl MediaVariant {
     }
 }
 
+fn is_empty_srt(path: &Path, content: &str) -> bool {
+    cfg!(feature = "srt")
+        && path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("srt"))
+        && content.trim_start_matches('\u{feff}').trim().is_empty()
+}
+
 fn is_subtitle_json(file_name: &str, path: &Path) -> bool {
     let lower = file_name.to_ascii_lowercase();
     if matches!(lower.as_str(), "subtitles.json" | "captions.json")
@@ -424,9 +433,15 @@ impl MediaFile {
                 // same parser used by runtime loading, without a second cue schema.
                 let file_str = std::fs::read_to_string(&self.path).unwrap();
                 let file_str_literal = Literal::string(&file_str);
+                // An empty `.srt` is an empty track; content detection cannot tell its format.
+                let parse = if is_empty_srt(&self.path, &file_str) {
+                    quote! { from_srt }
+                } else {
+                    quote! { parse }
+                };
 
                 quote! {
-                    #fframes_crate_ident::media::Subtitles::parse(
+                    #fframes_crate_ident::media::Subtitles::#parse(
                         #file_str_literal
                     ).map_err(#fframes_crate_ident::media::FFramesMediaError::from)?
                 }

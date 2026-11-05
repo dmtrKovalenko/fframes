@@ -316,6 +316,18 @@ fn parse_subtitles(path: &Path, bytes: &[u8]) -> FFramesRendererResult<Subtitles
     let text = std::str::from_utf8(bytes).map_err(|error| {
         crate::error::FFramesError::UserError(format!("{}: {error}", path.display()))
     })?;
+    // An empty `.srt` is an empty track; content detection cannot tell its format.
+    #[cfg(feature = "srt")]
+    if path
+        .extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("srt"))
+        && text.trim_start_matches('\u{feff}').trim().is_empty()
+    {
+        return Subtitles::from_srt(text).map_err(|error| {
+            crate::error::FFramesError::UserError(format!("{}: {error}", path.display())).into()
+        });
+    }
     Subtitles::parse(text).map_err(|error| {
         crate::error::FFramesError::UserError(format!("{}: {error}", path.display())).into()
     })
