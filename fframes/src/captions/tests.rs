@@ -280,14 +280,35 @@ fn runtime_and_embedded_subtitles_use_the_same_provider_contract() {
             provider.resolve_subtitles("phrases.vtt").unwrap().cues()[0].phrase(),
             "Embedded phrase"
         );
-        let srt = provider.resolve_subtitles("lines.srt").unwrap();
-        assert!(srt.is_srt());
-        assert_eq!(srt.cues()[0].phrase(), "SubRip phrase\non two lines");
-        assert_eq!(provider.get_all_subtitle_data().len(), 3);
+        assert_eq!(provider.get_all_subtitle_data().len(), 2);
     }
     let cloned = runtime.clone();
     assert!(std::ptr::eq(
         runtime.resolve_subtitles("speech.json").unwrap().cues(),
         cloned.resolve_subtitles("speech.json").unwrap().cues()
     ));
+}
+
+// `include_media_dir!` defines module-level helpers, so a second media folder needs its own module.
+#[cfg(feature = "srt")]
+mod srt_media {
+    use crate::MediaProvider;
+
+    crate::include_media_dir!(struct EmbeddedSrt, "fframes/src/captions/fixtures-srt");
+
+    #[test]
+    fn srt_media_loads_like_vtt_when_embedded_or_read_at_runtime() {
+        let embedded = EmbeddedSrt::new().unwrap();
+        let directory = crate::MediaDirectory::read_folder(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/captions/fixtures-srt"
+        ))
+        .unwrap();
+        let runtime = directory.process_media_source().unwrap();
+        for provider in [&embedded as &dyn MediaProvider<'_>, &runtime] {
+            let srt = provider.resolve_subtitles("lines.srt").unwrap();
+            assert!(srt.is_srt());
+            assert_eq!(srt.cues()[0].phrase(), "SubRip phrase\non two lines");
+        }
+    }
 }

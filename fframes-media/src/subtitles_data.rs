@@ -548,8 +548,15 @@ pub struct CaptionTrack {
 enum CaptionSource {
     Json,
     Vtt,
+    #[cfg(feature = "srt")]
     Srt,
 }
+
+#[cfg(feature = "srt")]
+const UNKNOWN_FORMAT: &str =
+    "expected a WEBVTT document, a SubRip (SRT) document or a JSON object with a cues array";
+#[cfg(not(feature = "srt"))]
+const UNKNOWN_FORMAT: &str = "expected a WEBVTT document or a JSON object with a cues array";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -636,23 +643,22 @@ impl CaptionTrack {
         Ok(track)
     }
 
-    /// Parse ordinary JSON, `WebVTT` or `SubRip` (SRT). The format is detected from its
-    /// contents, independent of the filename. All parsed data is owned.
+    /// Parse ordinary JSON, `WebVTT` or, with the `srt` feature, `SubRip`. The format is
+    /// detected from its contents, independent of the filename. All parsed data is owned.
     pub fn parse(content: &str) -> Result<Self, CaptionError> {
         let normalized = normalize_input(content);
         if normalized.starts_with("WEBVTT") {
-            Self::from_vtt(normalized)
-        } else if normalized.starts_with('{') {
-            Self::from_json(normalized)
-        } else if crate::srt::looks_like_srt(normalized) {
-            // The original text keeps SRT error line numbers accurate.
-            Self::from_srt(content)
-        } else {
-            Err(CaptionError::invalid(
-                "format",
-                "expected a WEBVTT document, a SubRip (SRT) document or a JSON object with a cues array",
-            ))
+            return Self::from_vtt(normalized);
         }
+        if normalized.starts_with('{') {
+            return Self::from_json(normalized);
+        }
+        #[cfg(feature = "srt")]
+        if crate::srt::looks_like_srt(normalized) {
+            // The original text keeps SRT error line numbers accurate.
+            return Self::from_srt(content);
+        }
+        Err(CaptionError::invalid("format", UNKNOWN_FORMAT))
     }
 
     /// Classify and load a JSON document with a single textual JSON parse.
@@ -737,7 +743,7 @@ impl CaptionTrack {
         Ok(track)
     }
 
-    /// Import `SubRip` (`.srt`) cues as plain-text cues. Multi-line cue text keeps its
+    /// Import `SubRip` (`.srt`) cues as plain-text cues (`srt` feature). Multi-line cue text keeps its
     /// line breaks, inline tags such as `<i>` stay raw, and the cue number is kept in
     /// [`CaptionCue::name`]. Cues are ordered by start time (stable for equal starts)
     /// and may overlap. Empty cues are dropped; instantaneous cues behave as in `WebVTT`.
@@ -752,6 +758,7 @@ impl CaptionTrack {
     /// assert!(track.is_srt());
     /// # Ok::<(), fframes_media::CaptionError>(())
     /// ```
+    #[cfg(feature = "srt")]
     pub fn from_srt(srt: &str) -> Result<Self, CaptionError> {
         let mut cues = crate::srt::parse(srt)?
             .into_iter()
@@ -773,6 +780,7 @@ impl CaptionTrack {
 
     /// Whether this track was parsed from `SubRip` (SRT). Raw inline markup remains
     /// available for a renderer to interpret explicitly.
+    #[cfg(feature = "srt")]
     pub fn is_srt(&self) -> bool {
         self.source == CaptionSource::Srt
     }

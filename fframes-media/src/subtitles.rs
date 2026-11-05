@@ -1,6 +1,7 @@
 //! Subtitle data and cue lookup for `WebVTT`, `SubRip` (SRT) and ordinary timed-word JSON.
 //!
-//! [`Subtitles::parse`] detects the input format from its content. All formats
+//! [`Subtitles::parse`] detects the input format from its content; `SubRip` needs the
+//! `srt` feature. All formats
 //! share owned, validated cue data and the same media-loading and frame APIs.
 //! Metadata decodes lazily on first typed access and is cached by application type.
 //! Legacy frame helpers keep inclusive cue ends; [`CaptionTrack::active_cues`]

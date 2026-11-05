@@ -267,6 +267,7 @@ fn metadata_edits_detach_the_cache_without_changing_other_consumers() {
     assert!(!std::ptr::eq(original.cues(), edited.cues()));
 }
 
+#[cfg(feature = "srt")]
 #[test]
 fn srt_is_detected_from_content_and_shares_the_caption_model() {
     use fframes_media::FFramesSubtitles;
@@ -300,6 +301,7 @@ fn srt_is_detected_from_content_and_shares_the_caption_model() {
     assert_eq!(Subtitles::from_srt("").unwrap().cues(), []);
 }
 
+#[cfg(feature = "srt")]
 #[test]
 fn malformed_srt_reports_the_original_line() {
     // Leading blank lines and a BOM must not shift the reported line.
@@ -315,4 +317,13 @@ fn malformed_srt_reports_the_original_line() {
         .unwrap_err()
         .to_string();
     assert!(error.contains("SubRip"), "{error}");
+}
+
+#[cfg(not(feature = "srt"))]
+#[test]
+fn srt_is_rejected_without_the_feature() {
+    let error = Subtitles::parse("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("expected a WEBVTT document"), "{error}");
 }

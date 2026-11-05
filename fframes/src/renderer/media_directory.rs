@@ -112,10 +112,12 @@ impl MediaDirectory {
                     Some("json") => Some(
                         "JSON is not recognized as subtitles; animations require the lottie feature",
                     ),
+                    Some("srt") if cfg!(feature = "srt") => None,
+                    Some("srt") => Some("SubRip subtitles require the srt feature"),
                     Some(
-                        "jpg" | "jpeg" | "png" | "vtt" | "srt" | "mp3" | "wav" | "flac" | "aac"
-                        | "pcm" | "ogg" | "mp2" | "m4a" | "mp4" | "webm" | "mkv" | "avi" | "mov"
-                        | "flv" | "wmv" | "m4v" | "ttf" | "ttc" | "otf" | "otc",
+                        "jpg" | "jpeg" | "png" | "vtt" | "mp3" | "wav" | "flac" | "aac" | "pcm"
+                        | "ogg" | "mp2" | "m4a" | "mp4" | "webm" | "mkv" | "avi" | "mov" | "flv"
+                        | "wmv" | "m4v" | "ttf" | "ttc" | "otf" | "otc",
                     ) => None,
                     _ => Some("unsupported media extension"),
                 }

@@ -5,7 +5,7 @@ need a caption track.
 
 ## The data
 
-A caption track is a WebVTT, SubRip (`.srt`) or JSON file in `media/`. `CaptionTrack::parse`
+A caption track is a WebVTT, SubRip (`.srt`, with the `srt` feature) or JSON file in `media/`. `CaptionTrack::parse`
 detects the format from the content; all three become the same owned `CaptionTrack`
 (`Subtitles` is an alias). Use VTT or SRT when you only have phrases (SRT cue text keeps its
 line breaks, and inline tags such as `<i>` stay raw). Use JSON when you have word timings or
