@@ -266,3 +266,68 @@ fn metadata_edits_detach_the_cache_without_changing_other_consumers() {
     );
     assert!(!std::ptr::eq(original.cues(), edited.cues()));
 }
+
+#[cfg(feature = "srt")]
+#[test]
+fn srt_is_detected_from_content_and_shares_the_caption_model() {
+    use fframes_media::FFramesSubtitles;
+    let srt = "\u{feff}\r\n1\r\n00:00:02,000 --> 00:00:04,000\r\nSecond\r\n\r\n\
+               2\r\n00:00:00,500 --> 00:00:03,000\r\n<i>First</i>\r\ntwo lines\r\n\r\n\
+               3\r\n00:00:05,000 --> 00:00:05,000\r\nInstant\r\n";
+    let track = Subtitles::parse(srt).unwrap();
+    assert!(track.is_srt());
+    assert!(!track.is_vtt());
+
+    // Ordered by start time; overlaps stay simultaneous.
+    let phrases = track.get_whole_text();
+    assert_eq!(phrases, ["<i>First</i>\ntwo lines", "Second", "Instant"]);
+    assert_eq!(track.cues()[0].name.as_deref(), Some("2"));
+    assert_eq!(track.active_cues(2.5).count(), 2);
+    assert_eq!(track.get_cue_by_time(2500).unwrap().1.phrase(), "Second");
+    assert!(track.get_cue_by_time(499).is_none());
+
+    // A zero-duration cue matches WebVTT: inclusive legacy lookup, never active.
+    assert_eq!(track.get_cue_by_time(5000).unwrap().1.phrase(), "Instant");
+    assert_eq!(track.active_cues(5.0).count(), 0);
+    assert!(track.to_json_pretty().is_err());
+
+    assert_eq!(
+        Subtitles::parse("00:00:01,000 --> 00:00:02,000\nNo number\n")
+            .unwrap()
+            .cues()[0]
+            .phrase(),
+        "No number"
+    );
+    assert_eq!(Subtitles::from_srt("").unwrap().cues(), []);
+}
+
+#[cfg(feature = "srt")]
+#[test]
+fn malformed_srt_reports_the_original_line() {
+    // Leading blank lines and a BOM must not shift the reported line.
+    let error = Subtitles::parse("\u{feff}\n\n1\n00:00:01 --> 00:00:02,000\nx\n")
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.starts_with("SRT line 4: invalid timestamp"),
+        "{error}"
+    );
+
+    let error = Subtitles::parse("Just some text\n")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("SubRip"), "{error}");
+}
+
+#[cfg(not(feature = "srt"))]
+#[test]
+fn srt_is_rejected_without_the_feature() {
+    let error = Subtitles::parse("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("require the `srt` feature"), "{error}");
+    let error = Subtitles::parse("Just some text\n")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("expected a WEBVTT document"), "{error}");
+}

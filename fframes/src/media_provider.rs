@@ -60,7 +60,7 @@ pub trait MediaProvider<'a>: Send + Sync + Debug {
         !self.get_all_video_data().is_empty()
     }
 
-    /// All loaded subtitles, whether parsed from VTT or JSON.
+    /// All loaded subtitles, whether parsed from VTT, SRT or JSON.
     fn get_all_subtitle_data(&self) -> Vec<(&media::Subtitles, &str)> {
         Vec::new()
     }

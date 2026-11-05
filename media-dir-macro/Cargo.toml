@@ -32,6 +32,7 @@ fframes-media = { workspace = true, features = ["videotoolbox"] }
 [features]
 build-portable = ["fframes-media/build-portable"]
 exif = ["fframes-media/kamadak-exif"]
+srt = ["fframes-media/srt"]
 # JSON without subtitle cues is treated as a Lottie animation (`fframes::Lottie`).
 lottie = []
 nightly = []
