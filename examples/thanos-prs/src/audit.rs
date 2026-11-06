@@ -121,7 +121,7 @@ impl Audit {
         };
         svgr!(
             <g opacity={ease_out(opacity)} transform={format!("translate(0 {y})")}>
-                <rect x="104.5" y="211.5" width="1231" height="630" rx="19" fill="#1b1a20" stroke="#383640"/>
+                <rect x="104.5" y="211.5" width="1231" height="630" rx="19" fill="#887e8d" fill-opacity="0.092" stroke="#c3b7bc" stroke-opacity="0.14"/>
                 <text x="129" y="254" fill="#e1ecfa" font-weight="700" font-size="24">"fframes"</text>
                 <text x="1312" y="253" fill="#a6a4ae" text-anchor="end" font-size="19">{fframes.to_string()} " pull requests"</text>
                 <path d="M129 387h1182" stroke="#3a3740"/>

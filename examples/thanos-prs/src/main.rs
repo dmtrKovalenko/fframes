@@ -1,16 +1,17 @@
 mod audit;
+mod glass;
 mod hero;
 mod motion;
 mod sound;
 mod ui;
 mod video;
 
-use std::process::ExitCode;
+use std::{path::Path, process::ExitCode};
 
 use fframes::cli;
 use fframes::{
-    AudioMixOptions, EncoderOptions, LimiterOptions, RenderOptions, StaticMediaProvider,
-    include_media_dir,
+    AudioMixOptions, EncoderOptions, LimiterOptions, MediaDirectory, MediaProcessingOptions,
+    RenderOptions,
 };
 use fframes_skia_renderer::{
     SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig, cli::SkiaRenderers,
@@ -18,10 +19,14 @@ use fframes_skia_renderer::{
 
 use crate::video::SnapVideo;
 
-include_media_dir!(struct SnapMedia, "examples/thanos-prs/media");
-
 fn main() -> ExitCode {
-    let media = SnapMedia::prepare().expect("load video media");
+    let dir = MediaDirectory::read_folder(Path::new(env!("CARGO_MANIFEST_DIR")).join("media"))
+        .expect("open the Thanos video media");
+    let media = dir
+        .process_media_source_with_options(MediaProcessingOptions {
+            decode_video_audio: false,
+        })
+        .expect("prepare the Thanos video media");
     let video = SnapVideo::new();
 
     cli::new(

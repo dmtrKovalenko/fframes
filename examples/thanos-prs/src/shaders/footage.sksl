@@ -1,0 +1,33 @@
+uniform shader uSource;
+uniform float3 iResolution;
+uniform float uSourceTime;
+
+// The task labels occupy the center of the recording. Its side margins give us the
+// untouched atmosphere at each height, including the bounce light from the lava.
+half3 margin(float x, float y) {
+    half3 a = uSource.eval(float2(x, y)).rgb;
+    half3 b = uSource.eval(float2(x + 7.0, y)).rgb;
+    half3 c = uSource.eval(float2(x + 16.0, y)).rgb;
+    return a + b + c - min(a,min(b,c)) - max(a,max(b,c));
+}
+
+half4 main(float2 coord) {
+    float2 p = coord / iResolution.xy * float2(810.0, 720.0);
+    half3 original = uSource.eval(p).rgb;
+    // After the drop the bottom row moves up, exposing more of the genuine smoke.
+    float clear = uSourceTime < 5.60 ? 482.0 : 432.0;
+    if (p.y >= clear + 5.0) {
+        return half4(original, 1);
+    }
+    half3 sky = mix(margin(14.0, p.y), margin(773.0, p.y), half(p.x / 810.0));
+    // Recover moving sparks from a text-free band. Reflect the band into the two
+    // side columns, avoiding the author labels, repo pills and white source cursor.
+    float sx = 352.0 + abs(mod(p.x - 352.0 + 230.0, 460.0) - 230.0);
+    half3 center = uSource.eval(float2(sx, p.y)).rgb;
+    half3 near = (uSource.eval(float2(sx - 4.0, p.y)).rgb + uSource.eval(float2(sx + 4.0, p.y)).rgb) * 0.5;
+    half3 spark = max(center - near, 0.0);
+    float warm = smoothstep(0.03, 0.17, center.r - center.b);
+    sky += spark * half(warm * smoothstep(0.045, 0.16, spark.r));
+    float blend = smoothstep(clear - 5.0, clear + 5.0, p.y);
+    return half4(mix(sky, original, half(blend)), 1);
+}

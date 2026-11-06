@@ -7,14 +7,14 @@ use serde::Deserialize;
 
 use crate::motion::*;
 
-pub const CARD_WIDTH: u32 = 1232;
-pub const CARD_HEIGHT: u32 = 94;
-pub const ROW_PITCH: f32 = 106.0;
-pub const LIST_X: f32 = 104.0;
-pub const LIST_Y: f32 = 211.0;
+pub const CARD_WIDTH: u32 = 1241;
+pub const CARD_HEIGHT: u32 = 108;
+pub const ROW_PITCH: f32 = 124.44;
+pub const LIST_X: f32 = 99.56;
+pub const LIST_Y: f32 = 232.89;
 
-const WHITE: &str = "#f0f0f3";
-const SUBTLE: &str = "#a1a0aa";
+const WHITE: &str = "#f5f4f6";
+const SUBTLE: &str = "#aaa4a6";
 const BRASS: &str = "#ffcf91";
 
 #[derive(Debug, Deserialize)]
@@ -40,36 +40,12 @@ pub enum Status {
 }
 
 impl Status {
-    pub const fn color(&self) -> &'static str {
+    fn label(&self) -> &'static str {
         match self {
-            Self::Open => "#80c6a0",
-            Self::Closed => "#d78282",
-            Self::Merged => "#b9a0e8",
+            Self::Open => "Open",
+            Self::Closed => "Closed",
+            Self::Merged => "Merged",
         }
-    }
-
-    fn icon(&self) -> Svgr<'static> {
-        let color = self.color();
-        let branch = match self {
-            Self::Open => svgr!(
-                <path d="M0 -8V8m12 0V-4L8-8m0 0h4m-4 0v4"/>
-                <circle cx="12" cy="10" r="2.4" fill="#222126"/>
-            ),
-            Self::Closed => svgr!(
-                <path d="M0 -8V8m9-11 6 6m0-6-6 6"/>
-            ),
-            Self::Merged => svgr!(
-                <path d="M0 -8V8m12 0v-2a6 6 0 0 0-6-6H0"/>
-                <circle cx="12" cy="10" r="2.4" fill="#222126"/>
-            ),
-        };
-        svgr!(
-            <g fill="none" stroke={color} stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
-                {branch}
-                <circle cx="0" cy="-10" r="2.4" fill="#222126"/>
-                <circle cx="0" cy="10" r="2.4" fill="#222126"/>
-            </g>
-        )
     }
 }
 
@@ -80,11 +56,11 @@ fn title<'a>(pr: &'a PullRequest, frame: &mut Frame, ctx: &FFramesContext<'a, '_
     }
     let font = FontQuery {
         family: "Inter 24pt",
-        size: 27,
+        size: 25,
         weight: 700,
         ..Default::default()
     };
-    match frame.text_fit(ctx, font, value, 985, TextOverflow::Ellipsis) {
+    match frame.text_fit(ctx, font, value, 969, TextOverflow::Ellipsis) {
         Some(fitted) => pr
             .full_label
             .get_or_init(|| match fitted {
@@ -101,28 +77,30 @@ pub fn card<'a>(
     pr: &'a PullRequest,
     frame: &mut Frame,
     ctx: &FFramesContext<'a, '_>,
+    glass: Option<&ImageData<'static>>,
     hover: f32,
 ) -> Svgr<'a> {
     let title = title(pr, frame, ctx);
-    let detail = format!("#{}   ·   {}", pr.number, pr.author);
+    let detail = format!("#{} · {} · {}", pr.number, pr.author, pr.status.label());
     let (badge, color) = if pr.repo == "fframes" {
-        ("#253241", "#b6cde8")
+        ("#839dc9", "#b6d7fc")
     } else {
-        ("#342c3e", "#d3bde9")
+        ("#bb78bb", "#edb5ed")
     };
+    let material = glass.map_or_else(
+        || svgr!(<rect x="1" y="1" width={CARD_WIDTH - 2} height={CARD_HEIGHT - 2} rx="20"
+                       fill="#b1a6bf" fill-opacity="0.072" stroke="#c4b9bd" stroke-opacity="0.13"/>),
+        |skin| svgr!(<image width={CARD_WIDTH} height={CARD_HEIGHT} href={skin.href()} preserveAspectRatio="none"/>),
+    );
     svgr!(
         <g>
-            <rect x="0.5" y="0.5" width={CARD_WIDTH - 1} height={CARD_HEIGHT - 1} rx="16"
-                  fill="#212025" fill-opacity="0.93" stroke="#38373e"/>
-            <rect x="1" y="1" width={CARD_WIDTH - 2} height={CARD_HEIGHT - 2} rx="15"
-                  fill="#faf9ff" opacity={hover * 0.057}/>
-            <g transform="translate(35 47)">{pr.status.icon()}</g>
-            <text x="71" y="40" font-size="27" font-weight="700" fill={WHITE}>{title}</text>
-            <text x="72" y="69" font-size="21" fill={SUBTLE}>{detail}</text>
-            <rect x="1101" y="30" width="92" height="34" rx="9" fill={badge}/>
-            <text x="1147" y="53" font-size="18" font-weight="700" text-anchor="middle" fill={color}>{pr.repo.as_str()}</text>
-            <path d="M1208 42l5 5-5 5" stroke="#73717a" stroke-width="1.5" stroke-linejoin="round"
-                  stroke-linecap="round" fill="none"/>
+            {material}
+            <rect x="1" y="1" width={CARD_WIDTH - 2} height={CARD_HEIGHT - 2} rx="20"
+                  fill="#f3e6de" opacity={hover * 0.067}/>
+            <text x="85" y="47" font-size="25" font-weight="700" fill={WHITE}>{title}</text>
+            <text x="85" y="80" font-size="20" fill={SUBTLE}>{detail}</text>
+            <rect x="1084" y="35" width="90" height="38" rx="19" fill={badge} fill-opacity="0.17"/>
+            <text x="1129" y="61" font-size="18.5" font-weight="700" text-anchor="middle" fill={color}>{pr.repo.as_str()}</text>
         </g>
     )
 }
@@ -145,30 +123,30 @@ pub fn heading(t: f32, total: usize, remaining: usize) -> Svgr<'static> {
     let loss = format!("−{lost}");
     svgr!(
         <g>
-            <text x="103" y="133" font-size="58" font-weight="700" fill={WHITE} letter-spacing="-2.25">"Pull requests"</text>
-            <text x="106" y="170" font-size="22" fill={SUBTLE}>"fframes + fff"</text>
-            <circle cx="260" cy="163" r="2.2" fill="#6d6c76"/>
-            <text x="280" y="170" font-family="JetBrains Mono" font-size="21" fill={WHITE}>{count}</text>
-            <text x="327" y="170" font-size="22" fill={SUBTLE}>{hint}</text>
+            <text x="102" y="140" font-size="48" font-weight="700" fill={WHITE} letter-spacing="-1.4">"Pull requests"</text>
+            <text x="103" y="184" font-size="22" fill={SUBTLE}>"fframes + fff"</text>
+            <circle cx="260" cy="177" r="2.2" fill="#6d6c76"/>
+            <text x="280" y="184" font-family="JetBrains Mono" font-size="21" fill={WHITE}>{count}</text>
+            <text x="327" y="184" font-size="22" fill={SUBTLE}>{hint}</text>
             {if after {
                 svgr!(
                     <g opacity={ramp(t, SNAP + 0.28, SNAP + 0.57)}>
-                        <rect x="458" y="145" width="72" height="33" rx="8" fill="#382720"/>
-                        <text x="494" y="168" font-size="17" font-family="JetBrains Mono" text-anchor="middle" fill="#f5bc87">{loss}</text>
+                        <rect x="458" y="159" width="72" height="33" rx="8" fill="#382720"/>
+                        <text x="494" y="182" font-size="17" font-family="JetBrains Mono" text-anchor="middle" fill="#f5bc87">{loss}</text>
                     </g>
                 )
             } else { Svgr::empty() }}
             <g opacity={disabled}>
                 <g transform={format!("translate(0 {})", press(t, OVERVIEW) * 1.8)}>
-                    <rect x="1020.5" y="101.5" width="151" height="52" rx="13" fill="#1e1e23" stroke="#38373f"/>
-                    <rect x="1021" y="102" width="150" height="51" rx="12" fill="#ececff" opacity={outline * 0.096}/>
+                    <rect x="1020.5" y="101.5" width="151" height="52" rx="19" fill="#c2bccd" fill-opacity="0.055" stroke="#d3ced7" stroke-opacity="0.13"/>
+                    <rect x="1021" y="102" width="150" height="51" rx="18" fill="#ececff" opacity={outline * 0.096}/>
                     <path d="M1037 121h5v5h-5z m9 0h5v5h-5z m-9 9h5v5h-5z m9 0h5v5h-5z"
                           fill="none" stroke="#a4a1af" stroke-width="1.5" stroke-linejoin="round"/>
                     <text x="1063" y="135" font-size="21" fill={WHITE}>{label}</text>
                 </g>
                 <g transform={format!("translate(0 {lift})")}>
-                    <rect x="1183.5" y="101.5" width="152" height="52" rx="13" fill="url(#thanos-button)" stroke="#ad7850"/>
-                    <rect x="1184" y="102" width="151" height="51" rx="12" fill="#ffbc6d" opacity={hot * 0.16}/>
+                    <rect x="1183.5" y="101.5" width="152" height="52" rx="19" fill="url(#thanos-button)" stroke="#ecbd8f" stroke-opacity="0.41"/>
+                    <rect x="1184" y="102" width="151" height="51" rx="18" fill="#ffbc6d" opacity={hot * 0.16}/>
                     <path d="M1208 118q0 10 10 10-10 0-10 10 0-10-10-10 10 0 10-10Z"
                           fill={BRASS}/>
                     <text x="1227" y="135" font-size="22" font-weight="700" fill={BRASS}>"Thanos"</text>
@@ -218,10 +196,10 @@ pub fn dialog(t: f32, total: usize, removed: usize) -> Svgr<'static> {
 
     svgr!(
         <g opacity={visible}>
-            <rect width="1440" height="1280" fill="#08070a" opacity="0.66"/>
+            <rect width="1440" height="1280" fill="#0b090c" opacity="0.30"/>
             <g transform={format!("translate(720 {panel_y}) scale({scale}) translate(-380 0)")}>
-                <rect x="-10" y="13" width="780" height="410" rx="29" fill="#050407" opacity="0.48"/>
-                <rect x="0.5" y="0.5" width="759" height="405" rx="24" fill="url(#dialog)" stroke="#55515a"/>
+                <rect x="-10" y="13" width="780" height="410" rx="29" fill="#09070a" opacity="0.21"/>
+                <rect x="0.5" y="0.5" width="759" height="405" rx="24" fill="url(#dialog)" stroke="#d4c5bf" stroke-opacity="0.27"/>
                 <path d="M31 1h698" stroke="#ffc991" opacity={0.15 + action * 0.22}/>
                 <g transform={format!("translate(0 {slide})")} opacity={content_alpha}>
                     <rect x="40" y="34" width="52" height="52" rx="13" fill="#3a2b26" stroke="#665044"/>
@@ -267,14 +245,12 @@ pub fn pointer(t: f32) -> Svgr<'static> {
         .iter()
         .map(|click| press(t, *click))
         .fold(0.0_f32, f32::max);
-    let scale = 1.0 - 0.11 * down;
+    let drag = ramp(t, PICKUP - 0.04, PICKUP + 0.05) * (1.0 - ramp(t, DROP, DROP + 0.11));
+    let radius = 15.0 - 2.1 * down - 1.7 * drag;
     svgr!(
-        <g transform={format!("translate({x} {y}) scale({scale})")} opacity={opacity}>
-            <path d="M0 0V31l8.2-8 6 12.8 5.3-2.5-5.9-12.2h11.5Z"
-                  transform="translate(1.7 2.5)" fill="#020204" stroke="#020204" stroke-width="4"
-                  opacity="0.63" stroke-linejoin="round"/>
-            <path d="M0 0V31l8.2-8 6 12.8 5.3-2.5-5.9-12.2h11.5Z"
-                  fill="#faf9fc" stroke="#15141b" stroke-width="2.1" stroke-linejoin="round"/>
+        <g transform={format!("translate({x} {y})")} opacity={opacity}>
+            <circle cy="1.4" r={radius + 1.1} fill="#0d0b0c" fill-opacity="0.32"/>
+            <circle r={radius} fill="#faf9fa" fill-opacity="0.93" stroke="#ffffff" stroke-opacity="0.27"/>
         </g>
     )
 }

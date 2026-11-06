@@ -2,39 +2,47 @@ use std::sync::LazyLock;
 
 use fframes::animation::{AnimationRuntime, Easing};
 
-pub const OVERVIEW: f32 = 0.58;
-pub const THANOS: f32 = 1.77;
-pub const CANCEL_HOVER: f32 = 2.92;
-pub const CONFIRM: f32 = 3.93;
-pub const YES: f32 = 5.14;
-pub const SNAP: f32 = 6.46;
-pub const MAP_RETURN: f32 = 7.88;
-pub const COMMENTS: f32 = 9.72;
+pub const PICKUP: f32 = 0.34;
+pub const DROP: f32 = 1.34;
+pub const OVERVIEW: f32 = 2.18;
+pub const THANOS: f32 = 3.37;
+pub const CANCEL_HOVER: f32 = 4.52;
+pub const CONFIRM: f32 = 5.53;
+pub const YES: f32 = 6.74;
+pub const SNAP: f32 = 8.06;
+pub const MAP_RETURN: f32 = 9.48;
+pub const COMMENTS: f32 = 11.32;
 pub const COMMENT_FOCUS: f32 = 1.48;
-pub const DURATION: f32 = 13.20;
+pub const DURATION: f32 = 14.80;
 
 pub const CLICKS: [f32; 4] = [OVERVIEW, THANOS, CONFIRM, YES];
 pub const COMMENT_COUNT: usize = 19;
 
 const CURSOR: &[(f32, f32, f32)] = &[
-    (0.00, 1013.0, 414.0),
-    (0.20, 1082.0, 299.0),
-    (0.54, 1115.0, 133.0),
-    (0.75, 1115.0, 133.0),
-    (1.20, 1143.0, 169.0),
-    (1.67, 1259.0, 129.0),
-    (1.93, 1259.0, 129.0),
-    (2.27, 1083.0, 426.0),
-    (2.58, 976.0, 681.0),
-    (2.70, 976.0, 681.0),
-    (CANCEL_HOVER, 818.0, 681.0),
-    (3.26, 818.0, 681.0),
-    (3.70, 985.0, 681.0),
-    (4.08, 985.0, 681.0),
-    (4.45, 1030.0, 754.0),
-    (5.02, 977.0, 681.0),
-    (5.26, 977.0, 681.0),
-    (5.58, 1090.0, 760.0),
+    (0.00, 1034.0, 299.0),
+    (0.27, 772.0, 413.0),
+    (PICKUP, 772.0, 413.0),
+    (0.53, 780.0, 431.0),
+    (1.19, 790.0, 539.0),
+    (DROP, 790.0, 539.0),
+    (1.53, 829.0, 532.0),
+    (1.83, 1081.0, 322.0),
+    (2.14, 1046.0, 130.0),
+    (2.35, 1046.0, 130.0),
+    (2.80, 1143.0, 169.0),
+    (3.27, 1208.0, 128.0),
+    (3.53, 1208.0, 128.0),
+    (3.87, 1083.0, 426.0),
+    (4.18, 1038.0, 693.0),
+    (4.30, 1038.0, 693.0),
+    (CANCEL_HOVER, 872.0, 691.0),
+    (4.86, 872.0, 691.0),
+    (5.30, 1038.0, 693.0),
+    (5.68, 1038.0, 693.0),
+    (6.05, 1030.0, 754.0),
+    (6.62, 1038.0, 693.0),
+    (6.86, 1038.0, 693.0),
+    (7.18, 1090.0, 760.0),
 ];
 
 static EASE_IN_OUT: LazyLock<AnimationRuntime> =

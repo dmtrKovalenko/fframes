@@ -1,6 +1,6 @@
 # The Thanos Button
 
-A 13.2-second fframes video. [Dax’s lava to-do list was the visual reference.](https://x.com/thdxr/status/2118601135917269119)
+A 14.8-second fframes video built on the actual footage from [Dax’s lava to-do list](https://x.com/thdxr/status/2118601135917269119). The player samples the original glass, checkbox, and drag grip from the first frame. It keeps the moving lava from the recording and draws the PR titles, repo pills, cursor, and confirmations over it.
 
 The pull request index uses the November 6, 2026 GitHub snapshot in `pull-requests.json`. It contains 57 fframes PRs and 346 fff PRs across all states. It excludes `dkovalenko-oai`, `dmtrKovalenko`, and the supplied spelling `dmtrKovbalenko`. The snap uses a seeded sample of 201 records. All GitHub access was read-only.
 
@@ -14,7 +14,7 @@ mkdir -p examples/thanos-prs/output
 cargo run --release -p thanos-prs -- render -o examples/thanos-prs/output/thanos-prs.mp4
 ```
 
-Use `--renderer skia-cpu` when a GPU is unavailable for export. SkSL drives the overview tiles, the shockwave refraction, the lava reaction, and the ash that carries away the affected rows. The cursor and UI use SVG and the sound cues are placed on the fframes timeline. `sound.py` synthesizes the original WAV assets.
+Use `--renderer skia-cpu` when a GPU is unavailable for export. SkSL isolates the background from the source recording and animates the overview, the shockwave, and the ash. The snap cuts to the original fire eruption. Keep the project’s `media/` folder alongside the source when building or playing it. `sound.py` synthesizes the original WAV assets.
 
 ## Gauntlet artwork
 

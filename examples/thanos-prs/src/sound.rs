@@ -19,6 +19,8 @@ pub fn tracks() -> AudioMap<'static> {
             .gain_db(-12.0)
             .fade_in(0.36)
             .fade_out(0.34),
+        cue("tick.wav", PICKUP, -2.0, 0.0),
+        cue("card.wav", DROP, -3.0, 0.12),
         cue("tick.wav", CANCEL_HOVER, -11.0, 0.13),
         cue("riser.wav", SNAP - 1.42, -0.7, 0.23),
         cue("snap.wav", SNAP - 0.007, 1.9, 0.46),
