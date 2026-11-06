@@ -1,0 +1,57 @@
+uniform shader uImage;
+uniform float3 iResolution;
+uniform float2 uImageSize;
+uniform float uCock;
+uniform float uFlick;
+uniform float uCharge;
+uniform float uFlash;
+uniform float2 uBlur;
+
+float falloff(float2 p, float2 anchor, float2 size) {
+    float2 d = (p - anchor) / size;
+    return exp(-dot(d, d));
+}
+
+half4 plate(float2 p) {
+    if (p.x < 0.0 || p.y < 0.0 || p.x > 1.0 || p.y > 1.0) {
+        return half4(0);
+    }
+    return uImage.eval(p * uImageSize);
+}
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution.xy;
+    float2 p = uv;
+    // Separate the fingers before they pinch, then curl the middle joint and recoil the thumb.
+    // The palm and cuff remain rigid.
+    float index = falloff(uv, float2(0.47, 0.081), float2(0.145, 0.131));
+    float middle = falloff(uv, float2(0.685, 0.113), float2(0.127, 0.091));
+    float thumb = falloff(uv, float2(0.842, 0.145), float2(0.11, 0.085));
+    p += middle * float2(-0.017, 0.052) * (1.0 - uCock);
+    p += thumb * float2(-0.028, -0.008) * (1.0 - uCock);
+    p += middle * float2(0.073, -0.059) * uFlick;
+    p -= thumb * float2(0.043, 0.018) * uFlick;
+    p += index * float2(0.025, -0.026) * uCock;
+    half4 gauntlet = plate(p);
+    gauntlet *= half(smoothstep(0.12, 0.68, float(gauntlet.a)));
+    if (length(uBlur) > 0.002) {
+        gauntlet = gauntlet * 0.46 + plate(p - uBlur * 0.39) * 0.27
+            + plate(p + uBlur * 0.39) * 0.27;
+    }
+    half luma = dot(gauntlet.rgb, half3(0.26, 0.64, 0.10));
+    float facing = mix(0.92, 0.65, smoothstep(0.21, 0.97, uv.y));
+    half3 graded = mix(half3(luma), gauntlet.rgb, 0.77) * half(facing) * half3(1.0, 1.015, 1.11);
+
+    float amber = falloff(uv, float2(0.33, 0.485), float2(0.14, 0.082));
+    float blue = falloff(uv, float2(0.41, 0.326), float2(0.095, 0.049));
+    float violet = falloff(uv, float2(0.59, 0.344), float2(0.094, 0.051));
+    float green = falloff(uv, float2(0.91, 0.408), float2(0.090, 0.045));
+    float flash = falloff(uv, float2(0.75, 0.113), float2(0.41, 0.26)) * uFlash;
+    float3 light = float3(0.33, 0.20, 0.015) * amber
+        + float3(0.023, 0.18, 0.31) * blue
+        + float3(0.22, 0.045, 0.32) * violet
+        + float3(0.02, 0.29, 0.09) * green;
+    gauntlet.rgb = min(half3(gauntlet.a),
+        graded + half3(light * uCharge + float3(0.62, 0.52, 0.33) * flash) * gauntlet.a);
+    return gauntlet;
+}

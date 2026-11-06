@@ -55,6 +55,7 @@ members = [
     "examples/lottie",
     "examples/svg-in-3d",
     "examples/anamorphic-video",
+    "examples/thanos-prs",
 ]
 
 [workspace.lints.rust]

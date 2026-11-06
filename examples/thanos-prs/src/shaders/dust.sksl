@@ -1,0 +1,120 @@
+uniform shader uCard;
+uniform float2 uSize;
+uniform float2 uOffset;
+uniform float uTime;
+uniform float uSeed;
+uniform float uWaveAge;
+uniform float2 uWaveOrigin;
+uniform float2 uPosition;
+
+float hash(float2 id) {
+    float2 p = fract(id * float2(0.1031, 0.11369) + uSeed);
+    p += dot(p, p.yx + 19.19);
+    return fract((p.x + p.y) * p.x);
+}
+
+float noise(float2 p) {
+    float2 i = floor(p);
+    float2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + float2(1, 0)), f.x),
+               mix(hash(i + float2(0, 1)), hash(i + 1.0), f.x), f.y);
+}
+
+half4 card(float2 p) {
+    if (p.x < 0.0 || p.y < 0.0 || p.x >= uSize.x || p.y >= uSize.y) {
+        return half4(0);
+    }
+    return uCard.eval(p);
+}
+
+float release(float2 p) {
+    float across = p.x / uSize.x;
+    float wind = noise(p * float2(0.012, 0.028)) * 0.19;
+    float splinters = (noise(p / 13.0) - 0.5) * 0.069;
+    return clamp(0.89 - across * 0.80 + wind - 0.083 + splinters, 0.03, 0.99);
+}
+
+float2 upstream(float2 p, float2 velocity, float seed) {
+    // Invert the linear part of the release front, then bend the dust lanes as they rise.
+    float x = (p.x - velocity.x * (uTime - 0.89)) / (1.0 + velocity.x * 0.80 / uSize.x);
+    float age = max(0.0, uTime - (0.89 - x * 0.80 / uSize.x));
+    float eddy = sin(x * 0.010 + age * 4.6 + seed) * age * (29.0 + age * 17.0);
+    float lift = velocity.y * age - age * age * 14.0 + eddy;
+    return float2(x + sin(p.y * 0.038 + age * 5.0 + seed) * age * 14.0, p.y - lift);
+}
+
+half4 fragments(float2 p, float size, float2 velocity, float seed) {
+    float2 source = upstream(p, velocity, seed);
+    float braid = sin(p.x * 0.021 + p.y * 0.015 + uTime * 5.3 + seed);
+    source += float2(braid * 22.0, braid * 13.0) * uTime * uTime;
+    float2 id = floor(source / size);
+    float2 dice = float2(hash(id + seed), hash(id - seed));
+    float2 center = (id + 0.16 + dice * 0.68) * size;
+    float age = uTime - release(center);
+    if (age < 0.0 || age > 1.37) {
+        return half4(0);
+    }
+    float2 delta = source - center;
+    delta.x += sin(age * 11.0 + dice.y * 9.0) * delta.y * 0.55;
+    float radius = (0.094 + 0.28 * dice.x) * size;
+    float turn = age * (3.0 + dice.y * 7.0) + dice.x * 6.283;
+    float2 rotated = float2(dot(delta, float2(cos(turn), -sin(turn))),
+                            dot(delta, float2(sin(turn), cos(turn))));
+    float shape = max(abs(rotated.x) * 0.64, abs(rotated.y) * (0.90 + dice.y));
+    float grain = 1.0 - smoothstep(radius * 0.26, radius + 0.44, shape);
+    float life = 1.0 - smoothstep(0.15 + dice.y * 0.38, 1.37, age);
+    half4 pixel = card(center);
+    half3 ash = half3(0.55, 0.49, 0.48);
+    half3 ember = half3(1.0, 0.62, 0.32);
+    float hot = pow(dice.y, 8.0) * (1.0 - smoothstep(0.09, 0.75, age));
+    half3 tint = mix(ash, ember, half(hot));
+    return half4(mix(pixel.rgb, tint * pixel.a, half(0.55 + dice.x * 0.33)), pixel.a) * half(grain * life);
+}
+
+half4 cloud(float2 p) {
+    float2 source = upstream(p, float2(-123.0, -89.0), 24.0);
+    float age = uTime - release(source);
+    if (age < 0.0 || age > 1.25) {
+        return half4(0);
+    }
+    float curl = noise(p * 0.022 + float2(uTime * 2.0, uTime * 2.5));
+    float fiber = noise(p * 0.081 + curl * 2.0);
+    float density = smoothstep(0.35, 0.87, curl * 0.76 + fiber * 0.24);
+    float alpha = float(card(source + float2(0, (curl - 0.5) * 38.0)).a)
+        * density * smoothstep(0.0, 0.21, age) * (1.0 - smoothstep(0.30, 1.25, age)) * 0.23;
+    return half4(half3(0.51, 0.43, 0.42) * half(alpha), half(alpha));
+}
+
+half4 main(float2 coord) {
+    float2 p = coord - uOffset;
+    float highlight = 0.0;
+    if (uWaveAge >= 0.0 && uWaveAge < 0.62) {
+        float2 radial = coord + uPosition - uWaveOrigin;
+        float distance = length(radial * float2(0.90, 1.13));
+        float wave = distance - 2190.0 * uWaveAge;
+        float ring = exp(-abs(wave) / 35.0);
+        float push = sin(wave / 16.0) * ring * 23.0 * exp(-uWaveAge * 1.3);
+        p -= normalize(radial + 0.0001) * push;
+        highlight = (ring * 0.19 + exp(-distance / 150.0) * exp(-uWaveAge * 22.0) * 0.15);
+    }
+    half4 source = card(p);
+    source.rgb = min(half3(source.a), source.rgb + half3(0.91, 0.56, 0.34) * half(highlight) * source.a);
+    if (uTime < 0.0) {
+        return source;
+    }
+    float grain = (hash(floor(p / 2.7)) - 0.5) * 0.044;
+    float front = release(p) - uTime + grain;
+    float retained = smoothstep(-0.008, 0.020, front);
+    float ignition = exp(-abs(front) * 44.0) * retained * float(source.a);
+    half4 body = source * half(retained);
+    body.rgb += half3(0.32, 0.15, 0.063) * half(ignition);
+
+    half4 chunks = fragments(p, 12.0, float2(-98.0, -63.0), 5.0);
+    half4 flakes = fragments(p, 7.1, float2(-158.0, -102.0), 31.0);
+    half4 fine = fragments(p, 4.1, float2(-199.0, -153.0), 64.0);
+    half4 debris = chunks + flakes * (1.0 - chunks.a);
+    debris += fine * (1.0 - debris.a) * 0.85;
+    debris += cloud(p) * (1.0 - debris.a);
+    return body + debris * (1.0 - body.a);
+}

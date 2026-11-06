@@ -1,0 +1,98 @@
+uniform float3 iResolution;
+uniform float iTime;
+uniform float uShock;
+uniform float uSnapAge;
+uniform float uSnapX;
+uniform float uFocus;
+
+float hash(float2 p) {
+    p = fract(p * float2(0.1031, 0.11369));
+    p += dot(p, p.yx + 19.19);
+    return fract((p.x + p.y) * p.x);
+}
+
+float noise(float2 p) {
+    float2 id = floor(p);
+    float2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(id), hash(id + float2(1, 0)), f.x),
+               mix(hash(id + float2(0, 1)), hash(id + 1.0), f.x), f.y);
+}
+
+float2 cells(float2 p) {
+    float2 tile = floor(p);
+    float2 local = fract(p);
+    float first = 10.0;
+    float second = 10.0;
+    float tone = 0.0;
+    for (int y = -1; y <= 1; ++y) {
+        for (int x = -1; x <= 1; ++x) {
+            float2 shift = float2(float(x), float(y));
+            float2 id = tile + shift;
+            float2 center = float2(hash(id), hash(id + 37.21));
+            float2 offset = shift + 0.15 + 0.7 * center - local;
+            float d = dot(offset, offset);
+            if (d < first) {
+                second = first;
+                first = d;
+                tone = hash(id - 23.8);
+            } else {
+                second = min(second, d);
+            }
+        }
+    }
+    return float2(sqrt(second) - sqrt(first), tone);
+}
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution.xy;
+    float horizon = 0.708 - uFocus * 0.012;
+    float y = uv.y - horizon;
+    float arrival = uSnapAge - abs(uv.x - uSnapX) * 0.35;
+    float impact = smoothstep(0.0, 0.04, arrival) * exp(-max(0.0, arrival) * 3.9);
+    float2 centered = uv - float2(0.5, 0.46);
+    float vignette = 1.0 - 0.46 * dot(centered, centered);
+    float3 color = float3(0.065, 0.063, 0.070);
+    float mist = noise(uv * float2(5.1, 8.3) + float2(-iTime * 0.09, iTime * 0.12));
+    color += exp(-abs(y) * 10.0) * float3(0.145, 0.067, 0.026) * (0.58 + 0.55 * mist);
+
+    if (y > 0.0) {
+        float perspective = 1.0 / (0.065 + y * 2.8);
+        float2 rock = float2((uv.x - 0.51 + uFocus * 0.018) * perspective * 12.5,
+                            perspective * (4.5 - uFocus * 0.16));
+        float2 warp = float2(noise(rock * 2.0 + 14.0), noise(rock * 2.1 - 16.0));
+        float detail = noise(rock * 12.0) + noise(rock * 23.0) * 0.35;
+        float2 v = cells(rock + (warp - 0.5) * 0.52 + (detail - 0.65) * 0.075);
+        float crack = v.x;
+        float channel = noise(rock * 0.51 + 7.4);
+        float heat = smoothstep(0.36, 0.81, channel + 0.07 * sin(rock.y * 1.2 + iTime * 2.3));
+        float fissure = exp(-crack * (27.0 - heat * 18.0));
+        float core = exp(-crack * (95.0 - heat * 60.0));
+        float rockLight = (0.42 + v.y * 0.42 + 0.22 * detail) * (1.0 - 0.62 * exp(-crack * 39.0));
+        float ridge = exp(-abs(crack - 0.048) * 48.0);
+        color = rockLight * float3(0.131, 0.093, 0.084);
+        color += ridge * (0.25 + heat) * float3(0.100, 0.050, 0.026);
+        float horizonFog = 0.23 + 0.77 * smoothstep(0.0, 0.065, y);
+        color += fissure * (0.23 + heat * 1.02 + impact * 1.04) * float3(0.57, 0.145, 0.025) * horizonFog;
+        color += core * (0.09 + 0.66 * heat * heat) * float3(1.0, 0.53, 0.15) * horizonFog;
+        color *= 1.0 - y * 0.85;
+        color += exp(-y * 31.0) * float3(0.075, 0.025, 0.006);
+    }
+
+    float seam = y - (noise(float2(uv.x * 75.0, iTime * 0.9)) - 0.5) * 0.0021;
+    float whiteHot = exp(-abs(seam) * 1240.0);
+    float glow = exp(-abs(seam) * 168.0);
+    float flare = (0.55 + 0.45 * noise(float2(uv.x * 18.0, iTime * 0.5))) * (1.0 + impact * 1.65);
+    color += flare * (whiteHot * float3(1.0, 0.83, 0.50) + glow * float3(0.30, 0.107, 0.026));
+    if (y <= 0.0 && y > -0.22) {
+        float rise = -y;
+        float curl = noise(uv * float2(23.0, 42.0) + float2(iTime * 0.4, iTime * 1.3));
+        float fuel = noise(float2(uv.x * 33.0 + curl * 0.85, iTime * 1.7));
+        float height = 0.007 + pow(fuel, 4.0) * (0.022 + impact * 0.064);
+        float flame = (1.0 - smoothstep(0.0, height, rise)) * smoothstep(0.54, 0.88, fuel);
+        color += flame * (0.28 + impact * 1.06) * float3(0.83, 0.35, 0.08);
+        color += exp(-rise * 21.0) * curl * curl * uShock * float3(0.11, 0.045, 0.014);
+    }
+    color += (hash(coord + floor(iTime * 12.0)) - 0.5) * 0.010;
+    return half4(half3(max(color * vignette, 0.0)), 1);
+}

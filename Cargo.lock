@@ -4065,6 +4065,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "thanos-prs"
+version = "1.4.1"
+dependencies = [
+ "fframes",
+ "fframes_native_player",
+ "fframes_skia_renderer",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "thingbuf"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

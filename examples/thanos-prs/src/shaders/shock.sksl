@@ -1,0 +1,19 @@
+uniform float uAge;
+uniform float2 uOrigin;
+
+half4 main(float2 coord) {
+    float2 p = coord - uOrigin;
+    float distance = length(p * float2(0.90, 1.13));
+    float angle = atan(p.y, p.x);
+    float roughness = sin(angle * 9.0 + uAge * 3.0) * sin(angle * 17.0) * 7.0;
+    float wave = distance - 2190.0 * uAge - roughness;
+    float rim = exp(-abs(wave) / (3.0 + uAge * 14.0));
+    float heat = exp(-abs(wave + 13.0) / (27.0 + uAge * 22.0));
+    float falloff = exp(-distance / 1600.0);
+    float pop = exp(-distance / 66.0) * exp(-uAge * 21.0);
+    float wash = exp(-uAge * 30.0) * (0.045 + 0.1 * exp(-distance / 491.0));
+    float ring = (rim * 0.36 + heat * 0.17) * exp(-uAge * 3.5) * falloff;
+    float alpha = clamp(ring + pop + wash, 0.0, 1.0);
+    half3 tint = mix(half3(0.91, 0.52, 0.28), half3(1.0, 0.95, 0.85), half(clamp(rim * 0.4 + pop, 0.0, 1.0)));
+    return half4(tint * half(alpha), half(alpha));
+}

@@ -1,0 +1,29 @@
+uniform shader uRetained;
+uniform shader uSelected;
+uniform float uAmount;
+
+float hash(float2 p) {
+    float2 n = fract(p * float2(0.1031, 0.11369));
+    n += dot(n, n.yx + 19.19);
+    return fract((n.x + n.y) * n.x);
+}
+
+half4 main(float2 coord) {
+    float section = step(140.0, coord.y);
+    float2 pos = coord - float2(0.0, section * 164.0);
+    float2 cell = floor(pos / float2(47.0, 25.0));
+    float n = hash(cell + section * 17.0);
+    float begin = 0.10 + cell.x * 0.014 + cell.y * 0.008 + section * 0.12 + n * 0.12;
+    float enter = smoothstep(begin, begin + 0.18, uAmount);
+    float lift = (1.0 - enter) * 7.0;
+    float2 source = coord - float2(0.0, lift);
+    float localY = pos.y - cell.y * 25.0 - lift;
+    if (localY < 0.0 || localY > 21.0) {
+        return half4(0);
+    }
+    half4 selected = uSelected.eval(source);
+    half4 paint = uRetained.eval(source) * (1.0 - selected.a) + selected;
+    float sheen = enter * (1.0 - enter) * 0.43;
+    paint.rgb += half3(0.31, 0.22, 0.17) * half(sheen) * paint.a;
+    return paint * half(enter);
+}
