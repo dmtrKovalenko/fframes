@@ -6,8 +6,7 @@
 </p>
 
 <p align="center">
-  <b>Video vibe coding framework that is actually fast.</b><br />
-  Write your video in Rust and SVG, render it on the GPU.
+  <b>Video vibe coding framework that is actually fast.</b>
 </p>
 
 <p align="center">
@@ -19,75 +18,21 @@
 
 https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5
 
-<p align="center">
-  <sub>This 128 second video was <a href="https://x.com/neogoose_btw/status/2104432561200279774">vibed in 48 minutes and rendered in 36 seconds</a>.<br />
-  It is an fframes project: <a href="examples/fframes-intro">examples/fframes-intro</a>.</sub>
-</p>
-
 ---
 
-## Ask your agent for a video
+## What is it for 
 
-fframes ships a skill for coding agents. Add it once:
+fframes is a framework for rendering videos from code. Assuming you are not going to write the thousands lines of code fora video yourself our goal is **quick and efficient** iteration speed for your AI agent, **great and useful real time preview for you**, and **fastest in industry rendering speed** (we are over 30x faster than remotion).
+
+## Get started 
+
+Start with a skill and ask your favorite AI agent to make something you want. Then iterate.
 
 ```sh
 npx skills add https://fframes.studio
 ```
 
-Then tell the agent what video you want. The skill walks it from an empty folder to a rendered `.mp4`: install
-fframes, create a project, design the motion, place the sound, check the result.
-
-The fframes API is explicit and verbose, which is [why it stayed unreleased for years](https://x.com/neogoose_btw/status/2104432563146444994).
-An agent with a good skill file writes that kind of code without complaint.
-
-## Your agent cannot watch the video
-
-A coding agent cannot play a video or listen to a soundtrack, so every generated project comes with a command line
-that turns the video into PNGs and text.
-
-<table>
-  <tr>
-    <th width="50%">Your agent</th>
-    <th width="50%">You</th>
-  </tr>
-  <tr>
-    <td valign="top">
-      <code>inspect</code> checks every frame without rendering pixels. It reports missing fonts or images, text cut off by the canvas, invalid SVG and panics, each with its time and scene.<br /><br />
-      <code>strip</code> lays evenly spaced frames out on one contact sheet, <code>onion</code> blends frames to show the path and easing of a movement, <code>frame</code> writes full-size PNGs.<br /><br />
-      <code>audio analyze</code> reports loudness (LUFS), true peak, clipping and silence per scene.
-    </td>
-    <td valign="top">
-      <code>preview</code> opens a GPU window with sound to play, pause, seek and step frame by frame.<br /><br />
-      The editor runs the video compiled to WebAssembly in the browser, with a timeline to scrub.<br /><br />
-      <code>render</code> writes the final file. <code>render --draft</code> encodes one scene at half size in about a second.
-    </td>
-  </tr>
-</table>
-
-Every command runs as `cargo run --release -- <command>` inside the project:
-
-| command | output |
-| --- | --- |
-| `timeline` | the scenes with their frame and second ranges, and every audio track with its mix settings |
-| `inspect` | problems in a frame every 0.25 s and the first and last frame of every scene; exit code 2 on errors |
-| `strip <scene> -n 12` | `strip.png`, a labelled contact sheet |
-| `frame <scene>@end,<scene>@50%` | full-size PNGs in `frames/` |
-| `onion "<scene>@0..<scene>@1s" -n 6` | `onion.png`, the blended movement |
-| `audio analyze --waveform w.png` | the loudness report and a waveform with scene lines and cue ticks |
-| `preview` | the real-time window, for a human |
-| `render [--draft]` | the video, or a part of it |
-
-`<scene>` is the name of a scene struct in your video. Times read as `120` (frame), `3.2s`, `50%`, `<scene>@1.2s`, and
-ranges like `<scene>@0..<scene>@1s`. Add `--json` to parse the output.
-
-## Why it is fast
-
-- The Skia backend draws on the GPU, Metal on macOS and Vulkan on Linux and Windows, about 10x faster than the built-in CPU backend.
-- Parts of a frame without `{expressions}` are hashed at compile time, so the renderers draw them once and reuse them.
-- fframes links ffmpeg's libav libraries instead of piping frames to a separate process.
-- When SVG is not enough, SkSL or pasted Shadertoy GLSL runs as a layer of any frame.
-
-## What your agent writes
+## Here is how your videos composed in the code 
 
 Every frame is an SVG tree returned by a Rust function, written with the `svgr!` macro. From
 [examples/hello-world](examples/hello-world/src/hello_world.rs), shortened: a square moves along a timeline and a line
@@ -149,27 +94,9 @@ impl Video for HelloWorldVideo<'_> {
 
 </details>
 
-The skill's guides are plain Markdown, so you can read them too:
-[the workflow](skills/fframes-video/SKILL.md), [the API cheat sheet](skills/fframes-video/references/api.md),
-[captions](skills/fframes-video/references/captions.md),
-[design](skills/fframes-video/references/design.md) and [sound](skills/fframes-video/references/audio.md).
-The full API reference is on [docs.rs/fframes](https://docs.rs/fframes).
+## Inspiration
 
-## Examples
-
-Click an example name to browse its source, or a poster for a preview.
-
-- [Motion and launch videos](#motion-and-launch-videos)
-- [Shaders and 3D](#shaders-and-3d)
-- [Audio and video](#audio-and-video)
-- [Animation and rendering](#animation-and-rendering)
-
-From the repository root, `just run podcast` opens an example in the editor with live reload and
-`just render podcast` writes it to a file. Replace `podcast` with any example name below.
-
-<!-- Keep previews stacked: GitHub README tables cannot reflow into one column on mobile. -->
-
-### Motion and launch videos
+Here is a list of some of the examples we store in the repo. Feel free to ~~inspire~~ steal them for your videos. Click an example name to browse its source, or a poster for a preview.
 
 #### [fframes-intro](examples/fframes-intro)
 
@@ -177,6 +104,30 @@ The 128 second [launch video](https://x.com/neogoose_btw/status/2104432561200279
 
 <a href="https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5">
   <img alt="Watch fframes-intro" src="examples/_previews/fframes-intro.jpg" width="640" />
+</a>
+
+#### [made-of-motion](examples/made-of-motion)
+
+A 20 second promo with pixel objects, a perspective carousel, thermal shaders and per-exposure vector ink, an adaptation of a reference film.
+
+<a href="https://github.com/user-attachments/assets/3c51ccae-3541-4c79-817c-f544cf83e415">
+  <img alt="Watch made-of-motion" src="examples/_previews/made-of-motion.jpg" width="480" />
+</a>
+
+#### [hello-world](examples/hello-world)
+
+A simple "hello world" video. A good start if you want to really read the code.
+
+<a href="https://github.com/user-attachments/assets/4731c533-c120-44d0-8022-e09600d0c52f">
+  <img alt="Watch hello-world" src="examples/_previews/hello-world.jpg" width="640" />
+</a>
+
+#### [arm](examples/arm)
+
+An animated robo arm movement video using 3D capabilties.
+
+<a href="https://github.com/user-attachments/assets/f752ebc6-6d7c-4304-abb6-27becc64801c">
+  <img alt="Watch arm" src="examples/_previews/arm.jpg" width="640" />
 </a>
 
 #### [signal-lab](examples/signal-lab)
@@ -187,13 +138,6 @@ A 24 second motion study: product UI, data storytelling and a technical explaine
   <img alt="Watch signal-lab" src="examples/_previews/signal-lab.jpg" width="640" />
 </a>
 
-#### [made-of-motion](examples/made-of-motion)
-
-A 20 second promo with pixel objects, a perspective carousel, thermal shaders and per-exposure vector ink, an adaptation of a reference film.
-
-<a href="https://github.com/user-attachments/assets/3c51ccae-3541-4c79-817c-f544cf83e415">
-  <img alt="Watch made-of-motion" src="examples/_previews/made-of-motion.jpg" width="480" />
-</a>
 
 #### [beta](examples/beta)
 
@@ -205,13 +149,11 @@ A complicated multi-scene example (our beta announce video).
 
 #### [marketing](examples/marketing)
 
-Our marketing video.
+Our announcement video from 2021. With audio visualization.
 
 <a href="https://github.com/user-attachments/assets/963e7f80-e13a-44a2-95de-63684e175006">
   <img alt="Watch marketing" src="examples/_previews/marketing.jpg" width="640" />
 </a>
-
-### Shaders and 3D
 
 #### [shaders](examples/shaders)
 
@@ -239,13 +181,6 @@ A minimal shader clip built to make banding and motion artifacts easy to spot.
   <img alt="Watch neon-triangle" src="examples/_previews/neon-triangle.jpg" width="640" />
 </a>
 
-#### [arm](examples/arm)
-
-A 37 second 3D short: a lab robot with a camera eye spells fframes, drops a letter and picks it up again, rendered with fframes-3d on the GPU.
-
-<a href="https://github.com/user-attachments/assets/f752ebc6-6d7c-4304-abb6-27becc64801c">
-  <img alt="Watch arm" src="examples/_previews/arm.jpg" width="640" />
-</a>
 
 #### [svg-in-3d](examples/svg-in-3d)
 
@@ -255,11 +190,9 @@ An svgr UI on the screen of a turning 3D monitor, showing a 3D cube with the svg
   <img alt="Watch svg-in-3d" src="examples/_previews/svg-in-3d.jpg" width="640" />
 </a>
 
-### Audio and video
-
 #### [captions](examples/captions)
 
-A small example of Highlight, Karaoke, Reveal and Word modes sharing one JSON transcript. Typed per-word metadata adds circles and underlines without registration or per-frame parsing. Run with `cargo run --release -p captions-example -- render`.
+A showcase of different effects available for `Captions` module in fframes
 
 <a href="examples/_previews/captions.png">
   <img alt="Caption presets and custom word highlights" src="examples/_previews/captions.png" width="640" />
@@ -267,7 +200,7 @@ A small example of Highlight, Karaoke, Reveal and Word modes sharing one JSON tr
 
 #### [audio-announce](examples/audio-announce)
 
-An automated workflow to create audio visualisation with automated subtitles.
+Beautiful sound waves audio visualization + subtitles for your video.
 
 <a href="https://github.com/user-attachments/assets/2b6706b8-562d-41fe-97aa-cc8198980001">
   <img alt="Watch audio-announce" src="examples/_previews/audio-announce.jpg" width="640" />
@@ -283,25 +216,16 @@ An audio visualization for a podcast placeholder video.
 
 #### [teej-podcast](examples/teej-podcast)
 
-Teej's podcast with video and chapters visualization.
+Teej's podcast with 2 speakers video and chapters visualization.
 
 <a href="https://github.com/user-attachments/assets/fb57ae04-f908-4787-9ef0-bd440d36b1a4">
   <img alt="Watch teej-podcast" src="examples/_previews/teej-podcast.jpg" width="640" />
 </a>
 
-### Animation and rendering
-
-#### [hello-world](examples/hello-world)
-
-A simple "hello world" video.
-
-<a href="https://github.com/user-attachments/assets/4731c533-c120-44d0-8022-e09600d0c52f">
-  <img alt="Watch hello-world" src="examples/_previews/hello-world.jpg" width="640" />
-</a>
 
 #### [tiktok](examples/tiktok)
 
-A TikTok-like vertical video.
+A TikTok-like vertical video with audio visualization 
 
 <a href="https://github.com/user-attachments/assets/20dda3c9-8c44-4ea9-9663-860527d635be">
   <img alt="Watch tiktok" src="examples/_previews/tiktok.jpg" width="240" />
