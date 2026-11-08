@@ -124,7 +124,7 @@ A simple "hello world" video. A good start if you want to really read the code.
 
 #### [arm](examples/arm)
 
-An animated robo arm movement video using 3D capabilties.
+An animated robo arm movement video using 3D capabilities.
 
 <a href="https://github.com/user-attachments/assets/f752ebc6-6d7c-4304-abb6-27becc64801c">
   <img alt="Watch arm" src="examples/_previews/arm.jpg" width="640" />

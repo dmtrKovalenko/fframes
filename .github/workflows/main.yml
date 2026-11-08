@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Spellcheck
         uses: crate-ci/typos@master
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # skip the example media, the job only needs the skill and the generator
           sparse-checkout: |
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -120,7 +120,7 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: 0
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Free disk space
         run: |
@@ -165,12 +165,16 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Identify runner image
+        id: runner-image
+        run: echo "version=${ImageOS:?}-${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with: 
           cache: true
           cache-on-failure: true
-          # Discard FFmpeg libraries previously compiled for a runner's native CPU.
-          cache-key: "v4-portable-ffmpeg"
+          # FFmpeg links system codecs, whose ABI can change with the runner image.
+          cache-key: "v4-portable-ffmpeg-${{ steps.runner-image.outputs.version }}"
           # PR scoped caches are only visible to that PR and push main's cache out
           # of the 10GB quota, so only main saves. PRs restore main's cache.
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -212,7 +216,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - uses: extractions/setup-just@v1
         env:
@@ -223,11 +227,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y llvm yasm nasm libx264-dev libx265-dev libopus-dev libvpx-dev
 
+      - name: Identify runner image
+        id: runner-image
+        run: echo "version=${ImageOS:?}-${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: true
           cache-on-failure: true
-          cache-key: "v4-portable-ffmpeg-wasm"
+          cache-key: "v4-portable-ffmpeg-wasm-${{ steps.runner-image.outputs.version }}"
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
           target: wasm32-unknown-unknown
 
@@ -248,7 +256,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@nightly
 
@@ -282,7 +290,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -336,7 +344,7 @@ jobs:
       PACKAGES: -p fframes -p fframes-media -p webvtt-parser -p fframes-media-dir-macro -p svgr-macro -p e2e-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install FFmpeg 9
         run: |
@@ -384,7 +392,7 @@ jobs:
       CARGO_INCREMENTAL: 0
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -421,9 +429,13 @@ jobs:
           install_runtime_only: true
           install_lavapipe: true
 
+      - name: Identify runner image
+        id: runner-image
+        run: echo "version=${ImageOS:?}-${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-key: "v1-e2e"
+          cache-key: "v1-e2e-${{ steps.runner-image.outputs.version }}"
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: pnpm/action-setup@v4
