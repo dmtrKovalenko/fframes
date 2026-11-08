@@ -45,6 +45,7 @@ members = [
     "examples/neon-triangle",
     "examples/neon-triangle/editor/editor-bridge",
     "examples/arm",
+    "examples/text-width",
 
     # maybe clean this up?
     # "fframes-lyon-renderer",

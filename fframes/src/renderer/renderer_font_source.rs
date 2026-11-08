@@ -97,8 +97,157 @@ impl<'a> crate::FontSource<'a> for RendererFontSource {
         }))
     }
 
+    fn measure_text(&self, font: &crate::FontQuery, text: &str) -> Option<f32> {
+        crate::measure_text_width(&self.fontdb, font, text)
+    }
+
     fn add_font(&mut self, _filename: String, font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
         self.fontdb
             .load_font_source(fontdb::Source::Binary(font_data.clone()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text::{text_fit_impl, text_wrap_impl};
+    use crate::{BreakLinesOpts, FontQuery, FontSource, TextOverflow};
+
+    const INTER: &[u8] = include_bytes!("../../../examples/arm/media/Inter_18pt-ExtraBold.ttf");
+    const SOFIA: &[u8] = include_bytes!(
+        "../../../examples/teej-podcast/dynamic_media/SofiaSansSemiCondensed-VariableFont_wght.ttf"
+    );
+    // Noto Sans Arabic (OFL) cut down to the glyphs of "سلام".
+    const ARABIC: &[u8] =
+        include_bytes!("../../../examples/text-width/media/NotoSansArabic-subset.ttf");
+
+    fn fonts(files: &[&[u8]]) -> RendererFontSource {
+        let mut fontdb = fontdb::Database::new();
+        for data in files {
+            fontdb.load_font_data(data.to_vec());
+        }
+        RendererFontSource { fontdb }
+    }
+
+    fn font(family: &str, size: usize, weight: u16) -> FontQuery<'_> {
+        FontQuery {
+            family,
+            size,
+            weight,
+            ..Default::default()
+        }
+    }
+
+    fn assert_near(actual: f32, expected: f32) {
+        assert!(
+            (actual - expected).abs() < 0.5,
+            "measured {actual}, expected {expected}"
+        );
+    }
+
+    #[test]
+    fn text_fit_keeps_kerned_text_that_fits() {
+        let fonts = fonts(&[INTER]);
+        let text = "AVAVAVAV";
+        assert_near(
+            fonts
+                .measure_text(&font("Inter 18pt", 100, 800), text)
+                .unwrap(),
+            546.0,
+        );
+        let fitted = text_fit_impl(
+            font("Inter 18pt", 100, 800),
+            text,
+            550,
+            TextOverflow::Ellipsis,
+            &fonts,
+        );
+        assert_eq!(fitted.as_deref(), Some(text));
+    }
+
+    #[test]
+    fn text_fit_truncates_text_wider_than_its_box() {
+        let fonts = fonts(&[INTER]);
+        let query = font("Inter 18pt", 46, 800);
+        let text = "The Byzantine Greeks call Eastern Rome";
+        assert!(fonts.measure_text(&query, text).unwrap() > 885.0);
+        let fitted = text_fit_impl(query, text, 885, TextOverflow::Ellipsis, &fonts).unwrap();
+        assert!(fitted.ends_with('…'), "{fitted}");
+        assert!(fonts.measure_text(&query, &fitted).unwrap() <= 885.0);
+    }
+
+    #[test]
+    fn wrapped_lines_are_measured_joined() {
+        let fonts = fonts(&[INTER]);
+        let query = font("Inter 18pt", 16, 800);
+        let wrapped = text_wrap_impl(
+            0,
+            "a a a a a a a a a a",
+            &fonts,
+            BreakLinesOpts::<usize, usize> {
+                font: query,
+                width: 117,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(wrapped.lines.len() > 1);
+        for line in &wrapped.lines {
+            let rendered = fonts.measure_text(&query, &line.words.join(" ")).unwrap();
+            assert!(rendered <= 117.0, "{:?} renders {rendered} px", line.words);
+            assert_eq!(line.width, rendered.round() as usize);
+        }
+    }
+
+    #[test]
+    fn measuring_follows_the_weight_axis() {
+        let fonts = fonts(&[SOFIA]);
+        let family = "Sofia Sans Semi Condensed";
+        assert_near(
+            fonts
+                .measure_text(&font(family, 40, 100), "Hamburgefonts")
+                .unwrap(),
+            247.9,
+        );
+        assert_near(
+            fonts
+                .measure_text(&font(family, 40, 900), "Hamburgefonts")
+                .unwrap(),
+            266.5,
+        );
+    }
+
+    #[test]
+    fn missing_glyphs_are_measured_in_the_fallback_font() {
+        let fonts = fonts(&[INTER, ARABIC]);
+        let fallback = fonts
+            .measure_text(&font("Inter 18pt", 40, 800), "سلام")
+            .unwrap();
+        let direct = fonts
+            .measure_text(&font("Noto Sans Arabic", 40, 400), "سلام")
+            .unwrap();
+        assert_near(fallback, direct);
+    }
+
+    #[test]
+    fn marks_do_not_widen_text() {
+        let fonts = fonts(&[ARABIC]);
+        let arabic = font("Noto Sans Arabic", 40, 400);
+        assert_near(
+            fonts.measure_text(&arabic, "اَ").unwrap(),
+            fonts.measure_text(&arabic, "ا").unwrap(),
+        );
+    }
+
+    #[test]
+    fn mixed_direction_text_is_measured_per_run() {
+        let fonts = fonts(&[INTER, ARABIC]);
+        let query = font("Inter 18pt", 40, 800);
+        let latin = fonts.measure_text(&query, "AV ").unwrap();
+        let arabic = fonts.measure_text(&query, "سلام").unwrap();
+        assert_near(
+            fonts.measure_text(&query, "AV سلام").unwrap(),
+            latin + arabic,
+        );
     }
 }

@@ -100,4 +100,10 @@ pub trait FontSource<'a>: Sync + Send + std::fmt::Debug {
         font_style: FontStyle,
         font_stretch: FontStretch,
     ) -> Option<Box<dyn FontFace<'a> + 'a>>;
+
+    /// Width of `text` in pixels as the renderer lays it out, see
+    /// [`crate::measure_text_width`]. `None` falls back to per-character advances.
+    fn measure_text(&self, _font: &crate::FontQuery, _text: &str) -> Option<f32> {
+        None
+    }
 }
