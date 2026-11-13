@@ -100,7 +100,7 @@ Here is a list of some of the examples we store in the repo. Feel free to ~~insp
 
 #### [fframes-intro](examples/fframes-intro)
 
-The 128 second [launch video](https://x.com/neogoose_btw/status/2104432561200279774), everything placed on the beat grid of its soundtrack.
+The 128 second [launch video](https://x.com/0xfflock/status/2104432561200279774), everything placed on the beat grid of its soundtrack.
 
 <a href="https://github.com/user-attachments/assets/9fdfd7b6-121b-4b49-bbf4-6f34d240f3a5">
   <img alt="Watch fframes-intro" src="examples/_previews/fframes-intro.jpg" width="640" />
