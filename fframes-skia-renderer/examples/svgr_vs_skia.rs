@@ -176,6 +176,7 @@ fn main() {
         duration_in_frames: runtime.timeline.duration_in_frames,
         mode: FFramesMode::Renderer,
         scenes: runtime.timeline.scenes.as_ref(),
+        markers: &runtime.timeline.markers,
         media_source: Some(&combined_media),
         font_source: Some(&runtime.font_source),
     };

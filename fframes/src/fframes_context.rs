@@ -1,3 +1,4 @@
+use crate::markers::{TimelineMarker, normalize_marker_name};
 use crate::media::{ImageData, Subtitles};
 use crate::{AudioData, FontSource, Frame, MediaProvider, ResolvedScenesTimeline, Svgr};
 use fframes_media::VideoMedia;
@@ -50,6 +51,8 @@ pub struct FFramesContext<'a, 'media: 'a> {
     pub mode: FFramesMode,
     /// Resolved scenes timeline if provided by the Video implementation
     pub scenes: Option<&'a ResolvedScenesTimeline<'a>>,
+    /// Named cue points from [`Video::markers`](crate::Video::markers), resolved to frames.
+    pub markers: &'a [TimelineMarker],
     /// Media source can be used to resolve audio, video, images, and any other supported media
     pub media_source: Option<&'media dyn MediaProvider<'media>>,
     pub font_source: Option<&'a (dyn FontSource<'a> + 'a)>,
@@ -136,6 +139,15 @@ impl<'a, 'media: 'a> FFramesContext<'a, 'media> {
         } else {
             Svgr::default()
         }
+    }
+
+    /// A named cue point from [`Video::markers`](crate::Video::markers), if one exists.
+    /// Matching is case-insensitive and ignores `_`, `-` and spaces (`title-hit` == `TitleHit`).
+    pub fn marker(&self, name: &str) -> Option<&'a TimelineMarker> {
+        let wanted = normalize_marker_name(name);
+        self.markers
+            .iter()
+            .find(|marker| normalize_marker_name(&marker.name) == wanted)
     }
 
     /// Renders `svgr` into an image of `width` x `height` pixels with the backend that

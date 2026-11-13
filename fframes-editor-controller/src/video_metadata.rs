@@ -1,4 +1,6 @@
-use fframes::{AudioTimelineFrames, NamedRange, ResolvedAudioMap, ResolvedScenesTimeline};
+use fframes::{
+    AudioTimelineFrames, NamedRange, ResolvedAudioMap, ResolvedScenesTimeline, TimelineMarker,
+};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[wasm_bindgen]
@@ -13,6 +15,7 @@ pub struct VideoMetadata {
     name: &'static str,
     audio_map: Option<Vec<NamedRange>>,
     scenes: Option<Vec<NamedRange>>,
+    markers: Vec<TimelineMarker>,
 }
 
 impl VideoMetadata {
@@ -21,6 +24,7 @@ impl VideoMetadata {
         fps: usize,
         audio_map: Option<ResolvedAudioMap<AudioTimelineFrames>>,
         scenes: Option<&ResolvedScenesTimeline>,
+        markers: Vec<TimelineMarker>,
     ) -> Self {
         Self {
             width: TVideo::WIDTH as f64,
@@ -31,6 +35,7 @@ impl VideoMetadata {
             name: std::any::type_name::<TVideo>(),
             audio_map: audio_map.map(Into::into),
             scenes: scenes.map(Into::into),
+            markers,
         }
     }
 }
@@ -57,6 +62,12 @@ impl VideoMetadata {
     /// @returns {Record<string, [number, number]>}
     pub fn scenes(&self) -> JsValue {
         serde_wasm_bindgen::to_value(&self.scenes).unwrap()
+    }
+
+    #[wasm_bindgen(getter)]
+    /// Named cue points from `Video::markers`, resolved to frames.
+    pub fn markers(&self) -> JsValue {
+        serde_wasm_bindgen::to_value(&self.markers).unwrap()
     }
 
     #[wasm_bindgen(getter)]

@@ -381,6 +381,7 @@ impl Bench<'_> {
             media_source: Some(media),
             duration_in_frames: runtime.timeline.duration_in_frames,
             scenes: runtime.timeline.scenes.as_ref(),
+            markers: &runtime.timeline.markers,
             font_source: Some(&runtime.font_source),
             abort_signal: None,
             current_video_size: VideoSize::new_scaled(V::WIDTH, V::HEIGHT, 1.0),

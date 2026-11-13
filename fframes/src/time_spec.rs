@@ -10,9 +10,12 @@
 //! | `#3`              | the first frame of the scene with index 3 (0-based)          |
 //! | `Intro[1]`        | the second scene of type `Intro`                             |
 //! | `Intro@1.2s`      | 1.2 seconds into the scene (also `@12`, `@50%`, `@end`)      |
+//! | `title-hit`       | a named marker from [`Video::markers`](crate::Video::markers)|
 //!
 //! Ranges are `a..b` (end exclusive), `a..`, `..b`, or a single scene (`Intro`) for the whole
-//! scene. A scene name on the right side of `..` means the end of that scene.
+//! scene. A scene name on the right side of `..` means the end of that scene. A marker name is a
+//! single frame; `title-hit..cta` runs from one marker to the next.
+use crate::markers::{TimelineMarker, normalize_marker_name};
 use crate::{ResolvedScenesTimeline, SceneInfo};
 use std::fmt;
 use std::ops::Range;
@@ -41,12 +44,12 @@ impl fmt::Display for TimeSpecError {
             Self::Invalid(spec) => write!(
                 f,
                 "can not parse \"{spec}\": use a frame (120), time (3.2s, 1:05), percentage (50%), \
-                 scene (Intro, #3, Intro@1.5s) or start/end"
+                 scene (Intro, #3, Intro@1.5s), marker (title-hit) or start/end"
             ),
             Self::UnknownScene { query, available } => {
-                write!(f, "no scene \"{query}\"")?;
+                write!(f, "no scene or marker \"{query}\"")?;
                 if available.is_empty() {
-                    write!(f, ", the video does not define scenes")
+                    write!(f, ", the video does not define scenes or markers")
                 } else {
                     write!(f, ", available: {}", available.join(", "))
                 }
@@ -82,6 +85,7 @@ pub struct TimelineIndex {
     pub fps: usize,
     pub duration_in_frames: usize,
     pub scenes: Vec<TimelineScene>,
+    pub markers: Vec<TimelineMarker>,
 }
 
 /// `my_video::scenes::Intro<'_>` -> `Intro`
@@ -116,7 +120,13 @@ impl TimelineIndex {
                         .collect()
                 })
                 .unwrap_or_default(),
+            markers: Vec::new(),
         }
+    }
+
+    pub fn with_markers(mut self, markers: Vec<TimelineMarker>) -> Self {
+        self.markers = markers;
+        self
     }
 
     pub fn duration_in_seconds(&self) -> f32 {
@@ -190,13 +200,28 @@ impl TimelineIndex {
     }
 
     fn unknown_scene(&self, query: &str) -> TimeSpecError {
+        let mut available: Vec<String> = self
+            .scenes
+            .iter()
+            .map(|s| format!("#{} {}", s.index, s.name))
+            .collect();
+        available.extend(self.markers.iter().map(|marker| marker.name.clone()));
         TimeSpecError::UnknownScene {
             query: query.to_owned(),
-            available: self
-                .scenes
-                .iter()
-                .map(|s| format!("#{} {}", s.index, s.name))
-                .collect(),
+            available,
+        }
+    }
+
+    fn find_marker(&self, query: &str) -> Option<&TimelineMarker> {
+        let wanted = normalize_marker_name(query);
+        let matches: Vec<&TimelineMarker> = self
+            .markers
+            .iter()
+            .filter(|marker| normalize_marker_name(&marker.name) == wanted)
+            .collect();
+        match matches.as_slice() {
+            [marker] => Some(*marker),
+            _ => None,
         }
     }
 
@@ -276,17 +301,30 @@ impl TimelineIndex {
             return Ok(offset);
         }
 
-        let scene = self.find_scene(spec).map_err(|err| match err {
-            // Not a number and not a scene, the most useful message is the syntax.
+        match self.find_scene(spec) {
+            Ok(scene) => {
+                return Ok(match side {
+                    Side::Start => scene.frames.start,
+                    Side::End => scene.frames.end,
+                });
+            }
+            Err(TimeSpecError::UnknownScene { .. }) => {}
+            Err(err) => return Err(err),
+        }
+
+        if let Some(marker) = self.find_marker(spec) {
+            return Ok(match side {
+                Side::Start => marker.frame,
+                Side::End => (marker.frame + 1).min(self.duration_in_frames),
+            });
+        }
+
+        Err(match self.unknown_scene(spec) {
+            // Not a number, scene or marker: the most useful message is the syntax.
             TimeSpecError::UnknownScene { available, .. } if available.is_empty() => {
                 TimeSpecError::Invalid(spec.to_owned())
             }
             err => err,
-        })?;
-
-        Ok(match side {
-            Side::Start => scene.frames.start,
-            Side::End => scene.frames.end,
         })
     }
 
@@ -375,6 +413,18 @@ mod tests {
                     frames: 200..300,
                 },
             ],
+            markers: vec![
+                TimelineMarker {
+                    name: "title-hit".into(),
+                    frame: 36,
+                    seconds: 1.2,
+                },
+                TimelineMarker {
+                    name: "cta".into(),
+                    frame: 240,
+                    seconds: 8.0,
+                },
+            ],
         }
     }
 
@@ -409,6 +459,9 @@ mod tests {
             t.resolve_frame("11s"),
             Err(TimeSpecError::OutOfRange { .. })
         ));
+        assert_eq!(t.resolve_frame("title-hit"), Ok(36));
+        assert_eq!(t.resolve_frame("Title_Hit"), Ok(36));
+        assert_eq!(t.resolve_frame("cta"), Ok(240));
     }
 
     #[test]
@@ -427,6 +480,8 @@ mod tests {
             t.resolve_range("2s..1s"),
             Err(TimeSpecError::EmptyRange(_))
         ));
+        assert_eq!(t.resolve_range("title-hit"), Ok(36..37));
+        assert_eq!(t.resolve_range("title-hit..cta"), Ok(36..241));
     }
 
     #[test]
