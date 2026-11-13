@@ -530,6 +530,9 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
 - SkSL follows GLSL ES 2: constant loop bounds, no `while`, no dynamic array indexing, no
   preprocessor. `Shader::shadertoy` expands object-like `#define`s and drops `precision`;
   function-like macros and `texture()` must be rewritten.
+- `uniform shader uBackdrop;` with no image bound samples what is already painted under the
+  element, in its own coordinates (`uBackdrop.eval(coord + offset)` refracts the content
+  beneath). It is transparent inside isolated layers (group opacity, masks, filters).
 - Compile errors are logged once and the layer is skipped. Catch them in a test with
   `fframes_skia_renderer::render::compile_shader(&shader)`.
 - Only the Skia backend (GPU, or `SkiaCpuCtx`) executes shaders. The tiny-skia CPU backend

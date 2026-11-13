@@ -181,6 +181,29 @@ fn image_children_are_sampled() {
 }
 
 #[test]
+fn backdrop_child_samples_what_is_painted_underneath() {
+    // Reads the backdrop 50 units to the left, in the element's own coordinates.
+    let shader = Shader::sksl(
+        "uniform shader uBackdrop;
+         half4 main(float2 coord) { return uBackdrop.eval(coord - float2(50.0, 0.0)); }",
+    );
+    let layer = shader.draw(&Frame::new(0, 0, 30), ShaderUniforms::new());
+
+    let mut canvas = Canvas::new();
+    canvas.render(fframes::svgr!(
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+            <rect x="0" y="0" width="50" height="100" fill="#ff0000" />
+            <rect x="50" y="0" width="50" height="100" fill="#0000ff" />
+            <image href={layer.href()} x="50" y="0" width="50" height="100" />
+        </svg>
+    ));
+
+    // The left half is untouched; the right half now shows the red copied from the left.
+    assert_near(canvas.pixel(25, 50), [255, 0, 0, 255]);
+    assert_near(canvas.pixel(75, 50), [255, 0, 0, 255]);
+}
+
+#[test]
 fn invalid_shaders_report_errors_and_are_skipped() {
     let shader = Shader::sksl("half4 main(float2 coord) { return nope; }");
     let error = compile_shader(&shader).expect_err("invalid sksl");

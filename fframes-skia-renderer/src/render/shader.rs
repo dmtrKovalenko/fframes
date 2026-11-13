@@ -65,7 +65,14 @@ pub(super) fn render_shader(
     };
 
     let uniforms = pack_uniforms(&effect, draw, width, height, cache);
-    let Some(children) = bind_children(&effect, draw, cache) else {
+
+    canvas.save();
+    // Shader coordinates start at the element's top-left corner, in the
+    // element's own units, so `iResolution` and `coord` agree at any scale.
+    canvas.translate((rect.x(), rect.y()));
+
+    let Some(children) = bind_children(&effect, draw, canvas, cache) else {
+        canvas.restore();
         return;
     };
 
@@ -73,17 +80,13 @@ pub(super) fn render_shader(
         cache
             .shaders
             .warn_once(&draw.shader, "Skia refused to build the shader".into());
+        canvas.restore();
         return;
     };
 
     let mut paint = Paint::default();
     paint.set_shader(shader);
     paint.set_anti_alias(true);
-
-    canvas.save();
-    // Shader coordinates start at the element's top-left corner, in the
-    // element's own units, so `iResolution` and `coord` agree at any scale.
-    canvas.translate((rect.x(), rect.y()));
     canvas.draw_rect(Rect::from_wh(width, height), &paint);
     canvas.restore();
 }
@@ -155,11 +158,35 @@ fn f32_bytes(values: &[f32]) -> Vec<u8> {
     values.iter().flat_map(|v| v.to_ne_bytes()).collect()
 }
 
+/// Name of the `uniform shader` child that receives what is already painted under the
+/// element (a backdrop), in the element's own coordinates, so a shader can refract or
+/// otherwise process the content beneath it. Only available when drawing straight onto a
+/// surface; inside a recorded picture or an isolated layer it falls back to transparent.
+pub const BACKDROP_CHILD: &str = "uBackdrop";
+
+/// What is already painted under the element, as a shader in the element's local
+/// coordinates: a snapshot of the surface mapped through the inverse of the current
+/// local-to-device matrix.
+fn backdrop_shader(canvas: &Canvas) -> Option<skia_safe::Shader> {
+    // SAFETY: the surface handle is only used to take an immutable snapshot and is dropped
+    // before the canvas draws again; the canvas stays the sole writer.
+    let mut surface = unsafe { canvas.surface() }?;
+    let image = surface.image_snapshot();
+    let device_to_local = canvas.local_to_device_as_3x3().invert()?;
+    image.to_shader(
+        (skia_safe::TileMode::Clamp, skia_safe::TileMode::Clamp),
+        skia_safe::SamplingOptions::new(skia_safe::FilterMode::Linear, skia_safe::MipmapMode::None),
+        Some(&device_to_local),
+    )
+}
+
 /// Every `uniform shader` child must be bound; missing images are bound to a
-/// transparent shader so the rest of the program still runs.
+/// transparent shader so the rest of the program still runs. A child named
+/// [`BACKDROP_CHILD`] with no image bound receives the backdrop.
 fn bind_children(
     effect: &RuntimeEffect,
     draw: &ShaderDraw,
+    canvas: &Canvas,
     cache: &mut RenderCache,
 ) -> Option<Vec<ChildPtr>> {
     let mut children = Vec::with_capacity(effect.children().len());
@@ -198,11 +225,31 @@ fn bind_children(
             })
         });
 
+        let image_shader = image_shader.or_else(|| {
+            if pixels.is_none() && child.name() == BACKDROP_CHILD {
+                let backdrop = backdrop_shader(canvas);
+                if backdrop.is_none() {
+                    cache.shaders.warn_once(
+                        &draw.shader,
+                        format!(
+                            "child `{}`: no surface to snapshot here, bound transparent",
+                            child.name()
+                        ),
+                    );
+                }
+                backdrop
+            } else {
+                None
+            }
+        });
+
         let shader = image_shader.unwrap_or_else(|| {
-            cache.shaders.warn_once(
-                &draw.shader,
-                format!("child `{}` has no image bound", child.name()),
-            );
+            if child.name() != BACKDROP_CHILD {
+                cache.shaders.warn_once(
+                    &draw.shader,
+                    format!("child `{}` has no image bound", child.name()),
+                );
+            }
             skia_safe::shaders::color(skia_safe::Color::TRANSPARENT)
         });
 
