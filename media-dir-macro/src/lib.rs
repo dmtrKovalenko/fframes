@@ -22,7 +22,8 @@ use syn::{Ident, parse_macro_input};
 /// and audio are decoded at compile time. Subtitles are parsed once when preparing media.
 /// Audio is mixed down to mono unless the
 /// `stereo` option is given; mono files stay mono either way.
-/// Subtitles can be `WebVTT` or JSON cues; both use the same owned subtitle type.
+/// Subtitles can be `WebVTT`, JSON cues or, with the `srt` feature, `SubRip` (`.srt`); all use
+/// the same owned subtitle type.
 #[proc_macro]
 pub fn include_media_dir(input: TokenStream) -> TokenStream {
     let fframes_crate_ident = resolve_fframes_crate_ident();
@@ -294,6 +295,11 @@ impl MediaVariant {
             "ttf" | "ttc" | "otf" | "otc" => Some(MediaVariant::Font),
             "jpeg" | "png" | "jpg" => Some(MediaVariant::Image),
             "vtt" => Some(MediaVariant::Subtitles),
+            "srt" if cfg!(feature = "srt") => Some(MediaVariant::Subtitles),
+            "srt" => panic!(
+                "{}: SubRip subtitles require the `srt` feature of fframes.",
+                path.display()
+            ),
             "json" if is_subtitle_json(file_name, path) => Some(MediaVariant::Subtitles),
             "json" if cfg!(feature = "lottie") => Some(MediaVariant::Lottie),
             "json" => panic!(
@@ -307,6 +313,15 @@ impl MediaVariant {
             ),
         }
     }
+}
+
+fn is_empty_srt(path: &Path, content: &str) -> bool {
+    cfg!(feature = "srt")
+        && path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("srt"))
+        && content.trim_start_matches('\u{feff}').trim().is_empty()
 }
 
 fn is_subtitle_json(file_name: &str, path: &Path) -> bool {
@@ -418,9 +433,15 @@ impl MediaFile {
                 // same parser used by runtime loading, without a second cue schema.
                 let file_str = std::fs::read_to_string(&self.path).unwrap();
                 let file_str_literal = Literal::string(&file_str);
+                // An empty `.srt` is an empty track; content detection cannot tell its format.
+                let parse = if is_empty_srt(&self.path, &file_str) {
+                    quote! { from_srt }
+                } else {
+                    quote! { parse }
+                };
 
                 quote! {
-                    #fframes_crate_ident::media::Subtitles::parse(
+                    #fframes_crate_ident::media::Subtitles::#parse(
                         #file_str_literal
                     ).map_err(#fframes_crate_ident::media::FFramesMediaError::from)?
                 }

@@ -71,6 +71,8 @@ cpu_renderer = ["svgr"]
 cli = ["cpu_renderer", "dep:clap", "dep:serde_json"]
 # Declarative SVG caption rendering. Subtitle data/parsing is part of fframes-media.
 captions = []
+# SubRip (`.srt`) subtitle files, loaded and rendered like `.vtt`
+srt = ["fframes-media/srt", "fframes-media-dir-macro/srt"]
 exif = ["fframes-media/exif", "fframes-media-dir-macro/exif"]
 compile-time-svgtree = ["svgr-macro/compile-time-svgtree"]
 # `fframes::Lottie` and `frame.play_lottie`: Lottie `.json` files in the media folder

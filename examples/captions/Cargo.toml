@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-fframes = { workspace = true, features = ["cli", "captions", "compile-time-svgtree"] }
+fframes = { workspace = true, features = ["cli", "captions", "srt", "compile-time-svgtree"] }
 serde = { version = "1", features = ["derive"] }
 
 [features]

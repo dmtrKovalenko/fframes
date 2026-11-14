@@ -1,0 +1,4 @@
+1
+00:00:07,650 --> 00:00:09,000
+The same captions also load
+from a SubRip (.srt) file.
