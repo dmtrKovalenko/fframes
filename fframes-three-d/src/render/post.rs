@@ -45,7 +45,19 @@ pub enum ToneMapping {
     /// white.
     #[default]
     Aces,
-    /// three.js `NeutralToneMapping` (Khronos PBR Neutral). It keeps base colors accurate.
+    /// three.js `NeutralToneMapping` (Khronos PBR Neutral). It keeps the hue and saturation
+    /// of mid and bright base colors.
+    ///
+    /// The curve subtracts 0.04 (linear) from every channel. This removes the 4% white
+    /// reflection that a lit dielectric gets from a bright environment. A color whose darkest
+    /// channel `x` is below 0.08 (sRGB `#505050`) loses `x - 6.25 * x * x` instead, so that
+    /// channel becomes `6.25 * x * x`. Dark colors go toward black and toward their strongest
+    /// channel: an unlit `#1a1c20` becomes `#02060f`. Unlit materials and surfaces without
+    /// that reflection lose the same amount, so they are darker than their color.
+    ///
+    /// For dark grounds and dark products use [`ToneMapping::Aces`] with a higher
+    /// [`Renderer::exposure`](super::Renderer::exposure), or [`ToneMapping::Linear`] for exact
+    /// flat colors.
     Neutral,
 }
 

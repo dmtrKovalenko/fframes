@@ -52,7 +52,7 @@ problems already looks finished.
   `+2` to `+6` for small caps labels.
 - Max ~8 words per line, ~3 lines per card. Measure with `frame.text_width` or wrap with
   `frame.text_break_lines`; shrink to fit with a loop over sizes and memoize the result
-  in a `OnceLock`. Generated projects include a `FittedSizes` helper that does this.
+  in a `OnceLock`. The `greeting_size` method of a generated single-scene project does this.
 
 ## Color
 

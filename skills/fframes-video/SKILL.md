@@ -236,7 +236,9 @@ warning gives the `frame ... --crop ...` command to look at it; repeats of the s
 
 Rules:
 - Look at the PNGs before saying anything looks good.
-- Prefer `strip` to many `frame` calls; add `--scale 0.5` when composition is all you need.
+- Prefer `strip` to many `frame` calls. The size of its cells is `--width` (480 px by
+  default; `--scale` does not change a strip). Add `--scale 0.5` to `frame` when composition
+  is all you need.
 - Add `--json` when parsing output: the result goes to stdout, progress to stderr.
 - Keep `--release`: debug builds render many times slower.
 

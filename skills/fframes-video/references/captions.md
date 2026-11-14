@@ -41,11 +41,17 @@ per-word settings:
 
 Loading is the same as for any other media: `include_media_dir!` embeds the file,
 `MediaDirectory::read_folder` reads it at runtime, the editor loads it over HTTP. JSON
-whose top-level object has `cues` is a caption track; any other JSON is not.
-`ctx.get_subtitles("speech.json")` returns the `&CaptionTrack`: `cues()`,
-`active_cues(seconds)`, and on each `CaptionCue` `phrase()`, `words`, `metadata`.
-A track can also be built in code: `CaptionTrack::new([CaptionCue::words(0.0, 2.0,
-[CaptionWord::new("Choose", 0.0, 0.7), ..]), CaptionCue::text(2.4, 4.0, "..")])`.
+whose top-level object has `cues` is a caption track. A file named `subtitles.json`,
+`captions.json`, `*.subtitles.json` or `*.captions.json` is always a caption track and fails
+to load without `cues`. Any other JSON is a Lottie animation with the `lottie` feature;
+without it `include_media_dir!` fails to compile and `MediaDirectory` skips the file. The
+top-level object, cues and words accept only the keys shown here: an unknown key (a
+`language` next to `cues`) fails the load. Put your own data into `metadata`.
+`ctx.get_subtitles("speech.json")` returns an `Option<&CaptionTrack>` (`None` when the
+file is missing): `cues()`, `active_cues(seconds)`, and on each `CaptionCue` `phrase()`,
+`words`, `metadata`. A track can also be built in code: `CaptionTrack::new([CaptionCue::words(0.0, 2.0,
+[CaptionWord::new("Choose", 0.0, 0.7), ..]), CaptionCue::text(2.4, 4.0, "..")])` returns a
+`Result`, because it validates the timing like the parser.
 
 For a plain phrase caption `frame.get_subtitle_phrase(track)` returns the current cue
 text; this older helper includes the cue's end timestamp, `Captions` and `active_cues`
@@ -72,7 +78,8 @@ let captions = Captions::from_media("speech.json", CaptionRect::new(120.0, 760.0
     .underline("#ffd166", 5.0); // bar under the active word
 ```
 
-`Captions::new(track, rect)` takes an owned `CaptionTrack` instead of a media name.
+`Captions::new(track, rect)` takes an owned `CaptionTrack` (not the `Result` of
+`CaptionTrack::new` or `parse`) instead of a media name.
 The rectangle is in composition pixels. Each phrase is wrapped to its width, lines are
 centred, and the block is anchored to the bottom edge of the rectangle; simultaneous cues
 are stacked in order. Nothing moves when the active word changes.
@@ -89,7 +96,8 @@ Modes:
   (`upcoming_fill`, `active_fill`, `spoken_fill`).
 - `Karaoke`: like Highlight, the active word fills left to right with its progress.
 - `Reveal`: words appear as they are spoken and stay; upcoming words are hidden.
-- `Word`: only the active word, centred in the rectangle; nothing during gaps.
+- `Word`: only the active word, centred horizontally on the bottom edge of the rectangle
+  like the other modes; nothing during gaps.
 
 A VTT phrase has no word timing: every mode shows the whole phrase in `spoken_fill`.
 
@@ -133,8 +141,9 @@ What the scope offers:
 
 - `scope.word`: `text`, `state` (`Upcoming | Active | Spoken`), `progress` (0..=1 of the
   word's duration), `start`/`end` (`None` for a VTT phrase), `metadata`, `cue_index`,
-  `word_index`. `scope.cue_metadata` is the cue's object. `scope.is_active()`.
-- `scope.time` (caption seconds), `scope.elapsed()` (seconds since the word started),
+  `token_index`, `word_index` (`None` for a VTT phrase). `scope.cue_metadata` is the cue's object. `scope.is_active()`.
+- `scope.time` (caption seconds), `scope.elapsed()` (`Option<f64>`: seconds since the word started,
+  `None` for a VTT phrase),
   `scope.frame` (the `Frame`, for `frame.animate` or `Shader::draw`).
 - `scope.composition_rect`: where the word lands on the canvas, if something else must
   align with it.
@@ -144,9 +153,9 @@ What the scope offers:
 - `render_at_with` and `highlight_at_with` take explicit seconds; every variant has a
   `try_` form that returns the error.
 
-For a layout of your own, `captions.words_at(seconds, &mut frame, ctx)` returns the
-positioned words (`rect` in composition pixels, state, progress, metadata) and you draw
-them yourself.
+For a layout of your own, `captions.words_at(seconds, &mut frame, ctx)` returns a
+`Result` with the positioned words (`rect` in composition pixels, state, progress,
+metadata) and you draw them yourself. It does not report its errors to `inspect`.
 
 ## Metadata
 

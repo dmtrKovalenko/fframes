@@ -360,9 +360,10 @@ Rules for `render_frame`:
 - It runs once per frame on several threads. No panics, no I/O, no heavy allocation. Precompute
   in the constructor and read from `self`; memoise per-video data in a `std::sync::OnceLock`
   field (only store a measurement once it succeeded).
-- `svgr!` is SVG with Rust interpolation: attributes and text children accept `{expr}` where
-  `expr` is a string, number, `Color`, `Transform`, another `Svgr`, or an iterator of `Svgr`
-  (`.collect::<Vec<_>>()`). Comments are `// ...` lines inside the markup.
+- `svgr!` is SVG with Rust interpolation: attributes accept `{expr}` where `expr` is a
+  string, number, `Color`, `Transform` or an image `href()`; children accept a string,
+  another `Svgr`, an `Option<Svgr>`, or an iterator of `Svgr` (`.collect::<Vec<_>>()`). A
+  number as a child needs `.to_string()`. Comments are `// ...` lines inside the markup.
 - Subtrees whose markup contains no `{}` get a compile-time `static_hash` and are cached by
   the renderers across frames (paths, paints, whole groups). Keep decorative geometry lexically
   static and put the animated values on a wrapping `<g transform={...} opacity={...}>`.
@@ -550,7 +551,7 @@ Two renderers draw the same picture:
 - The CPU rasterizer runs everywhere, also in the editor (at half size there).
 - With `fframes = { features = ["3d", "wgpu"] }` the renderer uses wgpu (Vulkan, Metal, DX12).
   A frame differs from the CPU frame by less than one 8-bit step on average. Without a GPU
-  it falls back to the CPU. `Renderer::cpu()` forces the CPU.
+  it falls back to the CPU. `Renderer::new(w, h).cpu()` forces the CPU.
 - With `fframes_skia_renderer = { features = ["vulkan", "wgpu"] }` as well, the 3D stays on
   the GPU: Skia draws the wgpu texture in place and converts the frame for the encoder.
   Nothing is read back. Other backends (the CPU backend, Metal, the editor) get pixels.

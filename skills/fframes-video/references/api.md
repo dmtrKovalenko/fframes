@@ -11,8 +11,10 @@ shaders).
 
 ## svgr!
 
-SVG markup with Rust in braces. Attributes and text children take strings, numbers, `Color`,
-`Transform`, another `Svgr`, or a `Vec<Svgr>` / iterator collected to a `Vec`.
+SVG markup with Rust in braces. An attribute takes a string, a number, a `Color`, a
+`Transform` or an image `href()`. A child takes a `String` or `&str`, another `Svgr`, an
+`Option<Svgr>` or a `Vec<Svgr>` (an iterator collected to a `Vec`). A number as a child does
+not compile: write `{count.to_string()}`.
 
 ```rust
 fframes::svgr!(
@@ -32,8 +34,9 @@ fframes::svgr!(
   decoration static, wrap animated values around it.
 - Gradients, clip paths, masks, filters go into `<defs>` like normal SVG and are referenced
   with `url(#id)`. Give ids unique names per component instance if repeated.
-- Images: `href={self.media.logo_png.href()}` (field named after the file in `media/`) or
-  `ctx.get_image("logo.png").map(|i| i.href())`.
+- Images: `href={self.media.logo_png.href()}` (field named after the file in `media/`), or
+  `let Some(logo) = ctx.get_image("logo.png") else { return Svgr::empty() };` and
+  `href={logo.href()}`. An attribute does not take an `Option`.
 
 ## Video and Scene
 
@@ -123,8 +126,8 @@ fframes::svgr!(
   caps the natural settle time; omit the end in `timeline!` to let the spring settle.
 - For precomputed geometry, motion-blur subframes or a custom clock,
   `runtime.solve(&elapsed_seconds)` evaluates the same easing
-  directly. Handle times before the start and after `get_duration()` explicitly: `solve`
-  does not clamp them. Use a custom curve only when the required motion is not represented
+  directly. Handle times before the start and after `get_duration()` explicitly: `Linear`
+  and `Spring` do not clamp them (the bezier easings do). Use a custom curve only when the required motion is not represented
   by the available easings.
 - Easing: `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(x1, y1, x2, y2)`, `Spring {..}`.
   Use the named ones and `Spring`; `design.md` says which fits where.
@@ -178,7 +181,8 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   and combine providers with `CombinedMediaProvider::from([&static_media as &dyn MediaProvider, &media])`.
 - Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, speed, editor_fallback_image })`
   (`speed: 2.0` plays twice as fast, `..Default::default()` keeps 1.0)
-  then `<image href={video_frame.href()} .../>` (needs the `compile-time-svgtree` feature).
+  then `let image = video_frame.into_image();` and `<image href={image.href()} .../>` (needs
+  the `compile-time-svgtree` feature). The video frame itself has no `href()`.
   `start_from` is when the video starts on the timeline, not a position in the file.
 - Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file,
   `Clip::new("cam.mp4", 0.0..)` the whole file (`.at(1.2)` starts it at 1.2 s of the scene, `.speed(1.5)`, `.reverse()`, `.looping()`).
@@ -301,7 +305,8 @@ let problems = previewer.inspect(frame)?.diagnostics;
 Skia: `SkiaFFramesRenderer::new_metal(&SkiaMetalCtx::new(W, H)?, SkiaPipelineConfig::default())`
 (`fframes_skia_renderer` feature `metal`) or `new_vulkan` with `SkiaVulkanCtx` (feature
 `vulkan`). `backend.frame_renderer()`
-returns a renderer for single frames that matches the backend (Skia on the GPU for Skia).
+returns an `Option` of a renderer for single frames that matches the backend (Skia on the
+GPU for Skia); `None` means the built-in CPU renderer.
 
 The Skia backend picks the fastest way to hand frames to the encoder on its own: hardware
 frames (`*_videotoolbox` encoders with `new_metal`; `h264_vulkan`/`hevc_vulkan` with
@@ -336,4 +341,5 @@ fframes::cli::new(&video, options)
 - Heavy filters (`feGaussianBlur`, `feDropShadow`) on animated subtrees are slow on the CPU
   backend: keep them static or use Skia.
 - Durations from audio (`Duration::FromAudio`, `Eof`) need the file in the media provider;
-  missing files fail early with `RequiredAudioNotFound`.
+  a missing file fails early with `CanNotProcessAudioDuration` (`RequiredAudioNotFound` when
+  `RenderOptions::media` is `None`).
