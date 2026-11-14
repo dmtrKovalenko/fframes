@@ -126,8 +126,9 @@ fframes::svgr!(
   caps the natural settle time; omit the end in `timeline!` to let the spring settle.
 - For precomputed geometry, motion-blur subframes or a custom clock,
   `runtime.solve(&elapsed_seconds)` evaluates the same easing
-  directly. Handle times before the start and after `get_duration()` explicitly: `Linear`
-  and `Spring` do not clamp them (the bezier easings do). Use a custom curve only when the required motion is not represented
+  directly. Handle times before the start and after `get_duration()` explicitly: `Linear`,
+  `Spring` and a diagonal `CubicBezier` (`x1 == y1` and `x2 == y2`) do not clamp them; the
+  other bezier easings do. Use a custom curve only when the required motion is not represented
   by the available easings.
 - Easing: `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `CubicBezier(x1, y1, x2, y2)`, `Spring {..}`.
   Use the named ones and `Spring`; `design.md` says which fits where.
@@ -181,8 +182,10 @@ family, size and weight in the `<text>` attributes. `text-anchor="middle"` cente
   and combine providers with `CombinedMediaProvider::from([&static_media as &dyn MediaProvider, &media])`.
 - Video frames: `frame.get_synced_video_frame(ctx, "clip.mp4", &SyncVideoFrameInput { start_from, looping, speed, editor_fallback_image })`
   (`speed: 2.0` plays twice as fast, `..Default::default()` keeps 1.0)
-  then `let image = video_frame.into_image();` and `<image href={image.href()} .../>` (needs
-  the `compile-time-svgtree` feature). The video frame itself has no `href()`.
+  returns an `Option`: `let Some(video_frame) = .. else { return Svgr::empty() };` then
+  `let image = video_frame.into_image();` and `<image href={image.href()} .../>` (needs the
+  `compile-time-svgtree` feature). The video frame itself has no `href()`, and its methods
+  need `use fframes::FFramesSyncedVideoFrame;`.
   `start_from` is when the video starts on the timeline, not a position in the file.
 - Footage: `Clip::new("IMG_0926.mov", 19.2..24.7)` is seconds 19.2 to 24.7 of the file,
   `Clip::new("cam.mp4", 0.0..)` the whole file (`.at(1.2)` starts it at 1.2 s of the scene, `.speed(1.5)`, `.reverse()`, `.looping()`).
