@@ -61,8 +61,10 @@ fn differing_pixels(body: &str) -> usize {
     let paths = render(&tree(&svg, false));
     let shapes = render(&tree(&svg, true));
     paths
-        .chunks_exact(4)
-        .zip(shapes.chunks_exact(4))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(shapes.as_chunks::<4>().0)
         .filter(|(a, b)| a.iter().zip(b.iter()).any(|(a, b)| a.abs_diff(*b) > 96))
         .count()
 }

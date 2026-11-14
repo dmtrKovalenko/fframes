@@ -296,14 +296,12 @@ impl DecoderPool {
             let (_, decoders) = matches.next()?;
             matches.next().is_none().then_some(decoders)
         });
-        decoders
-            .map(|decoders| {
-                decoders
-                    .iter()
-                    .map(|(_, entry)| Arc::clone(&entry.slot))
-                    .collect()
-            })
-            .unwrap_or_default()
+        decoders.map_or_default(|decoders| {
+            decoders
+                .iter()
+                .map(|(_, entry)| Arc::clone(&entry.slot))
+                .collect()
+        })
     }
 
     fn finish_frame(&mut self, concurrent_jobs: usize) -> Vec<DecoderSlot> {

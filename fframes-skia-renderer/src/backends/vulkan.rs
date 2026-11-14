@@ -194,8 +194,7 @@ impl SkiaVulkanCtx {
             #[cfg(feature = "wgpu")]
             let wgpu_extensions = interop
                 .as_ref()
-                .map(|interop| interop.extensions().to_vec())
-                .unwrap_or_default();
+                .map_or_default(|interop| interop.extensions().to_vec());
             #[cfg(not(feature = "wgpu"))]
             let wgpu_extensions: Vec<&'static std::ffi::CStr> = Vec::new();
 

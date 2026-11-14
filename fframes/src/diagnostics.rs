@@ -162,8 +162,7 @@ pub(crate) fn report_missing_media(media: MediaKind, name: &str) {
 pub fn take_missing_media() -> Vec<(MediaKind, String)> {
     MISSING_MEDIA
         .lock()
-        .map(|mut missing| std::mem::take(&mut *missing).into_iter().collect())
-        .unwrap_or_default()
+        .map_or_default(|mut missing| std::mem::take(&mut *missing).into_iter().collect())
 }
 
 fn dedup(diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {

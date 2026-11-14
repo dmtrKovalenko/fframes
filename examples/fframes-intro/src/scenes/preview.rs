@@ -83,7 +83,7 @@ impl Scene for PreviewScene {
             -(y + h / 2.0)
         );
         let window = capture
-            .map(|img| {
+            .map_or_default(|img| {
                 fframes::svgr!(
                     <g>
                         <clipPath id="preview-win"><rect x={x} y={y} width={w} height={h} rx={radius} /></clipPath>
@@ -94,8 +94,7 @@ impl Scene for PreviewScene {
                         <rect x={x} y={y} width={w} height={h} rx={radius} fill="none" stroke="#3d3a35" stroke-width="1.5" opacity={1.0 - full} />
                     </g>
                 )
-            })
-            .unwrap_or_default();
+            });
 
         let keys: Vec<Svgr> = KEYS
             .iter()
