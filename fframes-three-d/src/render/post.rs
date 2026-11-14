@@ -45,8 +45,9 @@ pub enum ToneMapping {
     /// white.
     #[default]
     Aces,
-    /// three.js `NeutralToneMapping` (Khronos PBR Neutral). It keeps the hue and saturation
-    /// of mid and bright base colors.
+    /// three.js `NeutralToneMapping` (Khronos PBR Neutral). It keeps the hue of base colors
+    /// and the saturation of mid colors. Above 0.76 (linear) it compresses the brightest
+    /// channel toward 1 and mixes the color with white, so highlights lose saturation.
     ///
     /// The curve subtracts 0.04 (linear) from every channel. This removes the 4% white
     /// reflection that a lit dielectric gets from a bright environment. A color whose darkest
