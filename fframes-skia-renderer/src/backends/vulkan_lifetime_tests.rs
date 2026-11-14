@@ -359,13 +359,16 @@ fn surfaces_release_images_and_memory_on_success_and_failure() {
                     &mut pixels,
                 )
                 .unwrap();
-            for (row, pixels) in pixels.chunks_exact(320 * 4).enumerate() {
+            for (row, pixels) in pixels.as_chunks::<{ 320 * 4 }>().0.iter().enumerate() {
                 let expected = if row < 90 {
                     [0, 0, 255, 255]
                 } else {
                     [0, 128, 0, 128]
                 };
-                assert!(pixels.chunks_exact(4).all(|p| p == expected), "row {row}");
+                assert!(
+                    pixels.as_chunks::<4>().0.iter().all(|p| *p == expected),
+                    "row {row}"
+                );
             }
             assert!(IMAGES.load(Ordering::SeqCst) > 0);
             assert!(MEMORY.load(Ordering::SeqCst) > 0);

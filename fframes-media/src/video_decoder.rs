@@ -452,8 +452,7 @@ impl ConvertedFrames {
             return Vec::new();
         };
         Arc::try_unwrap(self.retired.swap_remove(free))
-            .map(|image| image.data.into_owned())
-            .unwrap_or_default()
+            .map_or_default(|image| image.data.into_owned())
     }
 }
 

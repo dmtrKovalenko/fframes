@@ -223,8 +223,7 @@ fn card(ctx: &FFramesContext, card: &Card, l: f32) -> Svgr<'static> {
             let ih = iw / aspect;
             let img = ctx
                 .get_image(name)
-                .map(|img| fframes::svgr!(<image href={img.href()} x={x + 28.0} y={y + 84.0} width={iw} height={ih} />))
-                .unwrap_or_default();
+                .map_or_default(|img| fframes::svgr!(<image href={img.href()} x={x + 28.0} y={y + 84.0} width={iw} height={ih} />));
             (
                 fframes::svgr!(<g opacity={body_o}>{img}</g>),
                 84.0 + ih + 28.0,

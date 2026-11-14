@@ -421,9 +421,7 @@ impl<'m> AudioMixer<'m> {
         options: AudioMixOptions,
     ) -> Self {
         let mut missing = Vec::new();
-        let resolved = audio_map
-            .map(super::audio_map::ResolvedAudioMap::tracks)
-            .unwrap_or_default();
+        let resolved = audio_map.map_or_default(super::audio_map::ResolvedAudioMap::tracks);
         let rate = sample_rate as f64;
         let rescale = sample_rate as f64 / map_sample_rate.max(1) as f64;
         let to_output = |sample: usize| (sample as f64 * rescale).round() as usize;

@@ -193,8 +193,7 @@ fn pascal_case(name: &str) -> String {
             let mut chars = part.chars();
             chars
                 .next()
-                .map(|first| first.to_ascii_uppercase().to_string() + chars.as_str())
-                .unwrap_or_default()
+                .map_or_default(|first| first.to_ascii_uppercase().to_string() + chars.as_str())
         })
         .collect()
 }
@@ -206,8 +205,7 @@ fn title_case(name: &str) -> String {
             let mut chars = part.chars();
             chars
                 .next()
-                .map(|first| first.to_ascii_uppercase().to_string() + chars.as_str())
-                .unwrap_or_default()
+                .map_or_default(|first| first.to_ascii_uppercase().to_string() + chars.as_str())
         })
         .collect::<Vec<_>>()
         .join(" ")
@@ -405,20 +403,18 @@ fn new(args: NewArgs) -> Result<(), String> {
 
     // Skia renderer and the real-time player (the `preview` command) for GPU backends.
     let skia_deps = |renderer_source: &str, player_source: &str| {
-        skia_feature
-            .map(|f| {
-                // The workspace dependency turns default features off already.
-                let player_features = if player_source == "workspace = true" {
-                    format!("features = [\"{f}\", \"audio\"]")
-                } else {
-                    format!("default-features = false, features = [\"{f}\", \"audio\"]")
-                };
-                format!(
-                    "fframes_skia_renderer = {{ {renderer_source}, features = [\"{f}\"] }}\n\
+        skia_feature.map_or_default(|f| {
+            // The workspace dependency turns default features off already.
+            let player_features = if player_source == "workspace = true" {
+                format!("features = [\"{f}\", \"audio\"]")
+            } else {
+                format!("default-features = false, features = [\"{f}\", \"audio\"]")
+            };
+            format!(
+                "fframes_skia_renderer = {{ {renderer_source}, features = [\"{f}\"] }}\n\
                      fframes_native_player = {{ {player_source}, {player_features} }}\n"
-                )
-            })
-            .unwrap_or_default()
+            )
+        })
     };
 
     let (fframes_dep, skia_dep, dylib_source, media_path, standalone_tables, run) =

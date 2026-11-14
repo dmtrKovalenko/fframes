@@ -394,7 +394,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
                 .timeline
                 .audio_map
                 .as_ref()
-                .map(|map| {
+                .map_or_default(|map| {
                     use crate::AudioTimelineUnit;
                     map.tracks()
                         .iter()
@@ -405,8 +405,7 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
                             mix: track.mix.clone(),
                         })
                         .collect()
-                })
-                .unwrap_or_default(),
+                }),
         }
     }
 

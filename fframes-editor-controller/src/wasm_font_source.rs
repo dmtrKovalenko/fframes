@@ -191,8 +191,10 @@ fn decode_utf16be(data: &[u8]) -> Option<Cow<'_, str>> {
 
     // Convert bytes to UTF-16BE code units
     let utf16_units: Vec<u16> = data
-        .chunks_exact(2)
-        .map(|chunk| ((chunk[0] as u16) << 8) | (chunk[1] as u16))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|chunk| u16::from_be_bytes(*chunk))
         .collect();
 
     // Decode UTF-16BE to a Rust String

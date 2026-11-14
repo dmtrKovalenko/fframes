@@ -99,9 +99,9 @@ impl Scene for VideoScene {
 
         let (lx, ly, lw, lh) = LEFT;
         let (rx, ry, rw, rh) = RIGHT;
-        let left_img = left
-            .map(|i| fframes::svgr!(<image href={i.href()} x={lx} y={ly} width={lw} height={lh} />))
-            .unwrap_or_default();
+        let left_img = left.map_or_default(
+            |i| fframes::svgr!(<image href={i.href()} x={lx} y={ly} width={lw} height={lh} />),
+        );
         let right_img = if keyed {
             let flicker = if lb < 4.25 {
                 i32::from(hash(lb * 211.0) > 0.5) as f32
@@ -116,7 +116,9 @@ impl Scene for VideoScene {
                 </g>
             )
         } else {
-            right.map(|i| fframes::svgr!(<image href={i.href()} x={rx} y={ry} width={rw} height={rh} />)).unwrap_or_default()
+            right.map_or_default(
+                |i| fframes::svgr!(<image href={i.href()} x={rx} y={ry} width={rw} height={rh} />),
+            )
         };
         let exit = expo_in(prog(lb, 5.75, 6.0));
 

@@ -37,8 +37,8 @@ fn benchmark_yuv420_conversion(c: &mut Criterion) {
                     black_box(y_pixels.as_mut_ptr()),
                     black_box(cb_pixels.as_mut_ptr()),
                     black_box(cr_pixels.as_mut_ptr()),
-                )
-            })
+                );
+            });
         });
 
         #[cfg(target_arch = "aarch64")]
@@ -57,9 +57,9 @@ fn benchmark_yuv420_conversion(c: &mut Criterion) {
                             black_box(y_pixels.as_mut_ptr()),
                             black_box(cb_pixels.as_mut_ptr()),
                             black_box(cr_pixels.as_mut_ptr()),
-                        )
+                        );
                     }
-                })
+                });
             });
         }
     }

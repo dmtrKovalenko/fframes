@@ -3,7 +3,9 @@
 //! of the frame land where the projections of the cameras put them, on every backend.
 #![allow(clippy::unreadable_literal)]
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+#[cfg(not(target_os = "macos"))]
+use std::sync::atomic::Ordering;
 
 use fframes::media::ImageData;
 use fframes::three_d::*;
@@ -27,6 +29,7 @@ const C_IN_FRAME: f32 = 64.0;
 struct Nested {
     gpu_3d: bool,
     /// Set when B is a texture on the GPU (`fframes::wgpu_layer`).
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     b_on_gpu: AtomicBool,
 }
 

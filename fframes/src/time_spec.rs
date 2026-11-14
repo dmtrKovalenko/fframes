@@ -102,20 +102,18 @@ impl TimelineIndex {
         Self {
             fps,
             duration_in_frames,
-            scenes: scenes
-                .map(|scenes| {
-                    scenes
-                        .timeline
-                        .iter()
-                        .map(|(range, info, scene)| TimelineScene {
-                            index: info.index,
-                            name: short_scene_name(scene.name()).to_owned(),
-                            full_name: scene.name().to_owned(),
-                            frames: range.clone(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
+            scenes: scenes.map_or_default(|scenes| {
+                scenes
+                    .timeline
+                    .iter()
+                    .map(|(range, info, scene)| TimelineScene {
+                        index: info.index,
+                        name: short_scene_name(scene.name()).to_owned(),
+                        full_name: scene.name().to_owned(),
+                        frames: range.clone(),
+                    })
+                    .collect()
+            }),
         }
     }
 

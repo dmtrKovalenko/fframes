@@ -304,8 +304,7 @@ impl<'g> Loader<'_, 'g> {
             let reader = skin.reader(|b| buffers.get(b.index()).map(Vec::as_slice));
             let inverse_bind_matrices = reader
                 .read_inverse_bind_matrices()
-                .map(|m| m.map(|m| Mat4::from_cols_array_2d(&m)).collect())
-                .unwrap_or_default();
+                .map_or_default(|m| m.map(|m| Mat4::from_cols_array_2d(&m)).collect());
             let joints = skin
                 .joints()
                 .map(|j| self.node_ids.get(&j.index()).copied().unwrap_or(NodeId(0)))
@@ -396,8 +395,7 @@ impl<'g> Loader<'_, 'g> {
         let normals = vec3s(reader.read_normals());
         let uvs: Vec<Vec2> = reader
             .read_tex_coords(0)
-            .map(|uv| uv.into_f32().map(Vec2::from).collect())
-            .unwrap_or_default();
+            .map_or_default(|uv| uv.into_f32().map(Vec2::from).collect());
         let mut geometry = Geometry::new(positions, normals, uvs, indices);
         if let Some(colors) = reader.read_colors(0) {
             geometry.colors = colors.into_rgba_f32().map(Vec4::from).collect();
@@ -504,9 +502,7 @@ impl<'g> Loader<'_, 'g> {
 
 /// Reads a glTF vector attribute. A missing attribute gives no values.
 fn vec3s(values: Option<impl Iterator<Item = [f32; 3]>>) -> Vec<Vec3> {
-    values
-        .map(|v| v.map(Vec3::from).collect())
-        .unwrap_or_default()
+    values.map_or_default(|v| v.map(Vec3::from).collect())
 }
 
 /// Converts a `KHR_lights_punctual` light. glTF lights shine down -Z of their node.
