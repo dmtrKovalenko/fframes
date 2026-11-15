@@ -29,10 +29,12 @@ fn main() -> ExitCode {
         ..Default::default()
     };
 
+    let preview = matches!(args.command, Some(cli::Command::Preview(_)));
     let command = cli::new(&video, options)
         .args(args)
+        .preview(fframes_native_player::cli_preview)
         .default_output("out.mp4");
-    if cpu {
+    if cpu || preview {
         return command.run();
     }
 

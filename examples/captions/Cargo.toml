@@ -10,13 +10,15 @@ serde = { version = "1", features = ["derive"] }
 
 [features]
 default = ["skia"]
-skia = ["dep:fframes_skia_renderer"]
+skia = ["dep:fframes_skia_renderer", "dep:fframes_native_player"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
 fframes_skia_renderer = { workspace = true, optional = true, features = ["cli", "metal"] }
+fframes_native_player = { workspace = true, optional = true, features = ["metal", "audio"] }
 
 [target.'cfg(not(any(target_os = "macos", target_arch = "wasm32")))'.dependencies]
 fframes_skia_renderer = { workspace = true, optional = true, features = ["cli", "vulkan"] }
+fframes_native_player = { workspace = true, optional = true, features = ["vulkan", "audio"] }
 
 [target.'cfg(not(any(windows, target_arch = "wasm32")))'.dependencies]
 fframes = { workspace = true, features = ["h264", "libav-agree-gpl", "build-portable"] }

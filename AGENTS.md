@@ -30,6 +30,9 @@ just watch-editor
 # Run example with live reload (editor + WASM hot reload)
 just run <example-name>
 
+# Open an example in the native preview window
+just preview <example-name>
+
 # Render example to video file
 just render <example-name>
 ```

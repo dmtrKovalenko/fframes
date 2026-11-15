@@ -39,6 +39,10 @@ run example:
   just start-example {{example}} &
   just watch-editor
 
+# Open the native preview window (extra arguments go to the preview CLI)
+preview example *ARGS:
+  cd examples/{{quote(example)}} && cargo run --release -- preview {{ARGS}}
+
 render example *ARGS:
   cd examples/{{example}} && cargo run --release {{ARGS}} && just play {{example}}
 

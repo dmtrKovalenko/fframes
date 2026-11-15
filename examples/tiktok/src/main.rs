@@ -34,6 +34,7 @@ fn main() -> ExitCode {
         ..Default::default()
     })
     .default_output("out.webm")
+    .preview(fframes_native_player::cli_preview)
     .renderers(SkiaRenderers::default())
     .run()
 }
