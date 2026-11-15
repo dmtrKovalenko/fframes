@@ -393,8 +393,14 @@ pub(crate) fn shaped_text_width(
         font.weight,
         Vec::new(),
     );
+    // The SVG parser turns tabs and line breaks into spaces before the renderer shapes the text.
+    let text = if text.contains(['\t', '\n', '\r']) {
+        Cow::Owned(text.replace("\r\n", " ").replace(['\t', '\n', '\r'], " "))
+    } else {
+        Cow::Borrowed(text)
+    };
     usvgr::text_advance(
-        text,
+        &text,
         &usvgr_font,
         font.size as f32,
         &usvgr::FontResolver::default(),

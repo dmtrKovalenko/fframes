@@ -195,6 +195,20 @@ mod tests {
     }
 
     #[test]
+    fn tabs_and_line_breaks_measure_as_spaces() {
+        let fonts = fonts(&[INTER]);
+        let query = font("Inter 18pt", 46, 800);
+        let spaced = fonts.measure_text(&query, "a b").unwrap();
+        for text in ["a\tb", "a\nb", "a\r\nb"] {
+            assert_eq!(
+                fonts.measure_text(&query, text).unwrap(),
+                spaced,
+                "{text:?}"
+            );
+        }
+    }
+
+    #[test]
     fn text_fit_truncates_text_wider_than_its_box() {
         let fonts = fonts(&[INTER]);
         let query = font("Inter 18pt", 46, 800);
