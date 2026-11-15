@@ -402,6 +402,8 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
     pub fn ingest_font(&self, slice: &[u8]) -> JsValue {
         let mut fonts = self.fonts.lock().unwrap();
         let face_info = fonts.insert_font(slice.to_vec().into(), None);
+        // Cache keys name the font, not its bytes, so a replaced font would keep old widths.
+        self.break_lines_cache.clear();
 
         serde_wasm_bindgen::to_value(&face_info).unwrap()
     }
