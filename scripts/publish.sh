@@ -4,6 +4,7 @@
 # (a release commit made by scripts/release.sh already carries them).
 #
 #   scripts/publish.sh 1.0.0
+# Requires Python 3.11+ for exact-version checks and bounded crates.io retries.
 set -euo pipefail
 VERSION="$1"
 echo "Publishing version $VERSION"
@@ -20,6 +21,7 @@ fi
 
 # Crates first, in dependency order, so a failing npm publish can not hold back the Rust
 # release. `cargo publish` waits until each crate is in the index before the next one.
+# Already-published crate versions are skipped; registry lookup errors fail closed.
 for crate in \
   webvtt-parser \
   svgr-macro \
@@ -33,7 +35,7 @@ for crate in \
   fframes-dylib \
   cargo-fframes; do
   echo "Publishing $crate"
-  (cd "$crate" && cargo publish --allow-dirty --no-verify)
+  python3 scripts/publish_crate.py "$crate/Cargo.toml" "$VERSION"
 done
 
 cd fframes-editor
