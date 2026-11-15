@@ -48,6 +48,7 @@ fn main() -> ExitCode {
         },
     )
     .args(args)
+    .preview(fframes_native_player::cli_preview)
     .renderers(SkiaRenderers::default())
     .run()
 }

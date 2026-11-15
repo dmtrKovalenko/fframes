@@ -10,9 +10,11 @@ fframes = { workspace = true, features = ["compile-time-svgtree", "cli"] }
 # `--renderer cpu|skia-cpu|gpu`: Skia on Metal on macOS, on Vulkan everywhere else
 [target.'cfg(target_os = "macos")'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["metal", "cli"] }
+fframes_native_player = { workspace = true, features = ["metal", "audio"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 fframes_skia_renderer = { workspace = true, features = ["vulkan", "cli"] }
+fframes_native_player = { workspace = true, features = ["vulkan", "audio"] }
 
 # FFmpeg codecs, portable so cached source builds work across CI runner CPUs. Windows
 # links a prebuilt FFmpeg instead (see README).

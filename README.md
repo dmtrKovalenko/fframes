@@ -271,6 +271,13 @@ cargo fframes new my-video
 cd my-video && cargo run --release -- preview
 ```
 
+From this repository, preview any example with `just preview <example>`:
+
+```sh
+just preview hello-world
+just preview teej-podcast --software-decode
+```
+
 The preview timeline sits below landscape and square videos and to the left of portrait videos.
 Drag the filmstrip to scrub, or click a scene marker to pause on its first frame. Use `[` and `]`
 to jump between scenes and `,` and `.` to step one frame. Press `Space` to play or pause, or `T`

@@ -19,6 +19,8 @@ fn main() -> ExitCode {
         },
     );
     #[cfg(feature = "skia")]
-    let runner = runner.renderers(fframes_skia_renderer::cli::SkiaRenderers::default());
+    let runner = runner
+        .preview(fframes_native_player::cli_preview)
+        .renderers(fframes_skia_renderer::cli::SkiaRenderers::default());
     runner.run()
 }

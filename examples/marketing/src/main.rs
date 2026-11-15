@@ -26,6 +26,7 @@ fn main() -> ExitCode {
         cache_capacity: 30,
         ..Default::default()
     })
+    .preview(fframes_native_player::cli_preview)
     .renderers(SkiaRenderers::default())
     .run()
 }
