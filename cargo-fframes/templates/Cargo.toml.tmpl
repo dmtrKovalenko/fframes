@@ -7,6 +7,13 @@ publish = false
 [dependencies]
 {{fframes_dep}}
 {{skia_dep}}{{codecs}}
+[target.'cfg(all({{dylib_target}}))'.dependencies]
+fframes-dylib = { {{dylib_dep}}, optional = true }
+
+[features]
+default = ["dynamic-linking"]
+dynamic-linking = ["dep:fframes-dylib"]
+
 [lib]
 name = "{{lib_name}}"
 path = "src/lib.rs"

@@ -2,6 +2,7 @@
 //! coordinates here are logical pixels, regardless of the window's backing scale.
 
 use std::ops::Range;
+use std::time::{Duration, Instant};
 
 use fframes::{
     AudioData, AudioTimelineSamples, AudioTimelineUnit, MediaProvider, ResolvedRenderingTimeline,
@@ -12,13 +13,17 @@ use fframes_skia_renderer::skia_safe::{
     Point, RRect, Rect, RoundOut, SamplingOptions, surfaces,
 };
 
-use crate::controls::{Control, Controls, ControlsState, draw_tabular, format_time, tabular_width};
+use crate::controls::{
+    Control, Controls, ControlsState, draw_tabular, fade, format_time, tabular_width,
+};
 
 pub(crate) struct Studio {
     pub index: TimelineIndex,
     pub video_aspect: f32,
     audio: Vec<Vec<Clip>>,
     thumbnails: Vec<Option<Image>>,
+    /// When each thumbnail arrived, so it can fade in instead of popping.
+    thumbnail_arrivals: Vec<Option<Instant>>,
     thumbnail_revision: u64,
 }
 
@@ -67,13 +72,44 @@ impl Studio {
             video_aspect,
             audio: pack_clips(clips),
             thumbnails: vec![None; thumbnail_count],
+            thumbnail_arrivals: vec![None; thumbnail_count],
             thumbnail_revision: 0,
         }
     }
 
-    pub fn set_thumbnail(&mut self, slot: usize, image: Image) {
+    pub fn set_thumbnail(&mut self, slot: usize, image: Image, now: Instant) {
         self.thumbnails[slot] = Some(image);
+        self.thumbnail_arrivals[slot] = Some(now);
         self.thumbnail_revision += 1;
+    }
+
+    /// Whether a thumbnail that arrived less than `fade` ago is still fading in.
+    pub fn is_fading_in(&self, now: Instant, fade: Duration) -> bool {
+        !fade.is_zero()
+            && self
+                .thumbnail_arrivals
+                .iter()
+                .flatten()
+                .any(|arrival| now.saturating_duration_since(*arrival) < fade)
+    }
+
+    /// How far each thumbnail has faded in at `now`, `1.0` once it is fully there.
+    fn thumbnail_presence(&self, state: &ControlsState) -> impl Iterator<Item = (usize, f32)> {
+        let motion = &state.motion;
+        self.thumbnail_arrivals
+            .iter()
+            .enumerate()
+            .filter_map(move |(slot, arrival)| {
+                let arrival = (*arrival)?;
+                let elapsed = motion.now.saturating_duration_since(arrival);
+                if motion.thumbnail_fade.is_zero() || elapsed >= motion.thumbnail_fade {
+                    return None;
+                }
+                Some((
+                    slot,
+                    elapsed.as_secs_f32() / motion.thumbnail_fade.as_secs_f32(),
+                ))
+            })
     }
 
     pub fn adjacent_scene(&self, frame: usize, next: bool) -> Option<usize> {
@@ -188,6 +224,7 @@ pub(crate) struct StudioScroll {
 pub(crate) struct StudioLayout {
     pub stage: Rect,
     timeline: Rect,
+    /// The pill of the focus view that brings the studio back.
     restore: Rect,
     transport: Rect,
     pub portrait: bool,
@@ -199,6 +236,9 @@ pub(crate) struct StudioLayout {
 struct TimelineCache {
     image: Image,
     bounds: IRect,
+    /// Where the canvas was: the panel moves while the views change, and the cache is
+    /// made again at each position (a few frames, the studio draws in about a millisecond).
+    translation: (f32, f32),
     frames: Range<usize>,
     thumbnail_revision: u64,
     audio_scroll: usize,
@@ -428,13 +468,12 @@ impl StudioLayout {
         let size = if narrow { 26. } else { 32. };
         let play_size = if narrow { 30. } else { 36. };
         let gap = if narrow { 2. } else { 5. };
-        let focus_width = if narrow { 43. } else { 58. };
         let margin = if narrow { 8. } else { MARGIN };
         let mid = width / 2.;
         let y = self.transport.center_y();
         let button = |x, w, h| Rect::from_xywh(x, y - h / 2., w, h);
         let play = button(mid - play_size / 2., play_size, play_size);
-        let focus = button(width - margin - focus_width, focus_width, size);
+        let focus = button(width - margin - size, size, size);
         let full = button(focus.left - gap - size, size, size);
         [
             (Control::Back, button(play.left - gap - size, size, size)),
@@ -444,6 +483,16 @@ impl StudioLayout {
             (Control::Fullscreen, full),
             (Control::Focus, focus),
         ]
+    }
+
+    /// The translation that moves the whole panel off its edge of the window, so the
+    /// studio can slide away as the focus view takes over.
+    pub fn closed_offset(&self) -> (f32, f32) {
+        if self.portrait {
+            (-self.timeline.right, 0.)
+        } else {
+            (0., self.timeline.bottom - self.timeline.top)
+        }
     }
 
     pub fn time_axis(&self, point: Point) -> f32 {
@@ -505,15 +554,24 @@ impl StudioLayout {
         self.restore.contains(point)
     }
 
-    pub fn draw_restore(&self, canvas: &Canvas, controls: &Controls, hovered: bool) {
+    /// The pill that brings the studio back, shown with the focus dock: `reveal` fades it
+    /// with the dock, `hover` lights it.
+    pub fn draw_restore(&self, canvas: &Canvas, controls: &Controls, hover: f32, reveal: f32) {
+        if reveal <= 0. {
+            return;
+        }
         let ui = Ink::new(canvas, controls);
-        ui.round(self.restore, if hovered { LINE } else { SURFACE }, 7.);
+        ui.round(
+            self.restore,
+            fade(crate::controls::mix(SURFACE, LINE, hover), reveal),
+            7.,
+        );
         ui.text(
             "Studio  ·  T",
             self.restore.left + 13.,
             30.,
             13.,
-            TEXT,
+            fade(TEXT, reveal),
             true,
         );
     }
@@ -528,8 +586,100 @@ impl StudioLayout {
     ) {
         let ui = Ink::new(canvas, controls);
         self.draw_cached_timeline(&ui, state, model, scroll);
+        self.draw_arriving_thumbnails(&ui, state, model);
+        self.draw_scene_hover(&ui, state, model);
         self.draw_transport(&ui, controls, state);
         self.draw_playhead(&ui, state);
+    }
+
+    /// The rectangle of every thumbnail slot and the rounded strip that clips them.
+    fn thumbnail_slots(&self, count: usize) -> Option<(RRect, Vec<Rect>)> {
+        if count == 0 {
+            return None;
+        }
+        let track = self.tracks();
+        if self.portrait {
+            let film = self.portrait_columns().0;
+            let h = film.height() / count as f32;
+            let slots = (0..count)
+                .map(|i| Rect::from_xywh(film.left, film.top + i as f32 * h, film.width(), h))
+                .collect();
+            return Some((RRect::new_rect_xy(film, 4., 4.), slots));
+        }
+        if self.film_height <= 0. {
+            return None;
+        }
+        let strip_top = track.top + RULER + SCENE_HEIGHT;
+        let strip = Rect::from_ltrb(
+            track.left,
+            strip_top,
+            track.right,
+            strip_top + self.film_height,
+        );
+        let w = strip.width() / count as f32;
+        let slots = (0..count)
+            .map(|i| Rect::from_xywh(track.left + i as f32 * w, strip.top, w, self.film_height))
+            .collect();
+        Some((RRect::new_rect_xy(strip, 5., 5.), slots))
+    }
+
+    /// A thumbnail that just arrived is still covered by the strip's own color, which
+    /// clears over the fade: the picture resolves instead of popping in.
+    fn draw_arriving_thumbnails(&self, ui: &Ink<'_>, state: &ControlsState, model: &Studio) {
+        let arriving: Vec<(usize, f32)> = model.thumbnail_presence(state).collect();
+        if arriving.is_empty() {
+            return;
+        }
+        let Some((clip, slots)) = self.thumbnail_slots(model.thumbnails.len()) else {
+            return;
+        };
+        let canvas = ui.canvas;
+        canvas.save();
+        canvas.clip_rrect(clip, None, true);
+        for (slot, presence) in arriving {
+            ui.fill(slots[slot], fade(CANVAS, 1. - presence));
+        }
+        canvas.restore();
+    }
+
+    /// The scene under the pointer is lit a step above its band, around the film strip.
+    fn draw_scene_hover(&self, ui: &Ink<'_>, state: &ControlsState, model: &Studio) {
+        let Some((start, lit)) = state.motion.scene else {
+            return;
+        };
+        let Some(scene) = model
+            .index
+            .scenes
+            .iter()
+            .find(|scene| scene.frames.start == start)
+        else {
+            return;
+        };
+        let duration = state.duration_in_frames;
+        let color = fade(
+            SCENE_COLORS[scene.index % SCENE_COLORS.len()].with_a(26),
+            lit,
+        );
+        let track = self.tracks();
+        if self.portrait {
+            let scenes = self.portrait_columns().1;
+            let top = self.frame_position(scene.frames.start, duration);
+            let bottom = self.frame_position(scene.frames.end, duration);
+            ui.fill(
+                Rect::from_ltrb(scenes.left, top, scenes.right, (bottom - 1.).max(top)),
+                color,
+            );
+            return;
+        }
+        let left = self.frame_position(scene.frames.start, duration);
+        let right = self.frame_position(scene.frames.end, duration);
+        let scene_top = track.top + RULER;
+        let strip_top = scene_top + SCENE_HEIGHT;
+        ui.fill(Rect::from_ltrb(left, scene_top, right, strip_top), color);
+        ui.fill(
+            Rect::from_ltrb(left, strip_top + self.film_height, right, track.bottom),
+            color,
+        );
     }
 
     fn draw_transport(&self, ui: &Ink<'_>, controls: &Controls, state: &ControlsState) {
@@ -606,21 +756,7 @@ impl StudioLayout {
         );
 
         for (control, rect) in buttons {
-            if control == Control::Focus {
-                if state.hovered == Some(control) {
-                    ui.round(rect, LINE, 6.);
-                }
-                let font = ui.font.with_size(13.).unwrap();
-                let x = rect.center_x() - font.measure_str("Focus", None).0 / 2.;
-                canvas.draw_str(
-                    "Focus",
-                    (x, center + font.metrics().1.cap_height / 2.),
-                    &font,
-                    &Ink::paint(TEXT),
-                );
-            } else {
-                controls.draw_button(canvas, control, rect, state, 1.);
-            }
+            controls.draw_button(canvas, control, rect, state, 1., 1.);
         }
         ui.fill(
             Rect::from_xywh(0., self.transport.bottom - 1., self.transport.width(), 1.),
@@ -638,8 +774,10 @@ impl StudioLayout {
         let canvas = ui.canvas;
         let matrix = canvas.local_to_device_as_3x3();
         let scale = (matrix.scale_x(), matrix.scale_y());
+        let translation = (matrix.translate_x(), matrix.translate_y());
         let valid = self.timeline_cache.as_ref().is_some_and(|cache| {
             cache.frames.contains(&state.frame)
+                && cache.translation == translation
                 && cache.thumbnail_revision == model.thumbnail_revision
                 && cache.audio_scroll == scroll.audio
                 && cache.scale == scale
@@ -677,6 +815,7 @@ impl StudioLayout {
                 TimelineCache {
                     image: surface.image_snapshot(),
                     bounds,
+                    translation,
                     frames,
                     thumbnail_revision: model.thumbnail_revision,
                     audio_scroll: scroll.audio,
@@ -977,6 +1116,7 @@ mod tests {
             },
             audio: vec![],
             thumbnails: vec![],
+            thumbnail_arrivals: vec![],
             thumbnail_revision: 0,
         }
     }
@@ -996,6 +1136,7 @@ mod tests {
         let controls = Controls::new();
         let mut model = studio();
         model.thumbnails = vec![None];
+        model.thumbnail_arrivals = vec![None];
         model.audio = (0..4)
             .map(|i| {
                 vec![Clip {
@@ -1007,14 +1148,23 @@ mod tests {
             .collect();
         let mut scroll = StudioScroll::default();
         let mut state = ControlsState {
-            visible: true,
             frame: 0,
             duration_in_frames: 100,
             fps: 30,
-            playing: true,
-            looping: true,
             fullscreen: false,
-            hovered: None,
+            motion: crate::motion::Motion::new(
+                crate::motion::Intent {
+                    studio: true,
+                    dock: false,
+                    playing: true,
+                    looping: true,
+                    hovered: None,
+                    pressed: None,
+                },
+                crate::motion::Timing::DEFAULT,
+                Instant::now(),
+            )
+            .sample(Instant::now()),
         };
         let draw = |layout: &mut StudioLayout,
                     state: &ControlsState,
@@ -1064,7 +1214,10 @@ mod tests {
             thumbnail.canvas().clear(Color::RED);
             for updated_thumbnail in [false, true] {
                 if updated_thumbnail {
-                    model.set_thumbnail(0, thumbnail.image_snapshot());
+                    // arrived long ago: its fade-in is over, so the cached and the fresh
+                    // draw show it the same way
+                    let arrival = Instant::now().checked_sub(Duration::from_secs(60)).unwrap();
+                    model.set_thumbnail(0, thumbnail.image_snapshot(), arrival);
                 }
                 assert!(
                     draw(&mut layout, &state, &model, &scroll, 2., true)
@@ -1072,6 +1225,7 @@ mod tests {
                     "aspect={aspect}, updated_thumbnail={updated_thumbnail}"
                 );
             }
+            // The panel slides while the views change: a moved canvas gets a fresh cache
             scroll.audio = 0;
             model.thumbnails[0] = None;
         }

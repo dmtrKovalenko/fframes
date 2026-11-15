@@ -93,6 +93,7 @@ export type t = {
   readonly add_image_source: (_1:string, _2:string, _3:number, _4:number, _5:ReScriptJs_Js_Undefined_t<string>) => void; 
   readonly add_video_source_placeholder: (_1:string, _2:string, _3:number, _4:number, _5:number) => void; 
   readonly add_subtitles_source: (_1:string, _2:string) => number; 
+  readonly add_json_subtitles_source: (_1:string, _2:string) => ReScriptJs_Js_Undefined_t<number>;
   readonly add_lottie_source: (_1:string, _2:string) => ReScriptJs_Js_Undefined_t<number>; 
   readonly prepare: (_1:ReScriptJs_Js_Undefined_t<number>) => ReScriptJs_Js_Promise_t<videoMeta>; 
   readonly render_frame: (_1:ReScriptJs_Js_BigInt_t) => string; 

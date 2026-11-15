@@ -1,3 +1,9 @@
+#[cfg(all(
+    not(test),
+    feature = "dynamic-linking",
+    {{dylib_target}},
+))]
+use fframes_dylib as _;
 use fframes::{EncoderOptions, RenderOptions, StaticMediaProvider, cli};
 use fframes_skia_renderer::{
     SkiaFFramesRenderer, SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig,

@@ -81,6 +81,7 @@
 //! - `cpu_renderer` (default): the tiny-skia based [`cpu::CpuRenderingBackend`] and the encoding
 //!   pipeline. Disable it for a `wasm32` build.
 //! - `cli`: the [`cli`] module and its `clap` dependency.
+//! - `captions`: [`captions`], per-word SVG rendering over the media subtitles API.
 //! - `compile-time-svgtree`: [`svgr!`] builds the SVG tree at compile time and hashes static
 //!   subtrees. Required by the Skia backend and by [`Shader`].
 //! - `exif`: EXIF orientation of loaded images.
@@ -110,6 +111,7 @@ mod audio_effects;
 mod audio_map;
 mod audio_mix;
 mod audio_window_functions;
+mod clip;
 mod color;
 mod duration;
 mod fframes_context;
@@ -136,6 +138,8 @@ pub use renderer::*;
 
 // Methods that we are not pub use ::* should be declared here:
 pub mod animation;
+#[cfg(feature = "captions")]
+pub mod captions;
 pub mod diagnostics;
 pub mod error;
 pub mod log;
@@ -151,6 +155,7 @@ pub use audio_effects::*;
 pub use audio_map::*;
 pub use audio_mix::*;
 pub use audio_window_functions::*;
+pub use clip::*;
 pub use color::*;
 pub use duration::*;
 pub use fframes_context::*;

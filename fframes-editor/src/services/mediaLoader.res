@@ -1,6 +1,8 @@
 open Belt
 module Promise = Js.Promise
 
+@send external catchMediaError: (Js.Promise.t<'a>, (. 'error) => Js.Promise.t<'a>) => Js.Promise.t<'a> = "catch"
+
 type audioInfo = {
   duration: float,
   sampleRate: int,
@@ -37,6 +39,7 @@ type loadableMedia = Loading(string) | Media(processedMedia) | Error(string)
 type action =
   | InitMediaProcessing(Js.Dict.t<WasmController.mediaImport>)
   | MediaItemProcessed(string, processedMedia)
+  | MediaItemFailed(string, string)
   | MediaProcessingFinished
 
 module ObserverState = {
@@ -55,7 +58,7 @@ module ObserverState = {
   let reducer = (state, action) => {
     switch action {
     | InitMediaProcessing(imports) => {
-        ...state,
+        allMediaLoaded: false,
         mediaList: Map.String.merge(
           state.mediaList,
           imports
@@ -76,6 +79,10 @@ module ObserverState = {
     | MediaItemProcessed(name, media) => {
         ...state,
         mediaList: state.mediaList->Map.String.update(name, _ => Some(Media(media))),
+      }
+    | MediaItemFailed(name, message) => {
+        ...state,
+        mediaList: state.mediaList->Map.String.update(name, _ => Some(Error(message))),
       }
     | MediaProcessingFinished => {
         ...state,
@@ -109,9 +116,10 @@ type staticMediaResolver = staticMediaResolverOptions => Js.Promise.t<unit>
 type mediaResolveFnWithOptions = mediaResolverOptions => Js.Promise.t<forceTsReturnResolveMedia>
 
 @module("./MediaResolvers") external resolveAudio: mediaResolveFnWithOptions = "resolveAudio"
+@module("./MediaResolvers") external mediaErrorMessage: 'error => string = "mediaErrorMessage"
 @module("./MediaResolvers")
 external resolveSubtitles: mediaResolveFnWithOptions = "resolveSubtitles"
-@module("./MediaResolvers") external resolveLottie: mediaResolveFnWithOptions = "resolveLottie"
+@module("./MediaResolvers") external resolveJson: mediaResolveFnWithOptions = "resolveJson"
 @module("./MediaResolvers") external resolveFont: mediaResolveFnWithOptions = "resolveFont"
 @module("./MediaResolvers") external resolveImage: mediaResolveFnWithOptions = "resolveImage"
 @module("./MediaResolvers") external resolveVideo: mediaResolveFnWithOptions = "resolveVideo"
@@ -168,10 +176,10 @@ let processDynamicMedia = (
     ) {
       None
     } else {
-      switch name->Js.String.split(".")->Utils.Array.last {
+      switch name->Js.String.toLowerCase->Js.String.split(".")->Utils.Array.last {
       | Some("mp3" | "aac" | "ogg" | "wav" | "pcm" | "flac") => Some(resolveAudio)
       | Some("vtt") => Some(resolveSubtitles)
-      | Some("json") => Some(resolveLottie)
+      | Some("json") => Some(resolveJson)
       | Some("ttf" | "otf") => Some(resolveFont)
       | Some("png" | "jpg" | "jpeg") => Some(resolveImage)
       | Some("mp4" | "webm" | "mov" | "avi" | "mkv") => Some(resolveVideo)
@@ -182,6 +190,9 @@ let processDynamicMedia = (
           url: moduleVal,
           wasmController: wasmController,
           wasmControllerOptions: options,
+        })->catchMediaError((. error) => {
+          MediaLoaderObserver.dispatch(MediaItemFailed(name, mediaErrorMessage(error)))
+          Promise.resolve(MediaResolved)
         })
       )
     }

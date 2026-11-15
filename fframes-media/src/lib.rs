@@ -5,6 +5,7 @@ mod font;
 mod images;
 mod raw_file;
 pub mod subtitles;
+mod subtitles_data;
 mod video_types;
 
 pub use audio::*;

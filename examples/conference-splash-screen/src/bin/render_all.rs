@@ -19,8 +19,7 @@ fn generate_description(talk: &talks::Talk) -> String {
         talk.description,
         talk.social_links
             .as_deref()
-            .map(|links| format!("Find speaker: {links}"))
-            .unwrap_or_default()
+            .map_or_default(|links| format!("Find speaker: {links}"))
     )
 }
 

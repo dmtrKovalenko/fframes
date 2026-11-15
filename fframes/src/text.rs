@@ -404,7 +404,7 @@ pub(crate) fn text_fit_impl<'a>(
 
 pub(crate) fn text_get_width_impl<'a>(
     font_query: FontQuery,
-    text: &'a str,
+    text: &str,
     font_source: &'a (dyn FontSource<'a> + 'a),
 ) -> Option<usize> {
     let font_face = font_source.resolve_font(

@@ -76,9 +76,7 @@ impl FFramesLogger for CompactFFramesLogger {
             "Success!".green().bold(),
             "ffplay".bold(),
             output_path.display(),
-            temp_files_dir
-                .map(|path| format!("Generated files {}\n", path.display()))
-                .unwrap_or_default()
+            temp_files_dir.map_or_default(|path| format!("Generated files {}\n", path.display()))
         );
     }
 

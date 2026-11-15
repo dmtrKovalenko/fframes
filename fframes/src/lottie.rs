@@ -225,11 +225,7 @@ impl SvgrSink {
         while self.stack.len() > 1 {
             self.pop_layer();
         }
-        let children = self
-            .stack
-            .pop()
-            .map(|(_, children)| children)
-            .unwrap_or_default();
+        let children = self.stack.pop().map_or_default(|(_, children)| children);
         svgr!(<g>{children}</g>)
     }
 

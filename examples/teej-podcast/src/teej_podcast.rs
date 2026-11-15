@@ -1,10 +1,7 @@
 use crate::Chapter;
 use crate::{constants::*, create_transition_keyframes_for_chapters};
 use fframes::animation::KeyFramesAnimation;
-use fframes::{
-    AudioMap, FFramesContext, FFramesSyncedVideoFrame, FontQuery, Frame, TextOverflow, Transform,
-    Video,
-};
+use fframes::{AudioMap, Clip, FFramesContext, FontQuery, Frame, TextOverflow, Transform, Video};
 use std::borrow::Cow;
 use std::sync::OnceLock;
 
@@ -12,6 +9,9 @@ use std::sync::OnceLock;
 pub struct TeejPodcast<'a> {
     chapters: &'a [Chapter<'a>],
     chapters_animation: KeyFramesAnimation<f32>,
+    /// The two camera recordings, each played from its start to its end.
+    left: Clip<'static>,
+    right: Clip<'static>,
     /// Chapter titles shortened to their rectangle, see [`Self::fit_titles`].
     fitted_titles: OnceLock<Vec<String>>,
 }
@@ -22,6 +22,8 @@ impl TeejPodcast<'_> {
         TeejPodcast {
             chapters,
             chapters_animation,
+            left: Clip::new("left.mp4", 0.0..),
+            right: Clip::new("right.mp4", 0.0..),
             fitted_titles: OnceLock::new(),
         }
     }
@@ -80,31 +82,9 @@ impl Video for TeejPodcast<'_> {
 
     fn render_frame<'a>(&'a self, frame: Frame, ctx: &FFramesContext<'a, '_>) -> fframes::Svgr<'a> {
         let mut frame = frame;
-        let left_frame = frame
-            .get_synced_video_frame(
-                ctx,
-                "left.mp4",
-                &fframes::SyncVideoFrameInput {
-                    start_from: 0.,
-                    looping: false,
-                    editor_fallback_image: ctx.get_image("left.jpg"),
-                    ..Default::default()
-                },
-            )
-            .map(|fr| fr.into_image());
-
-        let right_frame = frame
-            .get_synced_video_frame(
-                ctx,
-                "right.mp4",
-                &fframes::SyncVideoFrameInput {
-                    start_from: 0.,
-                    looping: false,
-                    editor_fallback_image: ctx.get_image("right.jpg"),
-                    ..Default::default()
-                },
-            )
-            .map(|fr| fr.into_image());
+        // The editor shows left.jpg and right.jpg until it has decoded the frames.
+        let left_frame = self.left.image(&frame, ctx);
+        let right_frame = self.right.image(&frame, ctx);
 
         // The chapter whose time range contains the current frame; the last
         // chapter stays active until the end.

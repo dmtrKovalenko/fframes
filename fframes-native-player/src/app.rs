@@ -11,14 +11,17 @@ use winit::window::{CursorIcon, Fullscreen, Window, WindowId};
 
 use crate::controls::{Control, ControlsState, format_time};
 use crate::error::PlayerError;
+use crate::motion::{Intent, Motion, Timing};
 use crate::options::PlayerBackend;
 use crate::presenter::Presenter;
 use crate::scheduler::Scheduler;
 use crate::studio::{Studio, StudioLayout, StudioScroll};
 use fframes_skia_renderer::skia_safe::Point;
 
-/// The control bar hides after this long without pointer movement while playing.
+/// The focus dock hides after this long without pointer movement while playing.
 const CONTROLS_IDLE_TIMEOUT: Duration = Duration::from_millis(2500);
+/// Redraw interval while something of the chrome is moving.
+const MOTION_FRAME: Duration = Duration::from_micros(8333);
 
 /// A frame worker finished a playback or filmstrip job.
 pub(crate) enum FrameReady {
@@ -97,12 +100,20 @@ pub(crate) struct App<'s> {
     /// Toggled with `b`.
     controls_enabled: bool,
     controls_visible: bool,
+    motion: Motion,
+    /// Something of the chrome moved at the last check: one more frame then draws the
+    /// settled values, even when that frame was late.
+    was_animating: bool,
     needs_redraw: bool,
 
     cursor: PhysicalPosition<f64>,
     cursor_inside: bool,
+    /// The pointer is hidden with the dock while the video plays in the focus view.
+    cursor_hidden: bool,
     last_pointer_activity: Instant,
     hovered: Option<Control>,
+    /// The button under a held pointer.
+    pressed: Option<Control>,
     drag: Option<Control>,
     scene_press_axis: f32,
     /// The newest destination under the pointer while a native frame is being prepared.
@@ -146,11 +157,26 @@ impl<'s> App<'s> {
             current: None,
             controls_enabled: true,
             controls_visible: true,
+            motion: Motion::new(
+                Intent {
+                    studio: true,
+                    dock: false,
+                    playing: config.autoplay,
+                    looping: config.looping,
+                    hovered: None,
+                    pressed: None,
+                },
+                Timing::DEFAULT,
+                now,
+            ),
+            was_animating: false,
             needs_redraw: true,
             cursor: PhysicalPosition::default(),
             cursor_inside: false,
+            cursor_hidden: false,
             last_pointer_activity: now,
             hovered: None,
+            pressed: None,
             drag: None,
             scene_press_axis: 0.,
             scrub_target: None,
@@ -247,6 +273,7 @@ impl<'s> App<'s> {
             self.controls_visible = controls_visible;
             self.needs_redraw = true;
         }
+        self.follow_motion();
 
         if self.needs_redraw {
             self.needs_redraw = false;
@@ -272,7 +299,9 @@ impl<'s> App<'s> {
     fn frame_ready(&mut self, event: FrameReady) {
         match event {
             FrameReady::Thumbnail(slot, image) => {
-                self.config.studio.set_thumbnail(slot, image);
+                self.config
+                    .studio
+                    .set_thumbnail(slot, image, Instant::now());
                 self.needs_redraw = true;
             }
             FrameReady::Failed { position, epoch }
@@ -333,7 +362,7 @@ impl<'s> App<'s> {
         let frame = self.playhead() as i64;
         let second = self.config.fps as i64;
         match event.logical_key.as_ref() {
-            Key::Named(NamedKey::Space) => self.toggle_play(),
+            Key::Named(NamedKey::Space) => self.toggle_play_with_flash(),
             Key::Named(NamedKey::Escape) | Key::Character("q") => event_loop.exit(),
             Key::Named(NamedKey::ArrowLeft) | Key::Character("h") => {
                 self.seek_to_frame(frame - second);
@@ -422,6 +451,61 @@ impl<'s> App<'s> {
         self.window
             .as_ref()
             .is_some_and(|window| window.fullscreen().is_some())
+    }
+
+    /// What the chrome should show; the motion follows it.
+    fn intent(&self) -> Intent {
+        Intent {
+            studio: self.studio_open,
+            dock: self.controls_visible && !self.studio_open,
+            playing: self.clock.is_playing(),
+            looping: self.looping,
+            // A slider drag keeps its thumb lit when the pointer leaves the track
+            hovered: if self.drag == Some(Control::Seek) {
+                Some(Control::Seek)
+            } else {
+                self.hovered
+            },
+            pressed: self.pressed,
+        }
+    }
+
+    /// Points every motion of the chrome at the current state, hides the pointer with
+    /// the dock, and keeps redrawing while something moves.
+    fn follow_motion(&mut self) {
+        let now = Instant::now();
+        self.motion.follow(self.intent(), now);
+        let animating = self.is_animating(now);
+        if animating || self.was_animating {
+            self.needs_redraw = true;
+        }
+        self.was_animating = animating;
+
+        let hide_cursor = !self.studio_open && !self.controls_visible && self.cursor_inside;
+        if hide_cursor != self.cursor_hidden {
+            self.cursor_hidden = hide_cursor;
+            if let Some(window) = &self.window {
+                window.set_cursor_visible(!hide_cursor);
+            }
+        }
+    }
+
+    /// Whether another frame is needed: a motion of the chrome, or a thumbnail that is
+    /// still fading in (its fade is kept by the studio, not by the motion).
+    fn is_animating(&self, now: Instant) -> bool {
+        self.motion.is_moving(now)
+            || self
+                .config
+                .studio
+                .is_fading_in(now, self.motion.thumbnail_fade())
+    }
+
+    /// Playback toggled on the video itself (a click, the space key): flash the new state
+    /// in the middle of the picture, where the eye is.
+    fn toggle_play_with_flash(&mut self) {
+        self.toggle_play();
+        self.motion.flash(self.clock.is_playing(), Instant::now());
+        self.needs_redraw = true;
     }
 
     /// Always shown while paused, while playing only after recent pointer activity.
@@ -527,6 +611,7 @@ impl<'s> App<'s> {
             self.controls_visible = true;
             self.needs_redraw = true;
         }
+        self.follow_motion();
         if self.needs_redraw
             && let Some(window) = &self.window
         {
@@ -538,7 +623,19 @@ impl<'s> App<'s> {
         let frame = self.playhead() as i64;
         let second = self.config.fps as i64;
 
-        match self.control_under_cursor() {
+        let control = self.control_under_cursor();
+        self.pressed = control.filter(|control| {
+            matches!(
+                control,
+                Control::Back
+                    | Control::PlayPause
+                    | Control::Forward
+                    | Control::Loop
+                    | Control::Fullscreen
+                    | Control::Focus
+            )
+        });
+        match control {
             Some(Control::Back) => self.seek_to_frame(frame - second),
             Some(Control::Forward) => self.seek_to_frame(frame + second),
             Some(control @ (Control::Seek | Control::Timeline)) => {
@@ -559,13 +656,16 @@ impl<'s> App<'s> {
             }
             Some(Control::Fullscreen) => self.toggle_fullscreen(),
             Some(Control::Bar) => {}
+            Some(Control::PlayPause) => self.toggle_play(),
             // Clicking the video itself toggles playback too
-            Some(Control::PlayPause) | None => self.toggle_play(),
+            None => self.toggle_play_with_flash(),
         }
+        self.follow_motion();
         self.needs_redraw = true;
     }
 
     fn on_pointer_released(&mut self) {
+        self.pressed = None;
         let drag = self.drag;
         self.set_drag(None);
         if let Some(control @ Control::Scene(start)) = drag
@@ -573,19 +673,20 @@ impl<'s> App<'s> {
         {
             self.step(start as i64);
         }
+        self.follow_motion();
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
     }
 
     fn redraw(&mut self) -> Result<(), PlayerError> {
         self.redraw_pending = false;
         let controls = ControlsState {
-            visible: self.controls_visible,
             frame: self.playhead(),
             duration_in_frames: self.config.duration_in_frames,
             fps: self.config.fps,
-            playing: self.clock.is_playing(),
-            looping: self.looping,
             fullscreen: self.is_fullscreen(),
-            hovered: self.hovered,
+            motion: self.motion.sample(Instant::now()),
         };
 
         if let Some(presenter) = self.presenter.as_mut() {
@@ -594,7 +695,6 @@ impl<'s> App<'s> {
                 &controls,
                 &self.config.studio,
                 &self.scroll,
-                self.studio_open,
             )?;
 
             let position = self.current.as_ref().map(|(position, _)| *position);
@@ -703,6 +803,7 @@ impl ApplicationHandler<FrameReady> for App<'_> {
                 if self.hovered.take().is_some() {
                     self.needs_redraw = true;
                 }
+                self.follow_motion();
             }
             WindowEvent::MouseInput {
                 state,
@@ -719,10 +820,14 @@ impl ApplicationHandler<FrameReady> for App<'_> {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         self.tick();
 
-        event_loop.set_control_flow(match self.clock.next_frame_at() {
-            Some(next_frame) => ControlFlow::WaitUntil(next_frame),
+        let now = Instant::now();
+        let next_motion_frame = self.is_animating(now).then(|| now + MOTION_FRAME);
+        event_loop.set_control_flow(match (self.clock.next_frame_at(), next_motion_frame) {
+            (Some(next_frame), Some(motion)) => ControlFlow::WaitUntil(next_frame.min(motion)),
+            (Some(next_frame), None) => ControlFlow::WaitUntil(next_frame),
+            (None, Some(motion)) => ControlFlow::WaitUntil(motion),
             // Paused: sleep until input or a worker delivers the requested frame.
-            None => ControlFlow::Wait,
+            (None, None) => ControlFlow::Wait,
         });
     }
 }

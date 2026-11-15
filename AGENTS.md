@@ -360,9 +360,10 @@ Rules for `render_frame`:
 - It runs once per frame on several threads. No panics, no I/O, no heavy allocation. Precompute
   in the constructor and read from `self`; memoise per-video data in a `std::sync::OnceLock`
   field (only store a measurement once it succeeded).
-- `svgr!` is SVG with Rust interpolation: attributes and text children accept `{expr}` where
-  `expr` is a string, number, `Color`, `Transform`, another `Svgr`, or an iterator of `Svgr`
-  (`.collect::<Vec<_>>()`). Comments are `// ...` lines inside the markup.
+- `svgr!` is SVG with Rust interpolation: attributes accept `{expr}` where `expr` is a
+  string, number, `Color`, `Transform` or an image `href()`; children accept a string,
+  another `Svgr`, an `Option<Svgr>`, or an iterator of `Svgr` (`.collect::<Vec<_>>()`). A
+  number as a child needs `.to_string()`. Comments are `// ...` lines inside the markup.
 - Subtrees whose markup contains no `{}` get a compile-time `static_hash` and are cached by
   the renderers across frames (paths, paints, whole groups). Keep decorative geometry lexically
   static and put the animated values on a wrapping `<g transform={...} opacity={...}>`.
@@ -477,6 +478,18 @@ let Some(video_frame) = frame.get_synced_video_frame(ctx, "clip.mp4", &fframes::
 }) else { return Svgr::empty() };
 let image = video_frame.into_image(); // <image href={image.href()} .../>
 
+// A part of a file (footage): seconds 19.2..24.7 of the file (`0.0..` to its end), from
+// second 1.2 of the scene (`.at`, default 0). `.speed(1.5)`, `.reverse()`, `.looping()`. Each clip has its own decoder,
+// so a clip and a picture in picture of the same file do not slow each other down. Store clips
+// in the scene, `duration` = `clip.duration()`. The clip gives an image of the current frame:
+// draw it with your own size, crop, transform, filter, mask, or pass it to a shader.
+let plan = fframes::Clip::new("screen.mov", 19.2..24.7).at(1.2).editor_fallback_image(ctx.get_image("poster.jpg"));
+let pip = plan.image_at_width(&frame, ctx, 440).map(|image| svgr!( // decoded at the shown size
+    <image href={image.href()} x="580" y="1180" width="440" height="660" preserveAspectRatio="xMidYMid slice" />
+)); // `{pip}` in svgr!: an Option<Svgr> is nothing when None
+// One frame of a file (a freeze frame): seconds of the file, not of the timeline.
+let still = frame.video_frame_at(ctx, "IMG_0926.mov", 21.0, None);
+
 // Audio spectrum for the current frame (see examples/audio-announce).
 let bars = frame.visualize_audio_frame(fframes::VisualizeFrameInput {
     audio: ctx.get_audio("track.mp3")?, // listed in `fn audio`, so it is loaded
@@ -518,6 +531,9 @@ fframes::svgr!(<image href={layer.href()} x="0" y="0" width="1920" height="1080"
 - SkSL follows GLSL ES 2: constant loop bounds, no `while`, no dynamic array indexing, no
   preprocessor. `Shader::shadertoy` expands object-like `#define`s and drops `precision`;
   function-like macros and `texture()` must be rewritten.
+- `uniform shader uBackdrop;` with no image bound samples what is already painted under the
+  element, in its own coordinates (`uBackdrop.eval(coord + offset)` refracts the content
+  beneath). It is transparent inside isolated layers (group opacity, masks, filters).
 - Compile errors are logged once and the layer is skipped. Catch them in a test with
   `fframes_skia_renderer::render::compile_shader(&shader)`.
 - Only the Skia backend (GPU, or `SkiaCpuCtx`) executes shaders. The tiny-skia CPU backend
@@ -538,7 +554,7 @@ Two renderers draw the same picture:
 - The CPU rasterizer runs everywhere, also in the editor (at half size there).
 - With `fframes = { features = ["3d", "wgpu"] }` the renderer uses wgpu (Vulkan, Metal, DX12).
   A frame differs from the CPU frame by less than one 8-bit step on average. Without a GPU
-  it falls back to the CPU. `Renderer::cpu()` forces the CPU.
+  it falls back to the CPU. `Renderer::new(w, h).cpu()` forces the CPU.
 - With `fframes_skia_renderer = { features = ["vulkan", "wgpu"] }` as well, the 3D stays on
   the GPU: Skia draws the wgpu texture in place and converts the frame for the encoder.
   Nothing is read back. Other backends (the CPU backend, Metal, the editor) get pixels.

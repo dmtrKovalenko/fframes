@@ -93,7 +93,7 @@ function connectAudioFiles(ctx, videoMeta) {
                     switch (media.TAG | 0) {
                       case /* Media */1 :
                           var media$1 = media._0;
-                          if (media$1.TAG === /* Audio */3) {
+                          if (media$1.TAG === /* Audio */4) {
                             return [
                                     track,
                                     media$1._0

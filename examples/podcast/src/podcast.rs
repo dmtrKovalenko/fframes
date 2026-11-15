@@ -35,41 +35,32 @@ impl Video for PodcastVideo<'_> {
     }
 
     fn render_frame(&self, frame: Frame, ctx: &FFramesContext) -> Svgr<'_> {
-        let goose_vis = ctx
-            .get_audio(self.goose_audio)
-            .map(|audio| {
-                frame.visualize_audio_frame(VisualizeFrameInput {
-                    smooth_level: 2,
-                    audio,
-                    sample_size: SampleSize::S32,
-                    window: None,
-                })
+        let goose_vis = ctx.get_audio(self.goose_audio).map_or_default(|audio| {
+            frame.visualize_audio_frame(VisualizeFrameInput {
+                smooth_level: 2,
+                audio,
+                sample_size: SampleSize::S32,
+                window: None,
             })
-            .unwrap_or_default();
+        });
 
-        let duck_vis = ctx
-            .get_audio(self.duck_audio)
-            .map(|audio| {
-                frame.visualize_audio_frame(VisualizeFrameInput {
-                    smooth_level: 2,
-                    audio,
-                    sample_size: SampleSize::S32,
-                    window: None,
-                })
+        let duck_vis = ctx.get_audio(self.duck_audio).map_or_default(|audio| {
+            frame.visualize_audio_frame(VisualizeFrameInput {
+                smooth_level: 2,
+                audio,
+                sample_size: SampleSize::S32,
+                window: None,
             })
-            .unwrap_or_default();
+        });
 
-        let guest_vis = ctx
-            .get_audio(self.guest_audio)
-            .map(|audio| {
-                frame.visualize_audio_frame(VisualizeFrameInput {
-                    smooth_level: 2,
-                    audio,
-                    sample_size: SampleSize::S32,
-                    window: None,
-                })
+        let guest_vis = ctx.get_audio(self.guest_audio).map_or_default(|audio| {
+            frame.visualize_audio_frame(VisualizeFrameInput {
+                smooth_level: 2,
+                audio,
+                sample_size: SampleSize::S32,
+                window: None,
             })
-            .unwrap_or_default();
+        });
 
         svgr!(
             <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080">

@@ -205,6 +205,12 @@ impl ShaderUniforms {
     /// `uniform shader name;` bound to an image, e.g. `ctx.get_image(..)` or a
     /// synced video frame. Sample it with `name.eval(coord)` where `coord` is
     /// in the image's pixels. Ignored in the editor.
+    ///
+    /// A child named `uBackdrop` that has no image bound receives what is already
+    /// painted under the element instead, in the element's own coordinates, so the
+    /// shader can refract or otherwise process the content beneath it. It is
+    /// transparent where there is no surface to snapshot (inside a recorded picture
+    /// or an isolated layer such as a group with opacity, a mask or a filter).
     #[allow(unused_variables)]
     pub fn image(self, name: impl Into<Cow<'static, str>>, image: &ImageData<'_>) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
