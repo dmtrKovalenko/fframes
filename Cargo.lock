@@ -4065,6 +4065,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "text-width-example"
+version = "1.4.1"
+dependencies = [
+ "fframes",
+ "fframes_skia_renderer",
+]
+
+[[package]]
 name = "thingbuf"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
