@@ -125,12 +125,13 @@ impl<'media> FFramesSyncedVideoFrame<'media> for WasmEditorVideoFrameFallback<'m
         Some(self.fallback_image.clone())
     }
 
+    // The displayed image can differ from the file, so placement reads its size.
     fn height(&self) -> u32 {
-        self.video_metadata.height
+        self.fallback_image.metadata.height
     }
 
     fn width(&self) -> u32 {
-        self.video_metadata.width
+        self.fallback_image.metadata.width
     }
 
     fn timestamp_seconds(&self) -> f32 {
