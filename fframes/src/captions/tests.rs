@@ -51,6 +51,7 @@ fn context<'a>(
         duration_in_frames: 30,
         mode: FFramesMode::Renderer,
         scenes: None,
+        markers: &[],
         media_source: media,
         font_source: fonts.map(|f| f as &dyn FontSource<'_>),
         abort_signal: None,
