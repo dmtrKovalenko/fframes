@@ -355,7 +355,7 @@ impl Captions {
     fn prepare(
         &self,
         track: &CaptionTrack,
-        _frame: &mut Frame,
+        frame: &mut Frame,
         ctx: &FFramesContext<'_, '_>,
     ) -> Result<PreparedTrack, CaptionError> {
         if self.font_size == 0 || !self.line_height.is_finite() || self.line_height < 1.0 {
@@ -402,7 +402,7 @@ impl Captions {
             CaptionError::invalid("layout.font", "caption layout needs a font source")
         })?;
         let measure = |text: &str| {
-            crate::text_get_width_impl(self.font_query(), text, font_source)
+            crate::text_get_width_impl(self.font_query(), text, font_source, frame.text_shapes())
                 .map(|width| width as f64)
                 .ok_or_else(|| {
                     CaptionError::invalid(

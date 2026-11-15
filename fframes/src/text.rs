@@ -203,12 +203,14 @@ const TEXT_WIDTH_CACHE_MIN: usize = 1024;
 pub struct TextCache {
     pub(crate) breaks_cache: Rc<RefCell<LruCache<u64, WrappedTextStructure>>>,
     pub(crate) text_width_cache: Rc<RefCell<LruCache<u64, usize>>>,
+    pub(crate) shapes: usvgr::UsvgrTextShapeCache,
 }
 
 impl TextCache {
     pub fn new(size: usize) -> Option<Self> {
         if size > 0 {
             Some(Self {
+                shapes: usvgr::UsvgrTextShapeCache::new(size.max(TEXT_WIDTH_CACHE_MIN))?,
                 breaks_cache: Rc::new(RefCell::new(LruCache::new(
                     NonZeroUsize::new(size).unwrap(),
                 ))),
@@ -225,6 +227,20 @@ impl TextCache {
     pub fn clear(&self) {
         self.breaks_cache.borrow_mut().clear();
         self.text_width_cache.borrow_mut().clear();
+        self.shapes.clear();
+    }
+
+    /// The shaped glyphs of measured text. A converter cache that holds them lays that text
+    /// out without shaping it again, see [`TextCache::converter_cache`].
+    pub fn shapes(&self) -> usvgr::UsvgrTextShapeCache {
+        self.shapes.clone()
+    }
+
+    /// A converter cache for the frames that measure text through `text_cache`.
+    pub fn converter_cache(text_cache: Option<&Self>, text_cache_capacity: usize) -> usvgr::Cache {
+        let mut cache = usvgr::Cache::new_with_text_cache(text_cache_capacity);
+        cache.usvgr_shape_cache = text_cache.map(Self::shapes);
+        cache
     }
 }
 
@@ -346,64 +362,48 @@ fn char_width(
 }
 
 /// Width of `text` in pixels as usvgr lays it out when rendering: shaped per bidi run, with
-/// fallback fonts and the variation axes the renderer applies. The text is laid out twice, from
-/// its start and from its end at `x = 0`: every glyph moves by exactly the advance width between
-/// the two, so glyph offsets such as mark positioning cancel out.
-pub fn measure_text_width(
+/// fallback fonts and the variation axes the renderer applies. Only shaping runs, and the
+/// shaped glyphs go into `shapes`, where the renderer finds them when it lays the text out.
+pub(crate) fn shaped_text_width(
     fontdb: &usvgr::fontdb::Database,
     font: &FontQuery,
     text: &str,
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<f32> {
-    fn escape(value: &str) -> String {
-        value
-            .replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('"', "&quot;")
-    }
-    fn texts<'t>(group: &'t usvgr::Group, found: &mut Vec<&'t usvgr::Text>) {
-        for node in group.children() {
-            match node {
-                usvgr::Node::Text(text) => found.push(text),
-                usvgr::Node::Group(group) => texts(group, found),
-                _ => {}
-            }
-        }
-    }
-    fn first_glyph_x(text: &usvgr::Text) -> Option<f32> {
-        let glyph = text.layouted().first()?.positioned_glyphs.first()?;
-        Some(glyph.transform().tx)
-    }
-
-    if text.is_empty() {
-        return Some(0.0);
-    }
     let style = match font.style {
-        FontStyle::Normal => "normal",
-        FontStyle::Italic => "italic",
-        FontStyle::Oblique => "oblique",
+        FontStyle::Normal => usvgr::FontStyle::Normal,
+        FontStyle::Italic => usvgr::FontStyle::Italic,
+        FontStyle::Oblique => usvgr::FontStyle::Oblique,
     };
-    let text = format!(
-        r#"xml:space="preserve" font-family="{}" font-size="{}" font-weight="{}" font-style="{style}" font-stretch="{}">{}</text>"#,
-        escape(font.family),
-        font.size,
+    let stretch = match font.stretch {
+        FontStretch::UltraCondensed => usvgr::FontStretch::UltraCondensed,
+        FontStretch::ExtraCondensed => usvgr::FontStretch::ExtraCondensed,
+        FontStretch::Condensed => usvgr::FontStretch::Condensed,
+        FontStretch::SemiCondensed => usvgr::FontStretch::SemiCondensed,
+        FontStretch::Normal => usvgr::FontStretch::Normal,
+        FontStretch::SemiExpanded => usvgr::FontStretch::SemiExpanded,
+        FontStretch::Expanded => usvgr::FontStretch::Expanded,
+        FontStretch::ExtraExpanded => usvgr::FontStretch::ExtraExpanded,
+        FontStretch::UltraExpanded => usvgr::FontStretch::UltraExpanded,
+    };
+    let usvgr_font = usvgr::Font::new(
+        vec![usvgr::FontFamily::Named(font.family.to_owned())],
+        style,
+        stretch,
         font.weight,
-        font.stretch,
-        escape(text),
+        Vec::new(),
     );
-    let svg = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><text text-anchor="start" {text}<text text-anchor="end" {text}</svg>"#
-    );
-    let tree = usvgr::Tree::from_str(&svg, &usvgr::Options::default(), fontdb).ok()?;
-    let mut found = Vec::with_capacity(2);
-    texts(tree.root(), &mut found);
-    let [from_start, from_end] = found[..] else {
-        return None;
-    };
-    Some(first_glyph_x(from_start)? - first_glyph_x(from_end)?)
+    usvgr::text_advance(
+        text,
+        &usvgr_font,
+        font.size as f32,
+        &usvgr::FontResolver::default(),
+        fontdb,
+        shapes,
+    )
 }
 
-/// The renderer's width when the font source can lay text out, per-character advances
+/// The renderer's width when the font source has a font database, per-character advances
 /// otherwise.
 fn text_width_px(
     text: &str,
@@ -411,14 +411,18 @@ fn text_width_px(
     font_source: &dyn FontSource,
     font_face: &dyn FontFace,
     font_variant: FontVariant,
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> f32 {
     match text {
         "" | "\n" | "\r" => 0.0,
-        text => font_source.measure_text(font, text).unwrap_or_else(|| {
-            text.chars()
-                .map(|char| char_width(char, font_face, font.size, font_variant))
-                .sum::<usize>() as f32
-        }),
+        text => font_source
+            .fontdb()
+            .and_then(|fontdb| shaped_text_width(fontdb, font, text, shapes))
+            .unwrap_or_else(|| {
+                text.chars()
+                    .map(|char| char_width(char, font_face, font.size, font_variant))
+                    .sum::<usize>() as f32
+            }),
     }
 }
 
@@ -430,6 +434,7 @@ pub(crate) fn text_fit_impl<'a>(
     max_width: usize,
     overflow: TextOverflow,
     font_source: &'a (dyn FontSource<'a> + 'a),
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<Cow<'a, str>> {
     let font_face = font_source.resolve_font(
         font_query.family,
@@ -446,6 +451,7 @@ pub(crate) fn text_fit_impl<'a>(
             font_source,
             font_face.as_ref(),
             font_variant,
+            shapes,
         )
     };
 
@@ -496,6 +502,7 @@ pub(crate) fn text_get_width_impl<'a>(
     font_query: FontQuery,
     text: &str,
     font_source: &'a (dyn FontSource<'a> + 'a),
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<usize> {
     let font_face = font_source.resolve_font(
         font_query.family,
@@ -512,6 +519,7 @@ pub(crate) fn text_get_width_impl<'a>(
             font_source,
             font_face.as_ref(),
             font_variant,
+            shapes,
         )
         .round() as usize,
     )
@@ -527,6 +535,7 @@ pub(crate) fn text_wrap_impl<
     value: &'b str,
     font_source: &'a (dyn FontSource<'a> + 'a),
     options: BreakLinesOpts<'a, TX, TY>,
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<WrappedTextStructure> {
     let BreakLinesOpts {
         width,
@@ -547,8 +556,16 @@ pub(crate) fn text_wrap_impl<
 
     let font_variant = font_face.font_variant(font.size)?;
     let max_width = width as f32;
-    let measure =
-        |text: &str| text_width_px(text, &font, font_source, font_face.as_ref(), font_variant);
+    let measure = |text: &str| {
+        text_width_px(
+            text,
+            &font,
+            font_source,
+            font_face.as_ref(),
+            font_variant,
+            shapes,
+        )
+    };
 
     // Lines are measured joined, as they render, so spaces and kerning across words count.
     let mut structure: Vec<(Vec<String>, f32)> = vec![(vec![], 0.0)];
@@ -647,6 +664,7 @@ pub fn estimate_text_width<'a>(
         },
         text,
         ctx.font_source?,
+        None,
     )
 }
 
@@ -704,8 +722,15 @@ mod tests {
         max_width: usize,
         overflow: TextOverflow,
     ) -> Cow<'a, str> {
-        text_fit_impl(FontQuery::default(), value, max_width, overflow, fonts)
-            .expect("the fixed width font always resolves")
+        text_fit_impl(
+            FontQuery::default(),
+            value,
+            max_width,
+            overflow,
+            fonts,
+            None,
+        )
+        .expect("the fixed width font always resolves")
     }
 
     #[test]
@@ -801,7 +826,7 @@ mod tests {
             "Ünïcö…"
         );
         assert_eq!(
-            text_get_width_impl(FontQuery::default(), "Ünïcödé", &MONOSPACED),
+            text_get_width_impl(FontQuery::default(), "Ünïcödé", &MONOSPACED, None),
             Some(7 * CHAR_WIDTH)
         );
     }

@@ -97,8 +97,8 @@ impl<'a> crate::FontSource<'a> for RendererFontSource {
         }))
     }
 
-    fn measure_text(&self, font: &crate::FontQuery, text: &str) -> Option<f32> {
-        crate::measure_text_width(&self.fontdb, font, text)
+    fn fontdb(&self) -> Option<&fontdb::Database> {
+        Some(&self.fontdb)
     }
 
     fn add_font(&mut self, _filename: String, font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
@@ -111,7 +111,7 @@ impl<'a> crate::FontSource<'a> for RendererFontSource {
 mod tests {
     use super::*;
     use crate::text::{text_fit_impl, text_wrap_impl};
-    use crate::{BreakLinesOpts, FontQuery, FontSource, TextOverflow};
+    use crate::{BreakLinesOpts, FontQuery, TextOverflow};
 
     const INTER: &[u8] = include_bytes!("../../../examples/arm/media/Inter_18pt-ExtraBold.ttf");
     const SOFIA: &[u8] = include_bytes!(
@@ -127,6 +127,12 @@ mod tests {
             fontdb.load_font_data(data.to_vec());
         }
         RendererFontSource { fontdb }
+    }
+
+    impl RendererFontSource {
+        fn measure_text(&self, font: &FontQuery, text: &str) -> Option<f32> {
+            crate::text::shaped_text_width(&self.fontdb, font, text, None)
+        }
     }
 
     fn font(family: &str, size: usize, weight: u16) -> FontQuery<'_> {
@@ -161,8 +167,31 @@ mod tests {
             550,
             TextOverflow::Ellipsis,
             &fonts,
+            None,
         );
         assert_eq!(fitted.as_deref(), Some(text));
+    }
+
+    #[test]
+    fn rendering_reuses_measured_shapes() {
+        let fonts = fonts(&[INTER]);
+        let text_cache = crate::TextCache::new(10).unwrap();
+        let shapes = text_cache.shapes();
+        let query = font("Inter 18pt", 100, 800);
+        crate::text::shaped_text_width(&fonts.fontdb, &query, "AVAVAVAV", Some(&shapes)).unwrap();
+        assert_eq!(shapes.len(), 1);
+
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"><text y="100" font-family="Inter 18pt" font-size="100" font-weight="800">AVAVAVAV</text></svg>"#;
+        let doc = usvgr::roxmltree::Document::parse(svg).unwrap();
+        let mut converter_cache = crate::TextCache::converter_cache(Some(&text_cache), 10);
+        usvgr::Tree::from_xmltree_with_cache(
+            &doc,
+            &usvgr::Options::default(),
+            &mut converter_cache,
+            &fonts.fontdb,
+        )
+        .unwrap();
+        assert_eq!(shapes.len(), 1, "the renderer shaped measured text again");
     }
 
     #[test]
@@ -171,7 +200,7 @@ mod tests {
         let query = font("Inter 18pt", 46, 800);
         let text = "The Byzantine Greeks call Eastern Rome";
         assert!(fonts.measure_text(&query, text).unwrap() > 885.0);
-        let fitted = text_fit_impl(query, text, 885, TextOverflow::Ellipsis, &fonts).unwrap();
+        let fitted = text_fit_impl(query, text, 885, TextOverflow::Ellipsis, &fonts, None).unwrap();
         assert!(fitted.ends_with('…'), "{fitted}");
         assert!(fonts.measure_text(&query, &fitted).unwrap() <= 885.0);
     }
@@ -189,6 +218,7 @@ mod tests {
                 width: 117,
                 ..Default::default()
             },
+            None,
         )
         .unwrap();
         assert!(wrapped.lines.len() > 1);

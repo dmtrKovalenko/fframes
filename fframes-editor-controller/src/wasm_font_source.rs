@@ -155,8 +155,8 @@ impl<'a> fframes::FontSource<'a> for WasmFontSource {
         }))
     }
 
-    fn measure_text(&self, font: &fframes::FontQuery, text: &str) -> Option<f32> {
-        fframes::measure_text_width(&self.fontdb, font, text)
+    fn fontdb(&self) -> Option<&fframes::usvgr::fontdb::Database> {
+        Some(&self.fontdb)
     }
 
     fn add_font(&mut self, _filename: String, _font_data: Arc<dyn AsRef<[u8]> + Sync + Send>) {
