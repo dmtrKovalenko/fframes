@@ -63,6 +63,8 @@ const allExamples = [
   { dir: "podcast", pkg: "podcast-example", bin: "podcast_example_bin", frames: "10s,40s" },
   { dir: "shaders", pkg: "shaders-example", bin: "shaders_example_bin", frames: "2s,6s", skia: true },
   { dir: "signal-lab", pkg: "signal-lab", bin: "signal-lab", frames: "ProductScene@3s,DataScene@3s,SystemScene@3s" },
+  // Boxes sized by text_width and a paragraph wrapped by text_break_lines, in Greek and kerned Latin.
+  { dir: "text-width", pkg: "text-width-example", bin: "text-width-example", frames: "0.5s" },
   { dir: "teej-podcast", pkg: "teej_podcast_example", bin: "teej_podcast_example_bin", frames: "10s,2:00" },
   { dir: "tiktok", pkg: "tiktok-example", bin: "tiktok_example_bin", frames: "10s,30s" },
 ];

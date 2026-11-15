@@ -3941,8 +3941,7 @@ dependencies = [
 [[package]]
 name = "svgr"
 version = "0.50.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c4ca5d70fab22333f7ea7de99b5a7e273cf4b29bd9d8b28e3977b3daac7fc8f"
+source = "git+https://github.com/silouanwright/svgr?branch=feat%2Fshaped-text-measure#23cf2f5052ff14d50ad6e9af9591767a13c46b6b"
 dependencies = [
  "bytemuck",
  "gif",
@@ -3972,8 +3971,7 @@ dependencies = [
 [[package]]
 name = "svgrtypes"
 version = "0.50.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d01e129db840881357043393e2b2ec41ed2f0f012409d27c324e25346091f070"
+source = "git+https://github.com/silouanwright/svgr?branch=feat%2Fshaped-text-measure#23cf2f5052ff14d50ad6e9af9591767a13c46b6b"
 dependencies = [
  "kurbo",
  "proc-macro2",
@@ -4061,6 +4059,14 @@ dependencies = [
  "clap",
  "fframes",
  "fframes_native_player",
+ "fframes_skia_renderer",
+]
+
+[[package]]
+name = "text-width-example"
+version = "1.4.1"
+dependencies = [
+ "fframes",
  "fframes_skia_renderer",
 ]
 
@@ -4425,8 +4431,7 @@ checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 [[package]]
 name = "usvgr"
 version = "0.50.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "157a8545c1764f266393e38b1b87450db31aac1edbe82ef32411c20a9c50731a"
+source = "git+https://github.com/silouanwright/svgr?branch=feat%2Fshaped-text-measure#23cf2f5052ff14d50ad6e9af9591767a13c46b6b"
 dependencies = [
  "ahash",
  "base64 0.22.1",

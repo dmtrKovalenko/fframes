@@ -279,7 +279,7 @@ impl Frame {
     ) -> Option<WrappedTextStructure> {
         let font_source = ctx.font_source?;
         let Some(text_cache) = self.text_cache.as_ref() else {
-            return text_wrap_impl(opts.hash_with_value(value), value, font_source, opts);
+            return text_wrap_impl(opts.hash_with_value(value), value, font_source, opts, None);
         };
 
         let hash = opts.hash_with_value(value);
@@ -288,12 +288,16 @@ impl Frame {
         }
 
         // See `text_width`: unresolved fonts are retried on the next frame.
-        let structure = text_wrap_impl(hash, value, font_source, opts)?;
+        let structure = text_wrap_impl(hash, value, font_source, opts, Some(&text_cache.shapes))?;
         text_cache
             .breaks_cache
             .borrow_mut()
             .put(hash, structure.clone());
         Some(structure)
+    }
+
+    pub(crate) fn text_shapes(&self) -> Option<&usvgr::UsvgrTextShapeCache> {
+        self.text_cache.as_ref().map(|cache| &cache.shapes)
     }
 
     /// Wraps the text string into the lines according to the provided content area width.
@@ -347,7 +351,7 @@ impl Frame {
     ) -> Option<usize> {
         let font_source = ctx.font_source?;
         let Some(text_cache) = self.text_cache.as_ref() else {
-            return text_get_width_impl(font_query, value, font_source);
+            return text_get_width_impl(font_query, value, font_source, None);
         };
 
         let hash = font_query.hash_with_value(value);
@@ -357,7 +361,7 @@ impl Frame {
 
         // A font that can not be measured yet (the editor is still loading
         // fonts) must not be remembered, or it never gets measured at all.
-        let width = text_get_width_impl(font_query, value, font_source)?;
+        let width = text_get_width_impl(font_query, value, font_source, Some(&text_cache.shapes))?;
         text_cache.text_width_cache.borrow_mut().put(hash, width);
         Some(width)
     }
@@ -387,7 +391,14 @@ impl Frame {
         overflow: TextOverflow,
     ) -> Option<std::borrow::Cow<'a, str>> {
         let font_source = ctx.font_source?;
-        text_fit_impl(font_query, value, max_width, overflow, font_source)
+        text_fit_impl(
+            font_query,
+            value,
+            max_width,
+            overflow,
+            font_source,
+            self.text_shapes(),
+        )
     }
 
     /// Returns a phrase that must be rendered by time in this frame.

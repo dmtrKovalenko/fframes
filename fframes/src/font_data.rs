@@ -100,4 +100,11 @@ pub trait FontSource<'a>: Sync + Send + std::fmt::Debug {
         font_style: FontStyle,
         font_stretch: FontStretch,
     ) -> Option<Box<dyn FontFace<'a> + 'a>>;
+
+    /// The database the renderer takes these fonts from. With it text is measured the way the
+    /// renderer lays it out (kerning, fallback fonts, font variations); `None` falls back to
+    /// per-character advances.
+    fn fontdb(&self) -> Option<&usvgr::fontdb::Database> {
+        None
+    }
 }

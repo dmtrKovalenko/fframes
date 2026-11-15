@@ -164,6 +164,13 @@ impl<TBackend: SkiaBackend> SkiaFFramesRenderer<'_, TBackend> {
             fframes_ctx.video_decoders.clone(),
         );
 
+        if native_ctx.converter_cache.usvgr_shape_cache.is_none() {
+            native_ctx.converter_cache.usvgr_shape_cache = fframes_ctx
+                .break_lines_cache
+                .as_ref()
+                .map(TextCache::shapes);
+        }
+
         let tree = fframes::render_frame_guarded(video, fframe, &ctx)?.into_svg_tree(
             &fframes_ctx.usvg_options,
             &mut native_ctx.converter_cache,

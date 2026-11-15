@@ -216,7 +216,8 @@ impl FFramesRenderBackend for CpuRenderingBackend {
         let render_worker = |worker: usize| -> FFramesRendererResult<()> {
             let worker_local_decoders = VideoDecodersWorker::new(1);
             let break_lines_cache = TextCache::new(self.text_cache_capacity);
-            let mut converter_cache = usvgr::Cache::new_with_text_cache(self.text_cache_capacity);
+            let mut converter_cache =
+                TextCache::converter_cache(break_lines_cache.as_ref(), self.text_cache_capacity);
             let mut renderer = self.encoder_frame_renderer(
                 writer.encoder_input(),
                 video_size.width as u32,

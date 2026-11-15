@@ -192,6 +192,9 @@ where
     }
 }
 
+/// Widths are tiny and a frame often measures every word.
+const TEXT_WIDTH_CACHE_MIN: usize = 1024;
+
 /// This is only fframes cache for text related processing, the actual
 /// glyph aliasing, text outlining happens in the rendering backend and
 /// can have its own cache
@@ -200,22 +203,44 @@ where
 pub struct TextCache {
     pub(crate) breaks_cache: Rc<RefCell<LruCache<u64, WrappedTextStructure>>>,
     pub(crate) text_width_cache: Rc<RefCell<LruCache<u64, usize>>>,
+    pub(crate) shapes: usvgr::UsvgrTextShapeCache,
 }
 
 impl TextCache {
     pub fn new(size: usize) -> Option<Self> {
         if size > 0 {
             Some(Self {
+                shapes: usvgr::UsvgrTextShapeCache::new(size.max(TEXT_WIDTH_CACHE_MIN))?,
                 breaks_cache: Rc::new(RefCell::new(LruCache::new(
                     NonZeroUsize::new(size).unwrap(),
                 ))),
                 text_width_cache: Rc::new(RefCell::new(LruCache::new(
-                    NonZeroUsize::new(size).unwrap(),
+                    NonZeroUsize::new(size.max(TEXT_WIDTH_CACHE_MIN)).unwrap(),
                 ))),
             })
         } else {
             None
         }
+    }
+
+    /// Forgets every measured width and wrapped text, for when a font changes.
+    pub fn clear(&self) {
+        self.breaks_cache.borrow_mut().clear();
+        self.text_width_cache.borrow_mut().clear();
+        self.shapes.clear();
+    }
+
+    /// The shaped glyphs of measured text. A converter cache that holds them lays that text
+    /// out without shaping it again, see [`TextCache::converter_cache`].
+    pub fn shapes(&self) -> usvgr::UsvgrTextShapeCache {
+        self.shapes.clone()
+    }
+
+    /// A converter cache for the frames that measure text through `text_cache`.
+    pub fn converter_cache(text_cache: Option<&Self>, text_cache_capacity: usize) -> usvgr::Cache {
+        let mut cache = usvgr::Cache::new_with_text_cache(text_cache_capacity);
+        cache.usvgr_shape_cache = text_cache.map(Self::shapes);
+        cache
     }
 }
 
@@ -336,18 +361,74 @@ fn char_width(
     }
 }
 
-fn calc_text_width(
+/// Width of `text` in pixels as usvgr lays it out when rendering: shaped per bidi run, with
+/// fallback fonts and the variation axes the renderer applies. Only shaping runs, and the
+/// shaped glyphs go into `shapes`, where the renderer finds them when it lays the text out.
+pub(crate) fn shaped_text_width(
+    fontdb: &usvgr::fontdb::Database,
+    font: &FontQuery,
     text: &str,
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
+) -> Option<f32> {
+    let style = match font.style {
+        FontStyle::Normal => usvgr::FontStyle::Normal,
+        FontStyle::Italic => usvgr::FontStyle::Italic,
+        FontStyle::Oblique => usvgr::FontStyle::Oblique,
+    };
+    let stretch = match font.stretch {
+        FontStretch::UltraCondensed => usvgr::FontStretch::UltraCondensed,
+        FontStretch::ExtraCondensed => usvgr::FontStretch::ExtraCondensed,
+        FontStretch::Condensed => usvgr::FontStretch::Condensed,
+        FontStretch::SemiCondensed => usvgr::FontStretch::SemiCondensed,
+        FontStretch::Normal => usvgr::FontStretch::Normal,
+        FontStretch::SemiExpanded => usvgr::FontStretch::SemiExpanded,
+        FontStretch::Expanded => usvgr::FontStretch::Expanded,
+        FontStretch::ExtraExpanded => usvgr::FontStretch::ExtraExpanded,
+        FontStretch::UltraExpanded => usvgr::FontStretch::UltraExpanded,
+    };
+    let usvgr_font = usvgr::Font::new(
+        vec![usvgr::FontFamily::Named(font.family.to_owned())],
+        style,
+        stretch,
+        font.weight,
+        Vec::new(),
+    );
+    // The SVG parser turns tabs and line breaks into spaces before the renderer shapes the text.
+    let text = if text.contains(['\t', '\n', '\r']) {
+        Cow::Owned(text.replace("\r\n", " ").replace(['\t', '\n', '\r'], " "))
+    } else {
+        Cow::Borrowed(text)
+    };
+    usvgr::text_advance(
+        &text,
+        &usvgr_font,
+        font.size as f32,
+        &usvgr::FontResolver::default(),
+        fontdb,
+        shapes,
+    )
+}
+
+/// The renderer's width when the font source has a font database, per-character advances
+/// otherwise.
+fn text_width_px(
+    text: &str,
+    font: &FontQuery,
+    font_source: &dyn FontSource,
     font_face: &dyn FontFace,
-    font_size: usize,
     font_variant: FontVariant,
-) -> usize {
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
+) -> f32 {
     match text {
-        "" | "\n" | "\r" => 0,
-        text => text
-            .chars()
-            .map(|char| char_width(char, font_face, font_size, font_variant))
-            .sum(),
+        "" | "\n" | "\r" => 0.0,
+        text => font_source
+            .fontdb()
+            .and_then(|fontdb| shaped_text_width(fontdb, font, text, shapes))
+            .unwrap_or_else(|| {
+                text.chars()
+                    .map(|char| char_width(char, font_face, font.size, font_variant))
+                    .sum::<usize>() as f32
+            }),
     }
 }
 
@@ -359,6 +440,7 @@ pub(crate) fn text_fit_impl<'a>(
     max_width: usize,
     overflow: TextOverflow,
     font_source: &'a (dyn FontSource<'a> + 'a),
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<Cow<'a, str>> {
     let font_face = font_source.resolve_font(
         font_query.family,
@@ -367,32 +449,52 @@ pub(crate) fn text_fit_impl<'a>(
         font_query.stretch,
     )?;
     let font_variant = font_face.font_variant(font_query.size)?;
-    let width =
-        |text: &str| calc_text_width(text, font_face.as_ref(), font_query.size, font_variant);
+    let max_width = max_width as f32;
+    let width = |text: &str| {
+        text_width_px(
+            text,
+            &font_query,
+            font_source,
+            font_face.as_ref(),
+            font_variant,
+            shapes,
+        )
+    };
 
-    let marker = overflow.marker();
-    let marker_width = width(marker);
-
-    // One pass over the glyphs: `fits_end` is the end of the longest prefix
-    // that leaves room for the marker, `total` the width of the whole text.
-    let mut total = 0;
-    let mut fits_end = 0;
-    for (index, char) in value.char_indices() {
-        total += char_width(char, font_face.as_ref(), font_query.size, font_variant);
-        if total + marker_width <= max_width {
-            fits_end = index + char.len_utf8();
-        }
-    }
-
-    if total <= max_width {
+    if width(value) <= max_width {
         return Some(Cow::Borrowed(value));
     }
-    if marker_width > max_width {
+    let marker = overflow.marker();
+    if width(marker) > max_width {
         // Not even the marker fits.
         return Some(Cow::Borrowed(""));
     }
 
-    let kept = &value[..fits_end];
+    // The kept prefix and the marker are measured together, as they render. Binary search over
+    // the number of kept characters: measuring is a layout, so each probe counts.
+    let ends: Vec<usize> = value
+        .char_indices()
+        .map(|(i, c)| i + c.len_utf8())
+        .collect();
+    let fits = |end: usize| {
+        let kept = &value[..end];
+        if marker.is_empty() {
+            width(kept) <= max_width
+        } else {
+            width(&format!("{}{marker}", kept.trim_end())) <= max_width
+        }
+    };
+    let (mut low, mut high) = (0, ends.len());
+    while low < high {
+        let mid = (low + high).div_ceil(2);
+        if fits(ends[mid - 1]) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    let kept = &value[..low.checked_sub(1).map_or(0, |i| ends[i])];
     if marker.is_empty() {
         return Some(Cow::Borrowed(kept));
     }
@@ -406,6 +508,7 @@ pub(crate) fn text_get_width_impl<'a>(
     font_query: FontQuery,
     text: &str,
     font_source: &'a (dyn FontSource<'a> + 'a),
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<usize> {
     let font_face = font_source.resolve_font(
         font_query.family,
@@ -415,12 +518,17 @@ pub(crate) fn text_get_width_impl<'a>(
     )?;
 
     let font_variant = font_face.font_variant(font_query.size)?;
-    Some(calc_text_width(
-        text,
-        font_face.as_ref(),
-        font_query.size,
-        font_variant,
-    ))
+    Some(
+        text_width_px(
+            text,
+            &font_query,
+            font_source,
+            font_face.as_ref(),
+            font_variant,
+            shapes,
+        )
+        .round() as usize,
+    )
 }
 
 pub(crate) fn text_wrap_impl<
@@ -433,6 +541,7 @@ pub(crate) fn text_wrap_impl<
     value: &'b str,
     font_source: &'a (dyn FontSource<'a> + 'a),
     options: BreakLinesOpts<'a, TX, TY>,
+    shapes: Option<&usvgr::UsvgrTextShapeCache>,
 ) -> Option<WrappedTextStructure> {
     let BreakLinesOpts {
         width,
@@ -452,46 +561,49 @@ pub(crate) fn text_wrap_impl<
     };
 
     let font_variant = font_face.font_variant(font.size)?;
-    let space_width = match font_variant {
-        crate::FontVariant::Monospaced(mono_width) => mono_width,
-        crate::FontVariant::Variable => font_face.resolve_char_width(font.size, ' ')?,
+    let max_width = width as f32;
+    let measure = |text: &str| {
+        text_width_px(
+            text,
+            &font,
+            font_source,
+            font_face.as_ref(),
+            font_variant,
+            shapes,
+        )
     };
 
-    let mut structure: Vec<(Vec<String>, usize)> = vec![(vec![], 0usize)];
+    // Lines are measured joined, as they render, so spaces and kerning across words count.
+    let mut structure: Vec<(Vec<String>, f32)> = vec![(vec![], 0.0)];
     let line_height_in_px = line_height * font.size as f32;
 
     for line in value.split('\n') {
         let mut is_first_word_in_line = true;
 
         for word in line.split_whitespace() {
-            let word_width = calc_text_width(word, font_face.as_ref(), font.size, font_variant);
             let (last_line, last_line_width) = structure.last_mut()?;
-
-            // The first word of a line is never preceded by a space.
-            let separator_width = if *last_line_width == 0 {
-                0
+            let joined = if last_line.is_empty() {
+                word.to_owned()
             } else {
-                space_width
+                format!("{} {word}", last_line.join(" "))
             };
+            let joined_width = measure(&joined);
 
-            if *last_line_width + separator_width + word_width > width && !last_line.is_empty() {
-                structure.push((vec![word.to_owned()], word_width));
+            if joined_width > max_width && !last_line.is_empty() {
+                structure.push((vec![word.to_owned()], measure(word)));
             } else {
-                *last_line_width += separator_width + word_width;
+                *last_line_width = joined_width;
                 last_line.push(word.to_owned());
             }
             is_first_word_in_line = false;
         }
 
         if !is_first_word_in_line {
-            structure.push((vec![], 0usize));
+            structure.push((vec![], 0.0));
         }
     }
 
-    if let Some((last_words, last_width)) = structure.last()
-        && last_words.is_empty()
-        && *last_width == 0
-    {
+    if structure.last().is_some_and(|(words, _)| words.is_empty()) {
         structure.pop();
     }
 
@@ -499,6 +611,7 @@ pub(crate) fn text_wrap_impl<
         .into_iter()
         .enumerate()
         .map(|(index, (words, line_width))| {
+            let line_width = line_width.round() as usize;
             let dx = match align {
                 TextAlign::Left => 0,
                 TextAlign::Center => width.saturating_sub(line_width) / 2,
@@ -547,17 +660,18 @@ pub fn estimate_text_width<'a>(
         font_stretch,
     } = options;
 
-    let font_face =
-        ctx.font_source?
-            .resolve_font(font_family, font_weight, font_style, font_stretch)?;
-
-    let font_variant = font_face.font_variant(font_size)?;
-    Some(calc_text_width(
+    text_get_width_impl(
+        FontQuery {
+            family: font_family,
+            size: font_size,
+            weight: font_weight,
+            style: font_style,
+            stretch: font_stretch,
+        },
         text,
-        font_face.as_ref(),
-        font_size,
-        font_variant,
-    ))
+        ctx.font_source?,
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -614,8 +728,15 @@ mod tests {
         max_width: usize,
         overflow: TextOverflow,
     ) -> Cow<'a, str> {
-        text_fit_impl(FontQuery::default(), value, max_width, overflow, fonts)
-            .expect("the fixed width font always resolves")
+        text_fit_impl(
+            FontQuery::default(),
+            value,
+            max_width,
+            overflow,
+            fonts,
+            None,
+        )
+        .expect("the fixed width font always resolves")
     }
 
     #[test]
@@ -711,7 +832,7 @@ mod tests {
             "Ünïcö…"
         );
         assert_eq!(
-            text_get_width_impl(FontQuery::default(), "Ünïcödé", &MONOSPACED),
+            text_get_width_impl(FontQuery::default(), "Ünïcödé", &MONOSPACED, None),
             Some(7 * CHAR_WIDTH)
         );
     }

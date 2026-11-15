@@ -538,7 +538,8 @@ impl<'a, 'media: 'a, TVideo: Video> Previewer<'a, 'media, TVideo> {
         if let Some(capacity) = renderer.svg_text_cache_capacity()
             && capacity != self.converter_text_cache_capacity
         {
-            self.worker.converter_cache = usvgr::Cache::new_with_text_cache(capacity);
+            self.worker.converter_cache =
+                TextCache::converter_cache(self.worker.text_cache.as_ref(), capacity);
             self.converter_text_cache_capacity = capacity;
         }
     }
@@ -693,10 +694,14 @@ struct Worker {
 
 impl Worker {
     fn new(converter_text_cache_capacity: usize) -> Self {
+        let text_cache = TextCache::new(10);
         Self {
-            text_cache: TextCache::new(10),
+            converter_cache: TextCache::converter_cache(
+                text_cache.as_ref(),
+                converter_text_cache_capacity,
+            ),
+            text_cache,
             decoders: VideoDecodersWorker::new(2),
-            converter_cache: usvgr::Cache::new_with_text_cache(converter_text_cache_capacity),
         }
     }
 }

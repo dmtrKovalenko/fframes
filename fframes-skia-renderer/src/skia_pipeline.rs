@@ -359,7 +359,8 @@ fn generate_frames<'a, 'media: 'a, TVideo: Video + Sync + Send>(
     #[cfg(feature = "debug")] metrics: Arc<crate::metrics::ThreadMetrics>,
 ) -> FFramesRendererResult<()> {
     let break_lines_cache = TextCache::new(10);
-    let mut converter_cache = usvgr::Cache::new_with_text_cache(text_cache_capacity);
+    let mut converter_cache =
+        TextCache::converter_cache(break_lines_cache.as_ref(), text_cache_capacity);
     // x2 because sometimes we might need to decode 2 frames at once
     let video_decoders_worker = VideoDecodersWorker::new(queue_size * 2);
 
