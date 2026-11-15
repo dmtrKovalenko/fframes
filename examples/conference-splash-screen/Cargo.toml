@@ -1,5 +1,6 @@
 [package]
 name = "conference-splash-screen-example"
+default-run = "conference_splash_screen_bin"
 version = "1.4.1"
 edition = "2024"
 
