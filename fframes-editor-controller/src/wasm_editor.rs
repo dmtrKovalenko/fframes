@@ -185,7 +185,7 @@ impl<TVideo: Video, TMedia: StaticMediaProvider<'static> + 'static> WasmEditor<T
             .insert(file.clone(), fframes::AudioData::Preloaded(audio_data));
     }
 
-    /// Parse VTT or JSON through the shared subtitle parser and register the owned result.
+    /// Parse VTT, SRT or JSON through the shared subtitle parser and register the owned result.
     pub fn add_subtitles_source(&self, file: String, content: String) -> Result<usize, JsValue> {
         use fframes::media::FFramesSubtitles;
 

@@ -1,4 +1,5 @@
-//! A small captions example: one media track, four presets and a typed word highlight.
+//! A small captions example: one media track, four presets and a typed word highlight,
+//! then a closing line loaded from an SRT file through the same media path.
 use fframes::captions::{CaptionMode, CaptionRect, Captions};
 use fframes::{AudioMap, Duration, FFramesContext, Frame, Svgr, Video, include_media_dir, svgr};
 
@@ -13,6 +14,7 @@ enum Highlight {
 
 pub struct CaptionVideo {
     modes: [Captions; 4],
+    outro: Captions,
 }
 
 impl Default for CaptionVideo {
@@ -33,6 +35,11 @@ impl Default for CaptionVideo {
                     .upcoming_fill("#64748b")
                     .outline("#0c1423", 2.0)
             }),
+            outro: Captions::from_media("outro.srt", CaptionRect::new(1010.0, 40.0, 820.0, 130.0))
+                .font("DM Sans", 44)
+                .font_weight(500)
+                .active_fill("#f4f7fb")
+                .outline("#0c1423", 2.0),
         }
     }
 }
@@ -43,7 +50,7 @@ impl Video for CaptionVideo {
     const HEIGHT: usize = 1080;
 
     fn duration(&self) -> Duration<'_> {
-        Duration::Seconds(8.0)
+        Duration::Seconds(9.0)
     }
 
     fn audio(&self) -> AudioMap<'_> {
@@ -72,6 +79,7 @@ impl Video for CaptionVideo {
         let karaoke = self.modes[1].render(&mut frame, ctx);
         let reveal = self.modes[2].render(&mut frame, ctx);
         let word = self.modes[3].render(&mut frame, ctx);
+        let outro = self.outro.render(&mut frame, ctx);
         svgr!(
             <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
                 <rect width="1920" height="1080" fill="#0c1423" />
@@ -85,7 +93,7 @@ impl Video for CaptionVideo {
                         <text x="1010" y="640">"WORD"</text>
                     </g>
                 </g>
-                {highlight}{karaoke}{reveal}{word}
+                {highlight}{karaoke}{reveal}{word}{outro}
             </svg>
         )
     }

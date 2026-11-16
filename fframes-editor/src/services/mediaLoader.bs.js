@@ -155,6 +155,7 @@ function processDynamicMedia(imports, wasmController, options) {
                         case "ttf" :
                             tmp = resolveFont;
                             break;
+                        case "srt" :
                         case "vtt" :
                             tmp = resolveSubtitles;
                             break;

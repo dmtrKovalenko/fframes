@@ -112,6 +112,8 @@ impl MediaDirectory {
                     Some("json") => Some(
                         "JSON is not recognized as subtitles; animations require the lottie feature",
                     ),
+                    Some("srt") if cfg!(feature = "srt") => None,
+                    Some("srt") => Some("SubRip subtitles require the srt feature"),
                     Some(
                         "jpg" | "jpeg" | "png" | "vtt" | "mp3" | "wav" | "flac" | "aac" | "pcm"
                         | "ogg" | "mp2" | "m4a" | "mp4" | "webm" | "mkv" | "avi" | "mov" | "flv"
@@ -135,7 +137,9 @@ impl MediaDirectory {
                 json
             } else {
                 DirectoryMedia::Raw(match extension.as_deref() {
-                    Some("jpg" | "jpeg" | "png" | "vtt") => RawMediaFile::Data(fs::read(&path)?),
+                    Some("jpg" | "jpeg" | "png" | "vtt" | "srt") => {
+                        RawMediaFile::Data(fs::read(&path)?)
+                    }
                     _ => RawMediaFile::Stream(path.clone()),
                 })
             };
@@ -201,7 +205,7 @@ impl MediaDirectory {
                                 crate::AudioData::Preloaded(audio_data),
                             );
                         }
-                        ("vtt", RawMediaFile::Data(bytes)) => {
+                        ("vtt" | "srt", RawMediaFile::Data(bytes)) => {
                             let subtitles = parse_subtitles(path, bytes)?;
                             subtitles_hash
                                 .lock()?
@@ -312,6 +316,18 @@ fn parse_subtitles(path: &Path, bytes: &[u8]) -> FFramesRendererResult<Subtitles
     let text = std::str::from_utf8(bytes).map_err(|error| {
         crate::error::FFramesError::UserError(format!("{}: {error}", path.display()))
     })?;
+    // An empty `.srt` is an empty track; content detection cannot tell its format.
+    #[cfg(feature = "srt")]
+    if path
+        .extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("srt"))
+        && text.trim_start_matches('\u{feff}').trim().is_empty()
+    {
+        return Subtitles::from_srt(text).map_err(|error| {
+            crate::error::FFramesError::UserError(format!("{}: {error}", path.display())).into()
+        });
+    }
     Subtitles::parse(text).map_err(|error| {
         crate::error::FFramesError::UserError(format!("{}: {error}", path.display())).into()
     })

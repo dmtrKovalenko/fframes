@@ -4,6 +4,9 @@ mod error;
 mod font;
 mod images;
 mod raw_file;
+// Detection is always compiled so that SRT input without the feature gets a clear error.
+#[cfg_attr(not(feature = "srt"), allow(dead_code))]
+mod srt;
 pub mod subtitles;
 mod subtitles_data;
 mod video_types;

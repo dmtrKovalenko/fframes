@@ -178,7 +178,7 @@ let processDynamicMedia = (
     } else {
       switch name->Js.String.toLowerCase->Js.String.split(".")->Utils.Array.last {
       | Some("mp3" | "aac" | "ogg" | "wav" | "pcm" | "flac") => Some(resolveAudio)
-      | Some("vtt") => Some(resolveSubtitles)
+      | Some("vtt" | "srt") => Some(resolveSubtitles)
       | Some("json") => Some(resolveJson)
       | Some("ttf" | "otf") => Some(resolveFont)
       | Some("png" | "jpg" | "jpeg") => Some(resolveImage)

@@ -54,6 +54,8 @@ ffmpeg-sys-fframes = { workspace = true, features = ["build", "static"] }
 # by default we enable only platform specific encoders that 
 # would be always populated by the platform sysroot itself
 default = []
+# SubRip (`.srt`) subtitles: `CaptionTrack::from_srt` and detection in `CaptionTrack::parse`
+srt = []
 # Preserve prebuilt downloads and omit host CPU flags when building from source.
 build-portable = ["ffmpeg-sys-fframes/build-portable"]
 # enable various encoder & decoders libraries
