@@ -233,6 +233,20 @@ mod tests {
     }
 
     #[test]
+    fn a_minimum_of_the_whole_video_makes_one_segment() {
+        // EncoderOptions::segment_frames set to the length: one encoder run for the file
+        let scheduler = FrameScheduler::new(1200, 8, 1200);
+        let frames: Vec<_> = std::iter::from_fn(|| scheduler.claim(0)).collect();
+        assert_eq!(frames.len(), 1200);
+        assert!(frames.iter().all(|claim| claim.segment == 0));
+        assert!(frames[1199].last_in_segment);
+        assert_eq!(
+            frames.iter().filter(|claim| claim.last_in_segment).count(),
+            1
+        );
+    }
+
+    #[test]
     fn every_frame_is_claimed_once_and_segments_are_contiguous() {
         for (total, workers, min) in [(1000, 4, 10), (97, 16, 24), (48, 3, 24), (5000, 16, 24)] {
             let scheduler = FrameScheduler::new(total, workers, min);
