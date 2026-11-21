@@ -152,6 +152,16 @@ pub struct EncoderOptions<'a> {
     /// Size of group of picture
     /// @default 12
     pub gop_size: i32,
+    /// The shortest part of the video encoded as a separate encoder run (see
+    /// [`EncoderOptions::min_segment_frames`]). `None` keeps parts at most a second long so
+    /// they encode in parallel.
+    ///
+    /// Every part is a fresh encoder: rate control that spans frames, such as an x264
+    /// bitrate cap (`maxrate` + `bufsize`), starts over in each one, so a cap holds only
+    /// within a part. Set this to the video's length in frames (or more) to encode it in
+    /// one run when a cap must hold across the whole file.
+    /// @default `None`
+    pub segment_frames: Option<usize>,
     /// Specify the resulting sample rate of the audio stream (ignored for video streams)
     /// @default 44100
     pub sample_rate: usize,
@@ -193,9 +203,12 @@ impl EncoderOptions<'_> {
     /// to make sure that individual chunks are never less than 2xGOP size.
     /// The shortest part of a video the renderers encode separately. Every part starts
     /// with a keyframe, so it is never shorter than a GOP or than a second of video,
-    /// whichever is smaller.
+    /// whichever is smaller, unless [`EncoderOptions::segment_frames`] sets it.
     pub fn min_segment_frames(&self, fps: usize) -> usize {
-        (self.gop_size.max(1) as usize).min(fps.max(1))
+        match self.segment_frames {
+            Some(frames) => frames.max(1),
+            None => (self.gop_size.max(1) as usize).min(fps.max(1)),
+        }
     }
 
     pub fn split_gop_chunks(
@@ -241,6 +254,7 @@ impl Default for EncoderOptions<'_> {
             color_matrix: YuvMatrix::Bt601,
             codec_params: None,
             gop_size: 24,
+            segment_frames: None,
             max_qdiff: 4,
             pixel_format: AVPixelFormat::AV_PIX_FMT_YUV420P,
             preferred_encoder: None,
